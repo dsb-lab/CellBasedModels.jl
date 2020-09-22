@@ -7,7 +7,7 @@ module CellCommunity
     mutable struct cellCommunity
         cells::Array{CellStruct.cell}
         nCells::Int
-        neighbours::Array{Float32,2}
+        neighbours::Array{Bool,2}
         dSpace::Int
         function cellCommunity(dspace::Int,dstate::Int,dparameters::Int,ncells::Int=1)
             c = Array{CellStruct.cell}(undef, ncells)
@@ -18,9 +18,10 @@ module CellCommunity
         end
     end
 
-    function updateNeighbours(com::cellCommunity, metric = euclideMetric, cutoff::Float32 = 0.1)
+    function updateNeighbours(com::cellCommunity, metric = nearestNeighbours)
         for i in 1:com.nCells
             for j in 1:com.nCells
+                com.neighbours[i,j] = metric(com.cells[i],com.cells[j])
 
     end
 
