@@ -3,29 +3,62 @@ module CellCommunity
     push!(LOAD_PATH,"./")
     import CellStruct
     import Distributions
+    import Metrics
+    import SpatialDynamics
+    import Potentials
+    import Integrators
 
     mutable struct cellCommunity
         cells::Array{CellStruct.cell}
         nCells::Int
-        neighbours::Array{Bool,2}
         dSpace::Int
+        neighbours::Matrix{Bool,2}
+        forces::Array{Array{Float32}}
+        t::Float32
         function cellCommunity(dspace::Int,dstate::Int,dparameters::Int,ncells::Int=1)
             c = Array{CellStruct.cell}(undef, ncells)
             for i in 1:ncells
                 c[i]  = CellStruct.cell(dspace,dstate,dparameters)
             end
-            new(c,ncells,Dspace)
+            n = zeros(ncells,ncells)
+            f = Array{Array{Float32}}(undef,ncells)
+            for i in 1:ncells
+                f[i]  = zeros(dspace)
+            end
+            new(c,ncells,Dspace,n,f,0)
         end
     end
 
-    function updateNeighbours(com::cellCommunity, metric = nearestNeighbours)
+    function updateNeighbours(com::cellCommunity, metric = Metrics.nearestNeighbours)
         for i in 1:com.nCells
             for j in 1:com.nCells
                 com.neighbours[i,j] = metric(com.cells[i],com.cells[j])
 
     end
 
-    function evolveCells(com::cellCommunity, stopCriterion::string = "time", integrator = rungeKutta2, potential = normal, precission::Float32 = 0.1f0)
+    function step(com::cellCommunity, integrator, forceFunction, potential, dt)
+        for i in 1:com.nCells
+            com.state = integrator(com.state,com.forces[i],com.t,dt,forceFunction,)
+        end
+
+    end
+
+    function computeForces(com::cellCommunity, potential)
+
+        for i in 1:com.nCells
+            for j in 1:com.nCells
+                com.forces[i] += potential(com.cells[i], com.cells[j])
+            end
+        end
+
+    end
+
+    function evolveCells(com::cellCommunity, integrator = Integrators.rungeKutta4, forceFunction = SpatialDynamics.freeInertialMovement, potential = Potentials.normal)
+
+        computeForces(com,potential)
+        #Perform step
+        step(com, integrator, forceFunction, potential, dt)
+        com.t += dt
 
     end
 
@@ -45,8 +78,8 @@ module CellCommunity
             #Create new cell
             cop = deepcopy(com.cellCommunity.cells[cellId])
             #Create new center of the cells
-            com.cellCommunity.cells[cellId].pos += ax/2
-            cop.pos -= ax/2
+            com.cellCommunity.cells[cellId].pos += ax*cop.radius/2
+            cop.pos -= ax*cop.radius/2
         
         end
 
@@ -73,7 +106,7 @@ module CellCommunity
         com.cells[com.nCells] = r
 
         #Evolve the model for a few steps
-        evolveCells(com, stopCriterion = "relaxation", precission = 0.1)
+        evolveCells(com)
 
     end
 
