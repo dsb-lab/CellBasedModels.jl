@@ -1,48 +1,72 @@
+using CUDA
+
 abstract type SpatialDynamics end
-abstract type SpatialDynamicsCommunity <: SpatialDynamics end
-abstract type SpatialDynamicsCell <: SpatialDynamics end
 
 ##################################################
 #No movement
 ##################################################
 
-struct noMovementCommunity <: SpatialDynamicsCommunity
-end
-#Pretty printing of the noMovementCell structure
-Base.show(io::IO, z::noMovementCommunity) = print(io, "Spatial properties community\n nothing\n")
-
-struct noMovementCell <: SpatialDynamicsCell
-    pos::Array{Number}
-
-    function noMovementCell(dim::Integer)
-        new(zeros(dim))
-    end
-end
-#Pretty printing of the noMovementCell structure
-Base.show(io::IO, z::noMovementCell) = print(io, "Spatial properties cell",
-                                                    "\n pos:", z.pos,"\n")
-
 struct noMovement <: SpatialDynamics
 
-    community::noMovementCommunity
-    cell::noMovementCell
+    #Global properties
+    spatialParametersGlobalNames::Array{String}
+    spatialParametersGlobal::Array{Number}
+    #Local properties
+    spatialDynamicsLocalNames::Array{String}
+    spatialDynamicsLocal::Array{Number}
+
+    spatialParametersLocalNames::Array{String}
+    spatialParametersLocal::Array{Number}
     
-    function noMovement(dim::Integer)
-        new(noMovementCommunity(),noMovementCell(dim))
+    function noMovement(dim::Integer=3)
+        namesParamGlob = []
+        namesDynamics = [string("x",i) for i in 1:dim]
+        namesParamLoc = []
+        new(namesParamGlob,zeros(1,0),namesDynamics,zeros(1,dim),namesParamLoc,zeros(1,0))
     end
     
 end
 #Pretty printing of the noMovement structure
-Base.show(io::IO, z::noMovement) = print(io, z.community, z.cell)
+Base.show(io::IO, z::noMovement) = print(io, "Global spatial parameters\n ",z.spatialParametersGlobalNames,"\n",
+                                                 "Local spatial parameters\n ",z.spatialParametersLocalNames,"\n",
+                                                 "Local spatial dynamics\n ",z.spatialDynamicsLocalNames,"\n")
 
+struct noMovementCUDA <: SpatialDynamics
 
-function spatialDynamics(community::noMovementCommunity, cell::noMovementCell, t::Real)
+    #Global properties
+    spatialParametersGlobalNames::Array{String}
+    spatialParametersGlobal::CUDA.Array
     
-    return [zeros(length(cell.pos))]
+    #Local properties
+    spatialDynamicsLocalNames::Array{String}
+    spatialDynamicsLocal::CUDA.Array
+
+    spatialParametersLocalNames::Array{String}
+    spatialParametersLocal::CUDA.Array
+    
+    function noMovementCUDA(dim::Integer=3)
+        namesParamGlob = []
+        namesDynamics = [string("x",i) for i in 1:dim]
+        namesParamLoc = []
+        new(namesParamGlob,CUDA.zeros(1,0),namesDynamics,CUDA.zeros(1,dim),namesParamLoc,CUDA.zeros(1,0))
+    end
+    
+end
+#Pretty printing of the noMovement structure
+Base.show(io::IO, z::noMovementCUDA) = print(io, "Global spatial parameters\n ",z.spatialParametersGlobalNames,"\n",
+                                                 "Local spatial parameters\n ",z.spatialParametersLocalNames,"\n",
+                                                 "Local spatial dynamics\n ",z.spatialDynamicsLocalNames,"\n")
+
+function noMovementFunction(gParam, lParam, dynamics, newDynamics, t)
+    
+    for i = 1:length(dynamics)
+        newDynamics[i] = 0
+    end
+
+    return nothing
 end
 
-
-##################################################
+"""##################################################
 #Inertial movement
 ##################################################
 
@@ -132,4 +156,4 @@ Base.show(io::IO, z::globalDampedMovement) = print(io, z.community, z.cell)
 function spatialDynamics(community::globalDampedMovementCommunity, cell::globalDampedMovementCell, t::Real)
     
     return [cell.vel;cell.forces/cell.mass-community.viscosity*cell.vel/cell.mass]
-end
+end"""

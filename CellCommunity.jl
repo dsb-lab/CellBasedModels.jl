@@ -1,11 +1,26 @@
+using CUDA
+
 mutable struct cellCommunity
 
-    cells::Array{CellStruct.cell}
-    nCells::Int
-    dSpace::Int
-    neighbours::Matrix{Bool}
-    forces::Array{Array{Float64}}
+    #Global properties
+    chemicalParametersGlobal::CUDA.Array{Float32}
+    shapeParametersGlobal::CUDA.Array{Float32}
+
+    distanceMatrix::CUDA.Array{Float32}
+    nearestNeighbours::CUDA.Array{Float32}
+    nCells::Integer
+    dSpace::Integer
+    dChemicals::Integer
     t::Float64
+
+    #Local properties
+    chemicalDynamicsLocal::CUDA.Array{Float32}
+    chemicalParametersLocal::CUDA.Array{Float32}
+
+    shapeDynamicsLocal::CUDA.Array{Float32}
+    shapeParametersLocal::CUDA.Array{Float32}
+
+    innerTime::CUDA.Array{Float32}
 
     function cellCommunity(dspace::Int,dstate::Int,dparameters::Int,ncells::Int)
 
@@ -27,7 +42,7 @@ mutable struct cellCommunity
 
 end
 
-function updateNeighbours(com::cellCommunity, metric = Metrics.nearestNeighbours)
+"""function updateNeighbours(com::cellCommunity, metric = Metrics.nearestNeighbours)
     for i in 1:com.nCells
         for j in 1:com.nCells
             com.neighbours[i,j] = metric(com.cells[i],com.cells[j])
@@ -41,7 +56,7 @@ function step(com::cellCommunity, integrator, forceFunction, potential, dt)
 
 end
 
-"""    function computeForces(com::cellCommunity, potential)
+    function computeForces(com::cellCommunity, potential)
 
         for i in 1:com.nCells
             for j in 1:com.nCells
