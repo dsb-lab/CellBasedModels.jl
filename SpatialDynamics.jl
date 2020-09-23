@@ -3,6 +3,46 @@ abstract type SpatialDynamicsCommunity <: SpatialDynamics end
 abstract type SpatialDynamicsCell <: SpatialDynamics end
 
 ##################################################
+#No movement
+##################################################
+
+struct noMovementCommunity <: SpatialDynamicsCommunity
+end
+#Pretty printing of the noMovementCell structure
+Base.show(io::IO, z::noMovementCommunity) = print(io, "Spatial properties community\n nothing\n")
+
+struct noMovementCell <: SpatialDynamicsCell
+    pos::Array{Number}
+
+    function noMovementCell(dim::Integer)
+        new(zeros(dim))
+    end
+end
+#Pretty printing of the noMovementCell structure
+Base.show(io::IO, z::noMovementCell) = print(io, "Spatial properties cell",
+                                                    "\n pos:", z.pos,"\n")
+
+struct noMovement <: SpatialDynamics
+
+    community::noMovementCommunity
+    cell::noMovementCell
+    
+    function noMovement(dim::Integer)
+        new(noMovementCommunity(),noMovementCell(dim))
+    end
+    
+end
+#Pretty printing of the noMovement structure
+Base.show(io::IO, z::noMovement) = print(io, z.community, z.cell)
+
+
+function spatialDynamics(community::noMovementCommunity, cell::noMovementCell, t::Real)
+    
+    return [zeros(length(cell.pos))]
+end
+
+
+##################################################
 #Inertial movement
 ##################################################
 
