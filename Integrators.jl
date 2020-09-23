@@ -1,7 +1,7 @@
 push!(LOAD_PATH,"./")
 import CellStruct
 
-function rungeKutta4(state::Array{Float32}, extParams::Array{Float32}, t::Float32, dt::Float32, forceFunction)
+function rungeKutta4(state::Array{Number}, extParams::Array{Number}, t::Number, dt::Number, forceFunction)
     
     k1 = forceFunction(state, extParams, t)
     k2 = forceFunction(state+dt*k1/2, extParams, t+dt/2)

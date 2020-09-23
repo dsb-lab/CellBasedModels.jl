@@ -1,49 +1,47 @@
-module CellCommunity
+mutable struct cellCommunity
 
-    push!(LOAD_PATH,"./")
-    import CellStruct
-    import Distributions
-    import Metrics
-    import SpatialDynamics
-    import Potentials
-    import Integrators
+    cells::Array{CellStruct.cell}
+    nCells::Int
+    dSpace::Int
+    neighbours::Matrix{Bool}
+    forces::Array{Array{Float64}}
+    t::Float64
 
-    mutable struct cellCommunity
-        cells::Array{CellStruct.cell}
-        nCells::Int
-        dSpace::Int
-        neighbours::Matrix{Bool,2}
-        forces::Array{Array{Float32}}
-        t::Float32
-        function cellCommunity(dspace::Int,dstate::Int,dparameters::Int,ncells::Int=1)
-            c = Array{CellStruct.cell}(undef, ncells)
-            for i in 1:ncells
-                c[i]  = CellStruct.cell(dspace,dstate,dparameters)
-            end
-            n = zeros(ncells,ncells)
-            f = Array{Array{Float32}}(undef,ncells)
-            for i in 1:ncells
-                f[i]  = zeros(dspace)
-            end
-            new(c,ncells,Dspace,n,f,0)
-        end
-    end
+    function cellCommunity(dspace::Int,dstate::Int,dparameters::Int,ncells::Int)
 
-    function updateNeighbours(com::cellCommunity, metric = Metrics.nearestNeighbours)
-        for i in 1:com.nCells
-            for j in 1:com.nCells
-                com.neighbours[i,j] = metric(com.cells[i],com.cells[j])
-
-    end
-
-    function step(com::cellCommunity, integrator, forceFunction, potential, dt)
-        for i in 1:com.nCells
-            com.state = integrator(com.state,com.forces[i],com.t,dt,forceFunction,)
+        c = Array{CellStruct.cell}(undef, ncells)
+        for i in 1:ncells
+            c[i]  = CellStruct.cell(dspace,dstate,dparameters)
         end
 
+        n = zeros(ncells,ncells)
+
+        f = Array{Array{Float64}}(undef,ncells)
+        for i in 1:ncells
+            f[i]  = zeros(dspace)
+        end
+        new(c,ncells,Dspace,n,f,0)
+
+        new(c,ncells,Dspace,n)
     end
 
-    function computeForces(com::cellCommunity, potential)
+end
+
+function updateNeighbours(com::cellCommunity, metric = Metrics.nearestNeighbours)
+    for i in 1:com.nCells
+        for j in 1:com.nCells
+            com.neighbours[i,j] = metric(com.cells[i],com.cells[j])
+
+end
+
+function step(com::cellCommunity, integrator, forceFunction, potential, dt)
+    for i in 1:com.nCells
+        com.state = integrator(com.state,com.forces[i],com.t,dt,forceFunction)
+    end
+
+end
+
+"""    function computeForces(com::cellCommunity, potential)
 
         for i in 1:com.nCells
             for j in 1:com.nCells
@@ -66,8 +64,8 @@ module CellCommunity
 
         if splitMethod == "randomEvenHalves"
             #Choose axis 
-            ax = Array{Float32}(undef,com.dSpace)
-            total::Float32 = 0
+            ax = Array{Float64}(undef,com.dSpace)
+            total::Float64 = 0
             for i in 1:com.dSpace
                 ax[i] = Distributions.Normal(0,1)
                 total += ax[i]^2
@@ -108,6 +106,4 @@ module CellCommunity
         #Evolve the model for a few steps
         evolveCells(com)
 
-    end
-
-end
+    end"""
