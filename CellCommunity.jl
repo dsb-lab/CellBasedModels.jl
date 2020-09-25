@@ -2,45 +2,33 @@ using CUDA
 
 mutable struct cellCommunity
 
-    #Global properties
-    chemicalParametersGlobal::CUDA.Array{Float32}
-    shapeParametersGlobal::CUDA.Array{Float32}
+    spatialParametersNames::SpatialDynamics
+    spatialParametersGlobal::AbstractArray
+    spatialDynamicsLocal::AbstractArray
+    spatialParametersLocal::AbstractArray
 
-    distanceMatrix::CUDA.Array{Float32}
-    nearestNeighbours::CUDA.Array{Float32}
+    chemicalParametersNames::ChemicalDynamics
+    chemicalParametersGlobal::AbstractArray
+    chemicalDynamicsLocal::AbstractArray
+    chemicalParametersLocal::AbstractArray
+    
+    growParametersNames::GrowDynamics
+    shapeParametersLocal::AbstractArray
+
     nCells::Integer
-    dSpace::Integer
-    dChemicals::Integer
-    t::Float64
+    t::Real
 
-    #Local properties
-    chemicalDynamicsLocal::CUDA.Array{Float32}
-    chemicalParametersLocal::CUDA.Array{Float32}
+    function cellCommunity(sd::SpatialDynamics, cd::ChemicalDynamics, gd::GrowDynamics)
 
-    shapeDynamicsLocal::CUDA.Array{Float32}
-    shapeParametersLocal::CUDA.Array{Float32}
+        new(sd, [], [], [], cd, [], [], [], gd, [])
 
-    innerTime::CUDA.Array{Float32}
-
-    function cellCommunity(dspace::Int,dstate::Int,dparameters::Int,ncells::Int)
-
-        c = Array{CellStruct.cell}(undef, ncells)
-        for i in 1:ncells
-            c[i]  = CellStruct.cell(dspace,dstate,dparameters)
-        end
-
-        n = zeros(ncells,ncells)
-
-        f = Array{Array{Float64}}(undef,ncells)
-        for i in 1:ncells
-            f[i]  = zeros(dspace)
-        end
-        new(c,ncells,Dspace,n,f,0)
-
-        new(c,ncells,Dspace,n)
     end
 
 end
+#Pretty printing of the noMovement structure
+Base.show(io::IO, z::cellCommunity) = print(io, "Spatial parameters: ", typeof(z.spatialParametersNames), "\n",z.spatialParametersNames,"\n",
+                                                "Chemical parameters: ", typeof(z.chemicalParametersNames), "\n",z.chemicalParametersNames,"\n",
+                                                "Grow parameters parameters: ", typeof(z.growParametersNames), "\n",z.growParametersNames,"\n")
 
 """function updateNeighbours(com::cellCommunity, metric = Metrics.nearestNeighbours)
     for i in 1:com.nCells
