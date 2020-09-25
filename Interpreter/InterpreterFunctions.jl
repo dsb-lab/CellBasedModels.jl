@@ -1,3 +1,10 @@
+mutable struct interpretedData
+    names::Dict{String, Array{String}}()
+    values::Dict{String, Array{String}}()
+    dynamics::Dict{String, Array{String}}()
+
+end
+
 function extractModel(textModel)
 
     #Make copy
@@ -29,7 +36,7 @@ function extractModel(textModel)
             #Add variables
             counter = pos[1]+1
             while counter <= l
-                if length(findall(x->x==data[counter],AllHeadersParams)) != 0
+                if length(findall(x->x==data[counter],AllHeaders)) != 0
                     break
                 end
                 if data[counter] != ""
@@ -61,7 +68,7 @@ function extractModel(textModel)
             counter = pos[1]+1
             text = ""
             while counter <= l
-                if length(findall(x->x==data[counter],AllHeadersParams)) != 0
+                if length(findall(x->x==data[counter],AllHeaders)) != 0
                     break
                 end
                 text = string(text,data[counter],"\n")
@@ -76,7 +83,7 @@ function extractModel(textModel)
         end
     end
 
-    return dictionaryNames, dictionaryValues, dictionaryDyn
+    return interpretedData(dictionaryNames, dictionaryValues, dictionaryDyn)
 end
 
 function separateEqs(text)
@@ -91,6 +98,9 @@ function separateEqs(text)
     end
     return split(textnew,"\n")
 end
+
+
+
 
 function changeParse(variable,list,name)
     for i in 1:length(list)
