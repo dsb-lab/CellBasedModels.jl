@@ -1,62 +1,14 @@
 const AllHeaders = [
-"SpatialGlobalParams:",
-"SpatialLocalParams:",
-"SpatialVariables:",
-"SpatialRandomVariables:",
-    
-"ChemicalGlobalParams:",
-"ChemicalLocalParams:",
-"ChemicalVariables:",
-"ChemicalRandomVariables:",
-    
-"GrowthGlobalParams:",
-"GrowthLocalParams:",
-"GrowthVariables:",
-"GrowthRandomVariables:",
-
-"Dynamics:", 
-"SplitProcess:"
+"GlobalParams:",
+"LocalParams:",
+"Variables:",
+"RandomVariables:",
+"Equations:"
 ]
 
-const AllHeadersParams = [
-"SpatialGlobalParams:",
-"SpatialLocalParams:",
-"SpatialVariables:",
-"SpatialRandomVariables:",
-
-"ChemicalGlobalParams:",
-"ChemicalLocalParams:",
-"ChemicalVariables:",
-"ChemicalRandomVariables:",
-
-"GrowthGlobalParams:",
-"GrowthLocalParams:",
-"GrowthVariables:",
-"GrowthRandomVariables:",
+const ParameterHeaders = [
+"GlobalParams:",
+"LocalParams:",
+"Variables:",
+"RandomVariables:"
 ]
-
-const AllHeadersEqs = [
-"Dynamics:", 
-"SplitProcess:"
-]
-
-const SpatialHeadersParams = 
-["SpatialGlobalParams:",
- "SpatialLocalParams:",
- "SpatialVariables:"
- "SpatialRandomVariables:"]
-const SpatialHeadersCompulsory = ["SpatialVariables:", "Dynamics:"]
-
-const ChemicalHeadersParams = 
-["ChemicalGlobalParams:",
- "ChemicalLocalParams:",
- "ChemicalVariables:",
- "ChemicalRandomVariables:"]
-const ChemicalHeadersCompulsory = ["ChemicalVariables:", "Dynamics:"]
-
-const GrowthHeadersParams = 
-["GrowthGlobalParams:",
- "GrowthLocalParams:",
- "GrowthVariables:",
- "GrowthRandomVariables:"]
-const GrowthHeadersCompulsory = [ "GrowthVariables:", "Dynamics:", "SplitProcess:"]
