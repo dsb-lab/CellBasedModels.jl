@@ -1,3 +1,6 @@
+"""
+
+"""
 mutable struct interpretedData
     variables::Dict{String, Array{String}}
     equations::Dict{String, String}

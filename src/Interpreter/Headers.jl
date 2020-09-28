@@ -21,6 +21,6 @@ const ParameterHeaders = [
 ]
 
 const cellCellAlgorithmsHeaders = [
-    "CellCellGlobalAlgorithms:",
-    "CellCellNeighboursAlgorithms:"
+"CellCellGlobalAlgorithms:",
+"CellCellNeighboursAlgorithms:"
 ]
