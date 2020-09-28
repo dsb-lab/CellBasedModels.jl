@@ -3,12 +3,24 @@ const AllHeaders = [
 "LocalParams:",
 "Variables:",
 "RandomVariables:",
-"Equations:"
+"Equations:",
+"CellCellParams:",
+"CellCellGlobalAlgorithms:",
+"NeighboursRules:",
+"CellCellNeighboursAlgorithms:",
+"DivisionRules:",
+"DivisionAlgorithms:"
 ]
 
 const ParameterHeaders = [
-"GlobalParams:",
-"LocalParams:",
 "Variables:",
-"RandomVariables:"
+"LocalParams:",
+"GlobalParams:",
+"RandomVariables:",
+"CellCellParams:",
+]
+
+const cellCellAlgorithmsHeaders = [
+    "CellCellGlobalAlgorithms:",
+    "CellCellNeighboursAlgorithms:"
 ]
