@@ -1,6 +1,3 @@
-"""
-
-"""
 mutable struct interpretedData
     variables::Dict{String, Array{String}}
     equations::Dict{String, String}
@@ -80,6 +77,11 @@ function displayInterpretedData(z::interpretedData)
     return text
 end
 
+"""
+    function extractModel(textModel)
+
+Interpret the text file to convert it into a interpretedData structure.
+"""
 function extractModel(textModel)
 
     #Make copy
