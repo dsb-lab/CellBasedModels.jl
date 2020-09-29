@@ -184,16 +184,16 @@ function extractModel(textModel)
         for i in dictionaryVarNames["Variables:"]
             found = 0
             eq = ""
-            for j in text
+            for j in text     
                 if findfirst(string("d",i,"/dt"),j) !== nothing
                     found += 1
                     eq = j
                 end
-                if found == 0
-                    error("No differential equation has been defined for variable ", i, ".\n")
-                elseif found > 1
-                    error("Several differential equations have been defined for variable ", i, ". Only one is allowed.\n")
-                end
+            end
+            if found == 0
+                error("No differential equation has been defined for variable ", i, ".\n")
+            elseif found > 1
+                error("Several differential equations have been defined for variable ", i, ". Only one is allowed.\n")
             end
             if length(text) != length(dictionaryVarNames["Variables:"]) 
                 error("Missmatch in the number of declared Variables: and Equations:\n Number of differential equations: ", length(text),  "\n Number of variables declared: ",length(dictionaryVarNames["Variables:"]))
@@ -228,8 +228,8 @@ function extractModel(textModel)
         for i in text
             var = split(i,"<-")[1]
             #Check cell is defined
-            if var[1:5] != "cell."
-                error("Line is not a CellCell algorithm:\n\t", i, "\n Such algorithms should start as cell.LOCAL_PARAMETER/VARIABLE <- ...")
+            if var[1:5] != "cellr."
+                error("Line is not a CellCell algorithm:\n\t", i, "\n Such algorithms should start as cellr.LOCAL_PARAMETER/VARIABLE <- ...")
             end
             #Check only one algorithm exists
             if length(findall(x->x==string(var,"<-"),text)) > 1
@@ -286,8 +286,8 @@ function extractModel(textModel)
         for i in text
             var = split(i,"<-")[1]
             #Check cell is defined
-            if var[1:5] != "cell."
-                error("Line is not a CellCell algorithm:\n\t", i, "\n Such algorithms should start as cell.LOCAL_PARAMETER/VARIABLE <- ...")
+            if var[1:6] != "cellr."
+                error("Line is not a CellCell algorithm:\n\t", i, "\n Such algorithms should start as cellr.LOCAL_PARAMETER/VARIABLE <- ...")
             end
             #Check only one algorithm exists
             if length(findall(x->x==string(var,"<-"),text)) > 1

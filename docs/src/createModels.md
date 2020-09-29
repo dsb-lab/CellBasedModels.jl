@@ -34,19 +34,6 @@ K #Promotor strenght of the model
 "
 ```
 
-### CellCellParams:
-
-In addition to the global and local parameters, we may have parameters that depend on cell-cell interactions such as the distance between cells, or the number of nearest neighbours. Parameters that depend on second order interactions (pairwise interactions) are included in here.
-
-```julia
-text = 
-"
-CellCellParams:
-d #Distance between cells of the model
-Nnn #Number of neares neighbours
-"
-```
-
 ### Variables:
 
 The dynamics of the model are described by variables. All the terms in the model that are described by differential equations appear in such header. Consider for example that in our model we have cells with a chemical component and statial dynamics in the three dimensions.

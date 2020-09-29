@@ -4,7 +4,6 @@ const AllHeaders = [
 "Variables:",
 "RandomVariables:",
 "Equations:",
-"CellCellParams:",
 "CellCellGlobalAlgorithms:",
 "NeighboursRules:",
 "CellCellNeighboursAlgorithms:",
@@ -17,7 +16,6 @@ const ParameterHeaders = [
 "LocalParams:",
 "GlobalParams:",
 "RandomVariables:",
-"CellCellParams:",
 ]
 
 const cellCellAlgorithmsHeaders = [

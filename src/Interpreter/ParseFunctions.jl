@@ -27,7 +27,7 @@ function extractEquations(model::interpretedData,variables::Array{String})
     end
 
     #Construct function
-    text = "function equations("
+    text = "function equations(;"
     if length(vars) == 1
         text = string(text,vars[1],"::Number)\n\treturn ", model.equations[vars[1]],"\nend")
     else
@@ -66,11 +66,6 @@ function findVariables!(text::String,list,variables)
 
     return findVariables!(expression, list,variables)
 end
-
-
-
-
-
 
 function changeParse(variable,list,name)
     for i in 1:length(list)
