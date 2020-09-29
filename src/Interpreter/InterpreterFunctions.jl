@@ -1,3 +1,8 @@
+"""
+    mutable struct interpretedData
+
+Basic structure that defines the different components of a celular model.
+"""
 mutable struct interpretedData
     variables::Dict{String, Array{String}}
     equations::Dict{String, String}
@@ -8,7 +13,6 @@ mutable struct interpretedData
 end
 #Pretty printing of the noMovement structure
 Base.show(io::IO, z::interpretedData) = print(io, displayInterpretedData(z))
-
 function displayInterpretedData(z::interpretedData)
     text = ""
     #Parameters
@@ -80,7 +84,7 @@ end
 """
     function extractModel(textModel)
 
-Interpret the text file to convert it into a interpretedData structure.
+Interpret a text file representing a model to convert it into an interpretedData structure.
 """
 function extractModel(textModel)
 
@@ -173,7 +177,7 @@ function extractModel(textModel)
             if j[1] !=  'd' || split(j,"=")[1][end-2:end] != "/dt"
                 error("Error in definition of the differential equation:\n\t", j, """\nWrite if as "dVARIABLE/dt=...", where VARIABLE is the variable of the equation.""")
             else
-                dictionaryEqNames[j[2:end-4]]=j
+                dictionaryEqNames[split(j,"=")[1][2:end-3]]=j
             end
         end
         #Check variables have differential equations
@@ -350,6 +354,11 @@ function extractModel(textModel)
     return interpretedData(dictionaryVarNames, dictionaryEqNames, neighboursRules, dictionaryCellCellAlgorithms,divisionRules,divisionAlgorithms)
 end
 
+"""
+    function separateEqs(text,symbol="=")
+
+Takes a text with equations which may separated over several rows and returns a list with all the equations.
+"""
 function separateEqs(text,symbol="=")
     a = split(text,"\n")
     textnew = a[1]
@@ -364,6 +373,11 @@ function separateEqs(text,symbol="=")
     return split(textnew,"\n")
 end
 
+"""
+    function stackModels(a::Array{interpretedData})
+
+Combine interpretedData models that are parameter independent into one interpretedData model.
+"""
 function stackModels(a::Array{interpretedData})
     #Check crashes between parameters
     if length(a) == 1
@@ -429,6 +443,11 @@ function stackModels(a::Array{interpretedData})
     end
 end
 
+"""
+    function stackModels(a::Array{String})
+
+Combine text models that are parameter independent into one interpretedData model.
+"""
 function stackModels(a::Array{String})
 
     modelStack = Array{interpretedData}([])
@@ -439,6 +458,11 @@ function stackModels(a::Array{String})
     return stackModels(modelStack)
 end
 
+"""
+    function upgradeModels(a::Array{interpretedData})
+
+Combine interpretedData models with some shared parameters into one interpretedData model.
+"""
 function upgradeModels(a::Array{interpretedData})
     #Check crashes between parameters
     if length(a) == 1
@@ -557,6 +581,11 @@ function upgradeModels(a::Array{interpretedData})
     end
 end
 
+"""
+    function upgradeModels(a::Array{String})
+
+Combine text models with some shared parameters into one interpretedData model.
+"""
 function upgradeModels(a::Array{String})
 
     modelStack = Array{interpretedData}([])
