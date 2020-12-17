@@ -60,11 +60,11 @@ function parameterAdapt(agentModel::Model;platform::String="cpu",neighborhood="f
     comArgs = commonArguments(agentModel)
     #Make the locInter
     if length(agentModel.locInter) > 0 
-        locInter = vectParams(agentModel,agentModel.locInter)
+        locInter = vectParams(agentModel,deepcopy(agentModel.locInter))
         inLoop, arg = neighboursAdapt(locInter,neighborhood=neighborhood,radius=radius,boxSize=boxSize)
 
         reset = []
-        for i in length(locInter)
+        for i in 1:length(locInter)
             push!(reset,:(locInter_[ic1_,$i]=0))
         end
         push!(fDeclarations,
@@ -82,7 +82,7 @@ function parameterAdapt(agentModel::Model;platform::String="cpu",neighborhood="f
     
     #Make loc
     if length(agentModel.loc)>0
-        loc = vectParams(agentModel,agentModel.loc)
+        loc = vectParams(agentModel,deepcopy(agentModel.loc))
         push!(fDeclarations,
         platformAdapt(
         :(
@@ -97,7 +97,7 @@ function parameterAdapt(agentModel::Model;platform::String="cpu",neighborhood="f
 
     #Make glob
     if length(agentModel.glob)>0
-        glob = vectParams(agentModel,agentModel.glob)
+        glob = vectParams(agentModel,deepcopy(agentModel.glob))
         push!(fDeclarations,
         platformAdapt(
         :(

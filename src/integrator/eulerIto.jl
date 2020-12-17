@@ -11,7 +11,7 @@ function integratorSDEEulerIto(agentModel::Model;platform::String="cpu",neighbor
         #Number of random variables that we require
         count = 1
         nEqs = []
-        for eq in agentModel.equations
+        for eq in deepcopy(agentModel.equations)
             eqs = split(string(eq),"ξ_")
             eq = eqs[1]
             for i in eqs[2:end]

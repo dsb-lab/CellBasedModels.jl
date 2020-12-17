@@ -31,7 +31,7 @@ function integratorEuler(agentModel::Model;platform::String="cpu",neighborhood="
         )
 
         #Make the functions
-        inter = vectParams(agentModel,agentModel.inter)
+        inter = vectParams(agentModel,deepcopy(agentModel.inter))
         inLoop, arg = neighboursAdapt(inter,neighborhood=neighborhood,radius=radius,boxSize=boxSize)
     
         push!(fdeclare,

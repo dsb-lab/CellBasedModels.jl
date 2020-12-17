@@ -36,7 +36,7 @@ append!(execute,exec)
 if neighborhood=="full"
     execNN = [nothing]
 elseif neighborhood=="nn"
-    var,f,execNN = nearestNeighbours(agentModel,neighborhoodCondition,platform=platform)
+    var,f,execNN = neighboursByAdjacency(agentModel,neighborhoodCondition,platform=platform)
     append!(varDeclarations,var)
     append!(fDeclarations,f)
     append!(execute,execNN)    
