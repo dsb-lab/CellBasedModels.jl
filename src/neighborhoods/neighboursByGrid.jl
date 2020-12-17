@@ -1,0 +1,140 @@
+function neighboursByGrid(agentModel::Model,variables::Array{Symbol},radius::Float64,boxSize::Array{<:Array{Float64}};platform="cpu")
+    
+    #Check dimensions
+    if length(variables) != size(boxSize)[1]
+        error("Variables and size of box have a dimension mismatch.")
+    end
+    nBinsDimension = [ceil(Int,(i[2]-i[1])/radius/2) for i in boxSize]
+    cumBins = [2;cumprod(nBinsDimension)]
+    #Add declaring variables
+    varDeclare = Expr[]
+    push!(varDeclare,:(nnGridBinId_ = @ARRAY_zeros(Int,nMax_)))
+    push!(varDeclare,:(nnGridCounts_ = @ARRAY_zeros(Int,$(cumBins[end]))))
+    push!(varDeclare,:(nnGridCountsAlloc_ = @ARRAY_zeros(Int,$(cumBins[end]))))
+    push!(varDeclare,:(nnGridCountsCum_ = @ARRAY_zeros(Int,$(cumBins[end]))))
+    push!(varDeclare,:(nnId_ = @ARRAY_zeros(Int,nMax_)))
+    varDeclare = platformAdapt(varDeclare,platform=platform)
+    
+    #Make the position assotiation in the grid
+    cumBins = [1;cumprod(nBinsDimension)]
+    l= [:(
+    begin 
+        aux = floor(Int,($(variables[i])-$(boxSize[i][1]))/$(radius*2))+1
+        if aux < 1
+            position_ += 0
+        elseif aux > $(nBinsDimension[i])
+            position_ += $(nBinsDimension[i]-1)*$(cumBins[i])
+        else
+            position_ += (aux-1)*$(cumBins[i])
+        end
+                end) for i in 1:length(variables)]
+    position = :(begin $(l...) end)
+        
+    fDeclare = Expr[]
+    #Add declaring functions
+    comArgs = commonArguments(agentModel)
+    if platform == "cpu"
+        push!(fDeclare,
+            vectParams(agentModel,:( function insertCounts_($(comArgs...),nnGridBinId_,nnGridCounts_,nnGridCountsAlloc_)
+              lockadd_ = Threads.SpinLock()
+              Threads.@threads for ic1_ = 1:N_
+                    position_ = 1
+                    $position
+                    nnGridBinId_[ic1_] = position_
+                    lock(lockadd_)
+                        nnGridCounts_[position_]+=1
+                    unlock(lockadd_)
+                    nnGridCountsAlloc_[position_] = 1
+              end
+                return
+            end    
+            )))
+        push!(fDeclare,
+            vectParams(agentModel,:( function countingSort_($(comArgs...),nnGridBinId_,nnGridCounts_,nnGridCountsAlloc_,nnGridCountsCum_,nnId_)
+                    lockadd_ = Threads.SpinLock()          
+                    Threads.@threads for ic1_ = 1:N_
+                    id_ = nnGridBinId_[ic1_]
+                    if id_ == 1
+                        posInit_ = 0
+                    else
+                        posInit_ = nnGridCountsCum_[id_-1]
+                    end
+                    lock(lockadd_)
+                        posCell_ = nnGridCountsAlloc_[id_]
+                        nnGridCountsAlloc_[id_]+=1
+                    unlock(lockadd_)
+                    nnId_[ic1_] = posInit_+posCell_
+              end
+                return
+            end    
+            )))     
+    elseif platform == "gpu"
+        push!(fDeclare,
+            subs(:( function insertCounts_($(comArgs...),nnGridBinId_,nnGridCounts_,nnGridCountsAlloc_)
+              stride_ = (blockDim()).x*(gridDim()).x
+              index_ = (threadIdx()).x + ((blockIdx()).x - 1) * (blockDim()).x
+              for ic1_ = index_:stride_:N_
+                    position_ = 1
+                    $position
+                    nnGridBinId_[ic1_] = position_
+                    CUDA.atomic_add!(nnGridCounts_[position_],1)
+                    nnGridCountsAlloc_[position_] = 1
+              end
+                return
+            end    
+            ))
+            )    
+        push!(fDeclare,
+            subs(:( function countingSort_($(comArgs...),nnGridBinId_,nnGridCounts_,nnGridCountsCum_,nnId_)
+              stride_ = (blockDim()).x*(gridDim()).x
+              index_ = (threadIdx()).x + ((blockIdx()).x - 1) * (blockDim()).x
+              for ic1_ = index_:stride_:N_
+                    id_ = nnGridBinId_[ic1_]
+                    if id_ == 1
+                        posInit_ = 0
+                    else
+                        posInit_ = nnGridCountsCum_[id_-1]
+                    end
+                    posCell_ = CUDA.atomic_add!(nnGridCountsAlloc_[id_],1)
+                    nnId_[ic1_] = posInit_+posCell_
+              end
+                return
+            end    
+            ))
+            )
+    end
+    #Add execution time functions
+    execute = Expr[]
+    if platform == "cpu"
+        push!(execute,
+        :(begin
+        #Clean counts
+        nnGridCounts_ .= 0
+        #Insert+Counts
+        insertCounts_($(comArgs...),nnGridBinId_,nnGridCounts_,nnGridCountsAlloc_)
+        #Prefix sum
+        nnGridCountsCum_ = cumsum(nnGridCounts_)
+        #Counting sort
+        countingSort_($(comArgs...),nnGridBinId_,nnGridCounts_,nnGridCountsAlloc_,nnGridCountsCum_,nnId_)                       
+        end
+        )
+        )
+    elseif platform == "gpu"
+        push!(execute,
+        :(begin
+        #Clean counts
+        nnGridCounts_ .= 0
+        #Insert+Counts
+        CUDA.@cuda threads=threads_ blocks=blocks_ insertCounts_($(comArgs...),nnGridBinId_,nnGridCounts_)
+        #Prefix sum
+        nnGridCountsCum_ = cumsum(nnGridCounts_)
+        #Counting sort
+        CUDA.@cuda threads=threads_ blocks=blocks_ countingSort_($(comArgs...),nnGridBinId_,nnGridCounts_,nnGridCountsAlloc_,nnGridCountsCum_,nnId_)                        
+        end
+        )
+        )
+    end
+    
+    return varDeclare, fDeclare, execute
+    
+end
