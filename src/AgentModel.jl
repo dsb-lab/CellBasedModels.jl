@@ -28,6 +28,7 @@ include("./random/normal.jl")
 include("./random/uniform.jl")
 
 #Model functions
+include("./model/parameterAdapt.jl")
 include("./model/addGlobal.jl")
 include("./model/addLocal.jl")
 include("./model/addLocalInteraction.jl")
@@ -39,13 +40,14 @@ include("./neighborhoods/neighboursAdapt.jl")
 include("./neighborhoods/neighboursByAdjacency.jl")
 include("./neighborhoods/neighboursByGrid.jl")
 
-#Integrators
+#Special
 include("./special/division.jl")
 include("./special/remove.jl")
 
 #Integrators
 include("./integrator/euler.jl")
 include("./integrator/eulerIto.jl")
+include("./integrator/integrators.jl")
 
 #Saving
 include("./saving/ram.jl")

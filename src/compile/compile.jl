@@ -15,7 +15,7 @@ for i in keys(INTEGRATORS)
 end
 for i in keys(INTEGRATORSSDE)
     if integrator==i
-        var,f,exec = INTEGRATORS[i](agentModel,neighborhood=neighborhood,platform=platform)
+        var,f,exec = INTEGRATORSSDE[i](agentModel,neighborhood=neighborhood,platform=platform)
         integratorFound = true
     end
 end
@@ -28,7 +28,7 @@ append!(fDeclarations,f)
 append!(execute,exec)
 
 #Parameter declare
-var,f,exec = parameterCompile(agentModel,platform=platform,neighborhood=neighborhood,radius=radius,boxSize=boxSize)
+var,f,exec = parameterAdapt(agentModel,platform=platform,neighborhood=neighborhood,radius=radius,boxSize=boxSize)
 append!(varDeclarations,var)
 append!(fDeclarations,f)
 append!(execute,exec)

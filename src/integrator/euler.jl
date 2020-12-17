@@ -37,7 +37,7 @@ function integratorEuler(agentModel::Model;platform::String="cpu",neighborhood="
         push!(fdeclare,
         platformAdapt(
         :(
-        function interUpdate_($(comArgs...),$(count...))
+        function interUpdate_($(comArgs...),$(arg...))
         @INFUNCTION_ for ic1_ in index_:stride_:N_
             $inLoop
         end
@@ -56,7 +56,7 @@ function integratorEuler(agentModel::Model;platform::String="cpu",neighborhood="
         push!(execute,
         platformAdapt(
         :(
-        @OUTFUNCTION_ interUpdate_($(comArgs...),$(count...))
+        @OUTFUNCTION_ interUpdate_($(comArgs...),$(arg...))
         ),platform=platform)
         )
         append!(execute,agentModel.additionalInteractions)
