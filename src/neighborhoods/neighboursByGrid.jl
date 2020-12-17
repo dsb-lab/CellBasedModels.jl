@@ -1,33 +1,32 @@
-function neighboursByGrid(agentModel::Model,variables::Array{Symbol},radius::Float64,boxSize::Array{<:Array{Float64}};platform="cpu")
+function neighboursByGrid(agentModel::Model;platform="cpu")
     
-    #Check dimensions
-    if length(variables) != size(boxSize)[1]
-        error("Variables and size of box have a dimension mismatch.")
-    end
-    nBinsDimension = [ceil(Int,(i[2]-i[1])/radius/2) for i in boxSize]
-    cumBins = [2;cumprod(nBinsDimension)]
+    grid = agentModel.neighbours
+
     #Add declaring variables
     varDeclare = Expr[]
+    push!(varDeclare,:(nnGridBinIdGrid_ = @ARRAY_zeros(Int,nMax_,$(grid.dim))))
     push!(varDeclare,:(nnGridBinId_ = @ARRAY_zeros(Int,nMax_)))
-    push!(varDeclare,:(nnGridCounts_ = @ARRAY_zeros(Int,$(cumBins[end]))))
-    push!(varDeclare,:(nnGridCountsAlloc_ = @ARRAY_zeros(Int,$(cumBins[end]))))
-    push!(varDeclare,:(nnGridCountsCum_ = @ARRAY_zeros(Int,$(cumBins[end]))))
+    push!(varDeclare,:(nnGridCounts_ = @ARRAY_zeros(Int,$(grid.N))))
+    push!(varDeclare,:(nnGridCountsAlloc_ = @ARRAY_zeros(Int,$(grid.N))))
+    push!(varDeclare,:(nnGridCountsCum_ = @ARRAY_zeros(Int,$(grid.N))))
     push!(varDeclare,:(nnId_ = @ARRAY_zeros(Int,nMax_)))
     varDeclare = platformAdapt(varDeclare,platform=platform)
     
-    #Make the position assotiation in the grid
-    cumBins = [1;cumprod(nBinsDimension)]
+    #Make the position assotiation in the grid x
     l= [:(
     begin 
-        aux = floor(Int,($(variables[i])-$(boxSize[i][1]))/$(radius*2))+1
+        aux = floor(Int,($(grid.variables[i])-$(grid.boxSize[i][1]))/$(grid.radius*2))+1
         if aux < 1
             position_ += 0
-        elseif aux > $(nBinsDimension[i])
-            position_ += $(nBinsDimension[i]-1)*$(cumBins[i])
+            nnGridBinIdGrid_[ic1_,i] = 1 
+        elseif aux > $(grid.NAxis[i])
+            position_ += $(grid.NAxis[i])*$(grid.cum[i])
+            nnGridBinIdGrid_[ic1_,i] = grid.NAxis[i]
         else
             position_ += (aux-1)*$(cumBins[i])
+            nnGridBinIdGrid_[ic1_,i] = aux
         end
-                end) for i in 1:length(variables)]
+                end) for i in 1:length(grid.variables)]
     position = :(begin $(l...) end)
         
     fDeclare = Expr[]
@@ -35,7 +34,7 @@ function neighboursByGrid(agentModel::Model,variables::Array{Symbol},radius::Flo
     comArgs = commonArguments(agentModel)
     if platform == "cpu"
         push!(fDeclare,
-            vectParams(agentModel,:( function insertCounts_($(comArgs...),nnGridBinId_,nnGridCounts_,nnGridCountsAlloc_)
+            vectParams(agentModel,:( function insertCounts_($(comArgs...),nnGridBinId_,nnGridBinIdGrid_,nnGridCounts_,nnGridCountsAlloc_)
               lockadd_ = Threads.SpinLock()
               Threads.@threads for ic1_ = 1:N_
                     position_ = 1
@@ -135,6 +134,39 @@ function neighboursByGrid(agentModel::Model,variables::Array{Symbol},radius::Flo
         )
     end
     
+    arg = [:(nnGridBinId_),:(nnGridBinIdGrid_),:(nnGridCounts_),:(nnGridCountsCum_),:(nnId_)]
+    for (pos,i) in enumerate(add[2:end-1])
+        ll = []
+        for j in l
+            if i != add[pos]
+                for k in [-i,0,i]
+                    push!(ll,j+k)
+                end
+            else
+                ll = l
+            end
+        end
+        l = copy(ll)
+    end
+    ll = []
+    for i in l
+        push!(ll,:(bin+$i))
+    end
+    inLoop = subs(:(
+    begin
+    bin = nnGridBinId_[ic1_]
+    for gridPos_ in [$(ll...)]
+            if gridPos_ > 0 && gridPos_ <= $(cumprod(nBinsDimension)[end])
+            n_ = nnGridCounts_[gridPos_]-1
+            start_ = nnGridCountsCum_[gridPos_]
+            for ic2_ in start_:(start_+n_)
+                ALGORITHMS_
+            end
+        end
+    end    
+    end
+    ),:nnic2_,:(nnId_[ic2_]))
+
     return varDeclare, fDeclare, execute
     
 end

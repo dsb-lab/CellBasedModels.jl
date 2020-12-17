@@ -79,6 +79,16 @@ elseif platform == "gpu"
     )
 end
 
-return varDeclare, fDeclare, execute
+count = Meta.parse("nnN_[ic1_]")
+locInter = subs(algorithms,[:nnic2_],[:(nnList_[ic1_,ic2_])])
+arg = [Meta.parse("nnN_"),Meta.parse("nnList_")]
+inLoop = 
+:(
+for ic2_ in 1:$count
+    $(algorithms...)
+end    
+)
+
+return varDeclare, fDeclare, execute, inLoop, arg
 
 end

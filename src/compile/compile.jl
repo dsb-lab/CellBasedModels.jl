@@ -5,8 +5,22 @@ varDeclarations = []
 fDeclarations = []
 execute = []
 
+#Parameter declare
+neighborhoodFound = false
+for i in keys(NEIGHBORHOODS)
+    if neighborhood==i
+        var,f,exec, inLoop, arg = NEIGHBORHOODS[i](agentModel,platform=platform)
+        append!(varDeclarations,var)
+        append!(fDeclarations,f)
+        append!(execute,exec)
+        neighborhoodFound = true
+    end
+end
+if !neighborhoodFound
+    error("No neigborhood called ", neighborhood,".")
+end
+
 #Integrator
-integratorFound = false
 for i in keys(INTEGRATORS)
     if integrator==i
         var,f,exec = INTEGRATORS[i](agentModel,neighborhood=neighborhood,platform=platform)
@@ -27,27 +41,10 @@ append!(varDeclarations,var)
 append!(fDeclarations,f)
 append!(execute,exec)
 
-#Parameter declare
-var,f,exec = parameterAdapt(agentModel,platform=platform,neighborhood=neighborhood,radius=radius,boxSize=boxSize)
+var,f,execNN = NEIGHBOURS[string(typeof(agentModel.neighbourhood))](agentModel,neighborhoodCondition,platform=platform)
 append!(varDeclarations,var)
 append!(fDeclarations,f)
-append!(execute,exec)
-
-if neighborhood=="full"
-    execNN = [nothing]
-elseif neighborhood=="nn"
-    var,f,execNN = neighboursByAdjacency(agentModel,neighborhoodCondition,platform=platform)
-    append!(varDeclarations,var)
-    append!(fDeclarations,f)
-    append!(execute,execNN)    
-elseif neighborhood=="nn2"
-    var,f,execNN = nearestNeighbours2(agentModel,nnVariables,radius,boxSize,platform=platform)
-    append!(varDeclarations,var)
-    append!(fDeclarations,f)
-    append!(execute,execNN)    
-else
-    error("No neighborhood called ", neighborhood,".")
-end
+append!(execute,execNN)    
 
 #Saving
 if saveRAM
