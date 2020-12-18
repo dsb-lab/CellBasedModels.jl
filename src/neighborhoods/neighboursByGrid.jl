@@ -1,12 +1,49 @@
 struct NeighboursGrid <: Neighbours
 
-    condition::String
+    variables::Array{Symbol}
+    box::Matrix{AbstractFloat}
+    radius::Array{AbstractFloat}
+
+    n::Int
+    axisSize::Array{Int}
+    cumSize::Array{Int}
 
 end
 
-function setNeighborhoodGrid!(agentModel::Model, condition::String)
+function setNeighborhoodGrid!(agentModel::Model, vars::Array{Symbol}, box::Matrix{AbstractFloat}, radius::AbstractFloat)
+
+    if length(var) != size(box)[1] || length(var) != length(radius)
+        error("Declared vars, Box first dimension and radius have to be the same length.")
+    end
+    if size(box)[2] != 2
+        error("Declared box second dimension has to be of length 2 (minimum and maximum).")        
+    end
+
+    axisSize = [ceil((i[2]-i[1])/radius) for i in box]
+    cum = cumprod(axisSize)
+    cumSize = [1;cum[1:end-1]]
+    n = cum[end]
+
+    agentModel.neighborhood = NeighboursGrid(vars,box,ones(length(vars))*radius,n,axisSize,cumSize) 
     
-    agentModel.neighborhood = NeighboursGrid(condition) 
+    return
+end
+
+function setNeighborhoodGrid!(agentModel::Model, vars::Array{Symbol}, box::Matrix{AbstractFloat}, radius::Array{AbstractFloat})
+
+    if length(var) != size(box)[1] || length(var) != length(radius)
+        error("Declared vars, Box first dimension and radius have to be the same length.")
+    end
+    if size(box)[2] != 2
+        error("Declared box second dimension has to be of length 2 (minimum and maximum).")        
+    end
+
+    axisSize = [ceil((i[2]-i[1])/j) for (i,j) in zip(box,radius)]
+    cum = cumprod(axisSize)
+    cumSize = [1;cum[1:end-1]]
+    n = cum[end]
+
+    agentModel.neighborhood = NeighboursGrid(vars,box,radius,n,axisSize,cumSize) 
     
     return
 end
@@ -28,7 +65,7 @@ function neighboursByGrid(agentModel::Model;platform="cpu")
     #Make the position assotiation in the grid x
     l= [:(
     begin 
-        aux = floor(Int,($(grid.variables[i])-$(grid.boxSize[i][1]))/$(grid.radius*2))+1
+        aux = floor(Int,($(grid.variables[i])-$(grid.axisSize[i][1]))/$(grid.radius[i]*2))+1
         if aux < 1
             position_ += 0
             nnGridBinIdGrid_[ic1_,i] = 1 
@@ -182,4 +219,12 @@ function neighboursByGrid(agentModel::Model;platform="cpu")
 
     return varDeclare, fDeclare, execute
     
+end
+
+function neighboursByAdjacency(entry)
+
+    entry = subs(entry,:nnic2_,:N_)
+
+    return entry
+
 end

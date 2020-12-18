@@ -1,50 +1,40 @@
-function compile(agentModel::Model;platform="cpu",neighborhood="full",
-    neighborhoodCondition="",nnVariables=[],radius=1.,boxSize=[],
+function compile(agentModel::Model;platform="cpu",
     integrator="euler",saveRAM = false)
 varDeclarations = []
 fDeclarations = []
 execute = []
 
+#Neighbours declare
+if typeof(agentModel.neighborhood) in keys(NEIGHBOURS)
+    var,f,execNN, inLoop, arg = NEIGHBOURS[typeof(agentModel.neighborhood)](agentModel,platform=platform)
+    append!(varDeclarations,var)
+    append!(fDeclarations,f)
+    append!(execute,execNN)
+else
+    error("No neigborhood called ", agentModel.neighborhood,".")
+end
+
 #Parameter declare
-neighborhoodFound = false
-for i in keys(NEIGHBORHOODS)
-    if neighborhood==i
-        var,f,exec, inLoop, arg = NEIGHBORHOODS[i](agentModel,platform=platform)
-        append!(varDeclarations,var)
-        append!(fDeclarations,f)
-        append!(execute,exec)
-        neighborhoodFound = true
-    end
-end
-if !neighborhoodFound
-    error("No neigborhood called ", neighborhood,".")
-end
-
-#Integrator
-for i in keys(INTEGRATORS)
-    if integrator==i
-        var,f,exec = INTEGRATORS[i](agentModel,neighborhood=neighborhood,platform=platform)
-        integratorFound = true
-    end
-end
-for i in keys(INTEGRATORSSDE)
-    if integrator==i
-        var,f,exec = INTEGRATORSSDE[i](agentModel,neighborhood=neighborhood,platform=platform)
-        integratorFound = true
-    end
-end
-if !integratorFound
-    error("No integrator called ", integrator,".")
-end
-
+var,f,exec = parameterAdapt(agentModel,inLoop,arg,platform=platform)
 append!(varDeclarations,var)
 append!(fDeclarations,f)
 append!(execute,exec)
 
-var,f,execNN = NEIGHBOURS[string(typeof(agentModel.neighbourhood))](agentModel,neighborhoodCondition,platform=platform)
-append!(varDeclarations,var)
-append!(fDeclarations,f)
-append!(execute,execNN)    
+#Integrator
+if integrator in keys(INTEGRATORS)
+    var,f,exec = INTEGRATORS[integrator](agentModel,inLoop,arg,platform=platform)
+    append!(varDeclarations,var)
+    append!(fDeclarations,f)
+    append!(execute,exec)        
+elseif integrator in keys(INTEGRATORSSDE)
+    var,f,exec = INTEGRATORSSDE[integrator](agentModel,inLoop,arg,platform=platform)
+    integratorFound = true
+    append!(varDeclarations,var)
+    append!(fDeclarations,f)
+    append!(execute,exec)
+else
+    error("No integrator called ", integrator,".")
+end
 
 #Saving
 if saveRAM

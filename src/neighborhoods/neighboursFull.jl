@@ -17,10 +17,9 @@ function neighboursFull(agentModel::Model;platform="cpu")
     fDeclare = Expr[]
     #Add execution time functions
     execute = Expr[]
-
-    count = Meta.parse("nnN_[ic1_]")
-    locInter = subs(algorithms,[:nnic2_],[:(N_)])
-    arg = []
+    #Arguments for the calling function
+    arg = Symbol[]
+    #In loop call
     inLoop = 
     :(
     for ic2_ in 1:N_
@@ -29,5 +28,13 @@ function neighboursFull(agentModel::Model;platform="cpu")
     )
 
     return varDeclare, fDeclare, execute, inLoop, arg
+
+end
+
+function neighboursFullAdapt(entry)
+
+    entry = subs(entry,:nnic2_,:N_)
+
+    return entry
 
 end

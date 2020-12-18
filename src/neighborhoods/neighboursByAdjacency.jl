@@ -1,12 +1,13 @@
 struct NeighboursAdjacency <: Neighbours
 
     condition::String
+    nMax::Int
 
 end
 
-function setNeighborhoodAdjacency!(agentModel::Model, condition::String)
+function setNeighborhoodAdjacency!(agentModel::Model, condition::String, nMax::Int)
     
-    agentModel.neighborhood = NeighboursAdjacency(condition) 
+    agentModel.neighborhood = NeighboursAdjacency(condition,nMax) 
     
     return
 end
@@ -14,11 +15,12 @@ end
 function neighboursByAdjacency(agentModel::Model;platform="cpu")
 
     condition = copy(agentModel.neighborhood.condition)
+    neighMax_ = agentModel.neighborhood.nMax
 
     #Add declaring variables
     varDeclare = Expr[]
     push!(varDeclare,:(nnN_ = @ARRAY_zeros(Int,nMax_)))
-    push!(varDeclare,:(nnList_ = @ARRAY_zeros(Int,nMax_,neighMax_)))
+    push!(varDeclare,:(nnList_ = @ARRAY_zeros(Int,nMax_,$neighMax_)))
     varDeclare = platformAdapt(varDeclare,platform=platform)
 
     fDeclare = Expr[]
@@ -95,7 +97,7 @@ function neighboursByAdjacency(agentModel::Model;platform="cpu")
 
     count = Meta.parse("nnN_[ic1_]")
     locInter = subs(algorithms,[:nnic2_],[:(nnList_[ic1_,ic2_])])
-    arg = [Meta.parse("nnN_"),Meta.parse("nnList_")]
+    arg = Symbol[Meta.parse("nnN_"),Meta.parse("nnList_")]
     inLoop = 
     :(
     for ic2_ in 1:$count
@@ -104,5 +106,13 @@ function neighboursByAdjacency(agentModel::Model;platform="cpu")
     )
 
     return varDeclare, fDeclare, execute, inLoop, arg
+
+end
+
+function neighboursByAdjacencyAdapt(entry)
+
+    entry = subs(entry,:nnic2_,:(nnList_[ic1_,ic2_]))
+
+    return entry
 
 end

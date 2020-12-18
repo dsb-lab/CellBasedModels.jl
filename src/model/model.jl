@@ -2,6 +2,7 @@ mutable struct Model
 
     declaredSymb::Dict{String,Array{Symbol}}
     declaredRandSymb::Dict{String,Array{Tuple}}
+    declaredIds::Array{Symbol}
     
     equations::Array{Expr}
     inter::Array{Expr}
@@ -10,7 +11,7 @@ mutable struct Model
     glob::Array{Expr}
     
     neighborhood::Neighbours
-    additionalInteractions::Array{SpecialProperties}
+    special::Array{Special}
     
     function Model()
         new(
@@ -18,9 +19,9 @@ mutable struct Model
                                         "loc"=>Symbol[],"locInter"=>Symbol[],"glob"=>Symbol[]]),
             Dict{String,Array{Tuple{Symbol,String}}}(["locRand"=>Tuple{Symbol,String}[],
                     "locInterRand"=>Tuple{Symbol,String}[],"globRand"=>Tuple{Symbol,String}[]]),
+            Array(Symbol[]),
             Array(Expr[]),Array(Expr[]),Array(Expr[]),
             Array(Expr[]),Array(Expr[]),
-            (:(),Expr[]),:(),
-            Array(Expr[]))
+            NeighboursFull(),Special[])
     end
 end

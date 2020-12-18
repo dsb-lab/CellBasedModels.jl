@@ -1,4 +1,4 @@
-function integratorEuler(agentModel::Model;platform::String="cpu",neighborhood="full",nChange_=false,radius=0.,boxSize=[])
+function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platform::String="cpu")
     
     varDeclare = []
     fdeclare = []
@@ -15,8 +15,8 @@ function integratorEuler(agentModel::Model;platform::String="cpu",neighborhood="
         nEqs = []
         for eq in agentModel.equations
             v = string(eq.args[1])[2:end-2]
-            arg = string(eq.args[2])
-            push!(nEqs,string("$v += ($arg)*dt_"))
+            args = string(eq.args[2])
+            push!(nEqs,string("$v += ($args)*dt_"))
         end
         eqs = vectParams(agentModel,nEqs)
         push!(fdeclare,
@@ -32,7 +32,8 @@ function integratorEuler(agentModel::Model;platform::String="cpu",neighborhood="
 
         #Make the functions
         inter = vectParams(agentModel,deepcopy(agentModel.inter))
-        inLoop, arg = neighboursAdapt(inter,neighborhood=neighborhood,radius=radius,boxSize=boxSize)
+        inter = NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](inter)
+        inLoop = Meta.parse(replace(string(inLoop),"ALGORITHMS_"=>"$(inter...)"))
     
         push!(fdeclare,
         platformAdapt(
@@ -59,7 +60,6 @@ function integratorEuler(agentModel::Model;platform::String="cpu",neighborhood="
         @OUTFUNCTION_ interUpdate_($(comArgs...),$(arg...))
         ),platform=platform)
         )
-        append!(execute,agentModel.additionalInteractions)
 
     end
         

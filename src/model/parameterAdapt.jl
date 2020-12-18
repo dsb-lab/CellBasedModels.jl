@@ -1,4 +1,4 @@
-function parameterAdapt(agentModel::Model;platform::String="cpu",neighborhood="full",nChange_=false,radius=0.,boxSize=[])
+function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nChange_=false)
 
     varDeclarations = Expr[]
     fDeclarations = Expr[]
@@ -61,7 +61,7 @@ function parameterAdapt(agentModel::Model;platform::String="cpu",neighborhood="f
     #Make the locInter
     if length(agentModel.locInter) > 0 
         locInter = vectParams(agentModel,deepcopy(agentModel.locInter))
-        inLoop, arg = neighboursAdapt(locInter,neighborhood=neighborhood,radius=radius,boxSize=boxSize)
+        inLoop = Meta.parse(replace!(string(inLoop),"ALGORITHMS_"=>"$(locInter...)"))
 
         reset = []
         for i in 1:length(locInter)

@@ -6,6 +6,7 @@ using Random
 
 #Reserved variables of the model
 include("./constants/constants.jl")
+include("./constants/abstractStructures.jl")
 
 #Structure
 include("./model/model.jl")
@@ -36,9 +37,10 @@ include("./model/addVariable.jl")
 include("./model/addInteraction.jl")
 
 #Neighborhoods
-include("./neighborhoods/neighboursAdapt.jl")
+include("./neighborhoods/neighboursFull.jl")
 include("./neighborhoods/neighboursByAdjacency.jl")
 include("./neighborhoods/neighboursByGrid.jl")
+include("./neighborhoods/neighbours.jl")
 
 #Special
 include("./special/division.jl")

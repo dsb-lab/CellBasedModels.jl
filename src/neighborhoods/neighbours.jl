@@ -1,8 +1,12 @@
-#Create neighbours supertype
-abstract type Neighbours end
+#List of neighbourhoods available
+global NEIGHBOURS = Dict(
+    [NeighboursFull=>neighboursFull,
+    NeighboursAdjacency=>neighboursByAdjacency,
+    NeighboursGrid=>neighboursByAdjacency
+    ])
 
-NEIGHBORHOODS = Dict(
-    ["full"=>neighboursFull,
-    "nnAdjacentcy"=>neighboursByAdjacency,
-    "nnGrid"=>neighboursByAdjacency
+global NEIGHBORHOODADAPT= Dict(
+    [NeighboursFull=>neighboursFullAdapt,
+    NeighboursAdjacency=>neighboursByAdjacencyAdapt,
+    NeighboursGrid=>neighboursByAdjacencyAdapt
     ])

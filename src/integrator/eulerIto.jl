@@ -1,4 +1,4 @@
-function integratorSDEEulerIto(agentModel::Model;platform::String="cpu",neighborhood="full",nChange_=false)
+function integratorSDEEulerIto(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platform::String="cpu",nChange_=false)
     
     varDeclare = []
     fdeclare = []
@@ -32,8 +32,8 @@ function integratorSDEEulerIto(agentModel::Model;platform::String="cpu",neighbor
         nEqs2 = []
         for eq in nEqs
             v = string(eq.args[1])[2:end-2]
-            arg = string(eq.args[2])
-            push!(nEqs2,string("$v += ($arg)*dt_"))
+            args = string(eq.args[2])
+            push!(nEqs2,string("$v += ($args)*dt_"))
         end
         eqs = vectParams(agentModel,nEqs2)
         push!(fdeclare,
@@ -47,32 +47,14 @@ function integratorSDEEulerIto(agentModel::Model;platform::String="cpu",neighbor
         end),platform=platform)
         )
 
-        #Make the update
-        inter = vectParams(agentModel,agentModel.inter)
-        if neighborhood == "full"
-            count = :N_
-            inter = subs(inter,[:nnic2_],[:N_])
-        elseif neighborhood == "nn"
-            count = Meta.parse("nnN_[i1_]")
-            inter = subs(inter,[:nnic2_],[:(nnList_[ic1_,ic2_])])
-        end
-        inLoop = 
-        :(
-        for ic2_ in 1:$count
-            $(inter...)
-        end    
-        )
-    
         #Make the functions
-        if neighborhood == "full"
-            count = []
-        elseif neighborhood == "nn"
-            count = [Meta.parse("nnN_"),Meta.parse("nnList_")]
-        end
+        inter = vectParams(agentModel,deepcopy(agentModel.inter))
+        inter = NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](inter)
+        inLoop = Meta.parse(replace(string(inLoop),"ALGORITHMS_"=>"$(inter...)"))
         push!(fdeclare,
         platformAdapt(
         :(
-        function interUpdate_($(comArgs...),$(count...))
+        function interUpdate_($(comArgs...),$(arg...))
         @INFUNCTION_ for ic1_ in index_:stride_:N_
             $inLoop
         end
@@ -95,11 +77,10 @@ function integratorSDEEulerIto(agentModel::Model;platform::String="cpu",neighbor
         :(begin
         $init
         @OUTFUNCTION_ integratorStep_($(comArgs...),ξ_)
-        @OUTFUNCTION_ interUpdate_($(comArgs...),$(count...))
+        @OUTFUNCTION_ interUpdate_($(comArgs...),$(arg...))
         end
         ),platform=platform)
         )
-        append!(execute,agentModel.additionalInteractions)
 
     end
         
