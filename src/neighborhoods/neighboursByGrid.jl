@@ -1,3 +1,16 @@
+struct NeighboursGrid <: Neighbours
+
+    condition::String
+
+end
+
+function setNeighborhoodGrid!(agentModel::Model, condition::String)
+    
+    agentModel.neighborhood = NeighboursGrid(condition) 
+    
+    return
+end
+
 function neighboursByGrid(agentModel::Model;platform="cpu")
     
     grid = agentModel.neighbours

@@ -9,10 +9,8 @@ mutable struct Model
     loc::Array{Expr}
     glob::Array{Expr}
     
-    division::Tuple{Expr,Array{Expr}}
-    remove::Expr
-
-    additionalInteractions::Array{Expr}
+    neighborhood::Neighbours
+    additionalInteractions::Array{SpecialProperties}
     
     function Model()
         new(
