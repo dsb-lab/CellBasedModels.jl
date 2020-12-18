@@ -1,4 +1,5 @@
-Tester.ipynb
 .ipynb_checkpoints
 Cuda tests.ipynb
 docs/build
+.ipynb
+data
