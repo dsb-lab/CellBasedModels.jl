@@ -14,7 +14,7 @@ end
 
 function neighboursByAdjacency(agentModel::Model;platform="cpu")
 
-    condition = copy(agentModel.neighborhood.condition)
+    condition = deepcopy(agentModel.neighborhood.condition)
     neighMax_ = agentModel.neighborhood.nMax
 
     #Add declaring variables
@@ -90,18 +90,17 @@ function neighboursByAdjacency(agentModel::Model;platform="cpu")
         )
         push!(execute,
         :(
-        CUDA.@cuda threads=(16,16) blocks=(100,100) nnUpdate_($(comArgs...),nnN_,nnList_)
+        CUDA.@cuda threads=(16,16) blocks=(100,100) nnUpdate_($(comArgs...),nnN_,nnList_) #Has to be changed
         )
         )
     end
 
     count = Meta.parse("nnN_[ic1_]")
-    locInter = subs(algorithms,[:nnic2_],[:(nnList_[ic1_,ic2_])])
     arg = Symbol[Meta.parse("nnN_"),Meta.parse("nnList_")]
     inLoop = 
     :(
     for ic2_ in 1:$count
-        $(algorithms...)
+        ALGORITHMS_
     end    
     )
 

@@ -33,7 +33,7 @@ end
 
 function neighboursFullAdapt(entry)
 
-    entry = subs(entry,:nnic2_,:N_)
+    entry = subs(entry,:nnic2_,:ic2_)
 
     return entry
 

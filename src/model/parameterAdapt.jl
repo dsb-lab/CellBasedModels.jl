@@ -61,7 +61,8 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
     #Make the locInter
     if length(agentModel.locInter) > 0 
         locInter = vectParams(agentModel,deepcopy(agentModel.locInter))
-        inLoop = Meta.parse(replace!(string(inLoop),"ALGORITHMS_"=>"$(locInter...)"))
+        inLoop = Meta.parse(replace(string(inLoop),"ALGORITHMS_"=>"$(locInter...)"))
+        inLoop = NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](inLoop)   
 
         reset = []
         for i in 1:length(locInter)
@@ -115,11 +116,6 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
     #Add interLoc
     platformRandomAdapt!(execute,agentModel,"locInterRand",platform,nChange_)
     if length(agentModel.locInter)>0
-        if neighborhood == "full"
-            arg = []
-        elseif neighborhood == "nn"
-            arg = [Meta.parse("nnN_"),Meta.parse("nnList_")]
-        end
         push!(execute,
         platformAdapt(
         :(@OUTFUNCTION_ locInterStep_($(comArgs...),$(arg...)))

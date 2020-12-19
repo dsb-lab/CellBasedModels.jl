@@ -2,11 +2,11 @@
 global NEIGHBOURS = Dict(
     [NeighboursFull=>neighboursFull,
     NeighboursAdjacency=>neighboursByAdjacency,
-    NeighboursGrid=>neighboursByAdjacency
+    NeighboursGrid=>neighboursByGrid
     ])
 
 global NEIGHBORHOODADAPT= Dict(
     [NeighboursFull=>neighboursFullAdapt,
     NeighboursAdjacency=>neighboursByAdjacencyAdapt,
-    NeighboursGrid=>neighboursByAdjacencyAdapt
+    NeighboursGrid=>neighboursByGridAdapt
     ])

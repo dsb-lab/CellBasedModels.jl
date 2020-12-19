@@ -21,6 +21,7 @@ include("./auxiliar/platformAdapt.jl")
 include("./auxiliar/splitting.jl")
 include("./auxiliar/substitution.jl")
 include("./auxiliar/vectorize.jl")
+include("./auxiliar/clean.jl")
 
 #Random variables
 include("./random/random.jl")

@@ -57,6 +57,11 @@ function evolve(com::Community;tMax_,dt_,t_=com.t_,N_=com.N_,nMax_=com.N_, neigh
     #println(CUDA.memory_status())
     
     #Execution of the program
+    nBlocks_ = min(round(Int,N_/threads_),2560)
+    if nBlocks_ == 0
+        nBlocks_ = 1
+    end
+    
     $(execNN...)
     while t_ <= tMax_
         nBlocks_ = min(round(Int,N_/threads_),2560)
