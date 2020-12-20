@@ -1,12 +1,13 @@
-push!(LOAD_PATH,"../src/")
-push!(LOAD_PATH,"/home/gabriel/Documents/PhD/3 Simulation/embryogenesisJulia/src/")
+push!(LOAD_PATH,"../docs/src/")
+push!(LOAD_PATH,"./src")
 
-using Documenter, Interpreter
+using Documenter, AgentModel
 
-makedocs(sitename="EmbryogenensisJulia",
+makedocs(sitename="AgentModel.jl",
 pages = [
     "Home" => "index.md",
     "createModels.md",
+    "API.md",
 ],
 format = Documenter.HTML(prettyurls = false)
 )

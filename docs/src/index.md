@@ -1,5 +1,5 @@
-# Documentation
+# API
 
 ```@docs
-Interpreter.extractModel(textModel)
+Model
 ```

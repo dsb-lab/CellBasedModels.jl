@@ -1,3 +1,8 @@
+"""
+    mutable struct Model
+
+Basic structure where to incorporate the different properties of your model.
+"""
 mutable struct Model
 
     declaredSymb::Dict{String,Array{Symbol}}

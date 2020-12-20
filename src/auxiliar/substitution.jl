@@ -1,3 +1,9 @@
+
+"""
+    function subs(expr,ob,tar)
+
+Substitute ob expression or symbol by tar expression or symbol into expression expr.
+"""
 function subs(exp,ob,tar)
     for (pos,a) in enumerate(exp.args)
         if a == ob
@@ -9,6 +15,11 @@ function subs(exp,ob,tar)
     return exp
 end
 
+"""
+    function subs(expr,ob,tar)
+
+Substitute ob expression or symbol by tar expression or symbol into expression expr.
+"""
 function subs(exp::String,ob,tar)
     expE = subs(Meta.parse(exp),ob,tar)
     return expE

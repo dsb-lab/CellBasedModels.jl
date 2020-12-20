@@ -4,6 +4,8 @@ using CUDA
 using DataFrames
 using Random
 
+export Community, Model
+
 #Reserved variables of the model
 include("./constants/constants.jl")
 include("./constants/abstractStructures.jl")
