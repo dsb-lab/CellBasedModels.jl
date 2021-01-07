@@ -8,6 +8,7 @@ pages = [
     "Home" => "index.md",
     "createModels.md",
     "API.md",
+    "APIdevelopers.md"
 ],
 format = Documenter.HTML(prettyurls = false)
 )

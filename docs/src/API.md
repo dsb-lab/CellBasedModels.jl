@@ -19,22 +19,10 @@ addVariable!
 addInteraction!
 ```
 
-## Add Neighborhood
+## Set Neighborhood
 ```@docs
 ```
 
 ## Add Special
 ```@docs
-```
-
-## Developers
-
-### Add parameters
-```@docs
-parameterAdapt
-```
-
-### Auxiliar
-```@docs
-subs
 ```
