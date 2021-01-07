@@ -4,17 +4,37 @@
 CurrentModule = AgentModel
 ```
 
-## Basics
+## Model
 
 ```@docs
 Model
-
-addGlobal!
-addLocal!
 ```
 
-## Auxiliar
+## Add Parameters
+```@docs
+addGlobal!
+addLocal!
+addLocalInteraction!
+addVariable!
+addInteraction!
+```
 
+## Add Neighborhood
+```@docs
+```
+
+## Add Special
+```@docs
+```
+
+## Developers
+
+### Add parameters
+```@docs
+parameterAdapt
+```
+
+### Auxiliar
 ```@docs
 subs
 ```

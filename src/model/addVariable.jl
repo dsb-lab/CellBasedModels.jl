@@ -1,4 +1,25 @@
-function addVariables!(agentModel::Model, addvar::Symbol, addeqs::String)
+"""
+    function addVariable!(agentModel::Model, addvar::Symbol, addeqs::String)
+
+Add a variable described by an Ordinary or Stochastic Differential Equation.
+
+# Examples
+```
+m = Model();
+eq = "
+dxdt = -x #Exponential decay
+"
+addVariable!(m,:x,eq);
+```
+```
+m = Model();
+eq = "
+dxdt = -x+ξ #Wiener process
+"
+addVariable!(m,:x,eq);
+```
+"""
+function addVariable!(agentModel::Model, addvar::Symbol, addeqs::String)
     
     newEqs = splitLines(addeqs,"=")
     if length(newEqs) == 0
@@ -25,7 +46,22 @@ function addVariables!(agentModel::Model, addvar::Symbol, addeqs::String)
     return
 end
 
-function addVariables!(agentModel::Model, addvar::Array{Symbol}, addeqs::String)
+"""
+    function addVariable!(agentModel::Model, addvar::Symbol, addeqs::String)
+
+Add a variable described by an Ordinary or Stochastic Differential Equations.
+
+# Examples
+```
+m = Model();
+eq = "
+dxdt = -x #Exponential decay
+dydt = -y + ξ #Wiener process
+"
+addVariable!(m,[:x,:y],eq);
+```
+"""
+function addVariable!(agentModel::Model, addvar::Array{Symbol}, addeqs::String)
     
     newEqs = splitLines(addeqs,"=")
     #Check repeated declarations

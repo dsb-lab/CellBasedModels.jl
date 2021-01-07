@@ -2,6 +2,21 @@
     addLocal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tuple{Symbol,String}[])
 
 Add a local variable to the model with optional update rules.
+
+# Examples
+```
+m = Model();
+
+addLocal!(m,:x);
+```
+```
+m = Model();
+update = "
+x= r #r is a random variable with μ=0. and σ=1.
+"
+
+addLocal!(m,:x,updates=update,randVar=[(:r,Normal,0.,1.)]);
+```
 """
 function addLocal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tuple{Symbol,String}[])
     
@@ -56,6 +71,22 @@ end
     addLocal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar = Tuple{Symbol,String}[])
 
 Add a local variable to the model with optional update rules.
+
+# Examples
+```
+m = Model();
+
+addGlobal!(m,[:x,:y]);
+```
+
+```
+m = Model();
+update = " #We update x but not y
+x= r
+"
+
+addGlobal!(m,[:x,:y],updates=update,randVar=[(:r,Normal,0,1)]);
+```
 """
 function addLocal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar = Tuple{Symbol,String}[])
     

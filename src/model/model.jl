@@ -1,7 +1,15 @@
 """
     mutable struct Model
 
-Basic structure where to incorporate the different properties of your model.
+Basic structure which contains the model.
+
+# Example
+```
+m = Model(); #Create empty model
+
+addGlobal!(m,:x); #Add a global variable to the model
+# Here there may be many more additions
+```
 """
 mutable struct Model
 

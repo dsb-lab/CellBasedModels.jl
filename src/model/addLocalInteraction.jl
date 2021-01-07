@@ -1,3 +1,20 @@
+"""
+    function addLocalInteraction!(agentModel::Model, addvar::Symbol, addeqs::String; randVar = Tuple{Symbol,String}[])
+
+Add a local interaction to the model.
+
+# Examples
+```
+m = Model();
+addLocal!(m,[:x,:y]);
+
+
+interaction = "
+d₁ = sqrt((x₁-x₂)^2+(y₁-y₂)^2)
+"
+addLocalInteraction!(m,:d,interaction);
+```
+"""
 function addLocalInteraction!(agentModel::Model, addvar::Symbol, addeqs::String; randVar = Tuple{Symbol,String}[])
     
     newEqs = splitUpdating(addeqs)
@@ -48,6 +65,24 @@ function addLocalInteraction!(agentModel::Model, addvar::Symbol, addeqs::String;
     return
 end
 
+"""
+    function addLocalInteraction!(agentModel::Model, addvar::Symbol, addeqs::String; randVar = Tuple{Symbol,String}[])
+
+Add a local interaction to the model.
+
+# Examples
+```
+m = Model();
+addLocal!(m,[:x,:y]);
+
+
+interaction = "
+d₁ = sqrt((x₁-x₂)^2+(y₁-y₂)^2)
+dAbs₁ = abs(x₁-x₂)+abs(y₁-y₂)
+"
+addLocalInteraction!(m,[:d,:dAbs],interaction);
+```
+"""
 function addLocalInteraction!(agentModel::Model, addvar::Array{Symbol}, addeqs::String; randVar = Tuple{Symbol,String}[])
     
     newEqs = splitUpdating(addeqs)

@@ -1,3 +1,20 @@
+"""
+    function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nChange_=false)
+
+Function that returns the pieces of the final compiling code for the parameters adapted to the corresponding platform:  
+
+  * arrays to declare containg the parameters declared
+  * functions for parameter updates
+  * execution lines
+
+Parameters:
+
+  * *agentModel* : Model structure
+  * *inLoop* : Code of the interaction local to be adapted depending on the neighbborhood
+  * *arg* : Additional arguments required by the functions
+  * *platform* : Platform to be adapted ("cpu" or "gpu")
+  * *nChange_* : FILL THE GAP
+"""
 function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nChange_=false)
 
     varDeclarations = Expr[]
