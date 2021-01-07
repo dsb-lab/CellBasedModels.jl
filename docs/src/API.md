@@ -8,6 +8,9 @@ CurrentModule = AgentModel
 
 ```@docs
 Model
+
+addGlobal!
+addLocal!
 ```
 
 ## Auxiliar

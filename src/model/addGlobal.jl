@@ -1,3 +1,8 @@
+"""
+    function addGlobal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tuple{Symbol,String}[])
+
+Add a global variable to the model with optional update rules.
+"""
 function addGlobal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tuple{Symbol,String}[])
     
     if updates != ""
@@ -47,6 +52,11 @@ function addGlobal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tup
     return
 end
 
+"""
+    function addGlobal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar = Tuple{Symbol,String}[])
+
+Add a set of global variables to the model with optional update rules.
+"""
 function addGlobal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar = Tuple{Symbol,String}[])
     
     #Check repeated declarations in addvar

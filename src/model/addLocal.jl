@@ -1,3 +1,8 @@
+"""
+    addLocal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tuple{Symbol,String}[])
+
+Add a local variable to the model with optional update rules.
+"""
 function addLocal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tuple{Symbol,String}[])
     
     if updates != ""
@@ -47,6 +52,11 @@ function addLocal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tupl
     return
 end
 
+"""
+    addLocal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar = Tuple{Symbol,String}[])
+
+Add a local variable to the model with optional update rules.
+"""
 function addLocal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar = Tuple{Symbol,String}[])
     
     #Check repeated declarations in addvar
