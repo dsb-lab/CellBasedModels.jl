@@ -1,5 +1,5 @@
 """
-    function addLocalInteraction!(agentModel::Model, addvar::Symbol, addeqs::String; randVar = Tuple{Symbol,String}[])
+    function addInteraction!(agentModel::Model, addvar::Symbol, addeqs::String)
 
 Add a interaction parameters to the model. Differently to the local interactions, this parameters will be updated inside the integration steps of the differential equations.
 
@@ -10,7 +10,6 @@ eq = "
 dxdt = -x+g*ξ #Wiener process with an additional interaction
 "
 addVariable!(m,:x,eq);
-
 
 interaction = "
 g₁ += 1./sqrt((x₁-x₂)^2+(y₁-y₂)^2) #The difussion will be affected by the presence of other particles around them.
@@ -50,7 +49,7 @@ function addInteraction!(agentModel::Model, addvar::Symbol, addeqs::String)
 end
 
 """
-    function addLocalInteraction!(agentModel::Model, addvar::Symbol, addeqs::String; randVar = Tuple{Symbol,String}[])
+    function addInteraction!(agentModel::Model, addvar::Symbol, addeqs::String)
 
 Add a interaction parameters to the model. Differently to the local interactions, this parameters will be updated inside the integration steps of the differential equations.
 

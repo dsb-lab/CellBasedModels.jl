@@ -116,7 +116,7 @@ function neighboursByGrid(agentModel::Model;platform="cpu")
             position_ += 0
             nnGId_[ic1_,$i] = 1 
         elseif aux > $(grid.axisSize[i])
-            position_ += $(grid.axisSize[i])*$(grid.cumSize[i])
+            position_ += $(grid.axisSize[i]-1)*$(grid.cumSize[i])
             nnGId_[ic1_,$i] = $(grid.axisSize[i])
         else
             position_ += (aux-1)*$(grid.cumSize[i])
