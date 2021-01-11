@@ -77,7 +77,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
     comArgs = commonArguments(agentModel)
     #Make the locInter
     if length(agentModel.locInter) > 0 
-        locInter = vectParams(agentModel,deepcopy(agentModel.locInter))
+        locInter = [string(i,"\n") for i in vectParams(agentModel,deepcopy(agentModel.locInter))]
         inLoop = Meta.parse(replace(string(inLoop),"ALGORITHMS_"=>"$(locInter...)"))
         inLoop = NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](inLoop)   
 
