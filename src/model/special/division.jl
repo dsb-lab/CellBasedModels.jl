@@ -116,6 +116,13 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
         ]
 
         #Declare functions
+        aux = []
+        for ic2_ in 1:length(agentModel.declaredSymb["loc"])
+            push!(aux,:(loc_[nnic2_,$ic2_] = loc_[ic1_,$ic2_]))
+        end
+        for ic2_ in 1:length(agentModel.declaredIds)
+            push!(aux,:(ids_[nnic2_,$ic2_] = ids_[ic1_,$ic2_]))
+        end
         push!(fDeclare,
             platformAdapt(
             vectParams(agentModel,:(
@@ -139,12 +146,12 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
                     end
     
                     Threads.@threads for ic1_ in 1:divN_
-                        for v in [$(comArgs[4:end-1]...)]
-                            v[N_+ic1_] = v[divList_[ic1_]]
-                        end
-
-                        ic1_ = divList_[ic1_]
+                        
                         nnic2_ = N_+ic1_
+                        ic1_ = divList_[ic1_]
+
+                        $(aux...)
+
                         $(update...)
 
                         parent_₂ = id_₁
@@ -204,11 +211,11 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
             ) 
 
         aux = []
-        for v in agentModel.
-            for ic2_ in 1:length(age[v])
-                push!(aux,:(
-                $v[nnic2_,$ic2_] = $v[ic1_,$ic2_]))
-            end
+        for ic2_ in 1:length(agentModel.declaredSymb["loc"])
+            push!(aux,:(loc_[nnic2_,$ic2_] = loc_[ic1_,$ic2_]))
+        end
+        for ic2_ in 1:length(agentModel.declaredIds)
+            push!(aux,:(ids_[nnic2_,$ic2_] = ids_[ic1_,$ic2_]))
         end
         push!(fDeclare,
             platformAdapt(
@@ -221,13 +228,11 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
                 #Check division cells
                 for ic1_ in index_:stride_:divN_
         
-                    ic1_ = divList_[ic1_]
                     nnic2_ = N_+ic1_
+                    ic1_ = divList_[ic1_]
 
-                    for ic2_ in 1:length(loc_)
-                        loc_[nnic2_,ic2_] = loc_[ic1_,ic2_]
-                    end
-                    locRand_[nnic2_,1] = locRand_[ic1_,1]
+                    $(aux...)
+
                     $(update...)
         
                     parent_₂ = id_₁
@@ -249,7 +254,6 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
                 divN_ = @ARRAY_ones(Int,1)
                 @OUTFUNCTION_ addDiv1_($(comArgs...),divList_,divN_)
                 divN = Array(divN_)[1]-1
-                println(divN)
                 if N_+divN > nMax_
                     error("In the next division there will be more cells than allocated cells. Evolve again with a higher nMax_.")
                 elseif divN > 0
