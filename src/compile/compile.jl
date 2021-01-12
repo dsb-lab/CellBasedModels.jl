@@ -36,6 +36,11 @@ else
     error("No integrator called ", integrator,".")
 end
 
+#Special functions
+for special in AgentModel.special
+    
+end
+
 #Saving
 if saveRAM
     var,f,execSave = inRAMSave(agentModel)

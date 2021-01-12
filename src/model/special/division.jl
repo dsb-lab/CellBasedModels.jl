@@ -72,11 +72,9 @@ function addDivisionProcess!(agentModel::Model, condition::String, update::Strin
 end
 
 """
-    function divisionCompile(agentModel::Model, platform::String, varDeclaredAll::Array{Expr})
+    function divisionCompile(agentModel::Model, platform::String)
 """
-function divisionCompile(agentModel::Model, platform::String, varDeclaredAll::Array{Expr})
-    
-    varD = [i.args[1] for i in varDeclaredAll]
+function divisionCompile(division::DivisionProcess,agentModel::Model, platform::String)
     
     comArgs = commonArguments(agentModel)
     cond = vectParams(agentModel, agentModel.division[1])

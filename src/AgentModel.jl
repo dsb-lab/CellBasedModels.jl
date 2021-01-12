@@ -33,20 +33,21 @@ include("./random/uniform.jl")
 
 #Model functions
 include("./model/parameterAdapt.jl")
-include("./model/addGlobal.jl")
-include("./model/addLocal.jl")
-include("./model/addLocalInteraction.jl")
-include("./model/addVariable.jl")
-include("./model/addInteraction.jl")
+include("./model/basic/addGlobal.jl")
+include("./model/basic/addLocal.jl")
+include("./model/basic/addLocalInteraction.jl")
+include("./model/basic/addVariable.jl")
+include("./model/basic/addInteraction.jl")
 
 #Neighborhoods
-include("./neighborhoods/neighboursFull.jl")
-include("./neighborhoods/neighboursByAdjacency.jl")
-include("./neighborhoods/neighboursByGrid.jl")
-include("./neighborhoods/neighbours.jl")
+include("./model/neighborhoods/neighboursFull.jl")
+include("./model/neighborhoods/neighboursByAdjacency.jl")
+include("./model/neighborhoods/neighboursByGrid.jl")
+include("./model/neighborhoods/neighbours.jl")
 
 #Special
 include("./model/special/division.jl")
+include("./model/special/special.jl")
 
 #Integrators
 include("./integrator/euler.jl")
