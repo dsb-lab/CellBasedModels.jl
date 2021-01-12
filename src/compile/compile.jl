@@ -47,7 +47,7 @@ else
     ret=[:Nothing]
 end
 
-return :(
+program = :(
 function evolve(com::Community;tMax_,dt_,t_=com.t_,N_=com.N_,nMax_=com.N_, neighMax_=nMax_,tSave_=0.,tSaveStep_=dt_,threads_=256)
     #Declaration of variables
     $(varDeclarations...)
@@ -84,4 +84,9 @@ function evolve(com::Community;tMax_,dt_,t_=com.t_,N_=com.N_,nMax_=com.N_, neigh
     return $(ret...)
 end
 )
+
+agentModel.evolve = eval(program)
+
+return program
+
 end

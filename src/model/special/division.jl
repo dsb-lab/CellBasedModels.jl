@@ -71,6 +71,9 @@ function addDivisionProcess!(agentModel::Model, condition::String, update::Strin
     return
 end
 
+"""
+    function divisionCompile(agentModel::Model, platform::String, varDeclaredAll::Array{Expr})
+"""
 function divisionCompile(agentModel::Model, platform::String, varDeclaredAll::Array{Expr})
     
     varD = [i.args[1] for i in varDeclaredAll]
