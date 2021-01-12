@@ -46,7 +46,7 @@ include("./neighborhoods/neighboursByGrid.jl")
 include("./neighborhoods/neighbours.jl")
 
 #Special
-include("./special/division.jl")
+include("./model/special/division.jl")
 
 #Integrators
 include("./integrator/euler.jl")
