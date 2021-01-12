@@ -70,6 +70,8 @@ setNeighborhoodGrid!(m,vars,box,radius)
 """
 function setNeighborhoodGrid!(agentModel::Model, vars::Array{Symbol}, box::Matrix{<:AbstractFloat}, radius::Array{<:AbstractFloat})
 
+    agentModel.evolve = needCompilation
+    
     if length(vars) != size(box)[1] || length(vars) != length(radius)
         error("Declared vars, Box first dimension and radius have to be the same length.")
     end

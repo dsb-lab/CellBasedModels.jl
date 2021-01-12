@@ -11,6 +11,8 @@ end
 Function that sets the neighborhoodof the model to fully connected. It is the neighborhood by default if no other neighborhood is defined.
 """
 function setNeighborhoodFull!(agentModel::Model)
+
+    agentModel.evolve = needCompilation
     
     agentModel.neighborhood = NeighboursFull() 
     

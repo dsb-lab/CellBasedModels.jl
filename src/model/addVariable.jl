@@ -20,6 +20,8 @@ addVariable!(m,:x,eq);
 ```
 """
 function addVariable!(agentModel::Model, addvar::Symbol, addeqs::String)
+
+    agentModel.evolve = needCompilation
     
     newEqs = splitLines(addeqs,"=")
     if length(newEqs) == 0
@@ -62,6 +64,8 @@ addVariable!(m,[:x,:y],eq);
 ```
 """
 function addVariable!(agentModel::Model, addvar::Array{Symbol}, addeqs::String)
+
+    agentModel.evolve = needCompilation
     
     newEqs = splitLines(addeqs,"=")
     #Check repeated declarations

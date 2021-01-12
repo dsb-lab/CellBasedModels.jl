@@ -19,6 +19,8 @@ addLocal!(m,:x,updates=update,randVar=[(:r,Normal,0.,1.)]);
 ```
 """
 function addLocal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tuple{Symbol,String}[])
+
+    agentModel.evolve = needCompilation
     
     if updates != ""
         newUpdates = splitUpdating(updates)
@@ -89,6 +91,8 @@ addGlobal!(m,[:x,:y],updates=update,randVar=[(:r,Normal,0,1)]);
 ```
 """
 function addLocal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar = Tuple{Symbol,String}[])
+
+    agentModel.evolve = needCompilation
     
     #Check repeated declarations in addvar
     for i in addvar

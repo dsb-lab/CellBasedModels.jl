@@ -29,6 +29,8 @@ setNeighborhoodAdjacency!(m,condition,nMax=50) #No more than 50 particles will b
 ```
 """
 function setNeighborhoodAdjacency!(agentModel::Model, condition::String, nMax::Int)
+
+    agentModel.evolve = needCompilation
     
     agentModel.neighborhood = NeighboursAdjacency(condition,nMax) 
     

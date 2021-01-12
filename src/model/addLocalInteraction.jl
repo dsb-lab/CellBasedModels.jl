@@ -16,6 +16,8 @@ addLocalInteraction!(m,:d,interaction);
 ```
 """
 function addLocalInteraction!(agentModel::Model, addvar::Symbol, addeqs::String; randVar = Tuple{Symbol,String}[])
+
+    agentModel.evolve = needCompilation
     
     newEqs = splitUpdating(addeqs)
     if length(newEqs) == 0
@@ -84,6 +86,8 @@ addLocalInteraction!(m,[:d,:dAbs],interaction);
 ```
 """
 function addLocalInteraction!(agentModel::Model, addvar::Array{Symbol}, addeqs::String; randVar = Tuple{Symbol,String}[])
+
+    agentModel.evolve = needCompilation
     
     newEqs = splitUpdating(addeqs)
     #Check repeated declarations

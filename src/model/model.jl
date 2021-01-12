@@ -22,9 +22,12 @@ mutable struct Model
     locInter::Array{Expr}
     loc::Array{Expr}
     glob::Array{Expr}
-    
+    id::Array{Expr}
+
     neighborhood::Neighbours
     special::Array{Special}
+
+    evolve::Function
     
     function Model()
         new(
@@ -34,7 +37,17 @@ mutable struct Model
                     "locInterRand"=>Tuple{Symbol,String}[],"globRand"=>Tuple{Symbol,String}[]]),
             Array(Symbol[]),
             Array(Expr[]),Array(Expr[]),Array(Expr[]),
-            Array(Expr[]),Array(Expr[]),
-            NeighboursFull(),Special[])
+            Array(Expr[]),Array(Expr[]),Array(Expr[]),
+            NeighboursFull(),Special[],
+            needCompilation)
     end
+end
+
+"""
+    function needCompilation()
+
+Function that ask for compilation before evolve can be used with the current model.
+"""
+function needCompilation()
+    error("Model not yet compiled or modified. Compile it first.")
 end

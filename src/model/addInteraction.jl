@@ -18,7 +18,10 @@ addInteraction!(m,:g,interaction);
 ```
 """
 function addInteraction!(agentModel::Model, addvar::Symbol, addeqs::String)
+
+    agentModel.evolve = needCompilation
     
+
     newEqs = splitUpdating(addeqs)
     if length(newEqs) == 0
         error("An equation has to be defined for the declared variable ", addvar, ".")
@@ -70,7 +73,9 @@ addInteraction!(m,[:g,:p],interaction);
 ```
 """
 function addInteraction!(agentModel::Model, addvar::Array{Symbol}, addeqs::String)
-    
+
+    agentModel.evolve = needCompilation
+        
     newEqs = splitUpdating(addeqs)
     #Check repeated declarations
     varsDeclared = []
