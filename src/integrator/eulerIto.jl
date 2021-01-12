@@ -54,9 +54,9 @@ function integratorSDEEulerIto(agentModel::Model,inLoop::Expr,arg::Array{Symbol}
         )
 
         #Make the functions
-        inter = vectParams(agentModel,deepcopy(agentModel.inter))
-        inter = NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](inter)
+        inter = [string(i,"\n") for i in vectParams(agentModel,deepcopy(agentModel.inter))]
         inLoop = Meta.parse(replace(string(inLoop),"ALGORITHMS_"=>"$(inter...)"))
+        inLoop = NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](inLoop)
 
         reset = []
         for i in 1:length(inter)
