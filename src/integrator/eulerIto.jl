@@ -21,6 +21,11 @@ function integratorSDEEulerIto(agentModel::Model,inLoop::Expr,arg::Array{Symbol}
             push!(nEqs,Meta.parse(eq))
         end
 
+        #Error if there are not random variables
+        if count <= 1
+            error("Dynamical system is not stochastical, use a ODE integrator.")
+        end
+
         #Declare auxiliar variables
         varDeclare = Expr[]
         push!(varDeclare,
@@ -51,11 +56,17 @@ function integratorSDEEulerIto(agentModel::Model,inLoop::Expr,arg::Array{Symbol}
         inter = vectParams(agentModel,deepcopy(agentModel.inter))
         inter = NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](inter)
         inLoop = Meta.parse(replace(string(inLoop),"ALGORITHMS_"=>"$(inter...)"))
+
+        reset = []
+        for i in 1:length(inter)
+            push!(reset,:(inter_[ic1_,$i]=0))
+        end
         push!(fdeclare,
         platformAdapt(
         :(
         function interUpdate_($(comArgs...),$(arg...))
         @INFUNCTION_ for ic1_ in index_:stride_:N_
+            $(reset...)
             $inLoop
         end
         return
@@ -76,8 +87,8 @@ function integratorSDEEulerIto(agentModel::Model,inLoop::Expr,arg::Array{Symbol}
         platformAdapt(
         :(begin
         $init
-        @OUTFUNCTION_ integratorStep_($(comArgs...),ξ_)
         @OUTFUNCTION_ interUpdate_($(comArgs...),$(arg...))
+        @OUTFUNCTION_ integratorStep_($(comArgs...),ξ_)
         end
         ),platform=platform)
         )
