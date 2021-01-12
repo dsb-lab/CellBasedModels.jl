@@ -7,22 +7,22 @@ function inRAMSave(agentModel::Model)
     #List of nonempty arrays
     l = []
     if length(agentModel.declaredSymb["var"])>0
-        push!(l,:(Array(v_)))
+        push!(l,:(Array(v_)[1:N_,:]))
     else
         push!(l,:(Array{AbstractFloat,2}(undef,0,2)))
     end
     if length(agentModel.declaredSymb["inter"])>0
-        push!(l,:(Array(inter_)))
+        push!(l,:(Array(inter_)[1:N_,:]))
     else
         push!(l,:(Array{AbstractFloat,2}(undef,0,2)))
     end
     if length(agentModel.declaredSymb["loc"])>0
-        push!(l,:(Array(loc_)))
+        push!(l,:(Array(loc_)[1:N_,:]))
     else
         push!(l,:(Array{AbstractFloat,2}(undef,0,2)))
     end
     if length(agentModel.declaredSymb["locInter"])>0
-        push!(l,:(Array(locInter_)))
+        push!(l,:(Array(locInter_)[1:N_,:]))
     else
         push!(l,:(Array{AbstractFloat,2}(undef,0,2)))
     end
@@ -32,7 +32,7 @@ function inRAMSave(agentModel::Model)
         push!(l,:(Vector{AbstractFloat}[]))
     end
     if length(agentModel.declaredIds)>0
-        push!(l,:(Array(ids_)))
+        push!(l,:(Array(ids_)[1:N_,:]))
     else
         push!(l,:(Array{Int,2}(undef,0,2)))
     end

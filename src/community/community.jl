@@ -22,5 +22,12 @@ function Community(agentModel::Model; N::Int=1, t::AbstractFloat=0.)
     declaredSymb = agentModel.declaredSymb
     declaredSymb["ids"] = agentModel.declaredIds
 
+    if :id_ in declaredSymb["ids"]
+        ids[:,findfirst(declaredSymb["ids"].==:id_)] = Array(1:N)
+    end
+    if :parent_ in declaredSymb["ids"]
+        ids[:,findfirst(declaredSymb["ids"].==:parent_)] .= -1
+    end
+
     return Community(t,N,declaredSymb,var,inter,loc,locInter,glob,ids)
 end
