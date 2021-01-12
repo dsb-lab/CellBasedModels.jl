@@ -1,4 +1,4 @@
-function compile(agentModel::Model;platform="cpu",
+function compile!(agentModel::Model;platform="cpu",
     integrator="euler",saveRAM = false)
 varDeclarations = []
 fDeclarations = []
