@@ -45,7 +45,7 @@ function addLocalInteraction!(agentModel::Model, addvar::Symbol, addeqs::String;
 
         #Check if distribution exists
         for i in randVar
-            if findfirst(RESERVEDCALLS.==i[2])==nothing
+            if findfirst(RESERVEDCALLS.==i[2]) == nothing
                 error("Probabily distribution assigned to random variable ", i[1], " ", i[2], " does not exist.")
             end
         end

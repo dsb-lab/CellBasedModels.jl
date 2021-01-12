@@ -16,7 +16,7 @@ function splitUpdating(text::String)
     listN=[]
     for e in list
         app = true
-        for i in Array(["+=";"-=";"*=";"/=";"÷=";"%=";"^=";"="])
+        for i in Array(["+=";"-=";"*=";"/=";"÷=";"%=";"^=";" = "])
             if occursin(i, e)
                 app = false
                 append!(listN,[e])
