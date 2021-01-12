@@ -1,5 +1,5 @@
 function compile!(agentModel::Model;platform="cpu",
-    integrator="euler",saveRAM = false)
+    integrator="euler",saveRAM = false, debug = false)
 
 varDeclarations = []
 fDeclarations = []
@@ -96,6 +96,10 @@ end
 
 agentModel.evolve = eval(program)
 
-return program
+if debug == true
+    clean(program)
+end
+
+return 
 
 end

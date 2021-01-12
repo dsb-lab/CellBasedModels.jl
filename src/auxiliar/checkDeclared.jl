@@ -15,6 +15,10 @@ function checkDeclared(agentModel::Model,s::Symbol;eqs=false)
                 error(s, " already defined in Agent Based model in ", k,".")
             end
         end
+
+        if s in agentModel.declaredIds
+            error(s, " already defined in Agent Based model in Ids.")
+        end
     else
         if s in RESERVED
             error(s, " is a reserved symbol.\nListof reserved symbols: ", RESERVED)
@@ -33,7 +37,11 @@ function checkDeclared(agentModel::Model,s::Symbol;eqs=false)
                 error(s, " already defined in Agent Based model in ", k,".")
             end
         end
-    
+
+        if s in agentModel.declaredIds
+            error(s, " already defined in Agent Based model in Ids.")
+        end
+
     end
 
     return

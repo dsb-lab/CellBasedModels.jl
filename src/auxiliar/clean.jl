@@ -3,8 +3,11 @@ function clean(a)
     v = split(a,"\n")
     s = ""
     for i in v
-        if !contains(i,"#=")
-            s = string(s,"\n",i)
+        v2 = split(i,"=#")
+        for j in v2
+            if !contains(j,"#=")
+                s = string(s,"\n",j)
+            end
         end
     end
 

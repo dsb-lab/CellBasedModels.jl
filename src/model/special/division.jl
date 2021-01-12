@@ -36,7 +36,12 @@ addDivisionProcess!(m,condition,update,randVar=[(:r,"Uniform",0.,1.)])
 ```
 """
 function addDivisionProcess!(agentModel::Model, condition::String, update::String; randVar = Tuple{Symbol,String}[])
-    
+
+    #Check is a division process already exists
+    if DivisionProcess in [typeof(i) for i in agentModel.special]
+        error("A division process is already present in the model. Only one division process can exist in the model.")
+    end
+
     updateL = splitUpdating(update)
 
     #Add id tag to cells if not added
@@ -107,15 +112,14 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
         varDeclare = [
         platformAdapt(
             :(divList_ = @ARRAY_zeros(Int,nMax_)),
-                platform=platform),
-            :(divN_ = 0)
+                platform=platform)
         ]
 
         #Declare functions
         push!(fDeclare,
             platformAdapt(
             vectParams(agentModel,:(
-            function addDiv_($(comArgs...),divList_,divN_)
+            function addDiv_($(comArgs...),divList_)
                 lockDiv_ = Threads.SpinLock()
                 divN_ = 0
                 #Check division cells
@@ -132,7 +136,6 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
                     #Check if there is space
                     if N_+divN_>nMax_
                         error("In the next division there will be more cells than allocated cells. Evolve again with a higher nMax_.")
-                        #break
                     end
     
                     Threads.@threads for ic1_ in 1:divN_
@@ -161,82 +164,100 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
         push!(execute,
             platformAdapt(
             vectParams(agentModel,:(
-                N_ = addDiv_($(comArgs...),divList_,divN_)
+                N_ = addDiv_($(comArgs...),divList_)
             )), platform=platform)
             )
         
     elseif platform == "gpu"
         
-        update = subs(update,:nnic2_,:(divCum_[ic1_]))
-        
         #Declare variables
         varDeclare = [
         platformAdapt(
-            :(divCond_ = @ARRAY_zeros(Int,nMax_)),
+            :(divList_ = @ARRAY_zeros(Int,nMax_)),
                 platform=platform),
         platformAdapt(
-            :(divCum_ = @ARRAY_zeros(Int,nMax_)),
-                platform=platform),
-            :(nDiv_ = 0)
-        ]    
-        append!(varD,[:(divCond_),:(divCum_)])
+            :(divN_ = @ARRAY_zeros(Int,1)),
+                platform=platform)
+        ]
 
-        #Make preallocation
-        add = []
-        for i in varD
-            push!(add,
-                :($i = [$i;@ARRAY_zeros(nAddBatch_,size($i)[2:end]...)])
-            )
-        end
-        push!(add, :(nMax_+=nAddBatch))
-        
         #Declare functions
+        
         push!(fDeclare,
             platformAdapt(
-            :(
-            function divCondition_($(comArgs...),divCond_)
-                @INFUNCTION_ for ic1_ in index_:stride_:N_
+            vectParams(agentModel,:(
+            function addDiv1_($(comArgs...),divList_,divN_)
+
+                index_ = (threadIdx().x) + (blockIdx().x - 1) * blockDim().x
+                stride_ = blockDim().x * gridDim().x                
+
+                #Check division cells
+                for ic1_ in index_:stride_:N_
                     if $cond
-                        divCond_[ic1_] = 1
+                        divN = CUDA.atomic_add!(pointer(divN_,1),1)
+                        divList_[divN] = ic1_
                     end
                 end
+
                 return
             end
-            ), platform=platform)
-            )
+            )), platform=platform)
+            ) 
+
+        aux = []
+        for v in agentModel.
+            for ic2_ in 1:length(age[v])
+                push!(aux,:(
+                $v[nnic2_,$ic2_] = $v[ic1_,$ic2_]))
+            end
+        end
         push!(fDeclare,
             platformAdapt(
-            :(
-            function addDiv_($(comArgs...),divCond_,divCum_)
-                @INFUNCTION_ for ic1_ in index_:stride_:N_
-                    if divCond_[ic1_] == 1
-                        $(update...)
+            vectParams(agentModel,:(
+            function addDiv2_($(comArgs...),divList_,divN_)
+
+                index_ = (threadIdx().x) + (blockIdx().x - 1) * blockDim().x
+                stride_ = blockDim().x * gridDim().x                
+
+                #Check division cells
+                for ic1_ in index_:stride_:divN_
+        
+                    ic1_ = divList_[ic1_]
+                    nnic2_ = N_+ic1_
+
+                    for ic2_ in 1:length(loc_)
+                        loc_[nnic2_,ic2_] = loc_[ic1_,ic2_]
                     end
+                    locRand_[nnic2_,1] = locRand_[ic1_,1]
+                    $(update...)
+        
+                    parent_₂ = id_₁
+                    parent_₁ = id_₁
+                    id_₂ = N_+ic1_
+                    id_₁ = N_+ic1_+divN_
                 end
-                return
+
+                return nothing
             end
-            ), platform=platform)
-            )
+            )), platform=platform)
+            ) 
 
         #Execute
         push!(execute,
             platformAdapt(
-            :(begin
-            divCond_ .= 0
-            @OUTFUNCTION_ divCondition_($(comArgs...),divCond_)
-            nDiv_ = sum(divCond_)
-            if nDiv_ > 0
-                #Check
-                #Check if there is space
-                while N_+divN_>nMax_
-                    warn("Reneed to allocate. The agent based model has run out of preallocated memory in the number of particles. If this message appears many times, it may indicate a source of slowing the program. Possible solutions are starting the simulator with more preallocated particles (nMax_), or to increase the increase batch (nAddBatch_).")
-                    $(add...)
+            vectParams(agentModel,:(
+            begin
+                divN_ = @ARRAY_ones(Int,1)
+                @OUTFUNCTION_ addDiv1_($(comArgs...),divList_,divN_)
+                divN = Array(divN_)[1]-1
+                println(divN)
+                if N_+divN > nMax_
+                    error("In the next division there will be more cells than allocated cells. Evolve again with a higher nMax_.")
+                elseif divN > 0
+                    @OUTFUNCTION_ addDiv2_($(comArgs...),divList_,divN)
+                    N_ += divN
                 end
-                divCum_ = cumsum(divCond_)
-                @OUTFUNCTION_ addDiv_($(comArgs...),divCond_,divSum_)
             end
-            end
-            ), platform=platform)
+            )), platform=platform)
             )
     end
     
