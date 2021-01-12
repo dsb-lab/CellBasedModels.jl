@@ -21,17 +21,18 @@ function integratorSDEEulerIto(agentModel::Model,inLoop::Expr,arg::Array{Symbol}
             push!(nEqs,Meta.parse(eq))
         end
 
-        #Error if there are not random variables
-        if count <= 1
-            error("Dynamical system is not stochastical, use a ODE integrator.")
-        end
-
         #Declare auxiliar variables
-        varDeclare = Expr[]
-        push!(varDeclare,
-        platformAdapt(:(ξ_ = @ARRAY_zeros(nMax_,$(count-1))),
-            platform=platform)
-        )
+        #Declare random array if there are random variables
+        if count > 1
+            varDeclare = Expr[]
+            push!(varDeclare,
+            platformAdapt(:(ξ_ = @ARRAY_zeros(nMax_,$(count-1))),
+                platform=platform)
+            )
+            addArgs = [:ξ_] 
+        else
+            addArgs = []
+        end
         
         #Make the equations
         nEqs2 = []
@@ -44,7 +45,7 @@ function integratorSDEEulerIto(agentModel::Model,inLoop::Expr,arg::Array{Symbol}
         push!(fdeclare,
         platformAdapt(
         :(
-        function integratorStep_($(comArgs...),ξ_)
+        function integratorStep_($(comArgs...),$(addArgs...))
         @INFUNCTION_ for ic1_ in index_:stride_:N_
             $(eqs...)
         end
@@ -75,12 +76,15 @@ function integratorSDEEulerIto(agentModel::Model,inLoop::Expr,arg::Array{Symbol}
         )
     
         #Random initialisation depending on platform
-        if platform == "cpu" && nChange_ == false
-            init = :(randn!(ξ_))
-        elseif platform == "gpu"
-            init = :(CUDA.randn!(ξ_))
-        else
-            error("Platform incorrect")
+        init = :()
+        if count > 1
+            if platform == "cpu" && nChange_ == false
+                init = :(randn!(ξ_))
+            elseif platform == "gpu"
+                init = :(CUDA.randn!(ξ_))
+            else
+                error("Platform incorrect")
+            end
         end
         #Make the declarations for the inside loop
         push!(execute,
@@ -88,7 +92,7 @@ function integratorSDEEulerIto(agentModel::Model,inLoop::Expr,arg::Array{Symbol}
         :(begin
         $init
         @OUTFUNCTION_ interUpdate_($(comArgs...),$(arg...))
-        @OUTFUNCTION_ integratorStep_($(comArgs...),ξ_)
+        @OUTFUNCTION_ integratorStep_($(comArgs...),$(addArgs...))
         end
         ),platform=platform)
         )
