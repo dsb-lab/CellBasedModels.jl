@@ -31,6 +31,11 @@ function inRAMSave(agentModel::Model)
     else
         push!(l,:(Vector{AbstractFloat}[]))
     end
+    if length(agentModel.declaredIds)>0
+        push!(l,:(Array(ids_)))
+    else
+        push!(l,:(Array{Int,2}(undef,0,2)))
+    end
     
     push!(execute,
     :(

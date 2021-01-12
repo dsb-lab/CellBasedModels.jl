@@ -48,6 +48,23 @@ function addDivisionProcess!(agentModel::Model, condition::String, update::Strin
         push!(agentModel.declaredIds,:parent_)
     end 
 
+    if length(randVar) > 0
+        randSymb = [i[1] for i in randVar]
+        for i in randSymb #Check double declarations
+            if length(findall(randSymb.==i))>1
+                error("Random variable ", i, " declared more then once.")
+            end
+            #Check if already declared
+            checkDeclared(agentModel,i)
+        end
+        #Check if distribution exists
+        for i in randVar
+            if findfirst(RESERVEDCALLS.==i[2])==nothing
+                error("Probabily distribution assigned to random variable ", i[1], " ", i[2], " does not exist.")
+            end
+        end
+    end
+    
     for (pos,rule) in enumerate(updateL)
         s = Meta.parse(rule).args[1]
         if !occursin("_aux",string(s)) #Check that is not an auxiliar variable
@@ -66,6 +83,7 @@ function addDivisionProcess!(agentModel::Model, condition::String, update::Strin
         end
     end
     
+    append!(agentModel.declaredRandSymb["locRand"],randVar)
     push!(agentModel.special,DivisionProcess(Meta.parse(condition),[Meta.parse(i) for i in updateL]))
     
     return
@@ -74,11 +92,11 @@ end
 """
     function divisionCompile(agentModel::Model, platform::String)
 """
-function divisionCompile(division::DivisionProcess,agentModel::Model, platform::String)
+function divisionCompile(division::DivisionProcess,agentModel::Model; platform::String)
     
     comArgs = commonArguments(agentModel)
-    cond = vectParams(agentModel, agentModel.division[1])
-    update = vectParams(agentModel, agentModel.division[2])
+    cond = division.condition
+    update = division.update
     
     varDeclare = Expr[]
     fDeclare = Expr[]
@@ -92,61 +110,60 @@ function divisionCompile(division::DivisionProcess,agentModel::Model, platform::
                 platform=platform),
             :(divN_ = 0)
         ]
-        push!(varD,:(divList_))
-        
-        #Make preallocation
-        add = []
-        for i in varD
-            push!(add,
-                :($i = [$i;@ARRAY_zeros(nAddBatch_,size($i)[2:end]...)])
-            )
-        end
-        push!(add, :(nMax_+=nAddBatch))
 
         #Declare functions
         push!(fDeclare,
             platformAdapt(
-            :(
-            function addDiv_($(comArgs...),ic1_,nnic2_,devList_)
-                $(update...)
-                return
+            vectParams(agentModel,:(
+            function addDiv_($(comArgs...),divList_,divN_)
+                lockDiv_ = Threads.SpinLock()
+                divN_ = 0
+                #Check division cells
+                Threads.@threads for ic1_ in 1:N_
+                    if $cond
+                        lock(lockDiv_)
+                        divN_ += 1
+                        divList_[divN_] = ic1_
+                        unlock(lockDiv_)
+                    end
+                end
+                #Make divisions
+                if divN_ > 0
+                    #Check if there is space
+                    if N_+divN_>nMax_
+                        error("In the next division there will be more cells than allocated cells. Evolve again with a higher nMax_.")
+                        #break
+                    end
+    
+                    Threads.@threads for ic1_ in 1:divN_
+                        for v in [$(comArgs[4:end-1]...)]
+                            v[N_+ic1_] = v[divList_[ic1_]]
+                        end
+
+                        ic1_ = divList_[ic1_]
+                        nnic2_ = N_+ic1_
+                        $(update...)
+
+                        parent_₂ = id_₁
+                        parent_₁ = id_₁
+                        id_₂ = N_+ic1_
+                        id_₁ = N_+ic1_+divN_
+                    end
+                    N_ += divN_
+                end
+                                
+                return N_
             end
-            ), platform=platform)
+            )), platform=platform)
             ) 
 
         #Execute
-        push!(fDeclare,
+        push!(execute,
             platformAdapt(
-            :(begin
-            
-            lockDiv_ = Threads.SpinLock()
-            divN_ = 0
-            #Check division cells
-            Threads.@threads for ic1_ in 1:N_
-                if $cond
-                    lock(lockDiv_)
-                    divN_ += 1
-                    divList_[divN_] = ic1_
-                    unlock(lockDiv_)
-                end
-            end
-            #Make divisions
-            if divN_ > 0
-                #Check if there is space
-                while N_+divN_>nMax_
-                    warn("Reneed to allocate. The agent based model has run out of preallocated memory in the number of particles. If this message appears many times, it may indicate a source of slowing the program. Possible solutions are starting the simulator with more preallocated particles (nMax_), or to increase the increase batch (nAddBatch_).")
-                    $(add...)
-                end
-
-                Threads.@threads for ic1_ in 1:divN_
-                    addDiv_($(comArgs...),divList_[ic1_],N_+ic1_,devList_)
-                end
-                N_ += divN_
-            end
-                        
-            end
-            ), platform=platform)
-            ) 
+            vectParams(agentModel,:(
+                N_ = addDiv_($(comArgs...),divList_,divN_)
+            )), platform=platform)
+            )
         
     elseif platform == "gpu"
         

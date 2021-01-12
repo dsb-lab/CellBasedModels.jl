@@ -1,5 +1,6 @@
 function compile!(agentModel::Model;platform="cpu",
     integrator="euler",saveRAM = false)
+
 varDeclarations = []
 fDeclarations = []
 execute = []
@@ -37,8 +38,11 @@ else
 end
 
 #Special functions
-for special in AgentModel.special
-    
+for special in agentModel.special
+    var,f,execS = SPECIAL[typeof(special)](special,agentModel,platform=platform)
+    append!(varDeclarations,var)
+    append!(fDeclarations,f)
+    append!(execute,execS)    
 end
 
 #Saving
@@ -53,7 +57,7 @@ else
 end
 
 program = :(
-function evolve(com::Community;tMax_,dt_,t_=com.t_,N_=com.N_,nMax_=com.N_, neighMax_=nMax_,tSave_=0.,tSaveStep_=dt_,threads_=256)
+function evolve(com::Community;tMax_, dt_, t_=com.t_, N_=com.N_, nMax_=com.N_, neighMax_=nMax_, tSave_=0., tSaveStep_=dt_, threads_=256)
     #Declaration of variables
     $(varDeclarations...)
     #Declaration of functions
@@ -75,7 +79,7 @@ function evolve(com::Community;tMax_,dt_,t_=com.t_,N_=com.N_,nMax_=com.N_, neigh
         end
         #println(nBlocks_)
         $(execute...)
-            
+
         t_ += dt_
             
         $(execSave...)

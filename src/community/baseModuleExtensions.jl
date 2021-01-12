@@ -15,6 +15,9 @@ function Base.getindex(a::Community,var::Symbol)
     elseif var in a.declaredSymb["glob"]
         pos = findfirst(a.declaredSymb["glob"].==var) 
         return a.glob[pos]
+    elseif var in a.declaredSymb["ids"]
+        pos = findfirst(a.declaredSymb["ids"].==var) 
+        return a.ids[:,pos]
     elseif var == :t_
         return a.t_
     elseif var == :N_
@@ -39,6 +42,9 @@ function Base.setindex!(a::Community,v::Array{<:AbstractFloat},var::Symbol)
     elseif var in a.declaredSymb["locInter"]
         pos = findfirst(a.declaredSymb["locInter"].==var) 
         a.locInter[:,pos] = v
+    elseif var in a.declaredSymb["ids"]
+        pos = findfirst(a.declaredSymb["ids"].==var) 
+        a.ids[:,pos] = v
     else
         error("Parameter not fount in the community.")
     end
@@ -58,10 +64,13 @@ function Base.setindex!(a::Community,v::Number,var::Symbol)
         a.loc[:,pos] .= v
     elseif var in a.declaredSymb["locInter"]
         pos = findfirst(a.declaredSymb["locInter"].==var) 
-        a.locInter[:,pos] = v
+        a.locInter[:,pos] .= v
     elseif var in a.declaredSymb["glob"]
         pos = findfirst(a.declaredSymb["glob"].==var) 
         a.glob[pos] = v
+    elseif var in a.declaredSymb["ids"]
+        pos = findfirst(a.declaredSymb["ids"].==var) 
+        a.ids[:,pos] .= v
     elseif var == :N_
         a.N_ = v
     elseif var == :t_

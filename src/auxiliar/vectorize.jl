@@ -34,6 +34,11 @@ function vectParams(agentModel::Model,text)
     globRandTar = ["globRand_[POS_]"]
     text = subs([i[1] for i in agentModel.declaredRandSymb["globRand"]],globRandOb,globRandTar,text)
     
+    ##Ids
+    idsOb = ["NAME_","NAME_₁","NAME_₂","NAME_ₚ"]
+    idsTar = ["ids_[ic1_,POS_]","ids_[ic1_,POS_]","ids_[nnic2_,POS_]","ids_[ic1_,POS_]"]
+    text = subs(agentModel.declaredIds,idsOb,idsTar,text)
+
     return text
 end
 

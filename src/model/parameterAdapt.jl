@@ -72,6 +72,12 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
                 :(globRand_ = @ARRAY_zeros($(length(agentModel.declaredRandSymb["globRand"])))),platform=platform ) 
         )
     end
+    if length(agentModel.declaredIds)>0
+        push!(varDeclarations, 
+            platformAdapt(
+                :(ids_ = @ARRAY_zeros(Int,nMax_,$(length(agentModel.declaredIds)))),platform=platform ) 
+        )
+    end
     
     #Function declare######################################################
     comArgs = commonArguments(agentModel)

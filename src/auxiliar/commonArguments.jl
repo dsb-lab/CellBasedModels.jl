@@ -26,6 +26,9 @@ function commonArguments(agentModel::Model; random = true)
             push!(l,:globRand_)
         end
     end
+    if length(agentModel.declaredIds)>0
+        push!(l,:ids_)
+    end
     
     return l
 end
