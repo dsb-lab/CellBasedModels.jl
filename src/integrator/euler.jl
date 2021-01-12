@@ -35,11 +35,16 @@ function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platf
         inter = NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](inter)
         inLoop = Meta.parse(replace(string(inLoop),"ALGORITHMS_"=>"$(inter...)"))
     
+        reset = []
+        for i in 1:length(inter)
+            push!(reset,:(inter_[ic1_,$i]=0))
+        end
         push!(fdeclare,
         platformAdapt(
         :(
         function interUpdate_($(comArgs...),$(arg...))
         @INFUNCTION_ for ic1_ in index_:stride_:N_
+            $(reset...)
             $inLoop
         end
         return
@@ -51,13 +56,13 @@ function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platf
         push!(execute,
         platformAdapt(
         :(
-        @OUTFUNCTION_ integratorStep_($(comArgs...))
+        @OUTFUNCTION_ interUpdate_($(comArgs...),$(arg...))
         ),platform=platform)
         )
         push!(execute,
         platformAdapt(
         :(
-        @OUTFUNCTION_ interUpdate_($(comArgs...),$(arg...))
+        @OUTFUNCTION_ integratorStep_($(comArgs...))
         ),platform=platform)
         )
 
