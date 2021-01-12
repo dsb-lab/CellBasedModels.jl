@@ -1,4 +1,14 @@
 """
+    struct DivisionProcess <: Special
+
+Struct containing the conditions for the division process.
+"""
+struct DivisionProcess <: Special
+    condition::Expr
+    update::Array{Expr}
+end
+
+"""
     function addDivisionProcess!(agentModel::Model, condition::String, update::String; randVar = Tuple{Symbol,String}[])
 
 Function that adds a division process of the particles to the model. Cells divide under condition and update the new parameters with update.
@@ -29,6 +39,15 @@ function addDivisionProcess!(agentModel::Model, condition::String, update::Strin
     
     updateL = splitUpdating(update)
 
+    #Add id tag to cells if not added
+    if !(:id_ in agentModel.declaredIds)
+        push!(agentModel.declaredIds,:id_)
+    end 
+    #Add parent tag to cells if not added
+    if !(:parent_ in agentModel.declaredIds)
+        push!(agentModel.declaredIds,:parent_)
+    end 
+
     for (pos,rule) in enumerate(updateL)
         s = Meta.parse(rule).args[1]
         if !occursin("_aux",string(s)) #Check that is not an auxiliar variable
@@ -47,7 +66,7 @@ function addDivisionProcess!(agentModel::Model, condition::String, update::Strin
         end
     end
     
-    agentModel.division = (Meta.parse(condition),[Meta.parse(i) for i in updateL])
+    push!(agentModel.special,DivisionProcess(Meta.parse(condition),[Meta.parse(i) for i in updateL]))
     
     return
 end

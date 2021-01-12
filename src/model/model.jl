@@ -22,7 +22,6 @@ mutable struct Model
     locInter::Array{Expr}
     loc::Array{Expr}
     glob::Array{Expr}
-    id::Array{Expr}
 
     neighborhood::Neighbours
     special::Array{Special}
@@ -37,7 +36,7 @@ mutable struct Model
                     "locInterRand"=>Tuple{Symbol,String}[],"globRand"=>Tuple{Symbol,String}[]]),
             Array(Symbol[]),
             Array(Expr[]),Array(Expr[]),Array(Expr[]),
-            Array(Expr[]),Array(Expr[]),Array(Expr[]),
+            Array(Expr[]),Array(Expr[]),
             NeighboursFull(),Special[],
             needCompilation)
     end
