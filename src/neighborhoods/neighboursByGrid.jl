@@ -1,3 +1,6 @@
+"""
+    struct NeighboursGrid <: Neighbours
+"""
 struct NeighboursGrid <: Neighbours
 
     variables::Array{Symbol}
@@ -11,6 +14,23 @@ struct NeighboursGrid <: Neighbours
 
 end
 
+"""
+    function setNeighborhoodGrid!(agentModel::Model, vars::Array{Symbol}, box::Matrix{<:AbstractFloat}, radius::AbstractFloat)
+
+Function that keeps track of the cells by assotiating them to a grid position. The neighborhood requires that the variables that define the dimensions of the grid are defined, the size of each dimension and the radius of interaction of each particle.
+
+Example
+```
+m = Model()
+
+addLocal!([:x,:y])
+
+vars = [:x,:y] #The particles are neighbors depending on the x and y variables.
+box = [[-1,-1],[1,1]] #The particles are in a square of size 2 around zero.
+radius = 0.5 #The particles interact at most with particles 0.5 far appart from them.
+setNeighborhoodGrid!(m,vars,box,radius)
+```
+"""
 function setNeighborhoodGrid!(agentModel::Model, vars::Array{Symbol}, box::Matrix{<:AbstractFloat}, radius::AbstractFloat)
 
     if length(vars) != size(box)[1]
@@ -30,6 +50,24 @@ function setNeighborhoodGrid!(agentModel::Model, vars::Array{Symbol}, box::Matri
     return
 end
 
+
+"""
+    function setNeighborhoodGrid!(agentModel::Model, vars::Array{Symbol}, box::Matrix{<:AbstractFloat}, radius::Array{<:AbstractFloat})
+
+Function that keeps track of the cells by assotiating them to a grid position with diferent range for each dimension. The neighborhood requires that the variables that define the dimensions of the grid are defined, the size of each dimension and the radius of interaction of each particle.
+
+Example
+```
+m = Model()
+
+addLocal!([:x,:y])
+
+vars = [:x,:y] #The particles are neighbors depending on the x and y variables.
+box = [[-1,-1],[1,1]] #The particles are in a square of size 2 around zero.
+radius = [0.5,1.] #The particles interact assymetrically in both dimensions.
+setNeighborhoodGrid!(m,vars,box,radius)
+```
+"""
 function setNeighborhoodGrid!(agentModel::Model, vars::Array{Symbol}, box::Matrix{<:AbstractFloat}, radius::Array{<:AbstractFloat})
 
     if length(vars) != size(box)[1] || length(vars) != length(radius)
@@ -49,6 +87,12 @@ function setNeighborhoodGrid!(agentModel::Model, vars::Array{Symbol}, box::Matri
     return
 end
 
+
+"""
+    function loopNeighbourGridCreation(i,i0,n,x=nothing,pos="")
+
+Auxiliar function for creating nested loops during the grid creation.
+"""
 function loopNeighbourGridCreation(i,i0,n,x=nothing,pos="")
     iterator = Meta.parse(string("i",i))
     if i == i0
@@ -94,6 +138,9 @@ function loopNeighbourGridCreation(i,i0,n,x=nothing,pos="")
     return x
 end
 
+"""
+    function neighboursByGrid(agentModel::Model;platform="cpu")
+"""
 function neighboursByGrid(agentModel::Model;platform="cpu")
     
     grid = deepcopy(agentModel.neighborhood)
@@ -241,6 +288,10 @@ function neighboursByGrid(agentModel::Model;platform="cpu")
     
 end
 
+
+"""
+    function neighboursByGridAdapt(entry)
+"""
 function neighboursByGridAdapt(entry)
 
     entry = subs(entry,:nnic2_,:(nnId_[ic2_]))

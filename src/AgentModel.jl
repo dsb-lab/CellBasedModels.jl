@@ -47,7 +47,6 @@ include("./neighborhoods/neighbours.jl")
 
 #Special
 include("./special/division.jl")
-include("./special/remove.jl")
 
 #Integrators
 include("./integrator/euler.jl")

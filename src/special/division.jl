@@ -1,4 +1,31 @@
-function addDivisionProcess!(agentModel::Model, condition::String, update::String)
+"""
+    function addDivisionProcess!(agentModel::Model, condition::String, update::String; randVar = Tuple{Symbol,String}[])
+
+Function that adds a division process of the particles to the model. Cells divide under condition and update the new parameters with update.
+
+Examples
+```
+m = Model();
+addLocal!(m,[:g,:tDiv]); #Add two local variables, g and the time of division tDiv
+
+condition = 
+"
+tDiv < t
+"
+
+update =
+"
+g₁ = gₚ*r #Asymmetric split of the component between the two daughter particles
+g₁ = tDivₚ+1.
+
+g₂ = gₚ*(1-r)
+g₂ = tDivₚ+1.
+"
+
+addDivisionProcess!(m,condition,update,randVar=[(:r,"Uniform",0.,1.)])
+```
+"""
+function addDivisionProcess!(agentModel::Model, condition::String, update::String; randVar = Tuple{Symbol,String}[])
     
     updateL = splitUpdating(update)
 

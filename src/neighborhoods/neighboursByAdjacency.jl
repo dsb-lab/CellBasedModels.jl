@@ -1,3 +1,6 @@
+"""
+    struct NeighboursAdjacency <: Neighbours
+"""
 struct NeighboursAdjacency <: Neighbours
 
     condition::String
@@ -5,6 +8,26 @@ struct NeighboursAdjacency <: Neighbours
 
 end
 
+"""
+    function setNeighborhoodAdjacency!(agentModel::Model, condition::String, nMax::Int)
+
+Function that creates a track of neighbours based depending on a condition. 
+It also requires an estimation of the maximum amount of neighbours that a particle will have, 
+the program will crash if during the evolution, the particle finds more than nMax particles fullfilling the condition.
+
+Examples
+```
+m = Model()
+
+addLocal!([:x,:y])
+
+condition= #Euler distance
+"
+sqrt((x₁-x₂)^2+(y₁-y₂)^2) < 1.
+"
+setNeighborhoodAdjacency!(m,condition,nMax=50) #No more than 50 particles will be in the neighborhood at any time
+```
+"""
 function setNeighborhoodAdjacency!(agentModel::Model, condition::String, nMax::Int)
     
     agentModel.neighborhood = NeighboursAdjacency(condition,nMax) 
@@ -12,6 +35,9 @@ function setNeighborhoodAdjacency!(agentModel::Model, condition::String, nMax::I
     return
 end
 
+"""
+    function neighboursByAdjacency(agentModel::Model;platform="cpu")
+"""
 function neighboursByAdjacency(agentModel::Model;platform="cpu")
 
     condition = deepcopy(agentModel.neighborhood.condition)
@@ -108,6 +134,9 @@ function neighboursByAdjacency(agentModel::Model;platform="cpu")
 
 end
 
+"""
+    function neighboursByAdjacencyAdapt(entry)
+"""
 function neighboursByAdjacencyAdapt(entry)
 
     entry = subs(entry,:nnic2_,:(nnList_[ic1_,ic2_]))

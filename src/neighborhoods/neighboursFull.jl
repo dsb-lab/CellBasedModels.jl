@@ -1,7 +1,15 @@
+"""
+    struct NeighboursFull <: Neighbours
+"""
 struct NeighboursFull <: Neighbours
 
 end
 
+"""
+    function setNeighborhoodFull!(agentModel::Model)
+
+Function that sets the neighborhoodof the model to fully connected. It is the neighborhood by default if no other neighborhood is defined.
+"""
 function setNeighborhoodFull!(agentModel::Model)
     
     agentModel.neighborhood = NeighboursFull() 
@@ -9,6 +17,9 @@ function setNeighborhoodFull!(agentModel::Model)
     return
 end
 
+"""
+    function neighboursFull(agentModel::Model;platform="cpu")
+"""
 function neighboursFull(agentModel::Model;platform="cpu")
 
     #Add declaring variables
@@ -31,6 +42,9 @@ function neighboursFull(agentModel::Model;platform="cpu")
 
 end
 
+"""
+    function neighboursFullAdapt(entry)
+"""
 function neighboursFullAdapt(entry)
 
     entry = subs(entry,:nnic2_,:ic2_)

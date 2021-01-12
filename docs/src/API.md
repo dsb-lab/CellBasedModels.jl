@@ -19,10 +19,14 @@ addVariable!
 addInteraction!
 ```
 
-## Set Neighborhood
+## Neighborhoods
 ```@docs
+setNeighborhoodFull!
+setNeighborhoodAdjacency!
+setNeighborhoodGrid!
 ```
 
-## Add Special
+## Special
 ```@docs
+addDivisionProcess!
 ```
