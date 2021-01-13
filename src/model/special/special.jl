@@ -2,4 +2,5 @@
 global SPECIAL = Dict(
     [
     DivisionProcess=>divisionCompile
+    Pseudopode=>pseudopodeCompile
     ])

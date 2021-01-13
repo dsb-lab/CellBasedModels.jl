@@ -31,7 +31,7 @@ updateChange =
 "
 t + σPseudo
 "
-addPseudopode!(m,:f,condition,force,updateChange,randVar = [(:σPseudo,"uniform",1.,2.)])
+addPseudopode!(m,:f,condition,force,updateChange,randVar = [(:σPseudo,"Uniform",1.,2.)])
 ```
 """
 function addPseudopode!(agentModel::Model, var::Symbol, neighbourCondition::String, force::String, updateChange::String; randVar = Tuple{Symbol,String}[])
@@ -58,9 +58,9 @@ function addPseudopode!(agentModel::Model, var::Symbol, neighbourCondition::Stri
         end)
     )
     push!(agentModel.declaredSymb["inter"],var)
-    push!(agentModel.declaredSymb["local"],:pseudoT_)
+    push!(agentModel.declaredSymb["loc"],:pseudoT_)
 
-    push!(agentModel.special, Pseudopode(neighbourCondition,changePseudoCondition,force,updateChange))
+    push!(agentModel.special, Pseudopode(neighbourCondition,force,updateChange))
 
     return
 end
