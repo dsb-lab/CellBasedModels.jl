@@ -4,13 +4,15 @@
 Struct containing the conditions for pseudopode like forces.
 """
 struct Pseudopode <: Special
+    f::Symbol
+    t::Symbol
     neighbourCondition::Expr
     force::Expr
     updateChange::Expr
 end
 
 """
-    function addPseudopode!(agentModel::Model, var::Symbol, neighbourCondition::String, force::String, updateChange::String; randVar = Tuple{Symbol,String}[])
+    function addPseudopode!(agentModel::Model, var::Symbol, tVar::Symbol, neighbourCondition::String, force::String, updateChange::String; randVar = Tuple{Symbol,String}[])
 
 Add a pseudopode force.
 
@@ -29,12 +31,12 @@ f = sqrt((x₁-x₂)^2+(y₁-y₂)^2)*exp(-sqrt((x₁-x₂)^2+(y₁-y₂)^2))
 "
 updateChange = 
 "
-t + σPseudo
+tPseudo = t_ + σPseudo
 "
-addPseudopode!(m,:f,condition,force,updateChange,randVar = [(:σPseudo,"Uniform",1.,2.)])
+addPseudopode!(m, :f, :tPseudo, condition, force, updateChange, randVar = [(:σPseudo,"Uniform",1.,2.)])
 ```
 """
-function addPseudopode!(agentModel::Model, var::Symbol, neighbourCondition::String, force::String, updateChange::String; randVar = Tuple{Symbol,String}[])
+function addPseudopode!(agentModel::Model, var::Symbol, tVar::Symbol, neighbourCondition::String, force::String, updateChange::String; randVar = Tuple{Symbol,String}[])
     
     #Checks
     neighbourCondition = Meta.parse(neighbourCondition)
@@ -44,8 +46,9 @@ function addPseudopode!(agentModel::Model, var::Symbol, neighbourCondition::Stri
     if Pseudopode in [typeof(i) for i in agentModel.special]
         error("A pseudopode force is already present in the model. Only one pseudopode force can exist in the model.")
     end
-    #Check var
+    #Check var and tVar
     checkDeclared(agentModel, var)
+    checkDeclared(agentModel, tVar)
     #Check random variables
     checkRandDeclared(agentModel, randVar)
     #Add necessary variables
@@ -57,10 +60,10 @@ function addPseudopode!(agentModel::Model, var::Symbol, neighbourCondition::Stri
         end)
     )
     push!(agentModel.declaredSymb["inter"],var)
-    push!(agentModel.declaredSymb["loc"],:pseudoT_)
+    push!(agentModel.declaredSymb["loc"],tVar)
     addIfNot!(agentModel.declaredRandSymb["locRand"],randVar)
 
-    push!(agentModel.special, Pseudopode(neighbourCondition,force,updateChange))
+    push!(agentModel.special, Pseudopode(var,tVar,neighbourCondition,force,updateChange))
 
     return
 end
@@ -98,7 +101,7 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::S
         count -= 1             
         if count < 0
             pseudoId_ = nnic2_
-            pseudoT_ = $(pseudopode.updateChange)
+            $(pseudopode.updateChange)
             break
         end
     end
@@ -108,7 +111,7 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::S
     pushAdapt!(fDeclare, agentModel, platform,
     :(function pseudoUpdate($(comArgs...),$(arg...),pseudoChoice_)
             @INFUNCTION_ for ic1_ in index_:stride_:N_
-                if t_ > pseudoT_
+                if t_ > $(pseudopode.t)
                     nNPseudo = 0
                     $inLoop1
                     count = pseudoChoice_[ic1_]*nNPseudo
