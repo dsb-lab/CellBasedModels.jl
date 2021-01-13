@@ -16,6 +16,7 @@ include("./community/community.jl")
 include("./community/baseModuleExtensions.jl")
 
 #Auxiliar variables
+include("./auxiliar/addIfNot.jl")
 include("./auxiliar/checkDeclared.jl")
 include("./auxiliar/commonArguments.jl")
 include("./auxiliar/findSymbol.jl")

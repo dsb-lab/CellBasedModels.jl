@@ -47,21 +47,11 @@ function addPseudopode!(agentModel::Model, symbol::Symbol, condition::String, fo
     end 
 
     #Add necessary variables
-    #Add id tag to cells if not added
-    if !(:id_ in agentModel.declaredIds)
-        push!(agentModel.declaredIds,:id_)
-    end     
-    #Add nNPseudo_ if not present
-    if !(:nNPseudo_ in agentModel.declaredIds)
-        push!(agentModel.declaredIds,:nNPseudo_)
-    end
-    #Add PseudoIds_
-    if !(:nNPseudo_ in agentModel.declaredIds)
-        push!(agentModel.declaredIds,:nNPseudo_)
-    end
+    addIfNot!(agentModel.declaredIds, [:id_,:nNPseudo_,:pseudoId_])
 
     #Check random variables
     checkRandDeclared(agentModel, randVar)
+
 
     
 end

@@ -44,15 +44,8 @@ function addDivisionProcess!(agentModel::Model, condition::String, update::Strin
 
     updateL = splitUpdating(update)
 
-    #Add id tag to cells if not added
-    if !(:id_ in agentModel.declaredIds)
-        push!(agentModel.declaredIds,:id_)
-    end 
-    #Add parent tag to cells if not added
-    if !(:parent_ in agentModel.declaredIds)
-        push!(agentModel.declaredIds,:parent_)
-    end 
-
+    #Add tags to cells if not added
+    addIfNot!(agentModel.declaredIds, [:id_,:parent_])
     #Check random variables
     checkRandDeclared(agentModel, randVar)
     
