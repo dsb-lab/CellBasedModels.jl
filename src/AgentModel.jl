@@ -44,6 +44,7 @@ include("./model/neighborhoods/neighboursFull.jl")
 include("./model/neighborhoods/neighboursByAdjacency.jl")
 include("./model/neighborhoods/neighboursByGrid.jl")
 include("./model/neighborhoods/neighbours.jl")
+include("./model/neighborhoods/makeInLoop.jl")
 
 #Special
 include("./model/special/division.jl")

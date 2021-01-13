@@ -64,7 +64,7 @@ end
 """
     function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model,inLoop,arg; platform::String)
 """
-function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model,inLoop,arg; platform::String)
+function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::String)
 
     comArgs = commonArguments(agentModel)
     cond = division.condition
@@ -81,14 +81,15 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model,inLoop,arg; 
     
         #Add functions to declare
         inloopCount = copy(inloop)
+
         algorithm = 
         string(:(
         if $(pseudopode.condition)
             :nNPseudo_₁ += 1
         end
         ))
-        inLoop = Meta.parse(replace(string(inLoop),"ALGORITHMS_"=>algorithm))
-        inLoop = NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](inLoop)   
+        inLoop = makeInLoop(agentModel,platform,algorithm)
+        
         pushAdapt!(fDeclare, agentModel, platform,
         :(function pseudoCount($(comArgs...))
                 @INFUNCTION_ for ic1_ in index_:stride_:N_

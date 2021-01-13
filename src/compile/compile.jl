@@ -39,7 +39,7 @@ end
 
 #Special functions
 for special in agentModel.special
-    var,f,execS = SPECIAL[typeof(special)](special,agentModel,inLoop,arg,platform=platform)
+    var,f,execS = SPECIAL[typeof(special)](special,agentModel,platform=platform)
     append!(varDeclarations,var)
     append!(fDeclarations,f)
     append!(execute,execS)    
