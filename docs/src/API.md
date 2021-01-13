@@ -28,5 +28,6 @@ setNeighborhoodGrid!
 
 ## Special
 ```@docs
-addDivisionProcess!
+addDivision!
+addPseudopode!
 ```

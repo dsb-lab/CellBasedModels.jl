@@ -9,7 +9,7 @@ struct DivisionProcess <: Special
 end
 
 """
-    function addDivisionProcess!(agentModel::Model, condition::String, update::String; randVar = Tuple{Symbol,String}[])
+    function addDivision!(agentModel::Model, condition::String, update::String; randVar = Tuple{Symbol,String}[])
 
 Function that adds a division process of the particles to the model. Cells divide under condition and update the new parameters with update.
 
@@ -32,10 +32,10 @@ g₂ = gₚ*(1-r)
 g₂ = tDivₚ+1.
 "
 
-addDivisionProcess!(m,condition,update,randVar=[(:r,"Uniform",0.,1.)])
+addDivision!(m,condition,update,randVar=[(:r,"Uniform",0.,1.)])
 ```
 """
-function addDivisionProcess!(agentModel::Model, condition::String, update::String; randVar = Tuple{Symbol,String}[])
+function addDivision!(agentModel::Model, condition::String, update::String; randVar = Tuple{Symbol,String}[])
 
     #Check is a division process already exists
     if DivisionProcess in [typeof(i) for i in agentModel.special]

@@ -10,7 +10,7 @@ struct Pseudopode <: Special
 end
 
 """
-    function addPseudopode!(agentModel::Model, f::Symbol, condition::String, force::String; randVar = Tuple{Symbol,String}[])
+    function addPseudopode!(agentModel::Model, var::Symbol, neighbourCondition::String, force::String, updateChange::String; randVar = Tuple{Symbol,String}[])
 
 Add a pseudopode force.
 

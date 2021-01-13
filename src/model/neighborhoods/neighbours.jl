@@ -14,7 +14,7 @@ global NEIGHBORHOODADAPT= Dict(
 global NEIGHBORHOODLOOP= Dict(
     [
         NeighboursFull=>inloopFull,
-        NeighboursAdjacency=>ByAdjacency,
+        NeighboursAdjacency=>inloopByAdjacency,
         NeighboursGrid=>inloopByGrid
     ])
 
