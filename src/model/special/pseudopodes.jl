@@ -49,7 +49,6 @@ function addPseudopode!(agentModel::Model, var::Symbol, neighbourCondition::Stri
     #Check random variables
     checkRandDeclared(agentModel, randVar)
     #Add necessary variables
-
     addIfNot!(agentModel.declaredIds, [:id_,:pseudoId_])
     addIfNot!(agentModel.inter,
     :(if pseudoId_₁ == id_₂; 
@@ -59,6 +58,7 @@ function addPseudopode!(agentModel::Model, var::Symbol, neighbourCondition::Stri
     )
     push!(agentModel.declaredSymb["inter"],var)
     push!(agentModel.declaredSymb["loc"],:pseudoT_)
+    addIfNot!(agentModel.declaredRandSymb["locRand"],randVar)
 
     push!(agentModel.special, Pseudopode(neighbourCondition,force,updateChange))
 
@@ -78,7 +78,9 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::S
     execute = Expr[]
 
     #Add variables
-    push!(varDeclare, :(pseudoChoice_ = zeros(nMax_)))
+    pushAdapt!(varDeclare, agentModel, platform, 
+    :(pseudoChoice_ = @ARRAY_zeros(nMax_))
+    )
     
     #Add function to declare
     ## Count number of neighbours loop
@@ -96,7 +98,7 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::S
         count -= 1             
         if count < 0
             pseudoId_ = nnic2_
-            pseudoT_[ic1_] = $pseudopode.updateChange
+            pseudoT_ = $(pseudopode.updateChange)
             break
         end
     end
@@ -104,9 +106,9 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::S
     inLoop2, arg = makeInLoop(agentModel,platform,algorithm)
     ## Create the function
     pushAdapt!(fDeclare, agentModel, platform,
-    :(function pseudoCount($(comArgs...),$(arg...))
+    :(function pseudoUpdate($(comArgs...),$(arg...),pseudoChoice_)
             @INFUNCTION_ for ic1_ in index_:stride_:N_
-                if t_ > pseudoT_[ic1_]
+                if t_ > pseudoT_
                     nNPseudo = 0
                     $inLoop1
                     count = pseudoChoice_[ic1_]*nNPseudo
@@ -122,7 +124,7 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::S
     :(rand!(pseudoChoice_))
     )
     pushAdapt!(execute, agentModel, platform, 
-    :(@OUTFUNCTION_ pseudoCount($(comArgs...),$(arg...)))
+    :(@OUTFUNCTION_ pseudoUpdate($(comArgs...),$(arg...),pseudoChoice_))
     )
 
     return varDeclare,fDeclare,execute
