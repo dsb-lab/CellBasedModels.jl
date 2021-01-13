@@ -53,22 +53,8 @@ function addDivisionProcess!(agentModel::Model, condition::String, update::Strin
         push!(agentModel.declaredIds,:parent_)
     end 
 
-    if length(randVar) > 0
-        randSymb = [i[1] for i in randVar]
-        for i in randSymb #Check double declarations
-            if length(findall(randSymb.==i))>1
-                error("Random variable ", i, " declared more then once.")
-            end
-            #Check if already declared
-            checkDeclared(agentModel,i)
-        end
-        #Check if distribution exists
-        for i in randVar
-            if findfirst(RESERVEDCALLS.==i[2])==nothing
-                error("Probabily distribution assigned to random variable ", i[1], " ", i[2], " does not exist.")
-            end
-        end
-    end
+    #Check random variables
+    checkRandDeclared(agentModel, randVar)
     
     for (pos,rule) in enumerate(updateL)
         s = Meta.parse(rule).args[1]

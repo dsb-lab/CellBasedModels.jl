@@ -47,6 +47,7 @@ include("./model/neighborhoods/neighbours.jl")
 
 #Special
 include("./model/special/division.jl")
+include("./model/special/pseudopodes.jl")
 include("./model/special/special.jl")
 
 #Integrators
