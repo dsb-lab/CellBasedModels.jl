@@ -104,8 +104,12 @@ end
 
 function adapt(agentModel::Model, text, platform)
 
+    #Vectorize the variables
     text = vectParams(agentModel,text)
+    #Adapt to the platform
     text = platformAdapt(text,platform=platform)
+    #Adapt the inner loops
+    NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](text) 
 
     return text
 end

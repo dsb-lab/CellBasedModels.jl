@@ -71,8 +71,6 @@ end
 function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::String)
 
     comArgs = commonArguments(agentModel)
-    cond = division.condition
-    update = division.update
     
     #Initialize
     varDeclare = Expr[]
@@ -87,7 +85,7 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::S
     algorithm = 
     string(:(
     if $(pseudopode.neighbourCondition)
-        :nNPseudo_ += 1
+        nNPseudo += 1
     end
     ))
     inLoop1, arg = makeInLoop(agentModel,platform,algorithm)
@@ -108,7 +106,7 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::S
     pushAdapt!(fDeclare, agentModel, platform,
     :(function pseudoCount($(comArgs...),$(arg...))
             @INFUNCTION_ for ic1_ in index_:stride_:N_
-                if t > pseudoT_[ic1_]
+                if t_ > pseudoT_[ic1_]
                     nNPseudo = 0
                     $inLoop1
                     count = pseudoChoice_[ic1_]*nNPseudo
@@ -124,7 +122,7 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::S
     :(rand!(pseudoChoice_))
     )
     pushAdapt!(execute, agentModel, platform, 
-    :(@OUTFUNCTION pseudoCount($(comArgs...),$(arg...)))
+    :(@OUTFUNCTION_ pseudoCount($(comArgs...),$(arg...)))
     )
 
     return varDeclare,fDeclare,execute
