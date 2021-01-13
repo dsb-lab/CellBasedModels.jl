@@ -6,7 +6,6 @@ Struct containing the conditions for pseudopode like forces.
 struct Pseudopode <: Special
     neighbourCondition::Expr
     force::Expr
-    changePseudoCondition::Expr
     updateChange::Expr
 end
 
@@ -15,12 +14,12 @@ end
 
 Add a pseudopode force.
 
-Examples
+**Examples**
 ```
 m = Model()
 addLocal!([:x,:y])
 
-condition = 
+neighbourCondition = 
 "
 sqrt((x₁-x₂)^2+(y₁-y₂)^2) < 2.
 "
@@ -28,14 +27,17 @@ force =
 "
 f = sqrt((x₁-x₂)^2+(y₁-y₂)^2)*exp(-sqrt((x₁-x₂)^2+(y₁-y₂)^2))
 "
-addPseudopode!(m,:f,condition,force)
+updateChange = 
+"
+t + σPseudo
+"
+addPseudopode!(m,:f,condition,force,updateChange,randVar = [(:σPseudo,"uniform",1.,2.)])
 ```
 """
-function addPseudopode!(agentModel::Model, var::Symbol, neighbourCondition::String, force::String, changePseudoCondition::String, updateChange::String; randVar = Tuple{Symbol,String}[])
+function addPseudopode!(agentModel::Model, var::Symbol, neighbourCondition::String, force::String, updateChange::String; randVar = Tuple{Symbol,String}[])
     
     #Checks
     neighbourCondition = Meta.parse(neighbourCondition)
-    changePseudoCondition = Meta.parse(changePseudoCondition)
     force = Meta.parse(force)
     updateChange = Meta.parse(updateChange)
     #Check if a Pseudopode force already exists
@@ -64,7 +66,7 @@ function addPseudopode!(agentModel::Model, var::Symbol, neighbourCondition::Stri
 end
 
 """
-    function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model,inLoop,arg; platform::String)
+    function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::String)
 """
 function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::String)
 
@@ -96,7 +98,8 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::S
         count -= 1             
         if count < 0
             pseudoId_ = nnic2_
-            pseudoT_ = $pseudopode.updateChange
+            pseudoT_[ic1_] = $pseudopode.updateChange
+            break
         end
     end
     ))
@@ -105,7 +108,7 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::S
     pushAdapt!(fDeclare, agentModel, platform,
     :(function pseudoCount($(comArgs...),$(arg...))
             @INFUNCTION_ for ic1_ in index_:stride_:N_
-                if $(pseudopode.changePseudoCondition)
+                if t > pseudoT_[ic1_]
                     nNPseudo = 0
                     $inLoop1
                     count = pseudoChoice_[ic1_]*nNPseudo
