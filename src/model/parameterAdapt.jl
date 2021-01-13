@@ -95,12 +95,13 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         platformAdapt(
         :(
         function locInterStep_($(comArgs...),$(arg...))
-        @INFUNCTION_ for ic1_ in index_:stride_:N_
-            $(reset...)
-            $inLoop    
+            @INFUNCTION_ for ic1_ in index_:stride_:N_
+                $(reset...)
+                $inLoop    
+            end
+            return
         end
-        return
-        end),platform=platform)
+        ),platform=platform)
         )
     end
     

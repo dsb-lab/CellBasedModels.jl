@@ -10,3 +10,14 @@ global NEIGHBORHOODADAPT= Dict(
     NeighboursAdjacency=>neighboursByAdjacencyAdapt,
     NeighboursGrid=>neighboursByGridAdapt
     ])
+
+global NEIGHBORHOODLOOP= Dict(
+    [
+        NeighboursFull=>inloopFull,
+        NeighboursAdjacency=>ByAdjacency,
+        NeighboursGrid=>inloopByGrid
+    ])
+
+function neighborhoodLoop(agentModel::Model)
+    return NEIGHBORHOODLOOP[typeof(agentModel.neighborhood)](agentModel)
+end

@@ -74,9 +74,9 @@ function addDivisionProcess!(agentModel::Model, condition::String, update::Strin
 end
 
 """
-    function divisionCompile(agentModel::Model, platform::String)
+    function divisionCompile(division::DivisionProcess,agentModel::Model,inLoop,arg; platform::String) 
 """
-function divisionCompile(division::DivisionProcess,agentModel::Model; platform::String)
+function divisionCompile(division::DivisionProcess,agentModel::Model,inLoop,arg; platform::String)
     
     comArgs = commonArguments(agentModel)
     cond = division.condition

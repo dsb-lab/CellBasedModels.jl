@@ -43,12 +43,12 @@ function addPseudopode!(agentModel::Model, var::Symbol, condition::String, force
     #Check random variables
     checkRandDeclared(agentModel, randVar)
     #Add necessary variables
-    addIfNot!(agentModel.declaredIds, [:id_,:nNPseudo_,:pseudoId_])
+    addIfNot!(agentModel.declaredIds, [:id_,:pseudoId_])
 
     eqs = copy(agentModel.inter)
     
     push!(eqs,
-    :(if nNPseudo_₁ == id_₂; 
+    :(if pseudoId_₁ == id_₂; 
             $(Meta.parse(string(var,"₁"))) += $force
             $(Meta.parse(string(var,"₂"))) += -$(Meta.parse(string(var,"₁")))
         end)
@@ -58,5 +58,51 @@ function addPseudopode!(agentModel::Model, var::Symbol, condition::String, force
     push!(agentModel.declaredSymb["inter"],var)
 
     return
+end
+
+
+"""
+    function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model,inLoop,arg; platform::String)
+"""
+function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model,inLoop,arg; platform::String)
+
+    comArgs = commonArguments(agentModel)
+    cond = division.condition
+    update = division.update
     
+    varDeclare = Expr[]
+    fDeclare = Expr[]
+    execute = Expr[]
+
+    if platform == "cpu"
+    
+        #Add variables
+        push!(varDeclare, :(pseudoChoice_ = zeros(nMax_)))
+    
+        #Add functions to declare
+        inloopCount = copy(inloop)
+        algorithm = 
+        string(:(
+        if $(pseudopode.condition)
+            :nNPseudo_₁ += 1
+        end
+        ))
+        inLoop = Meta.parse(replace(string(inLoop),"ALGORITHMS_"=>algorithm))
+        inLoop = NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](inLoop)   
+        pushAdapt!(fDeclare, agentModel, platform,
+        :(function pseudoCount($(comArgs...))
+                @INFUNCTION_ for ic1_ in index_:stride_:N_
+                    $(reset...)
+                    $inLoop    
+                end
+            return
+        end 
+        )
+        )
+    
+    end
+
+
+
+    return varDeclare,fDeclare,execute
 end

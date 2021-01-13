@@ -20,10 +20,9 @@ include("./auxiliar/addIfNot.jl")
 include("./auxiliar/checkDeclared.jl")
 include("./auxiliar/commonArguments.jl")
 include("./auxiliar/findSymbol.jl")
-include("./auxiliar/platformAdapt.jl")
+include("./auxiliar/adapt.jl")
 include("./auxiliar/splitting.jl")
 include("./auxiliar/substitution.jl")
-include("./auxiliar/vectorize.jl")
 include("./auxiliar/clean.jl")
 
 #Random variables

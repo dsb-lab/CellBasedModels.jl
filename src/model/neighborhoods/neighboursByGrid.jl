@@ -290,6 +290,16 @@ function neighboursByGrid(agentModel::Model;platform="cpu")
     
 end
 
+function inloopByGrid(agentModel)
+
+    grid = deepcopy(agentModel.neighborhood)
+
+    arg = [:(nnVId_),:(nnGId_),:(nnGC_),:(nnGCCum_),:(nnId_)]
+
+    inLoop = loopNeighbourGridCreation(grid.dim,grid.dim,grid)
+
+    return inLoop, arg
+end
 
 """
     function neighboursByGridAdapt(entry)

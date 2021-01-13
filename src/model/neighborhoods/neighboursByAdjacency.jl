@@ -136,6 +136,20 @@ function neighboursByAdjacency(agentModel::Model;platform="cpu")
 
 end
 
+function inloopByAdjacency(agentModel)
+
+    count = Meta.parse("nnN_[ic1_]")
+    arg = Symbol[Meta.parse("nnN_"),Meta.parse("nnList_")]
+    inLoop = 
+    :(
+    for ic2_ in 1:$count
+        ALGORITHMS_
+    end    
+    )
+
+    return inLoop, arg
+end
+
 """
     function neighboursByAdjacencyAdapt(entry)
 """

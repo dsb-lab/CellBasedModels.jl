@@ -4,7 +4,7 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
     
     if length(agentModel.declaredRandSymb[randVars])>0
 
-        if platform == "cpu" && nChange_ == false
+        if platform == "cpu" && nChange_ == false 
             
             push!(execute,
                 platformAdapt(

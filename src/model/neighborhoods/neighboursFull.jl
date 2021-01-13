@@ -44,6 +44,20 @@ function neighboursFull(agentModel::Model;platform="cpu")
 
 end
 
+function inloopFull(agentModel)
+
+    arg = Symbol[]
+
+    inLoop = 
+    :(
+    for ic2_ in 1:N_
+        ALGORITHMS_
+    end    
+    )
+
+    return inLoop, arg
+end
+
 """
     function neighboursFullAdapt(entry)
 """
