@@ -23,16 +23,7 @@ function addGlobal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tup
     agentModel.evolve = needCompilation
 
     if updates != ""
-        newUpdates = splitUpdating(updates)
-        #Check repeated declarations
-        varsUpdate = Meta.parse(newUpdates[1]).args[1]
-        if length(newUpdates)>1
-            error("Parameter ", addvar, " declared with more than one update rule.")
-        end
-        #Check updates belong to declared variables
-        if varsUpdate != addvar
-            error("Global parameter ", varsUpdate, " has been assigned an update rule but ", addvar, " it has been declared.")  
-        end
+        newUpdates = Meta.parse(string("begin ",updates," end"))
     end
     
     if length(randVar) > 0
@@ -59,7 +50,7 @@ function addGlobal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tup
     checkDeclared(agentModel,addvar)
     
     if updates != ""
-        append!(globUpdates,[Meta.parse(i) for i in newUpdates])
+        push!(globUpdates,newUpdates)
     end
         
     agentModel.glob = globUpdates
@@ -102,23 +93,7 @@ function addGlobal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVa
     end
 
     if updates != ""
-        newUpdates = splitUpdating(updates)
-        #Check repeated declarations
-        varsUpdate = []
-        for i in newUpdates
-            push!(varsUpdate,Meta.parse(i).args[1])
-        end
-        for i in varsUpdate
-            if length(findall(varsUpdate.==i))>1
-                error("Parameter ", i, " declared with more than one update rule.")
-            end
-        end
-        #Check updates belong to declared variables
-        for i in varsUpdate
-            if !(i in addvar)
-                error("Global parameter ", i, " has been assigned an update rule but it has not been declared.")  
-            end
-        end
+        newUpdates = Meta.parse(string("begin ",updates," end"))
     end
 
     if length(randVar) > 0
@@ -146,7 +121,7 @@ function addGlobal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVa
     globUpdates = copy(agentModel.glob)    
     
     if updates != ""
-        append!(globUpdates,[Meta.parse(i) for i in newUpdates])
+        push!(globUpdates,newUpdates)
     end
     
     agentModel.glob = globUpdates
