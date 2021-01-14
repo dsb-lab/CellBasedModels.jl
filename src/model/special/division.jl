@@ -114,7 +114,7 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
 
                         $(aux...)
 
-                        $(update...)
+                        $update
 
                         parent_₂ = id_₁
                         parent_₁ = id_₁
@@ -195,7 +195,7 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
 
                     $(aux...)
 
-                    $(update...)
+                    $update
         
                     parent_₂ = id_₁
                     parent_₁ = id_₁
