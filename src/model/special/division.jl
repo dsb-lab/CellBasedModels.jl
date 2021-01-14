@@ -5,7 +5,7 @@ Struct containing the conditions for the division process.
 """
 struct DivisionProcess <: Special
     condition::Expr
-    update::Array{Expr}
+    update::Expr
 end
 
 """
@@ -42,33 +42,16 @@ function addDivision!(agentModel::Model, condition::String, update::String; rand
         error("A division process is already present in the model. Only one division process can exist in the model.")
     end
 
-    updateL = splitUpdating(update)
+    condition = Meta.parse(condition)
+    update = Meta.parse(string("begin ", update, " end"))
 
     #Add tags to cells if not added
     addIfNot!(agentModel.declaredIds, [:id_,:parent_])
     #Check random variables
     checkRandDeclared(agentModel, randVar)
     
-    for (pos,rule) in enumerate(updateL)
-        s = Meta.parse(rule).args[1]
-        if !occursin("_aux",string(s)) #Check that is not an auxiliar variable
-            if string(s)[end] in ['₁','ₚ'] #Check problematic declarations
-                for i in pos+1:length(updateL)
-                    s = Meta.parse(string(string(s)[1:end-1],"₁"))
-                    if findSymbol(updateL[i],s)
-                        error("Parameter ", Meta.parse(string(string(s)[1:end-1],"₁")), "/", Meta.parse(string(string(s)[1:end-1],"ₚ")), " has been updated and afterwards used. Parent and Daugther 1 share the same memory space in order to make the division process more efficient. Please, add the updating rules in an order that prevents overwriting already updated parameters. If it is impossible, declare an auxiliary parameter using the notation NAMEOFPARAMETER_aux.")
-                    end
-                    s = Meta.parse(string(string(s)[1:end-1],"ₚ"))
-                    if findSymbol(updateL[i],s)
-                        error("Parameter ", Meta.parse(string(string(s)[1:end-1],"₁")), "/", Meta.parse(string(string(s)[1:end-1],"ₚ")), " has been updated and afterwards used. Parent and Daugther 1 share the same memory space in order to make the division process more efficient. Please, add the updating rules in an order that prevents overwriting already updated parameters. If it is impossible, declare an auxiliary parameter using the notation NAMEOFPARAMETER_aux.")
-                    end
-                end
-            end
-        end
-    end
-    
     append!(agentModel.declaredRandSymb["locRand"],randVar)
-    push!(agentModel.special,DivisionProcess(Meta.parse(condition),[Meta.parse(i) for i in updateL]))
+    push!(agentModel.special,DivisionProcess(condition,update))
     
     return
 end
