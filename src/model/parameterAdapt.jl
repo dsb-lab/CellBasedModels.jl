@@ -35,7 +35,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
             platformAdapt(:(loc_ = @ARRAYEMPTY_(com.loc)),platform=platform ) )
         push!(varDeclarations, 
             platformAdapt(
-                :(loc_ = Array([loc_;@ARRAY_zeros(nMax_-size(com.loc)[1],$(length(agentModel.declaredSymb["loc"])))])),platform=platform )
+                :(loc_ = [loc_;@ARRAY_zeros(nMax_-size(com.loc)[1],$(length(agentModel.declaredSymb["loc"])))]),platform=platform )
             ) 
     end
     if length(agentModel.declaredSymb["inter"])>0

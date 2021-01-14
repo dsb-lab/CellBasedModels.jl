@@ -103,7 +103,7 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
                 #Make divisions
                 if divN_ > 0
                     #Check if there is space
-                    if N_+divN_>nMax_
+                    if N+divN_>nMax_
                         error("In the next division there will be more cells than allocated cells. Evolve again with a higher nMax_.")
                     end
     
@@ -118,8 +118,8 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
 
                         parent_₂ = id_₁
                         parent_₁ = id_₁
-                        id_₂ = N_+ic1_
-                        id_₁ = N_+ic1_+divN_
+                        id_₂ = N+ic1_
+                        id_₁ = N+ic1_+divN_
                     end
                     N += divN_
                 end
