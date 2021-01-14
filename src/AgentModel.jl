@@ -5,7 +5,10 @@ using DataFrames
 using Random
 using WriteVTK
 
-export Community, Model
+export Community, Model 
+export addGlobal!, addLocal!, addVariable!, addLocalInteraction!, addInteraction!
+export addDivision!, addPseudopode!
+export compile!
 
 #Reserved variables of the model
 include("./constants/constants.jl")
