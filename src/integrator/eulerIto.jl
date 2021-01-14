@@ -3,6 +3,7 @@ function integratorSDEEulerIto(agentModel::Model,inLoop::Expr,arg::Array{Symbol}
     varDeclare = []
     fdeclare = []
     execute = []
+    begining = []
     
     if length(agentModel.declaredSymb["var"])>0
         
@@ -99,5 +100,13 @@ function integratorSDEEulerIto(agentModel::Model,inLoop::Expr,arg::Array{Symbol}
 
     end
         
-    return varDeclare, fdeclare, execute
+    #Begining
+    push!(begining,
+    platformAdapt(
+    :(
+    @OUTFUNCTION_ interUpdate_($(comArgs...),$(arg...))
+    ),platform=platform)
+    )
+
+    return varDeclare, fdeclare, execute, begining
 end

@@ -38,7 +38,7 @@ function addLocal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tupl
 
         #Check if distribution exists
         for i in randVar
-            if findfirst(RESERVEDCALLS.==i[2])==nothing
+            if findfirst(RESERVEDCALLS.==i[2])===nothing
                 error("Probabily distribution assigned to random variable ", i[1], " ", i[2], " does not exist.")
             end
         end
@@ -108,7 +108,7 @@ function addLocal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar
 
         #Check if distribution exists
         for i in randVar
-            if findfirst(RESERVEDCALLS.==i[2])==nothing
+            if findfirst(RESERVEDCALLS.==i[2])===nothing
                 error("Probabily distribution assigned to random variable ", i[1], " ", i[2], " does not exist.")
             end
         end

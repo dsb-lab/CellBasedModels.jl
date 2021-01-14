@@ -3,6 +3,7 @@ function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platf
     varDeclare = []
     fdeclare = []
     execute = []
+    begining = []
     
     if length(agentModel.declaredSymb["var"])>0
         
@@ -36,8 +37,8 @@ function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platf
         inLoop = NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](inLoop)
     
         reset = []
-        for i in 1:length(inter)
-            push!(reset,:(inter_[ic1_,$i]=0))
+        for i in 1:length(agentModel.declaredSymb["inter"])
+            push!(reset,:(inter_[ic1_,$i]=0.))
         end
         push!(fdeclare,
         platformAdapt(
@@ -67,6 +68,14 @@ function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platf
         )
 
     end
+
+    #Begining
+    push!(begining,
+    platformAdapt(
+    :(
+    @OUTFUNCTION_ interUpdate_($(comArgs...),$(arg...))
+    ),platform=platform)
+    )
         
-    return varDeclare, fdeclare, execute
+    return varDeclare, fdeclare, execute, begining
 end

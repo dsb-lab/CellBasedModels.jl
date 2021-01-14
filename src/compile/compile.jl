@@ -4,7 +4,8 @@ function compile!(agentModel::Model;platform="cpu",
 varDeclarations = []
 fDeclarations = []
 execute = []
-kArgs= []
+kArgs = []
+initialisation = []
 
 #Neighbours declare
 if typeof(agentModel.neighborhood) in keys(NEIGHBOURS)
@@ -24,16 +25,18 @@ append!(execute,exec)
 
 #Integrator
 if integrator in keys(INTEGRATORS)
-    var,f,exec = INTEGRATORS[integrator](agentModel,inLoop,arg,platform=platform)
+    var,f,exec,begining = INTEGRATORS[integrator](agentModel,inLoop,arg,platform=platform)
     append!(varDeclarations,var)
     append!(fDeclarations,f)
-    append!(execute,exec)        
+    append!(execute,exec)     
+    append!(initialisation,begining)   
 elseif integrator in keys(INTEGRATORSSDE)
-    var,f,exec = INTEGRATORSSDE[integrator](agentModel,inLoop,arg,platform=platform)
+    var,f,exec,begining = INTEGRATORSSDE[integrator](agentModel,inLoop,arg,platform=platform)
     integratorFound = true
     append!(varDeclarations,var)
     append!(fDeclarations,f)
     append!(execute,exec)
+    append!(initialisation,begining)   
 else
     error("No integrator called ", integrator,".")
 end
@@ -103,6 +106,7 @@ function evolve(com::Community;$(kArgs...),tMax_, dt_, t_=com.t_, N_=com.N_, nMa
     end
     
     $(execNN...)
+    $(initialisation...)
     $(execSave...)
     while t_ <= tMax_
         nBlocks_ = min(round(Int,N_/threads_),2560)
