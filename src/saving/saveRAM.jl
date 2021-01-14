@@ -1,4 +1,4 @@
-function inRAMSave(agentModel::Model)
+function saveRAMCompile(agentModel::Model)
     
     varDeclare = [:(commRAM_ = Array{Community}([com]))]
     fDeclare = []
@@ -39,11 +39,12 @@ function inRAMSave(agentModel::Model)
     
     push!(execute,
     :(
-    if t_ >= tSave_
         ob = Community(t_,N_,com.declaredSymb,$(l...))
+    )
+    )
+    push!(execute,
+    :(
         push!(commRAM_,ob)
-        tSave_ += tSaveStep_
-    end
     )
     )
     

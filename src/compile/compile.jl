@@ -1,9 +1,10 @@
 function compile!(agentModel::Model;platform="cpu",
-    integrator="euler",saveRAM = false, debug = false)
+    integrator="euler",saveRAM = false,saveVTK = false,positionsVTK=[:x,:y,:z], debug = false)
 
 varDeclarations = []
 fDeclarations = []
 execute = []
+kArgs= []
 
 #Neighbours declare
 if typeof(agentModel.neighborhood) in keys(NEIGHBOURS)
@@ -46,18 +47,48 @@ for special in agentModel.special
 end
 
 #Saving
+saving = false
+execSaveList = []
+execSaveFinal = []
 if saveRAM
-    var,f,execSave = inRAMSave(agentModel)
+    var,f,exec = saveRAMCompile(agentModel)
     append!(varDeclarations,var)
-    append!(fDeclarations,f)  
+    append!(fDeclarations,f)
+    append!(execSaveList,exec)
     ret=[:(commRAM_)]
+
+    saving = true
 else
     execSave = []
     ret=[:Nothing]
 end
 
+if saveVTK
+    var,f,exec,final,kargs = saveVTKCompile(agentModel,positionsVTK)
+    append!(varDeclarations,var)
+    append!(fDeclarations,f)  
+    append!(execSaveList,exec)
+    append!(execSaveFinal,final)
+    append!(kArgs,kargs)
+
+    saving = true
+end
+
+if saving == true
+    push!(varDeclarations,:(countSave = 1))
+    execSave = [:(
+    if t_ >= tSave_
+        $(execSaveList...)
+        tSave_ += tSaveStep_
+        countSave += 1
+    end    
+    )]
+else
+    execSave = []
+end
+
 program = :(
-function evolve(com::Community;tMax_, dt_, t_=com.t_, N_=com.N_, nMax_=com.N_, neighMax_=nMax_, tSave_=0., tSaveStep_=dt_, threads_=256)
+function evolve(com::Community;$(kArgs...),tMax_, dt_, t_=com.t_, N_=com.N_, nMax_=com.N_, neighMax_=nMax_, tSave_=0., tSaveStep_=dt_, threads_=256)
     #Declaration of variables
     $(varDeclarations...)
     #Declaration of functions
@@ -72,6 +103,7 @@ function evolve(com::Community;tMax_, dt_, t_=com.t_, N_=com.N_, nMax_=com.N_, n
     end
     
     $(execNN...)
+    $(execSave...)
     while t_ <= tMax_
         nBlocks_ = min(round(Int,N_/threads_),2560)
         if nBlocks_ == 0
@@ -81,9 +113,11 @@ function evolve(com::Community;tMax_, dt_, t_=com.t_, N_=com.N_, nMax_=com.N_, n
         $(execute...)
 
         t_ += dt_
-            
+
         $(execSave...)
     end
+
+    $(execSaveFinal...)
         
     #CUDA.unsafe_free!(loc_)
     #CUDA.unsafe_free!(locInter_)

@@ -25,4 +25,4 @@ CPUARRAY =
 GPUARRAYEMPTY = 
 "CUDA.CuArray{Float32}"
 CPUARRAYEMPTY = 
-"Array"
+"Array{Float64}"

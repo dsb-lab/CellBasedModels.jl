@@ -3,6 +3,7 @@ module AgentModel
 using CUDA
 using DataFrames
 using Random
+using WriteVTK
 
 export Community, Model
 
@@ -57,7 +58,8 @@ include("./integrator/eulerIto.jl")
 include("./integrator/integrators.jl")
 
 #Saving
-include("./saving/ram.jl")
+include("./saving/saveRAM.jl")
+include("./saving/saveVTK.jl")
 
 #Compile
 include("./compile/compile.jl")

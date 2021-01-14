@@ -12,11 +12,11 @@ end
 
 function Community(agentModel::Model; N::Int=1, t::AbstractFloat=0.)
 
-    var = zeros(N,length(agentModel.declaredSymb["var"]))
-    inter = zeros(N,length(agentModel.declaredSymb["inter"]))
-    loc = zeros(N,length(agentModel.declaredSymb["loc"]))
-    locInter = zeros(N,length(agentModel.declaredSymb["loc"]))
-    glob = zeros(length(agentModel.declaredSymb["glob"]))
+    var = zeros(Float64,N,length(agentModel.declaredSymb["var"]))
+    inter = zeros(Float64,N,length(agentModel.declaredSymb["inter"]))
+    loc = zeros(Float64,N,length(agentModel.declaredSymb["loc"]))
+    locInter = zeros(Float64,N,length(agentModel.declaredSymb["loc"]))
+    glob = zeros(Float64,length(agentModel.declaredSymb["glob"]))
     ids = zeros(Int,N,length(agentModel.declaredIds))
 
     declaredSymb = agentModel.declaredSymb
