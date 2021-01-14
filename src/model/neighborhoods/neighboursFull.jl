@@ -35,7 +35,7 @@ function neighboursFull(agentModel::Model;platform="cpu")
     #In loop call
     inLoop = 
     :(
-    for ic2_ in 1:N_
+    for ic2_ in 1:N
         ALGORITHMS_
     end    
     )
@@ -50,7 +50,7 @@ function inloopFull(agentModel)
 
     inLoop = 
     :(
-    for ic2_ in 1:N_
+    for ic2_ in 1:N
         ALGORITHMS_
     end    
     )

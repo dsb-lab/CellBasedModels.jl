@@ -1,6 +1,6 @@
 mutable struct Community
-    t_::AbstractFloat
-    N_::Int
+    t::AbstractFloat
+    N::Int
     declaredSymb::Dict{String,Array{Symbol}}
     var::Array{AbstractFloat,2}
     inter::Array{AbstractFloat,2}

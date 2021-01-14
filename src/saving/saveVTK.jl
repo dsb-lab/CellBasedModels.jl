@@ -18,22 +18,22 @@ function saveVTKCompile(agentModel::Model,pos::Array{Symbol}=[:x,:y,:z])
     l=[]
     if length(agentModel.declaredSymb["var"])>0
         for (i,j) in enumerate(agentModel.declaredSymb["var"])
-            push!(l,:(vtkfile[$(string(j))] = Array(v_)[1:N_,$i]))
+            push!(l,:(vtkfile[$(string(j))] = Array(v_)[1:N,$i]))
         end
     end
     if length(agentModel.declaredSymb["inter"])>0
         for (i,j) in enumerate(agentModel.declaredSymb["inter"])
-            push!(l,:(vtkfile[$(string(j))] = Array(inter_)[1:N_,$i]))
+            push!(l,:(vtkfile[$(string(j))] = Array(inter_)[1:N,$i]))
         end
     end
     if length(agentModel.declaredSymb["loc"])>0
         for (i,j) in enumerate(agentModel.declaredSymb["loc"])
-            push!(l,:(vtkfile[$(string(j))] = Array(loc_)[1:N_,$i]))
+            push!(l,:(vtkfile[$(string(j))] = Array(loc_)[1:N,$i]))
         end
     end
     if length(agentModel.declaredSymb["locInter"])>0
         for (i,j) in enumerate(agentModel.declaredSymb["locInter"])
-            push!(l,:(vtkfile[$(string(j))] = Array(locInter_)[1:N_,$i]))
+            push!(l,:(vtkfile[$(string(j))] = Array(locInter_)[1:N,$i]))
         end
     end
     if length(agentModel.declaredSymb["glob"])>0
@@ -43,7 +43,7 @@ function saveVTKCompile(agentModel::Model,pos::Array{Symbol}=[:x,:y,:z])
     end
     if length(agentModel.declaredIds)>0
         for (i,j) in enumerate(agentModel.declaredIds)
-            push!(l,:(vtkfile[$(string(j))] = Array(ids_)[1:N_,$i]))
+            push!(l,:(vtkfile[$(string(j))] = Array(ids_)[1:N,$i]))
         end
     end
 
@@ -51,8 +51,8 @@ function saveVTKCompile(agentModel::Model,pos::Array{Symbol}=[:x,:y,:z])
     :(
         function saveVTK(VTKfoldername_,$(commArgs...),pvdVTK,countSave)
             cells=[]
-            for ic1_ in 1:N_
-                cells = [WriteVTK.MeshCell(VTKCellTypes.VTK_VERTEX,[i]) for i in 1:N_]
+            for ic1_ in 1:N
+                cells = [WriteVTK.MeshCell(VTKCellTypes.VTK_VERTEX,[i]) for i in 1:N]
             end
 
             #Create file
@@ -60,7 +60,7 @@ function saveVTKCompile(agentModel::Model,pos::Array{Symbol}=[:x,:y,:z])
             #Save all parameters
             $(l...)
             #Add to the ParaView object
-            pvdVTK[t_] = vtkfile
+            pvdVTK[t] = vtkfile
 
             return
         end

@@ -109,7 +109,7 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
                 lockDiv_ = Threads.SpinLock()
                 divN_ = 0
                 #Check division cells
-                Threads.@threads for ic1_ in 1:N_
+                Threads.@threads for ic1_ in 1:N
                     if $cond
                         lock(lockDiv_)
                         divN_ += 1
@@ -126,7 +126,7 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
     
                     Threads.@threads for ic1_ in 1:divN_
                         
-                        nnic2_ = N_+ic1_
+                        nnic2_ = N+ic1_
                         ic1_ = divList_[ic1_]
 
                         $(aux...)
@@ -138,10 +138,10 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
                         id_₂ = N_+ic1_
                         id_₁ = N_+ic1_+divN_
                     end
-                    N_ += divN_
+                    N += divN_
                 end
                                 
-                return N_
+                return N
             end
             )), platform=platform)
             ) 
@@ -150,7 +150,7 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
         push!(execute,
             platformAdapt(
             vectParams(agentModel,:(
-                N_ = addDiv_($(comArgs...),divList_)
+                N = addDiv_($(comArgs...),divList_)
             )), platform=platform)
             )
         
@@ -177,7 +177,7 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
                 stride_ = blockDim().x * gridDim().x                
 
                 #Check division cells
-                for ic1_ in index_:stride_:N_
+                for ic1_ in index_:stride_:N
                     if $cond
                         divN = CUDA.atomic_add!(pointer(divN_,1),1)
                         divList_[divN] = ic1_
@@ -207,7 +207,7 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
                 #Check division cells
                 for ic1_ in index_:stride_:divN_
         
-                    nnic2_ = N_+ic1_
+                    nnic2_ = N+ic1_
                     ic1_ = divList_[ic1_]
 
                     $(aux...)
@@ -216,8 +216,8 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
         
                     parent_₂ = id_₁
                     parent_₁ = id_₁
-                    id_₂ = N_+ic1_
-                    id_₁ = N_+ic1_+divN_
+                    id_₂ = N+ic1_
+                    id_₁ = N+ic1_+divN_
                 end
 
                 return nothing
@@ -233,11 +233,11 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
                 divN_ = @ARRAY_ones(Int,1)
                 @OUTFUNCTION_ addDiv1_($(comArgs...),divList_,divN_)
                 divN = Array(divN_)[1]-1
-                if N_+divN > nMax_
+                if N+divN > nMax_
                     error("In the next division there will be more cells than allocated cells. Evolve again with a higher nMax_.")
                 elseif divN > 0
                     @OUTFUNCTION_ addDiv2_($(comArgs...),divList_,divN)
-                    N_ += divN
+                    N += divN
                 end
             end
             )), platform=platform)

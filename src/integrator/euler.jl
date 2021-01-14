@@ -17,14 +17,14 @@ function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platf
         for eq in agentModel.equations
             v = string(eq.args[1])[2:end-2]
             args = string(eq.args[2])
-            push!(nEqs,string("$v += ($args)*dt_"))
+            push!(nEqs,string("$v += ($args)*dt"))
         end
         eqs = vectParams(agentModel,nEqs)
         push!(fdeclare,
         platformAdapt(
         :(
         function integratorStep_($(comArgs...))
-        @INFUNCTION_ for ic1_ in index_:stride_:N_
+        @INFUNCTION_ for ic1_ in index_:stride_:N
             $(eqs...)
         end
         return
@@ -44,7 +44,7 @@ function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platf
         platformAdapt(
         :(
         function interUpdate_($(comArgs...),$(arg...))
-        @INFUNCTION_ for ic1_ in index_:stride_:N_
+        @INFUNCTION_ for ic1_ in index_:stride_:N
             $(reset...)
             $inLoop
         end

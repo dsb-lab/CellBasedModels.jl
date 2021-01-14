@@ -1,5 +1,5 @@
 function commonArguments(agentModel::Model; random = true)
-    l = [:dt_,:t_,:N_]
+    l = [:dt,:t,:N]
     if length(agentModel.declaredSymb["var"])>0
         push!(l,:v_)
     end

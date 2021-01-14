@@ -80,7 +80,7 @@ end
 if saving == true
     push!(varDeclarations,:(countSave = 1))
     execSave = [:(
-    if t_ >= tSave_
+    if t >= tSave_
         $(execSaveList...)
         tSave_ += tSaveStep_
         countSave += 1
@@ -91,7 +91,7 @@ else
 end
 
 program = :(
-function evolve(com::Community;$(kArgs...),tMax_, dt_, t_=com.t_, N_=com.N_, nMax_=com.N_, neighMax_=nMax_, tSave_=0., tSaveStep_=dt_, threads_=256)
+function evolve(com::Community;$(kArgs...),tMax_, dt, t=com.t, N=com.N, nMax_=com.N, neighMax_=nMax_, tSave_=0., tSaveStep_=dt, threads_=256)
     #Declaration of variables
     $(varDeclarations...)
     #Declaration of functions
@@ -100,7 +100,7 @@ function evolve(com::Community;$(kArgs...),tMax_, dt_, t_=com.t_, N_=com.N_, nMa
     #println(CUDA.memory_status())
     
     #Execution of the program
-    nBlocks_ = min(round(Int,N_/threads_),2560)
+    nBlocks_ = min(round(Int,N/threads_),2560)
     if nBlocks_ == 0
         nBlocks_ = 1
     end
@@ -108,15 +108,15 @@ function evolve(com::Community;$(kArgs...),tMax_, dt_, t_=com.t_, N_=com.N_, nMa
     $(execNN...)
     $(initialisation...)
     $(execSave...)
-    while t_ <= tMax_
-        nBlocks_ = min(round(Int,N_/threads_),2560)
+    while t <= tMax_
+        nBlocks_ = min(round(Int,N/threads_),2560)
         if nBlocks_ == 0
             nBlocks_ = 1
         end
         #println(nBlocks_)
         $(execute...)
 
-        t_ += dt_
+        t += dt
 
         $(execSave...)
     end

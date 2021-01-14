@@ -41,10 +41,10 @@ function Normal1CUDA_!(a,μ,σ,pos)
     return nothing
 end
 
-function Normal2CUDA_!(a,μ,σ,pos,N_)
+function Normal2CUDA_!(a,μ,σ,pos,N)
     index_ = (threadIdx().x) + (blockIdx().x - 1) * blockDim().x
     stride_ = blockDim().x * gridDim().x
-    for i in index_:stride_:N_
+    for i in index_:stride_:N
         x = 1.99999*a[i,pos]-0.999995
         p = 0
         w = -log((1.0 - x)*(1.0 + x))
@@ -79,10 +79,10 @@ function Normal2CUDA_!(a,μ,σ,pos,N_)
     return nothing
 end
 
-function Normal3CUDA_!(a,μ,σ,pos,N_,nnMax_)
+function Normal3CUDA_!(a,μ,σ,pos,N,nnMax_)
     index_ = (threadIdx().x) + (blockIdx().x - 1) * blockDim().x
     stride_ = blockDim().x * gridDim().x
-    for i in index_:stride_:N_
+    for i in index_:stride_:N
         for j in 1:nnMax_
             x = 1.99999*a[i,j,pos]-0.999995
             p = 0
@@ -155,9 +155,9 @@ function Normal1_!(a,μ,σ,pos)
     return nothing
 end
 
-function Normal2_!(a,μ,σ,pos,N_)
+function Normal2_!(a,μ,σ,pos,N)
 
-    Threads.@threads for i in 1:N_
+    Threads.@threads for i in 1:N
         x = 1.99999*a[i,pos]-0.999995
         p = 0
         w = -log((1.0 - x)*(1.0 + x))
@@ -192,9 +192,9 @@ function Normal2_!(a,μ,σ,pos,N_)
     return nothing
 end
 
-function Normal3_!(a,μ,σ,pos,N_,nnMax_)
+function Normal3_!(a,μ,σ,pos,N,nnMax_)
 
-    Threads.@threads for i in 1:N_
+    Threads.@threads for i in 1:N
         for j in 1:nnMax_
             x = 1.99999*a[i,j,pos]-0.999995
             p = 0

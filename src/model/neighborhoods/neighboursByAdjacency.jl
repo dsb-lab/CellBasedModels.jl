@@ -57,11 +57,11 @@ function neighboursByAdjacency(agentModel::Model;platform="cpu")
     if platform == "cpu"
     push!(fDeclare,
         subs(:( function nnUpdate_($(comArgs...),nnN_,nnList_)
-            Threads.@threads for ic1_ in 1:N_
+            Threads.@threads for ic1_ in 1:N
                 nnN_[ic1_] = 0
             end
-            Threads.@threads for ic1_ in 1:N_
-                for ic2_ in ic1_:N_
+            Threads.@threads for ic1_ in 1:N
+                for ic2_ in ic1_:N
                     if $(vectParams(agentModel,condition))
                         nnN_[ic1_] += 1
                         nnList_[ic1_,nnN_[ic1_]] = ic2_
@@ -84,8 +84,8 @@ function neighboursByAdjacency(agentModel::Model;platform="cpu")
         strideY_ = (blockDim()).y*(gridDim()).y
         indexX_ = (threadIdx()).x + ((blockIdx()).x - 1) * (blockDim()).x
         indexY_ = (threadIdx()).y + ((blockIdx()).y - 1) * (blockDim()).y
-        for ic1_ = indexX_:strideX_:N_
-            for ic2_ = indexY_+ic1_-1:strideY_:N_
+        for ic1_ = indexX_:strideX_:N
+            for ic2_ = indexY_+ic1_-1:strideY_:N
                     if $(vectParams(agentModel,condition))
                         pos = CUDA.atomic_add!(pointer(nnN_,ic1_),1) + 1
                         nnList_[ic1_,pos]=ic2_

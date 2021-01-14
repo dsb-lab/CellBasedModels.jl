@@ -1,5 +1,5 @@
 RESERVEDVAR = []#[:x1,:x2,:x3,:r];
-RESERVEDSYMBOLS = [:t_,:N_,:dt_,:d_,:id_,:Nothing_,:fullConnected_];
+RESERVEDSYMBOLS = [:t,:N];
 RESERVEDCALLS =  ["Uniform","Normal"];
 
 RESERVED = [RESERVEDVAR;RESERVEDSYMBOLS;RESERVEDCALLS];

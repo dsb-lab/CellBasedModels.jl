@@ -181,7 +181,7 @@ function neighboursByGrid(agentModel::Model;platform="cpu")
         push!(fDeclare,
             vectParams(agentModel,:( function insertCounts_($(comArgs...),nnVId_,nnGId_,nnGC_,nnGCAux_)
               lockadd_ = Threads.SpinLock()
-              Threads.@threads for ic1_ = 1:N_
+              Threads.@threads for ic1_ = 1:N
                     position_ = 1
                     $position
                     nnVId_[ic1_] = position_
@@ -196,7 +196,7 @@ function neighboursByGrid(agentModel::Model;platform="cpu")
         push!(fDeclare,
             vectParams(agentModel,:( function countingSort_($(comArgs...),nnVId_,nnGC_,nnGCAux_,nnGCCum_,nnId_)
                     lockadd_ = Threads.SpinLock()          
-                    Threads.@threads for ic1_ = 1:N_
+                    Threads.@threads for ic1_ = 1:N
                     id_ = nnVId_[ic1_]
                     if id_ == 1
                         posInit_ = 0
@@ -219,7 +219,7 @@ function neighboursByGrid(agentModel::Model;platform="cpu")
             vectParams(agentModel,:( function insertCounts_($(comArgs...),nnVId_,nnGId_,nnGC_,nnGCAux_)
               stride_ = (blockDim()).x*(gridDim()).x
               index_ = (threadIdx()).x + ((blockIdx()).x - 1) * (blockDim()).x
-              for ic1_ = index_:stride_:N_
+              for ic1_ = index_:stride_:N
                     position_ = 1
                     $position
                     nnVId_[ic1_] = position_
@@ -234,7 +234,7 @@ function neighboursByGrid(agentModel::Model;platform="cpu")
             :( function countingSort_($(comArgs...),nnVId_,nnGC_,nnGCAux_,nnGCCum_,nnId_)
               stride_ = (blockDim()).x*(gridDim()).x
               index_ = (threadIdx()).x + ((blockIdx()).x - 1) * (blockDim()).x
-              for ic1_ = index_:stride_:N_
+              for ic1_ = index_:stride_:N
                     id_ = nnVId_[ic1_]
                     if id_ == 1
                         posInit_ = 0

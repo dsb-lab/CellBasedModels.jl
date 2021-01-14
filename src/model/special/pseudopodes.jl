@@ -31,7 +31,7 @@ f = sqrt((x₁-x₂)^2+(y₁-y₂)^2)*exp(-sqrt((x₁-x₂)^2+(y₁-y₂)^2))
 "
 updateChange = 
 "
-tPseudo = t_ + σPseudo
+tPseudo = t + σPseudo
 "
 addPseudopode!(m, :f, :tPseudo, condition, force, updateChange, randVar = [(:σPseudo,"Uniform",1.,2.)])
 ```
@@ -110,8 +110,8 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::S
     ## Create the function
     pushAdapt!(fDeclare, agentModel, platform,
     :(function pseudoUpdate($(comArgs...),$(arg...),pseudoChoice_)
-            @INFUNCTION_ for ic1_ in index_:stride_:N_
-                if t_ > $(pseudopode.t)
+            @INFUNCTION_ for ic1_ in index_:stride_:N
+                if t > $(pseudopode.t)
                     nNPseudo = 0
                     $inLoop1
                     count = pseudoChoice_[ic1_]*nNPseudo

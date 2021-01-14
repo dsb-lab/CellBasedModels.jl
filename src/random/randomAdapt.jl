@@ -16,7 +16,7 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
                 for (pos,pdf) in enumerate(values(agentModel.declaredRandSymb[randVars]))
                     push!(execute,
                         platformAdapt(
-                            :($(Meta.parse(string(pdf[2],"2_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N_))
+                            :($(Meta.parse(string(pdf[2],"2_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N))
                         ,platform=platform)
                     )
                 end        
@@ -24,7 +24,7 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
                 for (pos,pdf) in enumerate(values(agentModel.declaredRandSymb[randVars]))
                     push!(execute,
                         platformAdapt(
-                            :($(Meta.parse(string(pdf[2],"3_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N_,nnMax_))
+                            :($(Meta.parse(string(pdf[2],"3_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N,nnMax_))
                         ,platform=platform)
                     )
                 end        
@@ -43,26 +43,26 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
             if randVars == "locRand"
                 push!(execute,
                     platformAdapt(
-                    :(rand!(view(locRand_,N_,:)))
+                    :(rand!(view(locRand_,N,:)))
                     ,platform=platform)
                 )
                 for (pos,pdf) in enumerate(values(agentModel.declaredRandSymb[randVars]))
                     push!(execute,
                         platformAdapt(
-                            :($(Meta.parse(string(pdf[2],"2_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N_))
+                            :($(Meta.parse(string(pdf[2],"2_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N))
                         ,platform=platform)
                     )
                 end        
             elseif randVars == "locInterRand"
                 push!(execute,
                     platformAdapt(
-                    :(rand!(view(locInterRand_,N_,:,:)))
+                    :(rand!(view(locInterRand_,N,:,:)))
                     ,platform=platform)
                 )
                 for (pos,pdf) in enumerate(values(agentModel.declaredRandSymb[randVars]))
                     push!(execute,
                         platformAdapt(
-                            :($(Meta.parse(string(pdf[2],"3_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N_,nnMax_))
+                            :($(Meta.parse(string(pdf[2],"3_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N,nnMax_))
                         ,platform=platform)
                     )
                 end        
@@ -93,7 +93,7 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
                 for (pos,pdf) in enumerate(values(agentModel.declaredRandSymb[randVars]))
                     push!(execute,
                         platformAdapt(
-                            :(CUDA.@cuda threads = threads_ blocks = nBlocks_ $(Meta.parse(string(pdf[2],"2CUDA_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N_))
+                            :(CUDA.@cuda threads = threads_ blocks = nBlocks_ $(Meta.parse(string(pdf[2],"2CUDA_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N))
                         ,platform=platform)
                     )
                 end        
@@ -101,7 +101,7 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
                 for (pos,pdf) in enumerate(values(agentModel.declaredRandSymb[randVars]))
                     push!(execute,
                         platformAdapt(
-                            :(CUDA.@cuda threads = threads_ blocks = nBlocks_ $(Meta.parse(string(pdf[2],"3CUDA_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N_,nnMax_))
+                            :(CUDA.@cuda threads = threads_ blocks = nBlocks_ $(Meta.parse(string(pdf[2],"3CUDA_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N,nnMax_))
                         ,platform=platform)
                     )
                 end        

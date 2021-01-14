@@ -16,7 +16,7 @@ function integratorSDEEulerIto(agentModel::Model,inLoop::Expr,arg::Array{Symbol}
             eqs = split(string(eq),"ξ_")
             eq = eqs[1]
             for i in eqs[2:end]
-                eq = string(eq,"ξ_[ic1_,$count]/dt_^0.5",i)
+                eq = string(eq,"ξ_[ic1_,$count]/dt^0.5",i)
                 count += 1
             end
             push!(nEqs,Meta.parse(eq))
@@ -40,14 +40,14 @@ function integratorSDEEulerIto(agentModel::Model,inLoop::Expr,arg::Array{Symbol}
         for eq in nEqs
             v = string(eq.args[1])[2:end-2]
             args = string(eq.args[2])
-            push!(nEqs2,string("$v += ($args)*dt_"))
+            push!(nEqs2,string("$v += ($args)*dt"))
         end
         eqs = vectParams(agentModel,nEqs2)
         push!(fdeclare,
         platformAdapt(
         :(
         function integratorStep_($(comArgs...),$(addArgs...))
-        @INFUNCTION_ for ic1_ in index_:stride_:N_
+        @INFUNCTION_ for ic1_ in index_:stride_:N
             $(eqs...)
         end
         return
@@ -67,7 +67,7 @@ function integratorSDEEulerIto(agentModel::Model,inLoop::Expr,arg::Array{Symbol}
         platformAdapt(
         :(
         function interUpdate_($(comArgs...),$(arg...))
-        @INFUNCTION_ for ic1_ in index_:stride_:N_
+        @INFUNCTION_ for ic1_ in index_:stride_:N
             $(reset...)
             $inLoop
         end
