@@ -3,12 +3,17 @@ module AgentModel
 using CUDA
 using DataFrames
 using Random
+
 using WriteVTK
+using Makie
+using AbstractPlotting
+using Colors
 
 export Community, Model 
 export addGlobal!, addLocal!, addVariable!, addLocalInteraction!, addInteraction!
 export addDivision!, addPseudopode!
 export compile!
+export plotCommunitySpheres
 
 #Reserved variables of the model
 include("./constants/constants.jl")
@@ -66,5 +71,8 @@ include("./saving/saveVTK.jl")
 
 #Compile
 include("./compile/compile.jl")
+
+#Plots
+include("./plots/plotCommunity.jl")
 
 end
