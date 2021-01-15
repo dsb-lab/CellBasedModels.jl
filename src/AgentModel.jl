@@ -9,7 +9,7 @@ using Makie
 using AbstractPlotting
 using Colors
 
-export Community, Model 
+export Community, Model, CommunityInTime
 export addGlobal!, addLocal!, addVariable!, addLocalInteraction!, addInteraction!
 export addDivision!, addPseudopode!
 export compile!

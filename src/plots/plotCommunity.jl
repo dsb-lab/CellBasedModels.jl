@@ -15,7 +15,7 @@ function plotCommunitySpheres(com::Community, pos::Array{Symbol}, rad::Symbol)
 
 end
 
-function plotCommunitySpheresTEST(com::Community, pos::Array{Symbol}, rad::Symbol, color::Symbol, cmap::String="Reds")
+function plotCommunitySpheres(com::Community, pos::Array{Symbol}, rad::Symbol, color::Symbol, cmap::String="Reds")
 
     x = com[pos[1]]
     y = com[pos[2]]
@@ -23,7 +23,7 @@ function plotCommunitySpheresTEST(com::Community, pos::Array{Symbol}, rad::Symbo
     r = com[rad]
     fate = com[color]
     fate = floor.(Int,99 .*(fate .-minimum(fate))./(maximum(fate)-minimum(fate))).+1
-    
+
     color = Array(colormap(cmap))
         
     i=1
