@@ -74,7 +74,10 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
         varDeclare = [
         platformAdapt(
             :(divList_ = @ARRAY_zeros(Int,nMax_)),
-                platform=platform)
+                platform=platform),
+        platformAdapt(
+            :(idMax_ = N),
+                platform=platform),        
         ]
 
         #Declare functions
@@ -85,10 +88,11 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
         for ic2_ in 1:length(agentModel.declaredIds)
             push!(aux,:(ids_[nnic2_,$ic2_] = ids_[ic1_,$ic2_]))
         end
+        
         push!(fDeclare,
             platformAdapt(
             vectParams(agentModel,:(
-            function addDiv_($(comArgs...),divList_)
+            function addDiv_($(comArgs...),divList_,idMax_)
                 lockDiv_ = Threads.SpinLock()
                 divN_ = 0
                 #Check division cells
@@ -107,24 +111,25 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
                         error("In the next division there will be more cells than allocated cells. Evolve again with a higher nMax_.")
                     end
     
-                    Threads.@threads for ic1_ in 1:divN_
+                    Threads.@threads for ic1 in 1:divN_
                         
-                        nnic2_ = N+ic1_
-                        ic1_ = divList_[ic1_]
+                        nnic2_ = N+ic1
+                        ic1_ = divList_[ic1]
 
                         $(aux...)
 
                         $update
 
-                        parent_₂ = id_₁
-                        parent_₁ = id_₁
-                        id_₂ = N+ic1_
-                        id_₁ = N+ic1_+divN_
+                        parent_₂ = id_ₚ
+                        parent_₁ = id_ₚ
+                        id_₂ = idMax_+ic1
+                        id_₁ = idMax_+ic1+divN_
                     end
                     N += divN_
+                    idMax_ += 2*divN_
                 end
                                 
-                return N
+                return N, idMax_
             end
             )), platform=platform)
             ) 
@@ -132,8 +137,11 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
         #Execute
         push!(execute,
             platformAdapt(
-            vectParams(agentModel,:(
-                N = addDiv_($(comArgs...),divList_)
+            vectParams(agentModel,:(begin
+                Naux,idMaxaux = addDiv_($(comArgs...),divList_,idMax_)
+                N = Naux
+                idMax_ = idMaxaux
+            end
             )), platform=platform)
             )
         
@@ -146,8 +154,11 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
                 platform=platform),
         platformAdapt(
             :(divN_ = @ARRAY_zeros(Int,1)),
+                platform=platform),
+        platformAdapt(
+            :(maxId_ = N),
                 platform=platform)
-        ]
+            ]
 
         #Declare functions
         
@@ -182,16 +193,16 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
         push!(fDeclare,
             platformAdapt(
             vectParams(agentModel,:(
-            function addDiv2_($(comArgs...),divList_,divN_)
+            function addDiv2_($(comArgs...),divList_,divN_,maxId_)
 
                 index_ = (threadIdx().x) + (blockIdx().x - 1) * blockDim().x
                 stride_ = blockDim().x * gridDim().x                
 
                 #Check division cells
-                for ic1_ in index_:stride_:divN_
+                for ic1 in index_:stride_:divN_
         
-                    nnic2_ = N+ic1_
-                    ic1_ = divList_[ic1_]
+                    nnic2_ = N+ic1
+                    ic1_ = divList_[ic1]
 
                     $(aux...)
 
@@ -199,8 +210,8 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
         
                     parent_₂ = id_₁
                     parent_₁ = id_₁
-                    id_₂ = N+ic1_
-                    id_₁ = N+ic1_+divN_
+                    id_₂ = maxId_+ic1
+                    id_₁ = maxId_+ic1+divN_
                 end
 
                 return nothing
@@ -219,8 +230,9 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
                 if N+divN > nMax_
                     error("In the next division there will be more cells than allocated cells. Evolve again with a higher nMax_.")
                 elseif divN > 0
-                    @OUTFUNCTION_ addDiv2_($(comArgs...),divList_,divN)
+                    @OUTFUNCTION_ addDiv2_($(comArgs...),divList_,divN,maxId_)
                     N += divN
+                    maxId_ += 2*divN
                 end
             end
             )), platform=platform)
