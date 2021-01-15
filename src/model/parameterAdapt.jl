@@ -74,9 +74,11 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
     end
     if length(agentModel.declaredIds)>0
         push!(varDeclarations, 
+            platformAdapt(:(ids_ = @ARRAYEMPTYINT_(com.ids)),platform=platform ) )
+        push!(varDeclarations, 
             platformAdapt(
-                :(ids_ = @ARRAY_zeros(Int,nMax_,$(length(agentModel.declaredIds)))),platform=platform ) 
-        )
+                :(ids_ = [ids_;@ARRAY_zeros(Int,nMax_-size(com.ids)[1],$(length(agentModel.declaredIds)))]),platform=platform )
+            ) 
     end
     
     #Function declare######################################################
@@ -95,7 +97,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         platformAdapt(
         :(
         function locInterStep_($(comArgs...),$(arg...))
-            @INFUNCTION_ for ic1_ in index_:stride_:N_
+            @INFUNCTION_ for ic1_ in index_:stride_:N
                 $(reset...)
                 $inLoop    
             end
@@ -112,7 +114,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         platformAdapt(
         :(
         function locStep_($(comArgs...))
-        @INFUNCTION_ for ic1_ in index_:stride_:N_
+        @INFUNCTION_ for ic1_ in index_:stride_:N
             $(loc...)
         end
         return

@@ -6,11 +6,13 @@ function platformAdapt(text::String;platform)
         text = replace(text,"@OUTFUNCTION_"=>CPUOUTFUNCTION)
         text = replace(text,"@ARRAY_"=>CPUARRAY)
         text = replace(text,"@ARRAYEMPTY_"=>CPUARRAYEMPTY)
+        text = replace(text,"@ARRAYEMPTYINT_"=>CPUARRAYEMPTYINT)
     elseif platform == "gpu"
         text = replace(text,"@INFUNCTION_"=>GPUINFUNCTION)
         text = replace(text,"@OUTFUNCTION_"=>GPUOUTFUNCTION)
         text = replace(text,"@ARRAY_"=>GPUARRAY)
         text = replace(text,"@ARRAYEMPTY_"=>GPUARRAYEMPTY)
+        text = replace(text,"@ARRAYEMPTYINT_"=>GPUARRAYEMPTYINT)
     else
         error("""Platform has to be "cpu" of "gpu" """)
     end

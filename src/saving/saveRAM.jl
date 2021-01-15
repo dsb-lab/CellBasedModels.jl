@@ -1,6 +1,6 @@
 function saveRAMCompile(agentModel::Model)
     
-    varDeclare = [:(commRAM_ = Array{Community}([]))]
+    varDeclare = [:(commRAM_ = CommunityInTime())]
     fDeclare = []
     execute = []
 
