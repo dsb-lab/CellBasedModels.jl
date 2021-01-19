@@ -187,6 +187,9 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
             ) 
 
         aux = []
+        for ic2_ in 1:length(agentModel.declaredSymb["var"])
+            push!(aux,:(v_[nnic2_,$ic2_] = v_[ic1_,$ic2_]))
+        end
         for ic2_ in 1:length(agentModel.declaredSymb["loc"])
             push!(aux,:(loc_[nnic2_,$ic2_] = loc_[ic1_,$ic2_]))
         end

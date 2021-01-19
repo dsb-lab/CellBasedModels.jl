@@ -22,8 +22,12 @@ function plotCommunitySpheres(com::Community, pos::Array{Symbol}, rad::Symbol, c
     z = com[pos[3]]
     r = com[rad]
     fate = com[color]
-    fate = floor.(Int,99 .*(fate .-minimum(fate))./(maximum(fate)-minimum(fate))).+1
-
+    diff = (maximum(fate)-minimum(fate))
+    if diff ≈ 0.
+        fate = floor.(Int,99 .*(fate .-minimum(fate))./1).+1
+    else
+        fate = floor.(Int,99 .*(fate .-minimum(fate))./diff).+1
+    end
     color = Array(colormap(cmap))
         
     i=1
