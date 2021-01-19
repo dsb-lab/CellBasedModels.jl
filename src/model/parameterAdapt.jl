@@ -90,7 +90,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         inLoop = NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](inLoop)   
 
         reset = []
-        for i in 1:length(agentModel.locInter["locInter"])
+        for i in 1:length(agentModel.declaredSymb["locInter"])
             push!(reset,:(locInter_[ic1_,$i]=0))
         end
         push!(fDeclarations,
