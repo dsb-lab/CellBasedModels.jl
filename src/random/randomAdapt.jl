@@ -16,7 +16,7 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
                 for (pos,pdf) in enumerate(values(agentModel.declaredRandSymb[randVars]))
                     push!(execute,
                         platformAdapt(
-                            :($(Meta.parse(string(pdf[2],"2_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N))
+                            :($(Meta.parse(string("AgentModel.",pdf[2],"2_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N))
                         ,platform=platform)
                     )
                 end        
@@ -24,7 +24,7 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
                 for (pos,pdf) in enumerate(values(agentModel.declaredRandSymb[randVars]))
                     push!(execute,
                         platformAdapt(
-                            :($(Meta.parse(string(pdf[2],"3_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N,nnMax_))
+                            :($(Meta.parse(string("AgentModel.",pdf[2],"3_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N,nnMax_))
                         ,platform=platform)
                     )
                 end        
@@ -32,7 +32,7 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
                 for (pos,pdf) in enumerate(values(agentModel.declaredRandSymb[randVars]))
                     push!(execute,
                         platformAdapt(
-                            :($(Meta.parse(string(pdf[2],"1_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos))
+                            :($(Meta.parse(string("AgentModel.",pdf[2],"1_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos))
                         ,platform=platform)
                     )
                 end        
@@ -49,7 +49,7 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
                 for (pos,pdf) in enumerate(values(agentModel.declaredRandSymb[randVars]))
                     push!(execute,
                         platformAdapt(
-                            :($(Meta.parse(string(pdf[2],"2_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N))
+                            :($(Meta.parse(string("AgentModel.",pdf[2],"2_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N))
                         ,platform=platform)
                     )
                 end        
@@ -62,7 +62,7 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
                 for (pos,pdf) in enumerate(values(agentModel.declaredRandSymb[randVars]))
                     push!(execute,
                         platformAdapt(
-                            :($(Meta.parse(string(pdf[2],"3_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N,nnMax_))
+                            :($(Meta.parse(string("AgentModel.",pdf[2],"3_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N,nnMax_))
                         ,platform=platform)
                     )
                 end        
@@ -75,7 +75,7 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
                 for (pos,pdf) in enumerate(values(agentModel.declaredRandSymb[randVars]))
                     push!(execute,
                         platformAdapt(
-                            :($(Meta.parse(string(pdf[2],"1_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos))
+                            :($(Meta.parse(string("AgentModel.",pdf[2],"1_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos))
                         ,platform=platform)
                     )
                 end        
@@ -93,7 +93,7 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
                 for (pos,pdf) in enumerate(values(agentModel.declaredRandSymb[randVars]))
                     push!(execute,
                         platformAdapt(
-                            :(CUDA.@cuda threads = threads_ blocks = nBlocks_ $(Meta.parse(string(pdf[2],"2CUDA_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N))
+                            :(CUDA.@cuda threads = threads_ blocks = nBlocks_ $(Meta.parse(string("AgentModel.",pdf[2],"2CUDA_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N))
                         ,platform=platform)
                     )
                 end        
@@ -101,7 +101,7 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
                 for (pos,pdf) in enumerate(values(agentModel.declaredRandSymb[randVars]))
                     push!(execute,
                         platformAdapt(
-                            :(CUDA.@cuda threads = threads_ blocks = nBlocks_ $(Meta.parse(string(pdf[2],"3CUDA_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N,nnMax_))
+                            :(CUDA.@cuda threads = threads_ blocks = nBlocks_ $(Meta.parse(string("AgentModel.",pdf[2],"3CUDA_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos,N,nnMax_))
                         ,platform=platform)
                     )
                 end        
@@ -109,7 +109,7 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
                 for (pos,pdf) in enumerate(values(agentModel.declaredRandSymb[randVars]))
                     push!(execute,
                         platformAdapt(
-                            :(CUDA.@cuda threads = threads_ blocks = nBlocks_ $(Meta.parse(string(pdf[2],"1CUDA_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos))
+                            :(CUDA.@cuda threads = threads_ blocks = nBlocks_ $(Meta.parse(string("AgentModel.",pdf[2],"1CUDA_!")))($(Meta.parse(string(randVars,"_"))), $(pdf[3:end]...),$pos))
                         ,platform=platform)
                     )
                 end        
