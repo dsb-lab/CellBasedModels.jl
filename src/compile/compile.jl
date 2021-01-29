@@ -91,7 +91,7 @@ else
 end
 
 program = :(
-function evolve(com::Community;$(kArgs...),tMax_, dt, t=com.t, N=com.N, nMax_=com.N, neighMax_=nMax_, tSave_=0., tSaveStep_=dt, threads_=256)
+function evolve(com::AgentModel.Community;$(kArgs...),tMax_, dt, t=com.t, N=com.N, nMax_=com.N, neighMax_=nMax_, tSave_=0., tSaveStep_=dt, threads_=256)
     #Declaration of variables
     $(varDeclarations...)
     #Declaration of functions
@@ -132,12 +132,12 @@ function evolve(com::Community;$(kArgs...),tMax_, dt, t=com.t, N=com.N, nMax_=co
 end
 )
 
-agentModel.evolve = eval(program)
+agentModel.evolve = Base.MainInclude.eval(program)
 
 if debug == true
     clean(program)
 end
 
-return 
+return
 
 end
