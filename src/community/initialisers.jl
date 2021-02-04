@@ -54,17 +54,17 @@ function fillVolumeSpheres(f,box,r;N=NaN,noise=0.1,platform="cpu")
     end
     
     #Add noise
-    dist = Normal(0,r*noise)
+    dist = Normal(0,r^2*noise)
     n = length(volumeX)
     volumeX += rand(dist,n); volumeY += rand(dist,n); volumeZ += rand(dist,n)
     
     #Model relax
-    relax!(volumeX, volumeY, volumeZ, r, platform)
+    relax!(volumeX, volumeY, volumeZ, r, noise, platform)
         
     return volumeX, volumeY, volumeZ
 end
 
-function relax!(volumeX, volumeY, volumeZ, r, platform="cpu")
+function relax!(volumeX, volumeY, volumeZ, r, n, platform="cpu")
     
     #Community
     if platform == "cpu"
@@ -79,8 +79,9 @@ function relax!(volumeX, volumeY, volumeZ, r, platform="cpu")
     com[:z] = volumeZ
     com[:D] = 5.
     com[:r] = r
+    com[:n] = n
     
-    c = model.evolve(com,dt=0.1,tMax_=10.,tSaveStep_=9.9)
+    c = model.evolve(com,dt=0.1,tMax_=20.,tSaveStep_=19.9)
 
     volumeX .= c[last][:x]
     volumeY .= c[last][:y]
