@@ -18,10 +18,11 @@ else
 end
 
 #Parameter declare
-var,f,exec = parameterAdapt(agentModel,inLoop,arg,platform=platform)
+var,f,exec,begining = parameterAdapt(agentModel,inLoop,arg,platform=platform)
 append!(varDeclarations,var)
 append!(fDeclarations,f)
 append!(execute,exec)
+append!(initialisation,begining)   
 
 #Integrator
 if integrator in keys(INTEGRATORS)
@@ -43,10 +44,11 @@ end
 
 #Special functions
 for special in agentModel.special
-    var,f,execS = SPECIAL[typeof(special)](special,agentModel,platform=platform)
+    var,f,execS,begining = SPECIAL[typeof(special)](special,agentModel,platform=platform)
     append!(varDeclarations,var)
     append!(fDeclarations,f)
     append!(execute,execS)    
+    append!(initialisation,begining)   
 end
 
 #Saving
@@ -106,6 +108,7 @@ function (com::Community;$(kArgs...),tMax_, dt, t=com.t, N=com.N, nMax_=com.N, n
     end
     
     $(execNN...)
+    $(initialisation...)
     $(initialisation...)
     $(execSave...)
     while t <= tMax_
@@ -189,10 +192,11 @@ end
 
 #Special functions
 for special in agentModel.special
-    var,f,execS = SPECIAL[typeof(special)](special,agentModel,platform=platform)
+    var,f,execS,begining = SPECIAL[typeof(special)](special,agentModel,platform=platform)
     append!(varDeclarations,var)
     append!(fDeclarations,f)
     append!(execute,execS)    
+    append!(initialisation,begining)   
 end
 
 #Saving
@@ -252,6 +256,7 @@ function (com::Community;$(kArgs...),tMax_, dt, t=com.t, N=com.N, nMax_=com.N, n
     end
     
     $(execNN...)
+    $(initialisation...)
     $(initialisation...)
     $(execSave...)
     while t <= tMax_

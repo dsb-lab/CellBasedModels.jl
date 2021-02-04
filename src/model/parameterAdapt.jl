@@ -20,6 +20,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
     varDeclarations = Expr[]
     fDeclarations = Expr[]
     execute = Expr[]
+    begining = Expr[]
     
     #Parameter declare
     if length(agentModel.declaredSymb["var"])>0
@@ -147,6 +148,11 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         :(@OUTFUNCTION_ locInterStep_($(comArgs...),$(arg...)))
         ,platform=platform)
         )
+        push!(begining,
+        platformAdapt(
+        :(@OUTFUNCTION_ locInterStep_($(comArgs...),$(arg...)))
+        ,platform=platform)
+        )
     end
     #Add loc
     platformRandomAdapt!(execute,agentModel,"locRand",platform,nChange_)
@@ -167,6 +173,6 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         )
     end
     
-    return varDeclarations, fDeclarations, execute
+    return varDeclarations, fDeclarations, execute, begining
     
 end
