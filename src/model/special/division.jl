@@ -245,5 +245,5 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
             )
     end
     
-    return varDeclare,fDeclare,execute
+    return varDeclare,fDeclare,execute,execute
 end

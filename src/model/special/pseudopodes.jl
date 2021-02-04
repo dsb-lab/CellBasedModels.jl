@@ -4,10 +4,10 @@
 Struct containing the conditions for pseudopode like forces.
 """
 struct Pseudopode <: Special
-    f::Symbol
-    t::Symbol
+    f::Array{Symbol}
     neighbourCondition::Expr
     force::Expr
+    updateCondition::Expr
     updateChange::Expr
 end
 
@@ -36,19 +36,19 @@ tPseudo = t + σPseudo
 addPseudopode!(m, :f, :tPseudo, condition, force, updateChange, randVar = [(:σPseudo,"Uniform",1.,2.)])
 ```
 """
-function addPseudopode!(agentModel::Model, var::Symbol, tVar::Symbol, neighbourCondition::String, force::String, updateChange::String; randVar = Tuple{Symbol,String}[])
+function addPseudopode!(agentModel::Model, fvar::Array{Symbol}, neighbourCondition::String, force::String, updateCondition::String, updateChange::String; randVar = Tuple{Symbol,String}[])
     
-    #Checks
     neighbourCondition = Meta.parse(neighbourCondition)
-    force = Meta.parse(force)
-    updateChange = Meta.parse(updateChange)
+    force = Meta.parse(string("begin ",force, " end"))
+    updateCondition = Meta.parse(updateCondition)
+    updateChange = Meta.parse(string("begin ",updateChange, " end"))
+    
     #Check if a Pseudopode force already exists
     if Pseudopode in [typeof(i) for i in agentModel.special]
         error("A pseudopode force is already present in the model. Only one pseudopode force can exist in the model.")
     end
     #Check var and tVar
-    checkDeclared(agentModel, var)
-    checkDeclared(agentModel, tVar)
+    checkDeclared(agentModel, fvar)
     #Check random variables
     checkRandDeclared(agentModel, randVar)
     #Add necessary variables
@@ -56,14 +56,12 @@ function addPseudopode!(agentModel::Model, var::Symbol, tVar::Symbol, neighbourC
     addIfNot!(agentModel.inter,
     :(if pseudoId_₁ == id_₂; 
             $force
-            $(Meta.parse(string(var,"₂"))) += -$(Meta.parse(string(var,"₁")))
         end)
     )
-    push!(agentModel.declaredSymb["inter"],var)
-    push!(agentModel.declaredSymb["loc"],tVar)
+    append!(agentModel.declaredSymb["inter"],fvar)
     addIfNot!(agentModel.declaredRandSymb["locRand"],randVar)
 
-    push!(agentModel.special, Pseudopode(var,tVar,neighbourCondition,force,updateChange))
+    push!(agentModel.special, Pseudopode(fvar,neighbourCondition,force,updateCondition,updateChange))
 
     return
 end
@@ -91,7 +89,7 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::S
     string(:(
     if $(pseudopode.neighbourCondition)
         nNPseudo += 1
-    end
+    end 
     ))
     inLoop1, arg = makeInLoop(agentModel,platform,algorithm)
     ## Assign a random neighbour loop
@@ -111,7 +109,7 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::S
     pushAdapt!(fDeclare, agentModel, platform,
     :(function pseudoUpdate($(comArgs...),$(arg...),pseudoChoice_)
             @INFUNCTION_ for ic1_ in index_:stride_:N
-                if t > $(pseudopode.t)
+                if $(pseudopode.updateCondition)
                     nNPseudo = 0
                     $inLoop1
                     count = pseudoChoice_[ic1_]*nNPseudo
@@ -130,5 +128,5 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::S
     :(@OUTFUNCTION_ pseudoUpdate($(comArgs...),$(arg...),pseudoChoice_))
     )
 
-    return varDeclare,fDeclare,execute
+    return varDeclare,fDeclare,execute,execute
 end
