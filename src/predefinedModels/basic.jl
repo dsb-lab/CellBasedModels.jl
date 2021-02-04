@@ -2,27 +2,34 @@ MODEL_BASIC = Model()
     
 inter = 
 "
-rₐ = sqrt((x₁-x₂)^2+(y₁-y₂)^2+(z₁-z₂)^2)/(2*r)
-rxₐ = (x₁-x₂)/rₐ
-ryₐ = (y₁-y₂)/rₐ
-rzₐ = (z₁-z₂)/rₐ
-if rₐ < 0.7 && rₐ > 0.
-    fx += 2*(0.7-rₐ)*rxₐ
-    fy += 2*(0.7-rₐ)*ryₐ
-    fz += 2*(0.7-rₐ)*rzₐ
-elseif rₐ > 0.8*r && rₐ < 1*r
-    fx -= 0.5*(rₐ-0.8)*rxₐ
-    fy -= 0.5*(rₐ-0.8)*ryₐ
-    fz -= 0.5*(rₐ-0.8)*rzₐ
+rrₐ = sqrt((x₁-x₂)^2+(y₁-y₂)^2+(z₁-z₂)^2) 
+rₐ = rrₐ#/r
+rxₐ = (x₁-x₂)/rrₐ
+ryₐ = (y₁-y₂)/rrₐ
+rzₐ = (z₁-z₂)/rrₐ
+if rₐ < 0.7*r && rₐ > 0.
+    fx += 2*(0.7*r-rₐ)*rxₐ
+    fy += 2*(0.7*r-rₐ)*ryₐ
+    fz += 2*(0.7*r-rₐ)*rzₐ
+    nn += 1.
+elseif rₐ > 0.8 && rₐ < 1.
+    fx -= 0.5*(rₐ-0.8*r)*rxₐ
+    fy -= 0.5*(rₐ-0.8*r)*ryₐ
+    fz -= 0.5*(rₐ-0.8*r)*rzₐ
+    nn += 1.
+elseif rₐ > 1*r && rₐ < (1+2*n)*r && nn < 1.
+    fx -= 0.1*r*rxₐ
+    fy -= 0.1*r*ryₐ
+    fz -= 0.1*r*rzₐ
 end
 "
-addInteraction!(MODEL_BASIC,[:fx,:fy,:fz],inter)
+addInteraction!(MODEL_BASIC,[:fx,:fy,:fz,:nn],inter)
 
 update = 
 "
 D = 0. /(t+1)
 "
-addGlobal!(MODEL_BASIC,[:D,:r],updates=update)
+addGlobal!(MODEL_BASIC,[:D,:r,:n],updates=update)
 
 eqs = 
 "
