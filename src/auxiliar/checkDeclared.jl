@@ -49,9 +49,9 @@ end
 
 function checkDeclared(agentModel::Model,s::Array{Symbol};eqs=false)
 
-    for i in randSymb #Check double declarations
-        if length(findall(randSymb.==i))>1
-            error("Random variable ", i, " declared more than once.")
+    for i in s #Check double declarations
+        if length(findall(s.==i))>1
+            error("Variable ", i, " declared more than once.")
         end
         #Check if already declared
         checkDeclared(agentModel,i,eqs=eqs)
