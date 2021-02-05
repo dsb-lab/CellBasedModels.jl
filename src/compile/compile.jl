@@ -147,7 +147,7 @@ end
 
 
 
-function compile!(agentModel::Model;platform="cpu",
+function precompile!(agentModel::Model;platform="cpu",
     integrator="euler",saveRAM = false,saveVTK = false,positionsVTK=[:x,:y,:z], debug = false)
 
 varDeclarations = []
