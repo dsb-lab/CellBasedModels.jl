@@ -56,22 +56,40 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
             platformAdapt(:(glob_ = @ARRAYEMPTY_(com.glob)),platform=platform ) )
     end
     if length(agentModel.declaredRandSymb["locRand"])>0
-        push!(varDeclarations, 
-            platformAdapt(
-                :(locRand_ = @ARRAY_zeros(nMax_,$(length(agentModel.declaredRandSymb["locRand"])))),platform=platform ) 
-        )
+        for i in agentModel.declaredRandSymb["locRand"]
+            push!(varDeclarations, 
+                platformAdapt(
+                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax_))
+                ,platform=platform ) 
+            )
+        end
     end
     if length(agentModel.declaredRandSymb["locInterRand"])>0
-        push!(varDeclarations, 
-            platformAdapt(
-                :(locInterRand_ = @ARRAY_zeros(nMax_,$(length(agentModel.declaredRandSymb["locInterRand"],nnMax_)))),platform=platform ) 
-        )
+        for i in agentModel.declaredRandSymb["locInterRand"]
+            push!(varDeclarations, 
+                platformAdapt(
+                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax_,nMax_))
+                ,platform=platform ) 
+            )
+        end
     end
     if length(agentModel.declaredRandSymb["globRand"])>0
-        push!(varDeclarations, 
-            platformAdapt(
-                :(globRand_ = @ARRAY_zeros($(length(agentModel.declaredRandSymb["globRand"])))),platform=platform ) 
-        )
+        for i in agentModel.declaredRandSymb["globRand"]
+            push!(varDeclarations, 
+                platformAdapt(
+                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(1))
+                ,platform=platform ) 
+            )
+        end
+    end
+    if length(agentModel.declaredRandSymb["varRand"])>0
+        for i in agentModel.declaredRandSymb["varRand"]
+            push!(varDeclarations, 
+                platformAdapt(
+                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax_))
+                ,platform=platform ) 
+            )
+        end
     end
     if length(agentModel.declaredIds)>0
         push!(varDeclarations, 

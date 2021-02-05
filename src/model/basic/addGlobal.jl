@@ -15,10 +15,10 @@ update = "
 x= r #r is a random variable with μ=0. and σ=1.
 "
 
-addGlobal!(m,:x,updates=update,randVar=[(:r,Normal,0.,1.)]);
+addGlobal!(m,:x,updates=update,randVar=[(:r,Normal(0.,1.))]);
 ```
 """
-function addGlobal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tuple{Symbol,String}[])
+function addGlobal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tuple{Symbol,<:Distribution}[])
     
     agentModel.evolve = needCompilation
 
@@ -34,13 +34,6 @@ function addGlobal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tup
             end
             #Check if already declared
             checkDeclared(agentModel,i)
-        end
-
-        #Check if distribution exists
-        for i in randVar
-            if findfirst(RESERVEDCALLS.==i[2])==nothing
-                error("Probabily distribution assigned to random variable ", i[1], " ", i[2], " does not exist.")
-            end
         end
     end
         
@@ -81,7 +74,7 @@ x= r
 addGlobal!(m,[:x,:y],updates=update,randVar=[(:r,Normal,0,1)]);
 ```
 """
-function addGlobal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar = Tuple{Symbol,String}[])
+function addGlobal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar = Tuple{Symbol,<:Distribution}[])
 
     agentModel.evolve = needCompilation
     
@@ -104,12 +97,6 @@ function addGlobal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVa
             end
             #Check if already declared
             checkDeclared(agentModel,i)
-        end
-        #Check if distribution exists
-        for i in randVar
-            if findfirst(RESERVEDCALLS.==i[2])==nothing
-                error("Probabily distribution assigned to random variable ", i[1], " ", i[2], " does not exist.")
-            end
         end
     end
     

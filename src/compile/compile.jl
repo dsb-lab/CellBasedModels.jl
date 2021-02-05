@@ -135,11 +135,11 @@ function (com::Community;$(kArgs...),tMax_, dt, t=com.t, N=com.N, nMax_=com.N, n
 end
 )
 
-agentModel.evolve = Base.MainInclude.eval(program)
-
 if debug == true
     clean(program)
 end
+
+agentModel.evolve = Base.MainInclude.eval(program)
 
 return
 
@@ -167,10 +167,11 @@ else
 end
 
 #Parameter declare
-var,f,exec = parameterAdapt(agentModel,inLoop,arg,platform=platform)
+var,f,exec,begining = parameterAdapt(agentModel,inLoop,arg,platform=platform)
 append!(varDeclarations,var)
 append!(fDeclarations,f)
 append!(execute,exec)
+append!(initialisation,begining)   
 
 #Integrator
 if integrator in keys(INTEGRATORS)
@@ -283,11 +284,11 @@ function (com::Community;$(kArgs...),tMax_, dt, t=com.t, N=com.N, nMax_=com.N, n
 end
 )
 
-agentModel.evolve = eval(program)
-
 if debug == true
     clean(program)
 end
+
+agentModel.evolve = eval(program)
 
 return
 

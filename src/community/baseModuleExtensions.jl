@@ -127,7 +127,7 @@ function Base.getindex(a::CommunityInTime,var::Symbol)
         out = zeros(length(a),a[1].N)
         #Fill array
         for i in 1:length(a)
-            out[i,:] .= a.com[i][:var]
+            out[i,:] .= a.com[i][var]
         end
         
         return out

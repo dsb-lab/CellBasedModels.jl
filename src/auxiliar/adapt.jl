@@ -75,18 +75,26 @@ function vectParams(agentModel::Model,text)
     text = subs(agentModel.declaredSymb["loc"],locOb,locTar,text)
 
     ##Random variables
-    locRandOb = ["NAME_"]
-    locRandTar = ["locRand_[ic1_,POS_]"]
-    text = subs([i[1] for i in agentModel.declaredRandSymb["locRand"]],locRandOb,locRandTar,text)
+    for (i,j) in agentModel.declaredRandSymb["locRand"]
+        ii = Meta.parse(string(i,"_"))
+        text = subs(text,i,:($ii[ic1_]))
+    end
 
-    locInterRandOb = ["NAME_"]
-    locInterRandTar = ["locInterRand_[ic1_,ic2_,POS_]"]
-    text = subs([i[1] for i in agentModel.declaredRandSymb["locInterRand"]],locInterRandOb,locInterRandTar,text)
+    for (i,j) in agentModel.declaredRandSymb["locInterRand"]
+        ii = Meta.parse(string(i,"_"))
+        text = subs(text,i,:($ii[ic1_,ic2_]))
+    end
 
-    globRandOb = ["NAME_"]
-    globRandTar = ["globRand_[POS_]"]
-    text = subs([i[1] for i in agentModel.declaredRandSymb["globRand"]],globRandOb,globRandTar,text)
-    
+    for (i,j) in agentModel.declaredRandSymb["globRand"]
+        ii = Meta.parse(string(i,"_"))
+        text = subs(text,i,:($ii[1]))
+    end
+
+    for (i,j) in agentModel.declaredRandSymb["varRand"]
+        ii = Meta.parse(string(i,"_"))
+        text = subs(text,i,:($ii[ic1_]))
+    end
+
     ##Ids
     idsOb = ["NAME_","NAME_₁","NAME_₂","NAME_ₚ"]
     idsTar = ["ids_[ic1_,POS_]","ids_[ic1_,POS_]","ids_[nnic2_,POS_]","ids_[ic1_,POS_]"]
@@ -122,3 +130,4 @@ function pushAdapt!(container, agentModel::Model, platform, text)
 
     return
 end
+

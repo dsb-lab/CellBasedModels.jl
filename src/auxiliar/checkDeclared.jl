@@ -59,31 +59,3 @@ function checkDeclared(agentModel::Model,s::Array{Symbol};eqs=false)
 
     return
 end
-
-function checkRandDeclared(agentModel::Model,randVar::Tuple)
-
-    #Check if symbols has been declared
-    checkDeclared(agentModel,randVar[1])
-    #Check if distribution exists
-    if !(randVar[2] in RESERVEDCALLS)
-        error("Probabily distribution assigned to random variable ", randVar[1], " does not exist.")
-    end
-
-    return
-end
-
-function checkRandDeclared(agentModel::Model,randVar::Array)
-
-    if length(randVar) > 0
-        randSymb = [i[1] for i in randVar]
-        for (j,i) in enumerate(randSymb) #Check double declarations
-            if length(findall(randSymb.==i))>1
-                error("Random variable ", i, " declared more than once.")
-            end
-            #Check if already declared
-            checkRandDeclared(agentModel,randVar[j])
-        end
-    end
-
-    return
-end

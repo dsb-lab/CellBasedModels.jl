@@ -37,10 +37,7 @@ include("./auxiliar/substitution.jl")
 include("./auxiliar/clean.jl")
 
 #Random variables
-include("./random/random.jl")
 include("./random/randomAdapt.jl")
-include("./random/normal.jl")
-include("./random/uniform.jl")
 
 #Model functions
 include("./model/parameterAdapt.jl")

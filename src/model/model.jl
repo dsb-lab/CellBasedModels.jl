@@ -32,8 +32,9 @@ mutable struct Model
         new(
             Dict{String,Array{Symbol}}(["var"=>Symbol[],"inter"=>Symbol[],
                                         "loc"=>Symbol[],"locInter"=>Symbol[],"glob"=>Symbol[]]),
-            Dict{String,Array{Tuple{Symbol,String}}}(["locRand"=>Tuple{Symbol,String}[],
-                    "locInterRand"=>Tuple{Symbol,String}[],"globRand"=>Tuple{Symbol,String}[]]),
+            Dict{String,Array{Tuple{Symbol,<:Distribution}}}(["locRand"=>Tuple{Symbol,<:Distribution}[],
+                    "locInterRand"=>Tuple{Symbol,<:Distribution}[],"globRand"=>Tuple{Symbol,<:Distribution}[],
+                    "varRand"=>Tuple{Symbol,<:Distribution}[]]),
             Array(Symbol[]),
             Array(Expr[]),Array(Expr[]),Array(Expr[]),
             Array(Expr[]),Array(Expr[]),

@@ -49,8 +49,6 @@ function addPseudopode!(agentModel::Model, fvar::Array{Symbol}, neighbourConditi
     end
     #Check var and tVar
     checkDeclared(agentModel, fvar)
-    #Check random variables
-    checkRandDeclared(agentModel, randVar)
     #Add necessary variables
     addIfNot!(agentModel.declaredIds, [:id_,:pseudoId_])
     addIfNot!(agentModel.inter,
