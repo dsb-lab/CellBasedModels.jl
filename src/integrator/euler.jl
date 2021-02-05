@@ -67,15 +67,15 @@ function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platf
         ),platform=platform)
         )
 
-    end
+        #Begining
+        push!(begining,
+        platformAdapt(
+        :(
+        @OUTFUNCTION_ interUpdate_($(comArgs...),$(arg...))
+        ),platform=platform)
+        )
 
-    #Begining
-    push!(begining,
-    platformAdapt(
-    :(
-    @OUTFUNCTION_ interUpdate_($(comArgs...),$(arg...))
-    ),platform=platform)
-    )
+    end
         
     return varDeclare, fdeclare, execute, begining
 end
