@@ -9,7 +9,7 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
             for pdf in values(agentModel.declaredRandSymb[randVars])
                 push!(execute,
                     platformAdapt(
-                        :(rand!($(pdf[2]),$(pdf[1])))
+                        :(rand!($(pdf[2]),$(Meta.parse(string(pdf[1],"_")))))
                     ,platform=platform)
                 )
             end        
@@ -37,6 +37,7 @@ function gpuDist(pos,pdf)
 
     pdf = eval(pdf)
     type = typeof(pdf)
+    pos = Meta.parse(string(pos,"_"))
 
     if type <: Uniform
         return :($pos = $(pdf.b-pdf.a) .*CUDA.rand!($pos) .+ $(pdf.a))

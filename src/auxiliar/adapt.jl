@@ -76,19 +76,23 @@ function vectParams(agentModel::Model,text)
 
     ##Random variables
     for (i,j) in agentModel.declaredRandSymb["locRand"]
-        text = subs(text,i,:($i[ic1_]))
+        ii = Meta.parse(string(i,"_"))
+        text = subs(text,i,:($ii[ic1_]))
     end
 
     for (i,j) in agentModel.declaredRandSymb["locInterRand"]
-        text = subs(text,i,:($i[ic1_,ic2_]))
+        ii = Meta.parse(string(i,"_"))
+        text = subs(text,i,:($ii[ic1_,ic2_]))
     end
 
     for (i,j) in agentModel.declaredRandSymb["globRand"]
-        text = subs(text,i,:($i[1]))
+        ii = Meta.parse(string(i,"_"))
+        text = subs(text,i,:($ii[1]))
     end
 
     for (i,j) in agentModel.declaredRandSymb["varRand"]
-        text = subs(text,i,:($i[ic1_]))
+        ii = Meta.parse(string(i,"_"))
+        text = subs(text,i,:($ii[ic1_]))
     end
 
     ##Ids

@@ -18,22 +18,22 @@ function commonArguments(agentModel::Model; random = true)
     if random
         if length(agentModel.declaredRandSymb["locRand"])>0
             for (i,j) in agentModel.declaredRandSymb["locRand"]
-                push!(l,i)
+                push!(l,Meta.parse(string(i,"_")))
             end
         end
         if length(agentModel.declaredRandSymb["locInterRand"])>0
             for (i,j) in agentModel.declaredRandSymb["locInterRand"]
-                push!(l,i)
+                push!(l,Meta.parse(string(i,"_")))
             end
         end
         if length(agentModel.declaredRandSymb["globRand"])>0
             for (i,j) in agentModel.declaredRandSymb["globRand"]
-                push!(l,i)
+                push!(l,Meta.parse(string(i,"_")))
             end
         end
         if length(agentModel.declaredRandSymb["varRand"])>0
             for (i,j) in agentModel.declaredRandSymb["varRand"]
-                push!(l,i)
+                push!(l,Meta.parse(string(i,"_")))
             end
         end
     end

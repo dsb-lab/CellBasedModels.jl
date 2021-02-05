@@ -59,7 +59,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         for i in agentModel.declaredRandSymb["locRand"]
             push!(varDeclarations, 
                 platformAdapt(
-                    :($(i[1]) = @ARRAY_zeros(nMax_))
+                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax_))
                 ,platform=platform ) 
             )
         end
@@ -68,7 +68,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         for i in agentModel.declaredRandSymb["locInterRand"]
             push!(varDeclarations, 
                 platformAdapt(
-                    :($(i[1]) = @ARRAY_zeros(nMax_,nMax_))
+                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax_,nMax_))
                 ,platform=platform ) 
             )
         end
@@ -77,7 +77,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         for i in agentModel.declaredRandSymb["globRand"]
             push!(varDeclarations, 
                 platformAdapt(
-                    :($(i[1]) = @ARRAY_zeros(1))
+                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(1))
                 ,platform=platform ) 
             )
         end
@@ -86,7 +86,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         for i in agentModel.declaredRandSymb["varRand"]
             push!(varDeclarations, 
                 platformAdapt(
-                    :($(i[1]) = @ARRAY_zeros(nMax_))
+                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax_))
                 ,platform=platform ) 
             )
         end
