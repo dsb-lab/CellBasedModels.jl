@@ -15,7 +15,7 @@ d₁ = sqrt((x₁-x₂)^2+(y₁-y₂)^2)
 addLocalInteraction!(m,:d,interaction);
 ```
 """
-function addLocalInteraction!(agentModel::Model, addvar::Symbol, addeqs::String; randVar = Tuple{Symbol,String}[])
+function addLocalInteraction!(agentModel::Model, addvar::Symbol, addeqs::String; randVar = Tuple{Symbol,<:Distribution}[])
 
     agentModel.evolve = needCompilation
     
@@ -29,13 +29,6 @@ function addLocalInteraction!(agentModel::Model, addvar::Symbol, addeqs::String;
             end
             #Check if already declared
             checkDeclared(agentModel,i)
-        end
-
-        #Check if distribution exists
-        for i in randVar
-            if findfirst(RESERVEDCALLS.==i[2]) == nothing
-                error("Probabily distribution assigned to random variable ", i[1], " ", i[2], " does not exist.")
-            end
         end
     end
     
@@ -71,7 +64,7 @@ dAbs₁ = abs(x₁-x₂)+abs(y₁-y₂)
 addLocalInteraction!(m,[:d,:dAbs],interaction);
 ```
 """
-function addLocalInteraction!(agentModel::Model, addvar::Array{Symbol}, addeqs::String; randVar = Tuple{Symbol,String}[])
+function addLocalInteraction!(agentModel::Model, addvar::Array{Symbol}, addeqs::String; randVar = Tuple{Symbol,<:Distribution}[])
 
     agentModel.evolve = needCompilation
     
@@ -85,13 +78,6 @@ function addLocalInteraction!(agentModel::Model, addvar::Array{Symbol}, addeqs::
             end
             #Check if already declared
             checkDeclared(agentModel,i)
-        end
-
-        #Check if distribution exists
-        for i in randVar
-            if findfirst(RESERVEDCALLS.==i[2])==nothing
-                error("Probabily distribution assigned to random variable ", i[1], " ", i[2], " does not exist.")
-            end
         end
     end 
     

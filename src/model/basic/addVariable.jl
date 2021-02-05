@@ -19,31 +19,29 @@ dxdt = -x+ξ #Wiener process
 addVariable!(m,:x,eq);
 ```
 """
-function addVariable!(agentModel::Model, addvar::Symbol, addeqs::String)
+function addVariable!(agentModel::Model, addvar::Symbol, addeqs::String; randVar = Tuple{Symbol,<:Distribution}[])
 
     agentModel.evolve = needCompilation
+    addeqs = Meta.parse(string("begin ",addeqs," end"))
     
-    newEqs = splitLines(addeqs,"=")
-    if length(newEqs) == 0
-        error("An equation has to be defined for the declared variable ", addvar, ".")
-    elseif length(newEqs) > 1
-        error("Variable ", addvar, " associted with more than one equation.")
+    if length(randVar) > 0
+        randSymb = [i[1] for i in randVar]
+        for i in randSymb #Check double declarations
+            if length(findall(randSymb.==i))>1
+                error("Random variable ", i, " declared more then once.")
+            end
+            #Check if already declared
+            checkDeclared(agentModel,i)
+        end
     end
-    #Check repeated declarations
-    varsDeclared=Meta.parse(string(Meta.parse(newEqs[1]).args[1])[2:end-2])
-    if addvar != varsDeclared
-        error("Variable ", addvar, " but equation for variable ", varsDeclared, " declared.")
-    end
-    
-    eqs = copy(agentModel.equations)
     
     #Check vars except RESERVEDVARS
     checkDeclared(agentModel,addvar,eqs=true)
 
-    push!(eqs,Meta.parse([j for j in newEqs if contains(j,string("d",addvar,"dt"))][1]))
+    push!(agentModel.equations,addeqs)
 
-    agentModel.equations = eqs
     push!(agentModel.declaredSymb["var"],addvar)
+    append!(agentModel.declaredRandSymb["varRand"],randVar)
     
     return
 end
@@ -63,59 +61,36 @@ dydt = -y + ξ #Wiener process
 addVariable!(m,[:x,:y],eq);
 ```
 """
-function addVariable!(agentModel::Model, addvar::Array{Symbol}, addeqs::String)
+function addVariable!(agentModel::Model, addvar::Array{Symbol}, addeqs::String; randVar = Tuple{Symbol,<:Distribution}[])
 
     agentModel.evolve = needCompilation
+    addeqs = Meta.parse(string("begin ",addeqs," end"))
     
-    newEqs = splitLines(addeqs,"=")
-    #Check repeated declarations
-    varsDeclared = []
-    for i in newEqs
-        push!(varsDeclared,Meta.parse(string(Meta.parse(i).args[1])[2:end-2]))
-    end
-    for i in varsDeclared
-        if length(findall(varsDeclared.==i))>1
-            error("Variable ", i, " declared with more than one equation.")
-        end
-    end
     for i in addvar
         if length(findall(addvar.==i))>1
-            error("Parameter ", i, " declared with more than one update rule.")
+            error("Parameter ", i, " declared with more than once.")
         end
     end
-    #Check same declarations for vars and eqs
-    if length(varsDeclared) <= length(addvar)
-        notDeclared = []
-        for i in addvar
-            if !(i in varsDeclared)
-                push!(notDeclared,i)
+
+    if length(randVar) > 0
+        randSymb = [i[1] for i in randVar]
+        for i in randSymb #Check double declarations
+            if length(findall(randSymb.==i))>1
+                error("Random variable ", i, " declared more then once.")
             end
+            #Check if already declared
+            checkDeclared(agentModel,i)
         end
-        if length(notDeclared) > 0
-            error("Declared variables with no associated equation: $(notDeclared...) ")
-        end
-    elseif length(varsDeclared) > length(addvar)
-        notDeclared = []
-        for i in varsDeclared
-            if !(i in keys(addvar))
-                push!(notDeclared,i)
-            end
-        end
-        error("Variables with associated equation but not declared: $(notDeclared...)")        
     end
         
-    eqs = copy(agentModel.equations)
-    
     #Check vars except RESERVEDVARS
     for i in addvar
         checkDeclared(agentModel,i,eqs=true)
     end
-    for i in addvar
-        push!(eqs,Meta.parse([j for j in newEqs if contains(j,string("d",i,"dt"))][1]))
-    end
+    push!(agentModel.equations,addeqs)
 
-    agentModel.equations = eqs
     append!(agentModel.declaredSymb["var"],addvar)
+    append!(agentModel.declaredRandSymb["varRand"],randVar)
     
     return
 end
