@@ -10,22 +10,33 @@ function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platf
         comArgs = commonArguments(agentModel)
 
         #Declare auxiliar variables
-        nothing
+        push!(varDeclare,
+            platformAdapt(
+                :(v1_=@ARRAY_zeros(nMax_,$(length(agentModel.declaredSymb["var"])))),
+                platform=platform
+            )
+            )
         
         #Make the equations
         nEqs = []
         for eq in agentModel.equations
-            v = string(eq.args[1])[2:end-2]
-            args = string(eq.args[2])
-            push!(nEqs,string("$v += ($args)*dt"))
+            eq = vectParams(agentModel,eq)
+            lIn = [Meta.parse(string("d",i)) for i in agentModel.declaredSymb["var"]]
+            lOut = [Meta.parse(string("v1_[ic1_,$j]")) for (j,i) in enumerate(agentModel.declaredSymb["var"])]
+            for (i,j) in zip(lIn,lOut)
+                subs(eq,i,j)
+            end
+            push!(nEqs,eq)
         end
-        eqs = vectParams(agentModel,nEqs)
+        #Make the update
+        update = [Meta.parse(string("v_[ic1_,$j]+=v1_[ic1_,$j]")) for (j,i) in enumerate(agentModel.declaredSymb["var"])]
         push!(fdeclare,
         platformAdapt(
         :(
-        function integratorStep_($(comArgs...))
+        function integratorStep_($(comArgs...),v1_)
         @INFUNCTION_ for ic1_ in index_:stride_:N
-            $(eqs...)
+            $(nEqs...)
+            $(update...)
         end
         return
         end),platform=platform)
@@ -63,7 +74,7 @@ function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platf
         push!(execute,
         platformAdapt(
         :(
-        @OUTFUNCTION_ integratorStep_($(comArgs...))
+        @OUTFUNCTION_ integratorStep_($(comArgs...),v1_)
         ),platform=platform)
         )
 
