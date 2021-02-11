@@ -17,6 +17,8 @@ export compile!
 export plotCommunitySpheres
 export fillVolumeSpheres
 
+export platformAdapt, commonArguments, vectParams, subs, splitEqs, splits
+
 #Reserved variables of the model
 include("./constants/constants.jl")
 include("./constants/abstractStructures.jl")
@@ -61,7 +63,6 @@ include("./model/special/special.jl")
 
 #Integrators
 include("./integrator/euler.jl")
-include("./integrator/eulerIto.jl")
 include("./integrator/integrators.jl")
 
 #Saving

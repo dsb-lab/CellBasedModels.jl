@@ -22,7 +22,7 @@ addVariable!(m,:x,eq);
 function addVariable!(agentModel::Model, addvar::Symbol, addeqs::String)
 
     agentModel.evolve = needCompilation
-    addeqs = Meta.parse(string("begin ",addeqs," end"))
+    addeqs = eval(Meta.parse(string("quote ",addeqs," end")))
     
     #Check vars except RESERVEDVARS
     checkDeclared(agentModel,addvar,eqs=true)
@@ -58,7 +58,7 @@ addVariable!(m,[:x,:y],eq);
 function addVariable!(agentModel::Model, addvar::Array{Symbol}, addeqs::String)
 
     agentModel.evolve = needCompilation
-    addeqs = Meta.parse(string("begin ",addeqs," end"))
+    addeqs = eval(Meta.parse(string("quote ",addeqs," end")))
     
     for i in addvar
         if length(findall(addvar.==i))>1
