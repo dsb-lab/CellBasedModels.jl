@@ -1,14 +1,10 @@
 module AgentModel
 
 using CUDA
-using DataFrames
 using Random
 using Distributions
-
+using DataFrames
 using WriteVTK
-using Makie
-using AbstractPlotting
-using Colors
 
 export Community, Model, CommunityInTime
 export addGlobal!, addLocal!, addVariable!, addLocalInteraction!, addInteraction!
@@ -63,6 +59,7 @@ include("./model/special/special.jl")
 
 #Integrators
 include("./integrator/euler.jl")
+include("./integrator/heun.jl")
 include("./integrator/integrators.jl")
 
 #Saving
@@ -77,8 +74,5 @@ include("./compile/compile.jl")
 
 #Adds to the community
 include("./community/initialisers.jl")
-
-#Plots
-include("./plots/plotCommunity.jl")
 
 end
