@@ -31,13 +31,6 @@ if integrator in keys(INTEGRATORS)
     append!(fDeclarations,f)
     append!(execute,exec)     
     append!(initialisation,begining)   
-elseif integrator in keys(INTEGRATORSSDE)
-    var,f,exec,begining = INTEGRATORSSDE[integrator](agentModel,inLoop,arg,platform=platform)
-    integratorFound = true
-    append!(varDeclarations,var)
-    append!(fDeclarations,f)
-    append!(execute,exec)
-    append!(initialisation,begining)   
 else
     error("No integrator called ", integrator,".")
 end

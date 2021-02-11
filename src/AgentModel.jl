@@ -1,14 +1,10 @@
 module AgentModel
 
 using CUDA
-using DataFrames
 using Random
 using Distributions
-
+using DataFrames
 using WriteVTK
-using Makie
-using AbstractPlotting
-using Colors
 
 export Community, Model, CommunityInTime
 export addGlobal!, addLocal!, addVariable!, addLocalInteraction!, addInteraction!
@@ -16,6 +12,8 @@ export addDivision!, addPseudopode!
 export compile!
 export plotCommunitySpheres
 export fillVolumeSpheres
+
+export platformAdapt, commonArguments, vectParams, subs, splitEqs, splits
 
 #Reserved variables of the model
 include("./constants/constants.jl")
@@ -61,7 +59,7 @@ include("./model/special/special.jl")
 
 #Integrators
 include("./integrator/euler.jl")
-include("./integrator/eulerIto.jl")
+include("./integrator/heun.jl")
 include("./integrator/integrators.jl")
 
 #Saving
@@ -72,12 +70,9 @@ include("./saving/saveVTK.jl")
 include("./compile/compile.jl")
 
 #Predefined models
-include("./predefinedModels/basic.jl")
+#include("./predefinedModels/basic.jl")
 
 #Adds to the community
 include("./community/initialisers.jl")
-
-#Plots
-include("./plots/plotCommunity.jl")
 
 end

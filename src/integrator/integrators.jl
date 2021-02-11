@@ -1,8 +1,6 @@
 INTEGRATORS = Dict(
-    ["euler"=>integratorEuler
+    ["euler"=>integratorEuler,
+     "heun"=>integratorHeun,
     ])
 
-INTEGRATORSSDE = Dict(
-    ["eulerSDEIto"=>integratorSDEEulerIto
-    ])
 
