@@ -72,7 +72,7 @@ include("./saving/saveVTK.jl")
 include("./compile/compile.jl")
 
 #Predefined models
-include("./predefinedModels/basic.jl")
+#include("./predefinedModels/basic.jl")
 
 #Adds to the community
 include("./community/initialisers.jl")

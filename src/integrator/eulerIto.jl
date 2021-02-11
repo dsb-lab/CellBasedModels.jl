@@ -9,46 +9,34 @@ function integratorSDEEulerIto(agentModel::Model,inLoop::Expr,arg::Array{Symbol}
         
         comArgs = commonArguments(agentModel)
         
-        #Number of random variables that we require
-        count = 1
-        nEqs = []
-        for eq in deepcopy(agentModel.equations)
-            eqs = split(string(eq),"ξ_")
-            eq = eqs[1]
-            for i in eqs[2:end]
-                eq = string(eq,"ξ_[ic1_,$count]/dt^0.5",i)
-                count += 1
-            end
-            push!(nEqs,Meta.parse(eq))
-        end
-
         #Declare auxiliar variables
-        #Declare random array if there are random variables
-        if count > 1
-            varDeclare = Expr[]
-            push!(varDeclare,
-            platformAdapt(:(ξ_ = @ARRAY_zeros(nMax_,$(count-1))),
-                platform=platform)
+        push!(varDeclare,
+            platformAdapt(
+                :(v1_=@ARRAY_zeros(nMax_,$(length(agentModel.declaredSymb["var"])))),
+                platform=platform
             )
-            addArgs = [:ξ_] 
-        else
-            addArgs = []
-        end
+            )
         
         #Make the equations
-        nEqs2 = []
-        for eq in nEqs
-            v = string(eq.args[1])[2:end-2]
-            args = string(eq.args[2])
-            push!(nEqs2,string("$v += ($args)*dt"))
+        nEqs = []
+        for eq in agentModel.equations
+            eq = vectParams(agentModel,eq)
+            lIn = [Meta.parse(string("d",i)) for i in agentModel.declaredSymb["var"]]
+            lOut = [Meta.parse(string("v1_[ic1_,$j]")) for (j,i) in enumerate(agentModel.declaredSymb["var"])]
+            for (i,j) in zip(lIn,lOut)
+                subs(eq,i,j)
+            end
+            push!(nEqs,eq)
         end
-        eqs = vectParams(agentModel,nEqs2)
+        #Make the update
+        update = [Meta.parse(string("v_[ic1_,$j]+=v1_[ic1_,$j]")) for (j,i) in enumerate(agentModel.declaredSymb["var"])]
         push!(fdeclare,
         platformAdapt(
         :(
-        function integratorStep_($(comArgs...),$(addArgs...))
+        function integratorStep_($(comArgs...),v1_)
         @INFUNCTION_ for ic1_ in index_:stride_:N
-            $(eqs...)
+            $(nEqs...)
+            $(update...)
         end
         return
         end),platform=platform)
@@ -76,24 +64,12 @@ function integratorSDEEulerIto(agentModel::Model,inLoop::Expr,arg::Array{Symbol}
         ),platform=platform)
         )
     
-        #Random initialisation depending on platform
-        init = :()
-        if count > 1
-            if platform == "cpu" && nChange_ == false
-                init = :(randn!(ξ_))
-            elseif platform == "gpu"
-                init = :(CUDA.randn!(ξ_))
-            else
-                error("Platform incorrect")
-            end
-        end
         #Make the declarations for the inside loop
         push!(execute,
         platformAdapt(
         :(begin
-        $init
         @OUTFUNCTION_ interUpdate_($(comArgs...),$(arg...))
-        @OUTFUNCTION_ integratorStep_($(comArgs...),$(addArgs...))
+        @OUTFUNCTION_ integratorStep_($(comArgs...),v1_)
         end
         ),platform=platform)
         )
