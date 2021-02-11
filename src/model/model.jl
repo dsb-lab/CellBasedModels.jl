@@ -17,7 +17,7 @@ mutable struct Model
     declaredRandSymb::Dict{String,Array{Tuple}}
     declaredIds::Array{Symbol}
     
-    equations::Array{Expr}
+    equations::Expr
     inter::Array{Expr}
     locInter::Array{Expr}
     loc::Array{Expr}
@@ -35,8 +35,8 @@ mutable struct Model
             Dict{String,Array{Tuple{Symbol,<:Distribution}}}(["locRand"=>Tuple{Symbol,<:Distribution}[],
                     "locInterRand"=>Tuple{Symbol,<:Distribution}[],"globRand"=>Tuple{Symbol,<:Distribution}[],
                     "varRand"=>Tuple{Symbol,<:Distribution}[]]),
-            Array(Symbol[]),
-            Array(Expr[]),Array(Expr[]),Array(Expr[]),
+            Symbol[],
+            :(),Array(Expr[]),Array(Expr[]),
             Array(Expr[]),Array(Expr[]),
             NeighboursFull(),Special[],
             needCompilation)
