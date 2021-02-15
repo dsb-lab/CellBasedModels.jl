@@ -1,3 +1,7 @@
-# Embryogenesis package
+![](./docs/src/assets/logo.png)
 
-Package made in julia to create and evolve communities.
+# Agent Based Modelling package
+
+Julia package for simulating Agent Based models with compatibility to run in CPU and GPU.
+
+For installing the pacjage, just use 

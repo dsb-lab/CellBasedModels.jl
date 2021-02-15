@@ -1,9 +1,9 @@
 """
     mutable struct Model
 
-Basic structure which contains the model.
+Basic structure which contains the agent based model.
 
-# Example
+# Examples
 ```
 m = Model(); #Create empty model
 
