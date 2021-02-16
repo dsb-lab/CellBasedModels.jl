@@ -1,7 +1,7 @@
 # AgentModel
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://gatocor.github.io/AgentModel.jl/stable)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://gatocor.github.io/AgentModel.jl/dev)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://gatocor.github.io/AgentBasedModels.jl)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://gatocor.github.io/AgentBasedModels.jl)
 
 The AgetnBased.jl package aims to help fast designing and simulation of Agent Based models.
 
