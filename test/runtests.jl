@@ -1,6 +1,9 @@
 using AgentModel
 using Test
+using Distributions
 
-@testset "AgentModel.jl" begin
-    # Write your tests here.
+@testset "Model" begin
+    @test_nowarn Model()
 end
+
+include("testBasic.jl")

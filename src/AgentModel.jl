@@ -1,10 +1,10 @@
 module AgentModel
 
-using CUDA
 using Random
 using Distributions
-using DataFrames
-using WriteVTK
+#using CUDA
+#using DataFrames
+#using WriteVTK
 
 export Community, Model, CommunityInTime
 export addGlobal!, addLocal!, addVariable!, addLocalInteraction!, addInteraction!
