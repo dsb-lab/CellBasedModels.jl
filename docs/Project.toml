@@ -1,5 +1,5 @@
 [deps]
-AgentModel = "388cb286-f2b1-4654-a3bb-2e137a39c658"
+AgentBasedModels = "388cb286-f2b1-4654-a3bb-2e137a39c658"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 
 [compat]

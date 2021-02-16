@@ -1,4 +1,4 @@
-module AgentModel
+module AgentBasedModels
 
 using Random
 using Distributions
