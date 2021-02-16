@@ -1,4 +1,17 @@
-function platformAdapt(text::String;platform)
+"""
+    function platformAdapt
+
+# Arguments
+
+ - *text* (String, Expr, Array{String}, Array{Expr}) Function to adaapt the functions to the CPU of GPU platforms.
+
+# Optional keyword arguments
+
+ - *platform* (String) Platform to be adapted. Options are "cpu" (default) or "gpu".
+
+# Returns Expr or Array{Expr}
+"""
+function platformAdapt(text::String;platform="cpu")
     if platform == "cpu"
         text = replace(text,"@INFUNCTION_"=>CPUINFUNCTION)
         text = replace(text,"index_"=>"1")
@@ -23,7 +36,7 @@ function platformAdapt(text::String;platform)
         subs(a,:^,:(CUDA.pow))
     end
     
-    return string(a)
+    return a
 end
 
 function platformAdapt(text::Expr;platform="cpu")
@@ -51,6 +64,16 @@ function platformAdapt(text::Array{Expr};platform="cpu")
     return text
 end
 
+"""
+    function vectParams
+
+# Arguments
+
+ - *agentModel* (Model) Model that is being compiled.
+ - *text* (String, Expr, Array{String}, Array{Expr}) Expression or expressions to be vectorized according to the parameters stored in the agentModel.
+
+# Returns Expr or Array{Expr}
+"""
 function vectParams(agentModel::Model,text)
         
     #Vectorisation changes
@@ -112,18 +135,44 @@ function vectParams(agentModel::Model,text::Array)
     return textF
 end
 
+"""
+    function adapt
+
+Function that performs the vectParams, neighbourhAdapt and platformAdapt in succession.
+
+# Arguments
+
+ - *agentModel* (Model) Model that is being compiled.
+ - *text* (String, Expr) Expression or expressions to be vectorized according to the parameters stored in the agentModel.
+ - *platform* (String) Platform to be adapted. Options are "cpu" (default) or "gpu".
+
+# Returns Expr
+"""
 function adapt(agentModel::Model, text, platform)
 
     #Vectorize the variables
     text = vectParams(agentModel,text)
-    #Adapt to the platform
-    text = platformAdapt(text,platform=platform)
     #Adapt the inner loops
     NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](text) 
+    #Adapt to the platform
+    text = platformAdapt(text,platform=platform)
 
     return text
 end
 
+"""
+    function pushAdapt!
+
+Function that pushes in a container a text after adaptation.
+
+# Arguments
+
+ - *container* (Array) Array where the adapted object is stored
+ - *agentModel* (Model) Model that is being compiled.
+ - *text* (String, Expr) Expression or expressions to be vectorized according to the parameters stored in the agentModel.
+ - *platform* (String) Platform to be adapted. Options are "cpu" (default) or "gpu".
+
+"""
 function pushAdapt!(container, agentModel::Model, platform, text)
 
     push!(container, adapt(agentModel, text, platform))

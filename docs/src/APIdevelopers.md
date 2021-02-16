@@ -4,6 +4,15 @@
 CurrentModule = AgentModel
 ```
 
+## Auxiliar functions
+This is a compendium of handful functions that are used all the time during the adaptation of the rest of the models.
+```@docs
+platformAdapt
+vectParams
+adapt
+pushAdapt!
+```
+
 ## Add parameters
 ```@docs
 parameterAdapt
