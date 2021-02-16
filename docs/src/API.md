@@ -10,7 +10,7 @@ CurrentModule = AgentModel
 Model
 ```
 
-## Add Parameters
+### Add Parameters
 ```@docs
 addGlobal!
 addLocal!
@@ -19,15 +19,20 @@ addVariable!
 addInteraction!
 ```
 
-## Neighborhoods
+### Neighborhoods
 ```@docs
 setNeighborhoodFull!
 setNeighborhoodAdjacency!
 setNeighborhoodGrid!
 ```
 
-## Special
+### Special
 ```@docs
 addDivision!
 addPseudopode!
+```
+
+## Community
+
+```@docs
 ```

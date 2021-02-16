@@ -1,3 +1,14 @@
+"""
+Extends the getindex method to access symbolic variables from the Community structure.
+
+# Arguments
+ - **a** (Community) Community structure
+ - **var** (Symbol) Symbol to be extracted
+
+# Returns
+Float if symbol is global parameter
+Array{Float} otherwise
+"""
 function Base.getindex(a::Community,var::Symbol)
     
     if var in a.declaredSymb["var"]
@@ -28,6 +39,18 @@ function Base.getindex(a::Community,var::Symbol)
 
 end
 
+"""
+Extends the setindex method to assign symbolic variables from the Community structure.
+
+# Arguments
+ - **a** (Community) Community structure
+ - **v** (Float, Array{Float}) Parameters to be associated with the parameter. If Array, it has to be of the same length as the number of agents in the Community.
+ - **var** (Symbol) Symbol to be associated
+
+# Returns
+Float if symbol is global parameter
+Array{Float} otherwise
+"""
 function Base.setindex!(a::Community,v::Array{<:AbstractFloat},var::Symbol)
     
     if var in a.declaredSymb["var"]
