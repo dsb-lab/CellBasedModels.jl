@@ -14,5 +14,5 @@ format = Documenter.HTML(prettyurls = false)
 )
 
 deploydocs(
-    repo = "github.com/USER_NAME/PACKAGE_NAME.jl.git",
+    repo = "github.com/gatocor/AgentBasedModels.jl.git",
 )
