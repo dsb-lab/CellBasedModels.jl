@@ -1,4 +1,4 @@
-using AgentModel
+using AgentBasedModels
 using Test
 using Distributions
 
