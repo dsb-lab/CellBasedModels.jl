@@ -1,7 +1,7 @@
 push!(LOAD_PATH,"../docs/src/")
 push!(LOAD_PATH,"./src")
 
-using Documenter, AgentModel
+using Documenter, AgentBasedModels
 
 makedocs(sitename="AgentModel.jl",
 pages = [
