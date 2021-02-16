@@ -1,3 +1,25 @@
+"""
+Split strings by an specified symbol.
+
+# Arguments
+ - **text** (String) Text to split
+ - **symbol** (String) Symbol to use for spliting
+
+# Returns
+Array{String}
+
+# Example
+```julia
+> text = 
+"
+a = b
++ 3
+c = d
+"
+> splitLines(text,"=")
+["a = b + 3","c = b"]
+```
+"""
 function splitLines(text::String,symbol::String)
     list=[string(i) for i in split(text,"\n") if i != ""]
     listN=[]
@@ -10,6 +32,7 @@ function splitLines(text::String,symbol::String)
     end
     return listN
 end
+
 
 function splitUpdating(text::String)
     list=[string(i) for i in split(text,"\n") if i != ""]
@@ -30,6 +53,9 @@ function splitUpdating(text::String)
     return listN
 end
 
+"""
+Recurrent function auxiliar to the splitEqs for the block of code adaptation
+"""
 function splits(income,level,l)
     out = nothing
     if income == :dt && level == 0
@@ -126,6 +152,16 @@ function splits(income,level,l)
     return income, out
 end
 
+"""
+Prepares a block of code with differential equations to be vectorized and introduced in the integration algorithms. 
+Returns the adapted block of code and the list of the lines where there has been declared a Wienner random variable.
+
+# Arguments
+ - **value** (Expr) Block of code with differential equations
+
+# Returns
+Expr, Array{Int} 
+"""
 function splitEqs(value)
     list = quote end
     nRand = []

@@ -1,3 +1,17 @@
+"""
+Returns list of all vectorized parameters of the model added by basic functions.
+
+# Arguments
+ - **agentModel** (Model) Agent Model
+
+# Optional keywork Arguments
+
+ - **random** (Bool) If true (default), returns also symbols for the vectorized random variables.
+ 
+# Return 
+
+Array{Symbol}
+"""
 function commonArguments(agentModel::Model; random = true)
     l = [:dt,:t,:N]
     if length(agentModel.declaredSymb["var"])>0

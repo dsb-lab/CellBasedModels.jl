@@ -1,4 +1,4 @@
-# AgentBasedModels
+# AgentBasedModels.jl
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://gatocor.github.io/AgentBasedModels.jl/stable/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://gatocor.github.io/AgentBasedModels.jl/dev/)
@@ -22,7 +22,7 @@ The created models can run the simulations both in CPU and CUDA GPU thanks to th
 
 Two options to install de package.
 
-Pkg.add("AgentModel")
+Pkg.add("AgentBasedModels")
 
 or clone it from the repository.
 

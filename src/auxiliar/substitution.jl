@@ -1,8 +1,14 @@
 
 """
-    function subs(expr,ob,tar)
+Substitution of a symbol by another symbol in a block of code.
 
-Substitute ob expression or symbol by tar expression or symbol into expression expr.
+# Arguments
+ - **exp** (String, Expr, Array{String}, Array{Expr}) Block of code where to substitute the symbol
+ - **ob** (String, Expr, Array{String}, Array{Expr}) Object to be substituted
+ - **tar** (String, Expr, Array{String}, Array{Expr}) Target by which is substituted, it must have the same type than **ob**.
+
+# Returns
+Expr or Array{Expr}
 """
 function subs(exp,ob,tar)
     for (pos,a) in enumerate(exp.args)
@@ -15,11 +21,7 @@ function subs(exp,ob,tar)
     return exp
 end
 
-"""
-    function subs(expr,ob,tar)
 
-Substitute ob expression or symbol by tar expression or symbol into expression expr.
-"""
 function subs(exp::String,ob,tar)
     expE = subs(Meta.parse(exp),ob,tar)
     return expE

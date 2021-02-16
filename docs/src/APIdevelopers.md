@@ -1,7 +1,7 @@
 # API for Developers
 
 ```@meta
-CurrentModule = AgentModel
+CurrentModule = AgentBasedModels
 ```
 
 ## Auxiliar functions
@@ -11,6 +11,14 @@ platformAdapt
 vectParams
 adapt
 pushAdapt!
+addIfNot!
+checkDeclared
+clean
+commonArguments
+findSymbol
+splits
+splitEqs
+subs
 ```
 
 ## Add parameters

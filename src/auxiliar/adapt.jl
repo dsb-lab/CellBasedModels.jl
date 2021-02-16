@@ -1,15 +1,17 @@
 """
-    function platformAdapt
+Function to adapt block of code into the CPU of GPU platforms.
 
 # Arguments
 
- - *text* (String, Expr, Array{String}, Array{Expr}) Function to adaapt the functions to the CPU of GPU platforms.
+ - **text** (String, Expr, Array{String}, Array{Expr}) Block of code to adapt.
 
 # Optional keyword arguments
 
- - *platform* (String) Platform to be adapted. Options are "cpu" (default) or "gpu".
+ - **platform** (String) Platform to be adapted. Options are "cpu" (default) or "gpu".
 
-# Returns Expr or Array{Expr}
+# Returns 
+
+Expr or Array{Expr}
 """
 function platformAdapt(text::String;platform="cpu")
     if platform == "cpu"
@@ -65,14 +67,16 @@ function platformAdapt(text::Array{Expr};platform="cpu")
 end
 
 """
-    function vectParams
+Function to vectorize the variables in a block of code.
 
 # Arguments
 
- - *agentModel* (Model) Model that is being compiled.
- - *text* (String, Expr, Array{String}, Array{Expr}) Expression or expressions to be vectorized according to the parameters stored in the agentModel.
+ - **agentModel** (Model) Model that is being compiled.
+ - **text** (String, Expr, Array{String}, Array{Expr}) Block(s) of code to be vectorized according to the parameters stored in the agentModel.
 
-# Returns Expr or Array{Expr}
+# Returns 
+
+Expr or Array{Expr}
 """
 function vectParams(agentModel::Model,text)
         
@@ -136,17 +140,17 @@ function vectParams(agentModel::Model,text::Array)
 end
 
 """
-    function adapt
-
 Function that performs the vectParams, neighbourhAdapt and platformAdapt in succession.
 
 # Arguments
 
- - *agentModel* (Model) Model that is being compiled.
- - *text* (String, Expr) Expression or expressions to be vectorized according to the parameters stored in the agentModel.
- - *platform* (String) Platform to be adapted. Options are "cpu" (default) or "gpu".
+ - **agentModel** (Model) Model that is being compiled.
+ - **text** (String, Expr) Expression or expressions to be vectorized according to the parameters stored in the agentModel.
+ - **platform** (String) Platform to be adapted. Options are "cpu" (default) or "gpu".
 
-# Returns Expr
+# Returns 
+
+Expr
 """
 function adapt(agentModel::Model, text, platform)
 
@@ -161,16 +165,18 @@ function adapt(agentModel::Model, text, platform)
 end
 
 """
-    function pushAdapt!
-
 Function that pushes in a container a text after adaptation.
 
 # Arguments
 
- - *container* (Array) Array where the adapted object is stored
- - *agentModel* (Model) Model that is being compiled.
- - *text* (String, Expr) Expression or expressions to be vectorized according to the parameters stored in the agentModel.
- - *platform* (String) Platform to be adapted. Options are "cpu" (default) or "gpu".
+ - **container** (Array) Array where the adapted object is stored
+ - **agentModel** (Model) Model that is being compiled.
+ - **text** (String, Expr) Expression or expressions to be vectorized according to the parameters stored in the agentModel.
+ - **platform** (String) Platform to be adapted. Options are "cpu" (default) or "gpu".
+
+# Returns
+
+nothing
 
 """
 function pushAdapt!(container, agentModel::Model, platform, text)
