@@ -19,11 +19,12 @@ findSymbol
 splits
 splitEqs
 subs
+parameterAdapt
 ```
 
-## Add parameters
+## Precompilation
 ```@docs
-parameterAdapt
+precompile!
 ```
 
 ## Set neighbourhood
@@ -57,7 +58,8 @@ neighboursByGridAdapt
 loopNeighbourGridCreation
 ```
 
-## Auxiliar
+## Integrators
 ```@docs
-subs
+integratorEuler
+integratorHeun
 ```

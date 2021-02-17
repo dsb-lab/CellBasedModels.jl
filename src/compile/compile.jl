@@ -1,3 +1,20 @@
+"""
+Main function that plugs in all the declared parts of the Agent Based Model and generates an evolution function.
+
+# Arguments
+ - **agentModel** (Model) Agent Model to be compiled.
+
+# Optative keywork arguments
+ - **integrator** (String) Integrator to be implemented in the model ("euler" by default)
+ - **saveRAM** (Bool) Indicate if the steps have to be saved in a CommunityInTime structure. False by default.
+ - **saveVTK** (Bool) Indicate if the steps have to be saved in a VTK file (experimental). False by default.
+ - **positionsVTK** (Array{Symbols}) The declared symbols that will correspond to the VTK spatial positions. [:x,:y,:z] by default.
+ - **debug** (Bool) Print the cleaned compiled function for debugging purposes. False by default.
+
+# Returns
+
+nothing
+"""
 function compile!(agentModel::Model;platform="cpu",
     integrator="euler",saveRAM = false,saveVTK = false,positionsVTK=[:x,:y,:z], debug = false)
 
@@ -139,7 +156,24 @@ return
 end
 
 
+"""
+Main function that plugs in all the declared parts of the Agent Based Model and generates an evolution function.
+It is exactly the same as the compile function but it evals in the local scope of the module. Used for compilationof the predefined models of the library.
 
+# Arguments
+ - **agentModel** (Model) Agent Model to be compiled.
+
+# Optative keywork arguments
+ - **integrator** (String) Integrator to be implemented in the model ("euler" by default)
+ - **saveRAM** (Bool) Indicate if the steps have to be saved in a CommunityInTime structure. False by default.
+ - **saveVTK** (Bool) Indicate if the steps have to be saved in a VTK file (experimental). False by default.
+ - **positionsVTK** (Array{Symbols}) The declared symbols that will correspond to the VTK spatial positions. [:x,:y,:z] by default.
+ - **debug** (Bool) Print the cleaned compiled function for debugging purposes. False by default.
+
+# Returns
+
+nothing
+"""
 function precompile!(agentModel::Model;platform="cpu",
     integrator="euler",saveRAM = false,saveVTK = false,positionsVTK=[:x,:y,:z], debug = false)
 
@@ -172,13 +206,6 @@ if integrator in keys(INTEGRATORS)
     append!(varDeclarations,var)
     append!(fDeclarations,f)
     append!(execute,exec)     
-    append!(initialisation,begining)   
-elseif integrator in keys(INTEGRATORSSDE)
-    var,f,exec,begining = INTEGRATORSSDE[integrator](agentModel,inLoop,arg,platform=platform)
-    integratorFound = true
-    append!(varDeclarations,var)
-    append!(fDeclarations,f)
-    append!(execute,exec)
     append!(initialisation,begining)   
 else
     error("No integrator called ", integrator,".")

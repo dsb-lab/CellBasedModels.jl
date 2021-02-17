@@ -48,7 +48,16 @@ function addDivision!(agentModel::Model, condition::String, update::String; rand
     #Add tags to cells if not added
     addIfNot!(agentModel.declaredIds, [:id_,:parent_])
     #Check random variables
-    checkRandDeclared(agentModel, randVar)
+    if length(randVar) > 0
+        randSymb = [i[1] for i in randVar]
+        for i in randSymb #Check double declarations
+            if length(findall(randSymb.==i))>1
+                error("Random variable ", i, " declared more then once.")
+            end
+            #Check if already declared
+            checkDeclared(agentModel,i)
+        end
+    end
     
     append!(agentModel.declaredRandSymb["locRand"],randVar)
     push!(agentModel.special,DivisionProcess(condition,update))

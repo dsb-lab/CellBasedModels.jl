@@ -1,3 +1,19 @@
+"""
+Adaptation to the Euler integrator in Îto prescription.
+
+```math
+x(t+Δt) = x(t) + f(x(t),t)*Δt + g(x(t),t)ΔW
+```
+where ``ΔW`` is a Wiener process with step proportional to ``Δt^{1/2}``.
+
+# Arguments 
+ - **agentModel** (Model) Agent Model
+ - **inLoop** (Expr) Block of code that will be included in the integration step.
+ - **arg** (Array{Symbol} Additional arguments to include from the neighborhood.
+
+# Optatiove keywork arguments 
+ - **platform** (String) Platform to be adapted the algorithm. "cpu" by default
+"""
 function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platform::String="cpu")
     
     varDeclare = []
@@ -58,7 +74,7 @@ function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platf
         #Make the functions
         inter = [string(i,"\n") for i in vectParams(agentModel,deepcopy(agentModel.inter))]
         inLoop = Meta.parse(replace(string(inLoop),"ALGORITHMS_"=>"$(inter...)"))
-        inLoop = AgentModel.NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](inLoop)
+        inLoop = NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](inLoop)
     
         reset = []
         for i in 1:length(agentModel.declaredSymb["inter"])

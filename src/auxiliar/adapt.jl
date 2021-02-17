@@ -45,7 +45,7 @@ function platformAdapt(text::Expr;platform="cpu")
     text = string(text)
     text = platformAdapt(text,platform=platform)
         
-    return Meta.parse(text)
+    return text
 end
 
 function platformAdapt(text::Array{String};platform="cpu")

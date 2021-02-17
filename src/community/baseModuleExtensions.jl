@@ -116,7 +116,6 @@ function Base.length(a::CommunityInTime)
     return length(a.com)
 end
 
-
 function Base.getindex(a::CommunityInTime,var::Symbol)
     
     if var == :t
@@ -166,8 +165,5 @@ function Base.getindex(a::CommunityInTime,var::Int)
 
 end
 
-function Base.getindex(a::CommunityInTime,var::typeof(last))
-    
-    return a.com[length(a)]
-
-end
+Base.first(a::CommunityInTime) = 1
+Base.lastindex(a::CommunityInTime) = length(a)

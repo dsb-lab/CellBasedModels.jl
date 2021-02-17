@@ -19,6 +19,12 @@ addVariable!
 addInteraction!
 ```
 
+### Special
+```@docs
+addDivision!
+addPseudopode!
+```
+
 ### Neighborhoods
 ```@docs
 setNeighborhoodFull!
@@ -26,13 +32,21 @@ setNeighborhoodAdjacency!
 setNeighborhoodGrid!
 ```
 
-### Special
+### Compile
+
 ```@docs
-addDivision!
-addPseudopode!
+compile!
 ```
 
 ## Community
 
 ```@docs
+Community
+CommunityInTime
+```
+
+### Initialisation functions
+
+```@docs
+fillVolumeSpheres
 ```

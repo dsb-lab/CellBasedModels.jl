@@ -25,7 +25,7 @@ function addVariable!(agentModel::Model, addvar::Symbol, addeqs::String)
     addeqs = eval(Meta.parse(string("quote ",addeqs," end")))
     
     #Check vars except RESERVEDVARS
-    checkDeclared(agentModel,addvar,eqs=true)
+    checkDeclared(agentModel,addvar)
 
     eqs = agentModel.equations
     if eqs == :()
@@ -68,7 +68,7 @@ function addVariable!(agentModel::Model, addvar::Array{Symbol}, addeqs::String)
         
     #Check vars except RESERVEDVARS
     for i in addvar
-        checkDeclared(agentModel,i,eqs=true)
+        checkDeclared(agentModel,i)
     end
 
     eqs = agentModel.equations

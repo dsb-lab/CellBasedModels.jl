@@ -1,3 +1,27 @@
+"""
+Adaptation to the [Stochastic Improved Euler](https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_method_(SDE)) integrator in Îto prescription.
+
+```math
+K₁ = f(x(t),t)*Δt + g(x(t),t)(ΔW-S Δt^{1/2} )
+```
+```math
+K₂ = f(x(t)+K₁,t+Δt)*Δt + g(x(t)+K₁,t+Δt)(ΔW+SΔt^{1/2} )
+```
+```math
+x(t+Δt) = x(t) + (K₁+K₂)/2
+```
+where ``S`` is a random variable chosen to be ±1 with probability 1/2 and
+ ``ΔW`` is a Wiener process with step proportional to ``Δt^{1/2}``.
+
+# Arguments 
+ - **agentModel** (Model) Agent Model
+ - **inLoop** (Expr) Block of code that will be included in the integration step.
+ - **arg** (Array{Symbol} Additional arguments to include from the neighborhood.
+
+# Optatiove keywork arguments 
+ - **platform** (String) Platform to be adapted the algorithm. "cpu" by default
+
+"""
 function integratorHeun(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platform::String="cpu")
     
     varDeclare = []
