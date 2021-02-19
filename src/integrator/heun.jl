@@ -119,7 +119,7 @@ function integratorHeun(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platfo
         #Make the functions
         inter = [string(i,"\n") for i in vectParams(agentModel,deepcopy(agentModel.inter))]
         inLoop = Meta.parse(replace(string(inLoop),"ALGORITHMS_"=>"$(inter...)"))
-        inLoop = AgentModel.NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](inLoop)
+        inLoop = NEIGHBORHOODADAPT[typeof(agentModel.neighborhood)](inLoop)
     
         reset = []
         for i in 1:length(agentModel.declaredSymb["inter"])

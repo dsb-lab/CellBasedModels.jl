@@ -47,7 +47,7 @@ function checkDeclared(agentModel::Model,s::Array{Symbol})
             error("Variable ", i, " declared more than once.")
         end
         #Check if already declared
-        checkDeclared(agentModel,i,eqs=eqs)
+        checkDeclared(agentModel,i)
     end
 
     return

@@ -24,17 +24,18 @@ julia> pos = fillVolumeSpheres(f,[[-10,-10,-10],[10,10,10]],1,noise=0.25);
 ![Figure](assets/FillVolumeSpheres.png)
 Figure rendered with [Makie.jl](https://github.com/JuliaPlots/Makie.jl) using meshscatter function.
 """
-function fillVolumeSpheres(f,box,r;N=NaN,noise=0.1,platform="cpu")
+function fillVolumeSpheres(f,box,rr;N=NaN,noise=0.1,platform="cpu")
     
+    r = rr*0.9
     #Make first dimension
-    lineX = Array(box[1][1]:r:box[2][1])
+    lineX = Array(box[1][1]:2*r:box[2][1])
     lineY = fill(box[1][2],length(lineX))
     #Make second dimension
-    nY = ceil(Int,(box[2][2]-box[1][2])/(2*sin(pi/3)*r))
+    nY = ceil(Int,(box[2][2]-box[1][2])/(4*sin(pi/3)*r))
     areaX = Float64[]
     areaY = Float64[]
-    dx = r*cos(pi/3)
-    dy = r*sin(pi/3)
+    dx = 2*r*cos(pi/3)
+    dy = 2*r*sin(pi/3)
     for i in 0:nY-1
         append!(areaX,lineX)
         append!(areaX,lineX.+dx)
@@ -44,12 +45,12 @@ function fillVolumeSpheres(f,box,r;N=NaN,noise=0.1,platform="cpu")
     end
     areaZ = fill(box[1][2],length(areaX))
     #Make third dimension
-    nZ = ceil(Int,(box[2][3]-box[1][3])/(2*sin(pi/3)*r))
+    nZ = ceil(Int,(box[2][3]-box[1][3])/(4*sin(pi/3)*r))
     volumeX = Float64[]
     volumeY = Float64[]
     volumeZ = Float64[]
-    dy = r/2/cos(pi/6)
-    dz = sqrt(2/3)*r
+    dy = 2*r/2/cos(pi/6)
+    dz = 2*sqrt(2/3)*r
     for i in 0:nZ-1
         append!(volumeX,areaX)
         append!(volumeX,areaX)
@@ -67,7 +68,12 @@ function fillVolumeSpheres(f,box,r;N=NaN,noise=0.1,platform="cpu")
         ext[i] = f(volumeX[i],volumeY[i],volumeZ[i])
     end
     volumeX = volumeX[ext]; volumeY = volumeY[ext]; volumeZ = volumeZ[ext]; 
-    
+        
+    #Add noise
+    dist = Normal(0,r*noise)
+    n = length(volumeX)
+    volumeX += rand(dist,n); volumeY += rand(dist,n); volumeZ += rand(dist,n)
+
     #Remove exceding cells
     if N != NaN
         l = length(volumeX)
@@ -77,16 +83,22 @@ function fillVolumeSpheres(f,box,r;N=NaN,noise=0.1,platform="cpu")
             volumeX = volumeX[nrem]; volumeY = volumeY[nrem]; volumeZ = volumeZ[nrem];
             l = length(volumeX)
         end
-    end
-    
-    #Add noise
-    dist = Normal(0,r^2*noise)
-    n = length(volumeX)
-    volumeX += rand(dist,n); volumeY += rand(dist,n); volumeZ += rand(dist,n)
+    end    
     
     #Model relax
-    relax!(volumeX, volumeY, volumeZ, r, noise, platform)
-        
+    relax!(volumeX, volumeY, volumeZ, rr, noise, platform)
+
+    #Remove exceding cells after relaxation
+    if N != NaN
+        l = length(volumeX)
+        while length(volumeX) > N
+            rem = rand(1:length(volumeX),l-N)
+            nrem = [i for i in 1:l if !(i in rem)]
+            volumeX = volumeX[nrem]; volumeY = volumeY[nrem]; volumeZ = volumeZ[nrem];
+            l = length(volumeX)
+        end
+    end    
+    
     return volumeX, volumeY, volumeZ
 end
 
@@ -106,8 +118,20 @@ function relax!(volumeX, volumeY, volumeZ, r, n, platform="cpu")
     com[:D] = 5.
     com[:r] = r
     com[:n] = n
+    com[:nn] = 1
     
+    counter = 10
+
     c = model.evolve(com,dt=0.1,tMax_=20.,tSaveStep_=19.9)
+    com = c[end]
+    f = maximum(sqrt.(com[:fx].^2+com[:fy].^2+com[:fz].^2))
+    while f > 0.001 && counter > 0
+        c = model.evolve(com,dt=0.1,tMax_=20.,tSaveStep_=19.9)
+        com = c[end]
+        f = maximum(sqrt.(com[:fx].^2+com[:fy].^2+com[:fz].^2))
+
+        counter -= 1
+    end
 
     volumeX .= c[end][:x]
     volumeY .= c[end][:y]
