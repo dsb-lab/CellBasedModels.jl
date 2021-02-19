@@ -108,7 +108,7 @@ function Community(agentModel::Model; N::Int=1, t::AbstractFloat=0.)
     var = zeros(Float64,N,length(agentModel.declaredSymb["var"]))
     inter = zeros(Float64,N,length(agentModel.declaredSymb["inter"]))
     loc = zeros(Float64,N,length(agentModel.declaredSymb["loc"]))
-    locInter = zeros(Float64,N,length(agentModel.declaredSymb["loc"]))
+    locInter = zeros(Float64,N,length(agentModel.declaredSymb["locInter"]))
     glob = zeros(Float64,length(agentModel.declaredSymb["glob"]))
     ids = ones(Int,N,length(agentModel.declaredIds))
 

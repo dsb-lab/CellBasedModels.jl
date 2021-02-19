@@ -25,43 +25,10 @@ julia> pos = fillVolumeSpheres(f,[[-10,-10,-10],[10,10,10]],1,noise=0.25);
 Figure rendered with [Makie.jl](https://github.com/JuliaPlots/Makie.jl) using meshscatter function.
 """
 function fillVolumeSpheres(f,box,rr;N=NaN,noise=0.1,platform="cpu")
-    
+        
     r = rr*0.9
-    #Make first dimension
-    lineX = Array(box[1][1]:2*r:box[2][1])
-    lineY = fill(box[1][2],length(lineX))
-    #Make second dimension
-    nY = ceil(Int,(box[2][2]-box[1][2])/(4*sin(pi/3)*r))
-    areaX = Float64[]
-    areaY = Float64[]
-    dx = 2*r*cos(pi/3)
-    dy = 2*r*sin(pi/3)
-    for i in 0:nY-1
-        append!(areaX,lineX)
-        append!(areaX,lineX.+dx)
+    volumeX, volumeY, volumeZ = laticeCompactHexagonal(box,r,noise=noise) 
 
-        append!(areaY,lineY.+dy*2*i)
-        append!(areaY,lineY.+dy*2*i.+dy)
-    end
-    areaZ = fill(box[1][2],length(areaX))
-    #Make third dimension
-    nZ = ceil(Int,(box[2][3]-box[1][3])/(4*sin(pi/3)*r))
-    volumeX = Float64[]
-    volumeY = Float64[]
-    volumeZ = Float64[]
-    dy = 2*r/2/cos(pi/6)
-    dz = 2*sqrt(2/3)*r
-    for i in 0:nZ-1
-        append!(volumeX,areaX)
-        append!(volumeX,areaX)
-
-        append!(volumeY,areaY)
-        append!(volumeY,areaY.+dy)
-
-        append!(volumeZ,areaZ.+dz*2*i)
-        append!(volumeZ,areaZ.+dz*2*i.+dz)
-    end    
-    
     #Extrude
     ext = zeros(Bool,length(volumeX))
     for i in 1:length(volumeX)
@@ -69,11 +36,6 @@ function fillVolumeSpheres(f,box,rr;N=NaN,noise=0.1,platform="cpu")
     end
     volumeX = volumeX[ext]; volumeY = volumeY[ext]; volumeZ = volumeZ[ext]; 
         
-    #Add noise
-    dist = Normal(0,r*noise)
-    n = length(volumeX)
-    volumeX += rand(dist,n); volumeY += rand(dist,n); volumeZ += rand(dist,n)
-
     #Remove exceding cells
     if N != NaN
         l = length(volumeX)

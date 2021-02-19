@@ -48,5 +48,9 @@ CommunityInTime
 ### Initialisation functions
 
 ```@docs
+latticeCompactHexagonal
+latticeCubic
+extrude
+extrude!
 fillVolumeSpheres
 ```

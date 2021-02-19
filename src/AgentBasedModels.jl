@@ -11,6 +11,9 @@ export addGlobal!, addLocal!, addVariable!, addLocalInteraction!, addInteraction
 export addDivision!, addPseudopode!
 export compile!
 export plotCommunitySpheres
+
+export latticeCompactHexagonal, latticeCubic, extrude
+export extrude!
 export fillVolumeSpheres
 
 export platformAdapt, commonArguments, vectParams, subs, splitEqs, splits
@@ -73,6 +76,9 @@ include("./compile/compile.jl")
 include("./predefinedModels/basic.jl")
 
 #Adds to the community
+include("./community/latices/latticeCompactHexagonal.jl")
+include("./community/latices/latticeCubic.jl")
+include("./community/extrude.jl")
 include("./community/initialisers.jl")
 
 end
