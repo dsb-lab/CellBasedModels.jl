@@ -10,7 +10,8 @@ Basic structure keeping the parameters of all the agents in the current simulati
  - **inter**::Array{AbstractFloat,2} 2D Array with all the agents in rows and all the corresponding values of the interaction parameters in columns.
  - **loc**::Array{AbstractFloat,2} 2D Array with all the agents in rows and all the corresponding values of the local parameters in columns.
  - **locInter**::Array{AbstractFloat,2} 2D Array with all the agents in rows and all the corresponding values of the local interaction parameters in columns.
- - **glob**::Array{AbstractFloat,2} 2D Array with all the agents in rows and all the corresponding values of the global parameters in columns.
+ - **glob**::Array{AbstractFloat,1} 1D Array with all the corresponding values of the global parameters in rows.
+ - **globArray**::Array{Array{AbstractFloat},1} 1D Array with all the corresponding global arrays in rows.
  - **ids**::Array{Int,2} 2D Array with all the agents in rows and all the corresponding values of the identities in columns
 
 # Constructors
@@ -100,6 +101,7 @@ mutable struct Community
     loc::Array{AbstractFloat,2}
     locInter::Array{AbstractFloat,2}
     glob::Array{AbstractFloat,1}
+    globArray::Array{Array{AbstractFloat},1}
     ids::Array{Int,2}
 end
 
@@ -110,10 +112,15 @@ function Community(agentModel::Model; N::Int=1, t::AbstractFloat=0.)
     loc = zeros(Float64,N,length(agentModel.declaredSymb["loc"]))
     locInter = zeros(Float64,N,length(agentModel.declaredSymb["locInter"]))
     glob = zeros(Float64,length(agentModel.declaredSymb["glob"]))
+    globArray = []
+    for i in agentModel.declaredSymbArrays["glob"]
+        push!(globArray,zeros(i[2]...))
+    end
     ids = ones(Int,N,length(agentModel.declaredIds))
 
     declaredSymb = agentModel.declaredSymb
     declaredSymb["ids"] = agentModel.declaredIds
+    declaredSymb["globArray"] = [i[1] for i in agentModel.declaredSymbArrays["glob"]]
 
     if :id_ in declaredSymb["ids"]
         ids[:,findfirst(declaredSymb["ids"].==:id_)] .= Array(1:N)
@@ -122,7 +129,7 @@ function Community(agentModel::Model; N::Int=1, t::AbstractFloat=0.)
         ids[:,findfirst(declaredSymb["ids"].==:parent_)] .= -1
     end
 
-    return Community(t,N,declaredSymb,var,inter,loc,locInter,glob,ids)
+    return Community(t,N,declaredSymb,var,inter,loc,locInter,glob,globArray,ids)
 end
 
 """

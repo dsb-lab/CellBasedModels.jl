@@ -29,6 +29,9 @@ function Base.getindex(a::Community,var::Symbol)
     elseif var in a.declaredSymb["ids"]
         pos = findfirst(a.declaredSymb["ids"].==var) 
         return a.ids[:,pos]
+    elseif var in a.declaredSymb["globArray"]
+        pos = findfirst(a.declaredSymb["globArray"].==var) 
+        return a.globArray[pos]
     elseif var == :t
         return a.t
     elseif var == :N
@@ -68,6 +71,13 @@ function Base.setindex!(a::Community,v::Array{<:AbstractFloat},var::Symbol)
     elseif var in a.declaredSymb["ids"]
         pos = findfirst(a.declaredSymb["ids"].==var) 
         a.ids[:,pos] = v
+    elseif var in a.declaredSymb["globArray"]
+        pos = findfirst(a.declaredSymb["globArray"].==var) 
+        if size(a.globArray[pos]) == size(v)
+            a.globArray[pos] = v
+        else
+            error("Wrong dimensions. They should be ", shape(a.globArray[pos]), ".")
+        end
     else
         error("Parameter not fount in the community.")
     end
@@ -124,7 +134,16 @@ function Base.getindex(a::CommunityInTime,var::Symbol)
         return [i.N for i in a.com]
     end
 
-    if :id_ in a.com[1].declaredSymb["ids"]
+    if var in a.com[1].declaredSymb["globArray"]
+
+        out = []
+        for i in 1:length(a)
+            push!(out,a.com[i][var])
+        end
+
+        return out
+
+    elseif :id_ in a.com[1].declaredSymb["ids"]
 
         #Find number of ids
         posId = findfirst(a.com[1].declaredSymb["ids"].==:id_)
@@ -144,7 +163,6 @@ function Base.getindex(a::CommunityInTime,var::Symbol)
         return out
 
     else
-
         #Create array
         out = zeros(eltype(a.com[1][var]),length(a),a[1].N)
         #Fill array

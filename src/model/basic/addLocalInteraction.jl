@@ -41,7 +41,7 @@ function addLocalInteraction!(agentModel::Model, addvar::Symbol, addeqs::String;
 
     agentModel.locInter = eqs
     push!(agentModel.declaredSymb["locInter"],addvar)
-    append!(agentModel.declaredRandSymb["locInterRand"],randVar)
+    append!(agentModel.declaredRandSymb["locInter"],randVar)
     
     return
 end
@@ -91,7 +91,7 @@ function addLocalInteraction!(agentModel::Model, addvar::Array{Symbol}, addeqs::
 
     agentModel.locInter = eqs
     append!(agentModel.declaredSymb["locInter"],addvar)
-    append!(agentModel.declaredRandSymb["locInterRand"],randVar)
+    append!(agentModel.declaredRandSymb["locInter"],randVar)
     
     return
 end

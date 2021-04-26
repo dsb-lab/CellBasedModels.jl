@@ -1,4 +1,4 @@
-function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars::String , platform="cpu", nChange_=false)
+function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars::String , platform="cpu")
 
     comArgs = commonArguments(agentModel,random=false)    
     
@@ -27,6 +27,36 @@ function platformRandomAdapt!(execute::Array{Expr}, agentModel::Model, randVars:
 
         else
             error("Not a valid platform.")
+        end
+    end
+
+    if randVars == "glob"
+        if length(agentModel.declaredRandSymbArrays[randVars])>0
+
+            if platform == "cpu"
+                            
+                for pdf in values(agentModel.declaredRandSymbArrays[randVars])
+                    push!(execute,
+                        platformAdapt(
+                            :(rand!($(pdf[2]),$(Meta.parse(string(pdf[1][1],"_")))))
+                        ,platform=platform)
+                    )
+                end        
+
+            elseif platform == "gpu"
+                
+                for (name,pdf) in values(agentModel.declaredRandSymbArrays[randVars])
+                    dist = gpuDist(name[1],pdf)
+                    push!(execute,
+                        platformAdapt(
+                            dist
+                        ,platform=platform)
+                    )
+                end        
+
+            else
+                error("Not a valid platform.")
+            end
         end
     end
     

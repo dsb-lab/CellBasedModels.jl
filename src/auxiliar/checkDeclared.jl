@@ -27,9 +27,21 @@ function checkDeclared(agentModel::Model,s::Symbol)
         end
     end
 
+    for k in keys(agentModel.declaredSymbArrays)
+        if s in [i[1] for i in agentModel.declaredSymbArrays[k]]
+            error(s, " already defined in Agent Based model in ", k," arrays.")
+        end
+    end
+
     for k in keys(agentModel.declaredRandSymb)
         if s in [i[1] for i in agentModel.declaredRandSymb[k]]
-            error(s, " already defined in Agent Based model in ", k,".")
+            error(s, " already defined in Agent Based model in ", k," random.")
+        end
+    end
+
+    for k in keys(agentModel.declaredRandSymbArrays)
+        if s in [i[1] for i in agentModel.declaredSymbArrays[k]]
+            error(s, " already defined in Agent Based model in ", k," random arrays.")
         end
     end
 

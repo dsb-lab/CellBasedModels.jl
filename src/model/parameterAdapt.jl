@@ -1,5 +1,5 @@
 """
-    function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nChange_=false)
+    function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu"=false)
 
 Function that returns the pieces of the final compiling code for the parameters adapted to the corresponding platform:  
 
@@ -13,16 +13,18 @@ Parameters:
   * *inLoop* : Code of the interaction local to be adapted depending on the neighbborhood
   * *arg* : Additional arguments required by the functions
   * *platform* : Platform to be adapted ("cpu" or "gpu")
-  * *nChange_* : FILL THE GAP
+  * * : FILL THE GAP
 """
-function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nChange_=false)
+function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu")
 
     varDeclarations = Expr[]
     fDeclarations = Expr[]
     execute = Expr[]
     begining = Expr[]
     
-    #Parameter declare
+    #Parameter declare###########################################################################3
+
+        #Float
     if length(agentModel.declaredSymb["var"])>0
         push!(varDeclarations, 
             platformAdapt(:(v_ = @ARRAYEMPTY_(com.var)),platform=platform ) )
@@ -55,6 +57,16 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         push!(varDeclarations, 
             platformAdapt(:(glob_ = @ARRAYEMPTY_(com.glob)),platform=platform ) )
     end
+    if length(agentModel.declaredSymbArrays["glob"])>0
+        for (j,i) in enumerate(agentModel.declaredSymbArrays["glob"])
+            push!(varDeclarations, 
+                platformAdapt(
+                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_Array(com.globArray[$j]))
+                ,platform=platform ) 
+            )
+        end
+    end
+        #Ids
     if length(agentModel.declaredIds)>0
         push!(varDeclarations, 
             platformAdapt(:(ids_ = @ARRAYEMPTYINT_(com.ids)),platform=platform ) )
@@ -63,8 +75,9 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
                 :(ids_ = [ids_;@ARRAY_zeros(Int,nMax_-size(com.ids)[1],$(length(agentModel.declaredIds)))]),platform=platform )
             ) 
     end
-    if length(agentModel.declaredRandSymb["locRand"])>0
-        for i in agentModel.declaredRandSymb["locRand"]
+        #Rand
+    if length(agentModel.declaredRandSymb["loc"])>0
+        for i in agentModel.declaredRandSymb["loc"]
             push!(varDeclarations, 
                 platformAdapt(
                     :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax_))
@@ -72,8 +85,8 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
             )
         end
     end
-    if length(agentModel.declaredRandSymb["locInterRand"])>0
-        for i in agentModel.declaredRandSymb["locInterRand"]
+    if length(agentModel.declaredRandSymb["locInter"])>0
+        for i in agentModel.declaredRandSymb["locInter"]
             push!(varDeclarations, 
                 platformAdapt(
                     :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax_,nMax_))
@@ -81,8 +94,8 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
             )
         end
     end
-    if length(agentModel.declaredRandSymb["globRand"])>0
-        for i in agentModel.declaredRandSymb["globRand"]
+    if length(agentModel.declaredRandSymb["glob"])>0
+        for i in agentModel.declaredRandSymb["glob"]
             push!(varDeclarations, 
                 platformAdapt(
                     :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(1))
@@ -90,8 +103,8 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
             )
         end
     end
-    if length(agentModel.declaredRandSymb["varRand"])>0
-        for i in agentModel.declaredRandSymb["varRand"]
+    if length(agentModel.declaredRandSymb["var"])>0
+        for i in agentModel.declaredRandSymb["var"]
             push!(varDeclarations, 
                 platformAdapt(
                     :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax_))
@@ -99,8 +112,8 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
             )
         end
     end
-    if length(agentModel.declaredRandSymb["idsRand"])>0
-        for i in agentModel.declaredRandSymb["idsRand"]
+    if length(agentModel.declaredRandSymb["ids"])>0
+        for i in agentModel.declaredRandSymb["ids"]
             push!(varDeclarations, 
                 platformAdapt(
                     :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax_))
@@ -108,7 +121,15 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
             )
         end
     end
-    
+    if length(agentModel.declaredRandSymbArrays["glob"])>0
+        for i in agentModel.declaredRandSymbArrays["glob"]
+            push!(varDeclarations, 
+                platformAdapt(
+                    :($(Meta.parse(string(i[1][1],"_"))) = @ARRAY_zeros($(i[1][2]...)))
+                ,platform=platform ) 
+            )
+        end
+    end    
     #Function declare######################################################
     comArgs = commonArguments(agentModel)
     #Make the locInter
@@ -183,7 +204,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
     #Execute##############################################
     
     #Add interLoc
-    platformRandomAdapt!(execute,agentModel,"locInterRand",platform,nChange_)
+    platformRandomAdapt!(execute,agentModel,"locInter",platform)
     if length(agentModel.locInter)>0
         push!(execute,
         platformAdapt(
@@ -197,7 +218,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         )
     end
     #Add loc
-    platformRandomAdapt!(execute,agentModel,"locRand",platform,nChange_)
+    platformRandomAdapt!(execute,agentModel,"loc",platform)
     if length(agentModel.loc)>0
         push!(execute,
         platformAdapt(
@@ -206,7 +227,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         )
     end
     #Add glob
-    platformRandomAdapt!(execute,agentModel,"globRand",platform,nChange_)
+    platformRandomAdapt!(execute,agentModel,"glob",platform)
     if length(agentModel.glob)>0
         push!(execute,
         platformAdapt(
@@ -215,7 +236,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         )
     end
     #Add ids
-    platformRandomAdapt!(execute,agentModel,"idsRand",platform,nChange_)
+    platformRandomAdapt!(execute,agentModel,"ids",platform)
     if length(agentModel.ids)>0
         push!(execute,
         platformAdapt(

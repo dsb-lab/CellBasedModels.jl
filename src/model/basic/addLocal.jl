@@ -49,7 +49,7 @@ function addLocal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tupl
         
     agentModel.loc = locUpdates
     push!(agentModel.declaredSymb["loc"],addvar)
-    append!(agentModel.declaredRandSymb["locRand"],randVar)
+    append!(agentModel.declaredRandSymb["loc"],randVar)
     
     return
 end
@@ -114,7 +114,7 @@ function addLocal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar
     
     agentModel.loc = globUpdates
     append!(agentModel.declaredSymb["loc"],addvar)
-    append!(agentModel.declaredRandSymb["locRand"],randVar)
+    append!(agentModel.declaredRandSymb["loc"],randVar)
     
     return
 end

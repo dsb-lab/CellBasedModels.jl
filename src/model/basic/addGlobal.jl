@@ -48,7 +48,7 @@ function addGlobal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tup
         
     agentModel.glob = globUpdates
     push!(agentModel.declaredSymb["glob"],addvar)
-    append!(agentModel.declaredRandSymb["globRand"],randVar)
+    append!(agentModel.declaredRandSymb["glob"],randVar)
     
     return
 end
@@ -113,7 +113,110 @@ function addGlobal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVa
     
     agentModel.glob = globUpdates
     append!(agentModel.declaredSymb["glob"],addvar)
-    append!(agentModel.declaredRandSymb["globRand"],randVar)
+    append!(agentModel.declaredRandSymb["glob"],randVar)
+    
+    return
+end
+
+"""
+    function addGlobal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tuple{Symbol,String}[])
+
+Add a global variable to the model with optional update rules.
+
+# Examples
+```
+m = Model();
+
+addGlobal!(m,(:x,[3]));
+```
+"""
+function addGlobal!(agentModel::Model, addvar::Tuple{Symbol,Array{Int}}; updates="", randVar = Tuple{Tuple{Symbol,Array{Int}},<:Distribution}[])
+    
+    agentModel.evolve = needCompilation
+
+    if updates != ""
+        newUpdates = Meta.parse(string("begin ",updates," end"))
+    end
+    
+    if length(randVar) > 0
+        randSymb = [i[1][1] for i in randVar]
+        for i in randSymb #Check double declarations
+            if length(findall(randSymb.==i))>1
+                error("Random variable ", i, " declared more then once.")
+            end
+            #Check if already declared
+            checkDeclared(agentModel,i)
+        end
+    end
+        
+    globUpdates = copy(agentModel.glob)
+    
+    #Check vars except RESERVEDVARS
+    checkDeclared(agentModel,addvar[1])
+    
+    if updates != ""
+        push!(globUpdates,newUpdates)
+    end
+        
+    agentModel.glob = globUpdates
+    push!(agentModel.declaredSymbArrays["glob"],addvar)
+    append!(agentModel.declaredRandSymbArrays["glob"],randVar)
+    
+    return
+end
+
+"""
+    function addGlobal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar = Tuple{Symbol,String}[])
+
+Add a set of global variables to the model with optional update rules.
+
+# Examples
+```
+m = Model();
+
+addGlobal!(m,[(:x,[3]),(:y,[2,4])]);
+```
+"""
+function addGlobal!(agentModel::Model, addvar::Array{Tuple{Symbol,Array{Int}}}; updates="", randVar = Tuple{Tuple{Symbol,Array{Int}},<:Distribution}[])
+
+    agentModel.evolve = needCompilation
+    
+    #Check repeated declarations in addvar
+    for i in addvar
+        if length(findall(addvar.==i))>1
+            error("Parameter ", i, " declared with more than once.")
+        end
+    end
+
+    if updates != ""
+        newUpdates = Meta.parse(string("begin ",updates," end"))
+    end
+
+    if length(randVar) > 0
+        randSymb = [i[1][1] for i in randVar]
+        for i in randSymb #Check double declarations
+            if length(findall(randSymb.==i))>1
+                error("Random variable ", i, " declared more then once.")
+            end
+            #Check if already declared
+            checkDeclared(agentModel,i)
+        end
+    end
+    
+    #Check vars except RESERVEDVARS
+    for i in addvar
+        checkDeclared(agentModel,i[1])
+    end
+    
+    globUpdates = copy(agentModel.glob)    
+    
+    if updates != ""
+        push!(globUpdates,newUpdates)
+    end
+    
+    agentModel.glob = globUpdates
+    append!(agentModel.declaredSymbArrays["glob"],addvar)
+    append!(agentModel.declaredRandSymbArrays["glob"],randVar)
     
     return
 end

@@ -14,7 +14,9 @@ addGlobal!(m,:x); #Add a global variable to the model
 mutable struct Model
 
     declaredSymb::Dict{String,Array{Symbol}}
+    declaredSymbArrays::Dict{String,Array{Tuple{Symbol,Array{Int}}}}
     declaredRandSymb::Dict{String,Array{Tuple}}
+    declaredRandSymbArrays::Dict{String,Array{Tuple}}
     declaredIds::Array{Symbol}
     
     equations::Expr
@@ -34,9 +36,11 @@ mutable struct Model
             Dict{String,Array{Symbol}}(["var"=>Symbol[],"inter"=>Symbol[],
                                         "loc"=>Symbol[],"locInter"=>Symbol[],"glob"=>Symbol[],
                                         "ids"=>Symbol[]]),
-            Dict{String,Array{Tuple{Symbol,<:Distribution}}}(["locRand"=>Tuple{Symbol,<:Distribution}[],
-                    "locInterRand"=>Tuple{Symbol,<:Distribution}[],"globRand"=>Tuple{Symbol,<:Distribution}[],
-                    "varRand"=>Tuple{Symbol,<:Distribution}[],"idsRand"=>Tuple{Symbol,<:Distribution}[]]),
+            Dict{String,Array{Symbol}}(["glob"=>Symbol[]]),
+            Dict{String,Array{Tuple{Symbol,<:Distribution}}}(["loc"=>Tuple{Symbol,<:Distribution}[],
+                    "locInter"=>Tuple{Symbol,<:Distribution}[],"glob"=>Tuple{Symbol,<:Distribution}[],
+                    "var"=>Tuple{Symbol,<:Distribution}[],"ids"=>Tuple{Symbol,<:Distribution}[]]),
+            Dict{String,Array{Tuple{Symbol,<:Distribution}}}(["glob"=>Tuple{Symbol,<:Distribution}[]]),
             Symbol[],
             :(),Array(Expr[]),Array(Expr[]),
             Array(Expr[]),Array(Expr[]),Array(Expr[]),

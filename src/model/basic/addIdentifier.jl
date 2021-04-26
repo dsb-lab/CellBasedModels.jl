@@ -41,7 +41,7 @@ function addIdentifier!(agentModel::Model, addvar::Symbol; updates="", randVar =
         
     agentModel.ids = idUpdates
     push!(agentModel.declaredIds,addvar)
-    append!(agentModel.declaredRandSymb["idsRand"],randVar)
+    append!(agentModel.declaredRandSymb["ids"],randVar)
     
     return
 end
@@ -106,7 +106,7 @@ function addIdentifier!(agentModel::Model, addvar::Array{Symbol}; updates="", ra
     
     agentModel.ids = idsUpdates
     append!(agentModel.declaredIds,addvar)
-    append!(agentModel.declaredRandSymb["idsRand"],randVar)
+    append!(agentModel.declaredRandSymb["ids"],randVar)
     
     return
 end

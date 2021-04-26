@@ -31,6 +31,20 @@ function saveRAMCompile(agentModel::Model)
     else
         push!(l,:(Vector{AbstractFloat}[]))
     end
+    if length(agentModel.declaredSymbArrays["glob"])>1
+        list = string("[copy(",agentModel.declaredSymbArrays["glob"][1],"_)")
+        for i in agentModel.declaredSymbArrays["glob"][2:end]
+            list = string(list,",copy(",i[1],"_)")
+        end
+        list = string(list,"]")
+        push!(l,:(Array($list)))
+    elseif length(agentModel.declaredSymbArrays["glob"]) > 0
+        list = string("[copy(",agentModel.declaredSymbArrays["glob"][1][1],"_")
+        list = string(list,")]")
+        push!(l,Meta.parse(string("Array(",list,")")))
+    else
+        push!(l,:(Vector{AbstractFloat}[]))
+    end
     if length(agentModel.declaredIds)>0
         push!(l,:(Array(ids_)[1:N,:]))
     else
