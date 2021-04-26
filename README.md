@@ -1,7 +1,7 @@
 # AgentBasedModels.jl
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://gatocor.github.io/AgentBasedModels.jl/stable/)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://gatocor.github.io/AgentBasedModels.jl/dev/)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://dsb-lab.github.io/AgentBasedModels.jl/stable/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://dsb-lab.github.io/AgentBasedModels.jl/dev/)
 
 The AgentBasedModels.jl package aims to help fast designing and simulation of Agent Based models.
 
