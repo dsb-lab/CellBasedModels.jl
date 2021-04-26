@@ -22,6 +22,7 @@ mutable struct Model
     locInter::Array{Expr}
     loc::Array{Expr}
     glob::Array{Expr}
+    ids::Array{Expr}
 
     neighborhood::Neighbours
     special::Array{Special}
@@ -31,13 +32,14 @@ mutable struct Model
     function Model()
         new(
             Dict{String,Array{Symbol}}(["var"=>Symbol[],"inter"=>Symbol[],
-                                        "loc"=>Symbol[],"locInter"=>Symbol[],"glob"=>Symbol[]]),
+                                        "loc"=>Symbol[],"locInter"=>Symbol[],"glob"=>Symbol[],
+                                        "ids"=>Symbol[]]),
             Dict{String,Array{Tuple{Symbol,<:Distribution}}}(["locRand"=>Tuple{Symbol,<:Distribution}[],
                     "locInterRand"=>Tuple{Symbol,<:Distribution}[],"globRand"=>Tuple{Symbol,<:Distribution}[],
-                    "varRand"=>Tuple{Symbol,<:Distribution}[]]),
+                    "varRand"=>Tuple{Symbol,<:Distribution}[],"idsRand"=>Tuple{Symbol,<:Distribution}[]]),
             Symbol[],
             :(),Array(Expr[]),Array(Expr[]),
-            Array(Expr[]),Array(Expr[]),
+            Array(Expr[]),Array(Expr[]),Array(Expr[]),
             NeighboursFull(),Special[],
             needCompilation)
     end

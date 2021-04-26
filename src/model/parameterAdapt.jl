@@ -55,6 +55,14 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         push!(varDeclarations, 
             platformAdapt(:(glob_ = @ARRAYEMPTY_(com.glob)),platform=platform ) )
     end
+    if length(agentModel.declaredIds)>0
+        push!(varDeclarations, 
+            platformAdapt(:(ids_ = @ARRAYEMPTYINT_(com.ids)),platform=platform ) )
+        push!(varDeclarations, 
+            platformAdapt(
+                :(ids_ = [ids_;@ARRAY_zeros(Int,nMax_-size(com.ids)[1],$(length(agentModel.declaredIds)))]),platform=platform )
+            ) 
+    end
     if length(agentModel.declaredRandSymb["locRand"])>0
         for i in agentModel.declaredRandSymb["locRand"]
             push!(varDeclarations, 
@@ -91,13 +99,14 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
             )
         end
     end
-    if length(agentModel.declaredIds)>0
-        push!(varDeclarations, 
-            platformAdapt(:(ids_ = @ARRAYEMPTYINT_(com.ids)),platform=platform ) )
-        push!(varDeclarations, 
-            platformAdapt(
-                :(ids_ = [ids_;@ARRAY_zeros(Int,nMax_-size(com.ids)[1],$(length(agentModel.declaredIds)))]),platform=platform )
-            ) 
+    if length(agentModel.declaredRandSymb["idsRand"])>0
+        for i in agentModel.declaredRandSymb["idsRand"]
+            push!(varDeclarations, 
+                platformAdapt(
+                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax_))
+                ,platform=platform ) 
+            )
+        end
     end
     
     #Function declare######################################################
@@ -155,6 +164,21 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         end),platform=platform)
         )
     end
+
+    #Make ids
+    if length(agentModel.ids)>0
+        ids = vectParams(agentModel,deepcopy(agentModel.ids))
+        push!(fDeclarations,
+        platformAdapt(
+        :(
+        function idsStep_($(comArgs...))
+        @INFUNCTION_ for ic1_ in index_:stride_:N
+            $(ids...)
+        end
+        return
+        end),platform=platform)
+        )
+    end
     
     #Execute##############################################
     
@@ -190,7 +214,16 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu",nCha
         ,platform=platform)
         )
     end
-    
+    #Add ids
+    platformRandomAdapt!(execute,agentModel,"idsRand",platform,nChange_)
+    if length(agentModel.ids)>0
+        push!(execute,
+        platformAdapt(
+        :(@OUTFUNCTION_ idsStep_($(comArgs...)))
+        ,platform=platform)
+        )
+    end
+
     return varDeclarations, fDeclarations, execute, begining
     
 end

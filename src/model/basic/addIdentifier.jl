@@ -1,5 +1,5 @@
 """
-    addLocal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tuple{Symbol,String}[])
+    addIdentifier!(agentModel::Model, addvar::Symbol; updates="", randVar = Tuple{Symbol,String}[])
 
 Add a local variable to the model with optional update rules.
 
@@ -7,18 +7,10 @@ Add a local variable to the model with optional update rules.
 ```
 m = Model();
 
-addLocal!(m,:x);
-```
-```
-m = Model();
-update = "
-x= r #r is a random variable with μ=0. and σ=1.
-"
-
-addLocal!(m,:x,updates=update,randVar=[(:r,Normal,0.,1.)]);
+addIdentifier!(m,:id);
 ```
 """
-function addLocal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tuple{Symbol,<:Distribution}[])
+function addIdentifier!(agentModel::Model, addvar::Symbol; updates="", randVar = Tuple{Symbol,<:Distribution}[])
 
     agentModel.evolve = needCompilation
     
@@ -38,24 +30,24 @@ function addLocal!(agentModel::Model, addvar::Symbol; updates="", randVar = Tupl
 
     end
     
-    locUpdates = copy(agentModel.loc)
+    idUpdates = copy(agentModel.ids)
     
     #Check vars except RESERVEDVARS
     checkDeclared(agentModel,addvar)
     
     if updates != ""
-        push!(locUpdates,newUpdates)
+        push!(idUpdates,newUpdates)
     end
         
-    agentModel.loc = locUpdates
-    push!(agentModel.declaredSymb["loc"],addvar)
-    append!(agentModel.declaredRandSymb["locRand"],randVar)
+    agentModel.ids = idUpdates
+    push!(agentModel.declaredIds,addvar)
+    append!(agentModel.declaredRandSymb["idsRand"],randVar)
     
     return
 end
 
 """
-    addLocal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar = Tuple{Symbol,String}[])
+    addIdentifier!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar = Tuple{Symbol,String}[])
 
 Add a local variable to the model with optional update rules.
 
@@ -75,7 +67,7 @@ x= r
 addGlobal!(m,[:x,:y],updates=update,randVar=[(:r,Normal,0,1)]);
 ```
 """
-function addLocal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar = Tuple{Symbol,<:Distribution}[])
+function addIdentifier!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar = Tuple{Symbol,<:Distribution}[])
 
     agentModel.evolve = needCompilation
     
@@ -106,15 +98,15 @@ function addLocal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar
         checkDeclared(agentModel,i)
     end
     
-    globUpdates = copy(agentModel.loc)    
+    idsUpdates = copy(agentModel.ids)    
     
     if updates != ""
-        push!(globUpdates,newUpdates)
+        push!(idsUpdates,newUpdates)
     end
     
-    agentModel.loc = globUpdates
-    append!(agentModel.declaredSymb["loc"],addvar)
-    append!(agentModel.declaredRandSymb["locRand"],randVar)
+    agentModel.ids = idsUpdates
+    append!(agentModel.declaredIds,addvar)
+    append!(agentModel.declaredRandSymb["idsRand"],randVar)
     
     return
 end

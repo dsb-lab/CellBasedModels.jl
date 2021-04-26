@@ -7,7 +7,7 @@ using CUDA
 #using WriteVTK
 
 export Community, Model, CommunityInTime
-export addGlobal!, addLocal!, addVariable!, addLocalInteraction!, addInteraction!
+export addGlobal!, addLocal!, addVariable!, addLocalInteraction!, addInteraction!, addIdentifier!
 export addDivision!, addPseudopode!
 export compile!
 export plotCommunitySpheres
@@ -47,6 +47,7 @@ include("./model/basic/addLocal.jl")
 include("./model/basic/addLocalInteraction.jl")
 include("./model/basic/addVariable.jl")
 include("./model/basic/addInteraction.jl")
+include("./model/basic/addIdentifier.jl")
 
 #Neighborhoods
 include("./model/neighborhoods/neighboursFull.jl")

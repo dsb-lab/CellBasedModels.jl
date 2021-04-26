@@ -134,7 +134,7 @@ function Base.getindex(a::CommunityInTime,var::Symbol)
         end
         idMax = maximum(l)
         #Create NaN array
-        out = zeros(length(a),idMax)
+        out = zeros(eltype(a.com[1][var]),length(a),idMax)
         out .= NaN
         #Fill array
         for i in 1:length(a)
@@ -146,7 +146,7 @@ function Base.getindex(a::CommunityInTime,var::Symbol)
     else
 
         #Create array
-        out = zeros(length(a),a[1].N)
+        out = zeros(eltype(a.com[1][var]),length(a),a[1].N)
         #Fill array
         for i in 1:length(a)
             out[i,:] .= a.com[i][var]
