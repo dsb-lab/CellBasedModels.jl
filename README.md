@@ -20,19 +20,13 @@ The created models can run the simulations both in CPU and CUDA GPU thanks to th
 
 ## Installation
 
-Two options to install de package.
+For now, the only way of installing the library is by cloning the project. Hopefully soon we will make an official release in the Julia framework.
 
-Pkg.add("AgentBasedModels")
-
-or clone it from the repository.
-
-## Requirements and Optional Modules
+## Requirements
 
 The current version of AgentModel.jl requires the following packages:
 
- - Random >= 1.5
- - Distributions >= 1.6
-
-Up to the current state of ourknowledge, it is not possible to include optional packages in Julia. In case that the simulations want to be performed in GPU, the package [CUDA.jl](https://github.com/JuliaGPU/CUDA.jl) should be installed aditionally,
-
+ - Random = 1.5
+ - Distributions = 1.6
  - CUDA = 1.5
+
