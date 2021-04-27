@@ -59,6 +59,8 @@ function save!(com::Community, folder::String)
         error("Time point already exist.")
     end
     
+    mkdir(string(folder,"/",com.t))   
+
     #Save local
     d = DataFrame()
     for (i,j) in enumerate(com.declaredSymb["var"])

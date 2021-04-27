@@ -7,7 +7,7 @@ Main function that plugs in all the declared parts of the Agent Based Model and 
 # Optative keywork arguments
  - **integrator** (String) Integrator to be implemented in the model ("euler" by default)
  - **saveRAM** (Bool) Indicate if the steps have to be saved in a CommunityInTime structure. False by default.
- - **saveVTK** (Bool) Indicate if the steps have to be saved in a VTK file (experimental). False by default.
+ - **saveCSV** (Bool) Indicate if the steps have to be saved in a folder as CSV files. False by default.
  - **positionsVTK** (Array{Symbols}) The declared symbols that will correspond to the VTK spatial positions. [:x,:y,:z] by default.
  - **debug** (Bool) Print the cleaned compiled function for debugging purposes. False by default.
 
@@ -16,7 +16,7 @@ Main function that plugs in all the declared parts of the Agent Based Model and 
 nothing
 """
 function compile!(agentModel::Model;platform="cpu",
-    integrator="euler",saveRAM = false,saveVTK = false,positionsVTK=[:x,:y,:z], debug = false)
+    integrator="euler",saveRAM = false,saveCSV = false, debug = false)
 
 varDeclarations = []
 fDeclarations = []
@@ -74,17 +74,19 @@ if saveRAM
 
     saving = true
 else
-    execSave = []
-    ret=[:Nothing]
+    var,f,exec = saveRAMCompile(agentModel)
+    append!(varDeclarations,var)
+    append!(fDeclarations,f)
+    append!(execSaveList,exec)
+    ret=[:ob]
 end
 
-if saveVTK
-    var,f,exec,final,kargs = saveVTKCompile(agentModel,positionsVTK)
+if saveCSV
+    var,f,exec = saveCSVCompile(agentModel,saveRAM=saveRAM)
     append!(varDeclarations,var)
-    append!(fDeclarations,f)  
+    append!(fDeclarations,f)
     append!(execSaveList,exec)
-    append!(execSaveFinal,final)
-    append!(kArgs,kargs)
+    append!(kArgs,[:folder])
 
     saving = true
 end
