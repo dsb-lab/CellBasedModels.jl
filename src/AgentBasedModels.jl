@@ -3,7 +3,8 @@ module AgentBasedModels
 using Random
 using Distributions
 using CUDA
-#using DataFrames
+using DataFrames
+using CSV
 #using WriteVTK
 
 export Community, Model, CommunityInTime
@@ -12,6 +13,7 @@ export addDivision!, addPseudopode!
 export compile!
 export plotCommunitySpheres
 
+export save, save!, loadCommunity, loadTimeSeries
 export latticeCompactHexagonal, latticeCubic, extrude
 export extrude!
 export fillVolumeSpheres
@@ -26,6 +28,8 @@ include("./constants/abstractStructures.jl")
 include("./model/model.jl")
 include("./community/community.jl")
 include("./community/baseModuleExtensions.jl")
+include("./community/save.jl")
+include("./community/load.jl")
 
 #Auxiliar variables
 include("./auxiliar/addIfNot.jl")
