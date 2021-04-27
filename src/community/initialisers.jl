@@ -27,7 +27,7 @@ Figure rendered with [Makie.jl](https://github.com/JuliaPlots/Makie.jl) using me
 function fillVolumeSpheres(f,box,rr;N=NaN,noise=0.1,platform="cpu")
         
     r = rr*0.9
-    volumeX, volumeY, volumeZ = latticeCompactHexagonal(box,r,noise=noise) 
+    volumeX, volumeY, volumeZ = latticeCompactHexagonal(box,r,noiseRatio=noise) 
 
     #Extrude
     ext = zeros(Bool,length(volumeX))
