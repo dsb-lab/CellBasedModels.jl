@@ -57,7 +57,7 @@ function addPseudopode!(agentModel::Model, fvar::Array{Symbol}, neighbourConditi
         end)
     )
     append!(agentModel.declaredSymb["inter"],fvar)
-    addIfNot!(agentModel.declaredRandSymb["locRand"],randVar)
+    addIfNot!(agentModel.declaredRandSymb["loc"],randVar)
 
     push!(agentModel.special, Pseudopode(fvar,neighbourCondition,force,updateCondition,updateChange))
 
