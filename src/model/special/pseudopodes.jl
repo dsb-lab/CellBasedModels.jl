@@ -52,7 +52,7 @@ function addPseudopode!(agentModel::Model, fvar::Array{Symbol}, neighbourConditi
     #Add necessary variables
     addIfNot!(agentModel.declaredIds, [:id_,:pseudoId_])
     addIfNot!(agentModel.inter,
-    :(if pseudoId_₁ == id_₂ && pseudoId_₂ == id_₁; 
+    :(if pseudoId_₁ == id_₂ || pseudoId_₂ == id_₁; 
             $force
         end)
     )
