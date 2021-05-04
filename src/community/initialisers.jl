@@ -84,11 +84,11 @@ function relax!(volumeX, volumeY, volumeZ, r, n, platform="cpu")
     
     counter = 10
 
-    c = model.evolve(com,dt=0.1,tMax_=20.,tSaveStep_=19.9)
+    c = model.evolve(com,dt=0.1,tMax=20.,tSaveStep=19.9)
     com = c[end]
     f = maximum(sqrt.(com[:fx].^2+com[:fy].^2+com[:fz].^2))
     while f > 0.001 && counter > 0
-        c = model.evolve(com,dt=0.1,tMax_=20.,tSaveStep_=19.9)
+        c = model.evolve(com,dt=0.1,tMax=20.,tSaveStep=19.9)
         com = c[end]
         f = maximum(sqrt.(com[:fx].^2+com[:fy].^2+com[:fz].^2))
 

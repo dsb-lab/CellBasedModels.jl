@@ -94,9 +94,9 @@ end
 if saving == true
     push!(varDeclarations,:(countSave = 1))
     execSave = [:(
-    if t >= tSave_
+    if t >= tSave
         $(execSaveList...)
-        tSave_ += tSaveStep_
+        tSave += tSaveStep
         countSave += 1
     end    
     )]
@@ -105,7 +105,7 @@ else
 end
 
 program = :(
-function (com::Community;$(kArgs...),tMax_, dt, t=com.t, N=com.N, nMax_=com.N, neighMax_=nMax_, tSave_=0., tSaveStep_=dt, threads_=256)
+function (com::Community;$(kArgs...),tMax, dt, t=com.t, N=com.N, nMax=com.N, neighMax=nMax, tSave=0., tSaveStep=dt, threads_=256)
     #Declaration of variables
     $(varDeclarations...)
     #Declaration of functions
@@ -123,7 +123,7 @@ function (com::Community;$(kArgs...),tMax_, dt, t=com.t, N=com.N, nMax_=com.N, n
     $(initialisation...)
     $(initialisation...)
     $(execSave...)
-    while t <= tMax_
+    while t <= tMax
         nBlocks_ = min(round(Int,N/threads_),2560)
         if nBlocks_ == 0
             nBlocks_ = 1
@@ -253,9 +253,9 @@ end
 if saving == true
     push!(varDeclarations,:(countSave = 1))
     execSave = [:(
-    if t >= tSave_
+    if t >= tSave
         $(execSaveList...)
-        tSave_ += tSaveStep_
+        tSave += tSaveStep
         countSave += 1
     end    
     )]
@@ -264,7 +264,7 @@ else
 end
 
 program = :(
-function (com::Community;$(kArgs...),tMax_, dt, t=com.t, N=com.N, nMax_=com.N, neighMax_=nMax_, tSave_=0., tSaveStep_=dt, threads_=256)
+function (com::Community;$(kArgs...),tMax, dt, t=com.t, N=com.N, nMax=com.N, neighMax=nMax, tSave=0., tSaveStep=dt, threads_=256)
     #Declaration of variables
     $(varDeclarations...)
     #Declaration of functions
@@ -282,7 +282,7 @@ function (com::Community;$(kArgs...),tMax_, dt, t=com.t, N=com.N, nMax_=com.N, n
     $(initialisation...)
     $(initialisation...)
     $(execSave...)
-    while t <= tMax_
+    while t <= tMax
         nBlocks_ = min(round(Int,N/threads_),2560)
         if nBlocks_ == 0
             nBlocks_ = 1
