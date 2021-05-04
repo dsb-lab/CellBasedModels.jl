@@ -85,7 +85,7 @@ function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platf
         :(
         function interUpdate_($(comArgs...),$(arg...))
         @INFUNCTION_ for ic1_ in index_:stride_:N
-            $(reset...)
+            #$(reset...)
             $inLoop
         end
         return
@@ -97,8 +97,11 @@ function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platf
         push!(execute,
         platformAdapt(
         :(
-        @OUTFUNCTION_ interUpdate_($(comArgs...),$(arg...))
-        ),platform=platform)
+        begin
+            inter_ .= 0.
+            @OUTFUNCTION_ interUpdate_($(comArgs...),$(arg...))
+        end)
+        ,platform=platform)
         )
         if nRand != []
             push!(execute,

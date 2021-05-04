@@ -130,7 +130,7 @@ function integratorHeun(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platfo
         :(
         function interUpdate_($(comArgs...),$(arg...))
         @INFUNCTION_ for ic1_ in index_:stride_:N
-            $(reset...)
+            #$(reset...)
             $inLoop
         end
         return
@@ -150,8 +150,10 @@ function integratorHeun(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platfo
         platformAdapt(
         :(begin
         $(inexecute...)
+        inter_ .= 0.
         @OUTFUNCTION_ interUpdate_($(comArgs...),$(arg...))
         @OUTFUNCTION_ integratorStep_($(comArgs...),$(kargs...))
+        inter_ .= 0.
         @OUTFUNCTION_ interUpdate_($(comArgs...),$(arg...))
         @OUTFUNCTION_ integratorStep2_($(comArgs...),$(kargs...))
         end

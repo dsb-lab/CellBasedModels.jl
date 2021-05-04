@@ -147,7 +147,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu")
         :(
         function locInterStep_($(comArgs...),$(arg...))
             @INFUNCTION_ for ic1_ in index_:stride_:N
-                $(reset...)
+                #$(reset...)
                 $inLoop    
             end
             return
@@ -208,12 +208,18 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu")
     if length(agentModel.locInter)>0
         push!(execute,
         platformAdapt(
-        :(@OUTFUNCTION_ locInterStep_($(comArgs...),$(arg...)))
+        :(begin
+            locInter_ .= 0.
+            @OUTFUNCTION_ locInterStep_($(comArgs...),$(arg...))
+        end)
         ,platform=platform)
         )
         push!(begining,
         platformAdapt(
-        :(@OUTFUNCTION_ locInterStep_($(comArgs...),$(arg...)))
+        :(begin
+            locInter_ .= 0.
+            @OUTFUNCTION_ locInterStep_($(comArgs...),$(arg...))
+        end)
         ,platform=platform)
         )
     end
