@@ -149,12 +149,12 @@ function neighboursByGrid(agentModel::Model;platform="cpu")
 
     #Add declaring variables
     varDeclare = Expr[]
-    push!(varDeclare,:(nnGId_ = @ARRAY_zeros(Int,nMax_,$(grid.dim))))
-    push!(varDeclare,:(nnVId_ = @ARRAY_zeros(Int,nMax_)))
+    push!(varDeclare,:(nnGId_ = @ARRAY_zeros(Int,nMax,$(grid.dim))))
+    push!(varDeclare,:(nnVId_ = @ARRAY_zeros(Int,nMax)))
     push!(varDeclare,:(nnGC_ = @ARRAY_zeros(Int,$(grid.n))))
     push!(varDeclare,:(nnGCAux_ = @ARRAY_zeros(Int,$(grid.n))))
     push!(varDeclare,:(nnGCCum_ = @ARRAY_zeros(Int,$(grid.n))))
-    push!(varDeclare,:(nnId_ = @ARRAY_zeros(Int,nMax_)))
+    push!(varDeclare,:(nnId_ = @ARRAY_zeros(Int,nMax)))
     varDeclare = platformAdapt(varDeclare,platform=platform)
     
     #Make the position assotiation in the grid x

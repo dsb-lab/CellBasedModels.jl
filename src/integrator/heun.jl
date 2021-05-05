@@ -41,10 +41,10 @@ function integratorHeun(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platfo
             push!(varDeclare,
                 platformAdapt(
                     :(begin
-                        v1_=@ARRAY_zeros(nMax_,$(length(agentModel.declaredSymb["var"])))
-                        v2_=@ARRAY_zeros(nMax_,$(length(agentModel.declaredSymb["var"])))
-                        W_=@ARRAY_zeros(nMax_,$(length(nRand)))
-                        S_=@ARRAY_zeros(nMax_,$(length(nRand)))
+                        v1_=@ARRAY_zeros(nMax,$(length(agentModel.declaredSymb["var"])))
+                        v2_=@ARRAY_zeros(nMax,$(length(agentModel.declaredSymb["var"])))
+                        W_=@ARRAY_zeros(nMax,$(length(nRand)))
+                        S_=@ARRAY_zeros(nMax,$(length(nRand)))
                         end
                             ),platform=platform
                     )
@@ -54,8 +54,8 @@ function integratorHeun(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platfo
             push!(varDeclare,
                 platformAdapt(
                     :(begin
-                        v1_=@ARRAY_zeros(nMax_,$(length(agentModel.declaredSymb["var"])))
-                        v2_=@ARRAY_zeros(nMax_,$(length(agentModel.declaredSymb["var"])))
+                        v1_=@ARRAY_zeros(nMax,$(length(agentModel.declaredSymb["var"])))
+                        v2_=@ARRAY_zeros(nMax,$(length(agentModel.declaredSymb["var"])))
                         end
                             ),platform=platform
                     )

@@ -21,7 +21,7 @@ function removeCompile(agentModel::Model, platform::String, varDeclaredAll::Arra
         #Declare variables
         varDeclare = [
         platformAdapt(
-            :(remList_ = @ARRAY_zeros(Int,nMax_,2)),
+            :(remList_ = @ARRAY_zeros(Int,nMax,2)),
                 platform=platform),
             :(remN_ = 0),
             :(remSubsN_ = 0)
@@ -89,7 +89,7 @@ function removeCompile(agentModel::Model, platform::String, varDeclaredAll::Arra
         #Declare variables
         varDeclare = [
         platformAdapt(
-            :(remList_ = @ARRAY_zeros(Int,nMax_,2)),
+            :(remList_ = @ARRAY_zeros(Int,nMax,2)),
                 platform=platform),
         platformAdapt(
             :(nRem_ = @ARRAY_zeros(Int,2)),

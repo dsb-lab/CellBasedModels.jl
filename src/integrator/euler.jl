@@ -30,7 +30,7 @@ function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platf
         #Declare auxiliar variables
         push!(varDeclare,
             platformAdapt(
-                :(v1_=@ARRAY_zeros(nMax_,$(length(agentModel.declaredSymb["var"])))),
+                :(v1_=@ARRAY_zeros(nMax,$(length(agentModel.declaredSymb["var"])))),
                 platform=platform
             )
             )
@@ -38,7 +38,7 @@ function integratorEuler(agentModel::Model,inLoop::Expr,arg::Array{Symbol};platf
         if nRand != []
             push!(varDeclare,
                 platformAdapt(
-                    :(W_=@ARRAY_zeros(nMax_,$(length(nRand)))),
+                    :(W_=@ARRAY_zeros(nMax,$(length(nRand)))),
                     platform=platform
                 )
                 )      

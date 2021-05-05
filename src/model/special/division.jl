@@ -82,7 +82,7 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
         #Declare variables
         varDeclare = [
         platformAdapt(
-            :(divList_ = @ARRAY_zeros(Int,nMax_)),
+            :(divList_ = @ARRAY_zeros(Int,nMax)),
                 platform=platform),
         platformAdapt(
             :(idMax_ = N),
@@ -119,8 +119,8 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
                 #Make divisions
                 if divN_ > 0
                     #Check if there is space
-                    if N+divN_>nMax_
-                        error("In the next division there will be more cells than allocated cells. Evolve again with a higher nMax_.")
+                    if N+divN_>nMax
+                        error("In the next division there will be more cells than allocated cells. Evolve again with a higher nMax.")
                     end
     
                     Threads.@threads for ic1 in 1:divN_
@@ -162,7 +162,7 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
         #Declare variables
         varDeclare = [
         platformAdapt(
-            :(divList_ = @ARRAY_zeros(Int,nMax_)),
+            :(divList_ = @ARRAY_zeros(Int,nMax)),
                 platform=platform),
         platformAdapt(
             :(divN_ = @ARRAY_zeros(Int,1)),
@@ -242,8 +242,8 @@ function divisionCompile(division::DivisionProcess,agentModel::Model; platform::
                 divN_ = @ARRAY_ones(Int,1)
                 @OUTFUNCTION_ addDiv1_($(comArgs...),divList_,divN_)
                 divN = Array(divN_)[1]-1
-                if N+divN > nMax_
-                    error("In the next division there will be more cells than allocated cells. Evolve again with a higher nMax_.")
+                if N+divN > nMax
+                    error("In the next division there will be more cells than allocated cells. Evolve again with a higher nMax.")
                 elseif divN > 0
                     @OUTFUNCTION_ addDiv2_($(comArgs...),divList_,divN,maxId_)
                     N += divN

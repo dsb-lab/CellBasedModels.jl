@@ -78,7 +78,7 @@ function pseudopodeCompile(pseudopode::Pseudopode,agentModel::Model; platform::S
 
     #Add variables
     pushAdapt!(varDeclare, agentModel, platform, 
-    :(pseudoChoice_ = @ARRAY_zeros(nMax_))
+    :(pseudoChoice_ = @ARRAY_zeros(nMax))
     )
     
     #Add function to declare

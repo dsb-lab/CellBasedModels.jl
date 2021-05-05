@@ -47,8 +47,8 @@ function neighboursByAdjacency(agentModel::Model;platform="cpu")
 
     #Add declaring variables
     varDeclare = Expr[]
-    push!(varDeclare,:(nnN_ = @ARRAY_zeros(Int,nMax_)))
-    push!(varDeclare,:(nnList_ = @ARRAY_zeros(Int,nMax_,$neighMax_)))
+    push!(varDeclare,:(nnN_ = @ARRAY_zeros(Int,nMax)))
+    push!(varDeclare,:(nnList_ = @ARRAY_zeros(Int,nMax,$neighMax_)))
     varDeclare = platformAdapt(varDeclare,platform=platform)
 
     fDeclare = Expr[]

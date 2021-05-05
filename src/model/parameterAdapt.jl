@@ -30,7 +30,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu")
             platformAdapt(:(v_ = @ARRAYEMPTY_(com.var)),platform=platform ) )
         push!(varDeclarations, 
             platformAdapt(
-                :(v_ = [v_;@ARRAY_zeros(nMax_-size(com.var)[1],$(length(agentModel.declaredSymb["var"])))]),platform=platform ) 
+                :(v_ = [v_;@ARRAY_zeros(nMax-size(com.var)[1],$(length(agentModel.declaredSymb["var"])))]),platform=platform ) 
         )
     end
     if length(agentModel.declaredSymb["loc"])>0
@@ -38,19 +38,19 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu")
             platformAdapt(:(loc_ = @ARRAYEMPTY_(com.loc)),platform=platform ) )
         push!(varDeclarations, 
             platformAdapt(
-                :(loc_ = [loc_;@ARRAY_zeros(nMax_-size(com.loc)[1],$(length(agentModel.declaredSymb["loc"])))]),platform=platform )
+                :(loc_ = [loc_;@ARRAY_zeros(nMax-size(com.loc)[1],$(length(agentModel.declaredSymb["loc"])))]),platform=platform )
             ) 
     end
     if length(agentModel.declaredSymb["inter"])>0
         push!(varDeclarations, 
             platformAdapt(
-                :(inter_ = @ARRAY_zeros(nMax_,$(length(agentModel.declaredSymb["inter"])))),platform=platform ) 
+                :(inter_ = @ARRAY_zeros(nMax,$(length(agentModel.declaredSymb["inter"])))),platform=platform ) 
         )
     end
     if length(agentModel.declaredSymb["locInter"])>0
         push!(varDeclarations, 
             platformAdapt(
-                :(locInter_ = @ARRAY_zeros(nMax_,$(length(agentModel.declaredSymb["locInter"])))),platform=platform ) 
+                :(locInter_ = @ARRAY_zeros(nMax,$(length(agentModel.declaredSymb["locInter"])))),platform=platform ) 
         )
     end
     if length(agentModel.declaredSymb["glob"])>0
@@ -72,7 +72,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu")
             platformAdapt(:(ids_ = @ARRAYEMPTYINT_(com.ids)),platform=platform ) )
         push!(varDeclarations, 
             platformAdapt(
-                :(ids_ = [ids_;@ARRAY_zeros(Int,nMax_-size(com.ids)[1],$(length(agentModel.declaredIds)))]),platform=platform )
+                :(ids_ = [ids_;@ARRAY_zeros(Int,nMax-size(com.ids)[1],$(length(agentModel.declaredIds)))]),platform=platform )
             ) 
     end
         #Rand
@@ -80,7 +80,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu")
         for i in agentModel.declaredRandSymb["loc"]
             push!(varDeclarations, 
                 platformAdapt(
-                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax_))
+                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax))
                 ,platform=platform ) 
             )
         end
@@ -89,7 +89,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu")
         for i in agentModel.declaredRandSymb["locInter"]
             push!(varDeclarations, 
                 platformAdapt(
-                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax_,nMax_))
+                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax,nMax))
                 ,platform=platform ) 
             )
         end
@@ -107,7 +107,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu")
         for i in agentModel.declaredRandSymb["var"]
             push!(varDeclarations, 
                 platformAdapt(
-                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax_))
+                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax))
                 ,platform=platform ) 
             )
         end
@@ -116,7 +116,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu")
         for i in agentModel.declaredRandSymb["ids"]
             push!(varDeclarations, 
                 platformAdapt(
-                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax_))
+                    :($(Meta.parse(string(i[1],"_"))) = @ARRAY_zeros(nMax))
                 ,platform=platform ) 
             )
         end
