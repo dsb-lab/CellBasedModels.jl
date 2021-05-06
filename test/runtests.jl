@@ -6,6 +6,6 @@ using Distributions
 #    @test_nowarn Model()
 #end
 
-#include("testBasic.jl")
+include("testBasic.jl")
 
-include("testLattice.jl")
+#include("testLattice.jl")

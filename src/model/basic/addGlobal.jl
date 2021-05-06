@@ -166,7 +166,7 @@ function addGlobal!(agentModel::Model, addvar::Tuple{Symbol,Array{Int}}; updates
 end
 
 """
-    function addGlobal!(agentModel::Model, addvar::Array{Symbol}; updates="", randVar = Tuple{Symbol,String}[])
+    function addGlobal!(agentModel::Model, addvar::Array{Tuple{Symbol,Array{Int}}}; updates="", randVar = Tuple{Tuple{Symbol,Array{Int}},<:Distribution}[])
 
 Add a set of global variables to the model with optional update rules.
 
@@ -177,7 +177,7 @@ m = Model();
 addGlobal!(m,[(:x,[3]),(:y,[2,4])]);
 ```
 """
-function addGlobal!(agentModel::Model, addvar::Array{Tuple{Symbol,Array{Int}}}; updates="", randVar = Tuple{Tuple{Symbol,Array{Int}},<:Distribution}[])
+function addGlobal!(agentModel::Model, addvar::Array{Tuple{Symbol,Array{Int,1}},1}; updates="", randVar = Tuple{Tuple{Symbol,Array{Int}},<:Distribution}[])
 
     agentModel.evolve = needCompilation
     
