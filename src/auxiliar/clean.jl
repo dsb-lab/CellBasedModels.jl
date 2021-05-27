@@ -9,19 +9,26 @@ Cleans a complex expression. It is very helpful for debuging the compiled model 
 nothing
 """
 function clean(a)
-    a = string(a)
-    v = split(a,"\n")
-    s = ""
-    for i in v
-        v2 = split(i,"=#")
-        for j in v2
-            if !contains(j,"#=")
-                s = string(s,"\n",j)
+    m = string(a)
+    l = split(m,"\n")
+    f = ""
+    counter = 1
+    for i in l
+        if occursin("begin",i)
+            counter += 4
+        else
+            if occursin("end",i) && length(i) == 3+counter-5
+                counter -= 4
+            else
+                i = i[counter:end]
+                if occursin("#=",i) && occursin("=#",i)
+                    1
+                else
+                    f = string(f,"\t",i,"\n")
+                end
             end
         end
     end
-
-    println(s[2:end])
-
-    return
+    
+    return f
 end

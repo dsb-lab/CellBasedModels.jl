@@ -53,6 +53,10 @@ include("./model/basic/addVariable.jl")
 include("./model/basic/addInteraction.jl")
 include("./model/basic/addIdentifier.jl")
 
+#Agent Macro
+include("./model/AgentMacro/agent.jl")
+include("./model/AgentMacro/distribution.jl")
+
 #Neighborhoods
 include("./model/neighborhoods/neighboursFull.jl")
 include("./model/neighborhoods/neighboursByAdjacency.jl")
