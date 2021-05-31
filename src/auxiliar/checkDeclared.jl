@@ -52,7 +52,7 @@ function checkDeclared(agentModel::Model,s::Symbol)
     return
 end
 
-function checkDeclared(agentModel::Model,s::Array{Symbol})
+function checkDeclared(agentModel::Model,s::Array)
 
     for i in s #Check double declarations
         if length(findall(s.==i))>1

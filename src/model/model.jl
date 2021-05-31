@@ -13,39 +13,50 @@ addGlobal!(m,:x); #Add a global variable to the model
 """
 mutable struct Model
 
+    name::Symbol
     declaredSymb::Dict{String,Array{Symbol}}
-    declaredSymbArrays::Dict{String,Array{Tuple{Symbol,Array{Int}}}}
-    declaredRandSymb::Dict{String,Array{Tuple}}
-    declaredRandSymbArrays::Dict{String,Array{Tuple}}
-    declaredIds::Array{Symbol}
+    declaredUpdates::Dict{String,Array{Tuple{Symbol,Expr}}}
     
-    equations::Expr
-    inter::Array{Expr}
-    locInter::Array{Expr}
-    loc::Array{Expr}
-    glob::Array{Expr}
-    ids::Array{Expr}
-
-    neighborhood::Neighbours
-    special::Array{Special}
-
     evolve::Function
     
     function Model()
         new(
-            Dict{String,Array{Symbol}}(["var"=>Symbol[],"inter"=>Symbol[],
-                                        "loc"=>Symbol[],"locInter"=>Symbol[],"glob"=>Symbol[],
-                                        "ids"=>Symbol[]]),
-            Dict{String,Array{Symbol}}(["glob"=>Symbol[]]),
-            Dict{String,Array{Tuple{Symbol,<:Distribution}}}(["loc"=>Tuple{Symbol,<:Distribution}[],
-                    "locInter"=>Tuple{Symbol,<:Distribution}[],"glob"=>Tuple{Symbol,<:Distribution}[],
-                    "var"=>Tuple{Symbol,<:Distribution}[],"ids"=>Tuple{Symbol,<:Distribution}[]]),
-            Dict{String,Array{Tuple{Symbol,<:Distribution}}}(["glob"=>Tuple{Symbol,<:Distribution}[]]),
-            Symbol[],
-            :(),Array(Expr[]),Array(Expr[]),
-            Array(Expr[]),Array(Expr[]),Array(Expr[]),
-            NeighboursFull(),Special[],
+            :UpdateGlobal,
+            :UpdateLocal,
+            :UpdateLocalInteraction,
+            :UpdateInteraction,
+            :Equation
+        
+            :NoName,
+            Dict{String,Array{Symbol}}(["Id"=>Symbol[],"Local"=>Symbol[],
+                                        "Variable"=>Symbol[],"Global"=>Symbol[],
+                                        "GlobalArray"=>Symbol[],"Interaction"=>Symbol[]]),
+            Dict{String,Array{Symbol}}(["UpdateGlobal"=>Symbol[],"UpdateLocal"=>Symbol[],
+                                        "UpdateLocalInteraction"=>Symbol[],"UpdateInteraction"=>Symbol[],
+                                        "Equation"=>Symbol[]]),
             needCompilation)
+    end
+end
+
+function Base.show(io::IO,abm::Model)
+    print("PARAMETERS\n")
+    for i in keys(abm.declaredSymb)
+        if ! isempty(abm.declaredSymb[i])
+            print(i,"\n\t")
+            for j in abm.declaredSymb[i]
+                print(" ",j,",")
+            end
+        end
+    end
+    
+    print("UPDATE RULES\n")
+    for i in keys(abm.declaredUpdate)
+        if ! isempty(abm.declaredUpdate[i])
+            print(i,"\n\t")
+            for j in abm.declaredUpdate[i]
+                print(" ",j,",")
+            end
+        end
     end
 end
 
