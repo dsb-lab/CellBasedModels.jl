@@ -21,38 +21,22 @@ function checkDeclared(agentModel::Model,s::Symbol)
         error(s, " is a symbol from module Base.")
     end
     
-    for k in keys(agentModel.declaredSymb)
-        if s in agentModel.declaredSymb[k]
+    for k in keys(agentModel.declaredSymbols)
+        if s in agentModel.declaredSymbols[k]
             error(s, " already defined in Agent Based model in ", k,".")
         end
     end
 
-    for k in keys(agentModel.declaredSymbArrays)
-        if s in [i[1] for i in agentModel.declaredSymbArrays[k]]
-            error(s, " already defined in Agent Based model in ", k," arrays.")
+    for k in keys(agentModel.declaredUpdates)
+        if s in agentModel.declaredUpdates[k]
+            error(s, " already defined in Agent Based model in ", k,".")
         end
-    end
-
-    for k in keys(agentModel.declaredRandSymb)
-        if s in [i[1] for i in agentModel.declaredRandSymb[k]]
-            error(s, " already defined in Agent Based model in ", k," random.")
-        end
-    end
-
-    for k in keys(agentModel.declaredRandSymbArrays)
-        if s in [i[1] for i in agentModel.declaredSymbArrays[k]]
-            error(s, " already defined in Agent Based model in ", k," random arrays.")
-        end
-    end
-
-    if s in agentModel.declaredIds
-        error(s, " already defined in Agent Based model in Ids.")
     end
 
     return
 end
 
-function checkDeclared(agentModel::Model,s::Array)
+function checkDeclared(agentModel::Model,s::Array{Symbol})
 
     for i in s #Check double declarations
         if length(findall(s.==i))>1

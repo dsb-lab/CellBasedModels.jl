@@ -7,6 +7,6 @@ using Distributions
 #end
 
 include("testModel.jl")
-#include("testAgent.jl")
+include("testAgent.jl")
 
 #include("testLattice.jl")

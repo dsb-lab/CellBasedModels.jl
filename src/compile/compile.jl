@@ -6,6 +6,7 @@ Main function that plugs in all the declared parts of the Agent Based Model and 
 
 # Optative keywork arguments
  - **integrator** (String) Integrator to be implemented in the model ("euler" by default)
+ - **neighborhood** (Neighbors) Neighbors structure definging the neighborhood method.
  - **saveRAM** (Bool) Indicate if the steps have to be saved in a CommunityInTime structure. False by default.
  - **saveCSV** (Bool) Indicate if the steps have to be saved in a folder as CSV files. False by default.
  - **positionsVTK** (Array{Symbols}) The declared symbols that will correspond to the VTK spatial positions. [:x,:y,:z] by default.
@@ -16,7 +17,7 @@ Main function that plugs in all the declared parts of the Agent Based Model and 
 nothing
 """
 function compile!(agentModel::Model;platform="cpu",
-    integrator="euler",saveRAM = false,saveCSV = false, debug = false)
+    integrator="euler",neighborhood=NeighborsFull(),saveRAM = false,saveCSV = false, debug = false)
 
 varDeclarations = []
 fDeclarations = []
@@ -26,7 +27,7 @@ initialisation = []
 
 #Neighbours declare
 if typeof(agentModel.neighborhood) in keys(NEIGHBOURS)
-    var,f,execNN, inLoop, arg = NEIGHBOURS[typeof(agentModel.neighborhood)](agentModel,platform=platform)
+    var,f, execNN, inLoop, arg = NEIGHBOURS[typeof(agentModel.neighborhood)](agentModel,platform=platform)
     append!(varDeclarations,var)
     append!(fDeclarations,f)
     append!(execute,execNN)
@@ -50,15 +51,6 @@ if integrator in keys(INTEGRATORS)
     append!(initialisation,begining)   
 else
     error("No integrator called ", integrator,".")
-end
-
-#Special functions
-for special in agentModel.special
-    var,f,execS,begining = SPECIAL[typeof(special)](special,agentModel,platform=platform)
-    append!(varDeclarations,var)
-    append!(fDeclarations,f)
-    append!(execute,execS)    
-    append!(initialisation,begining)   
 end
 
 #Saving
@@ -110,8 +102,6 @@ function (com::Community;$(kArgs...),tMax, dt, t=com.t, N=com.N, nMax=com.N, nei
     $(varDeclarations...)
     #Declaration of functions
     $(fDeclarations...)
-        
-    #println(CUDA.memory_status())
     
     #Execution of the program
     nBlocks_ = min(round(Int,N/threads_),2560)

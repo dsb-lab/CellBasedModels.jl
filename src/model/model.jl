@@ -14,26 +14,20 @@ addGlobal!(m,:x); #Add a global variable to the model
 mutable struct Model
 
     name::Symbol
-    declaredSymb::Dict{String,Array{Symbol}}
-    declaredUpdates::Dict{String,Array{Tuple{Symbol,Expr}}}
+    declaredSymbols::Dict{String,Array{Any}}
+    declaredUpdates::Dict{String,Array{Any}}
     
     evolve::Function
     
     function Model()
         new(
-            :UpdateGlobal,
-            :UpdateLocal,
-            :UpdateLocalInteraction,
-            :UpdateInteraction,
-            :Equation
-        
             :NoName,
-            Dict{String,Array{Symbol}}(["Id"=>Symbol[],"Local"=>Symbol[],
+            Dict{String,Array{Symbol}}(["Identity"=>Symbol[],"Local"=>Symbol[],
                                         "Variable"=>Symbol[],"Global"=>Symbol[],
                                         "GlobalArray"=>Symbol[],"Interaction"=>Symbol[]]),
-            Dict{String,Array{Symbol}}(["UpdateGlobal"=>Symbol[],"UpdateLocal"=>Symbol[],
-                                        "UpdateLocalInteraction"=>Symbol[],"UpdateInteraction"=>Symbol[],
-                                        "Equation"=>Symbol[]]),
+            Dict{String,Array{Symbol}}(["Global"=>Tuple[],"Local"=>Tuple[],
+                                        "LocalInteraction"=>Tuple[],"Interaction"=>Tuple[],
+                                        "Equation"=>Tuple[]]),
             needCompilation)
     end
 end
@@ -54,7 +48,7 @@ function Base.show(io::IO,abm::Model)
         if ! isempty(abm.declaredUpdate[i])
             print(i,"\n\t")
             for j in abm.declaredUpdate[i]
-                print(" ",j,",")
+                print(" ",j[2],",")
             end
         end
     end
@@ -65,6 +59,6 @@ end
 
 Function that ask for compilation before evolve can be used with the current model.
 """
-function needCompilation()
+function needCompilation(args...;kwargs...)
     error("Model not yet compiled or modified. Compile it first.")
 end

@@ -89,7 +89,6 @@ function setNeighborhoodGrid!(agentModel::Model, vars::Array{Symbol}, box::Matri
     return
 end
 
-
 """
     function loopNeighbourGridCreation(i,i0,n,x=nothing,pos="")
 

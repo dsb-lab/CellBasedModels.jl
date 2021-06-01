@@ -1,3 +1,17 @@
+VALID_TYPES = [
+    :Identity,
+    :Local,
+    :Variable,
+    :Global,
+    :GlobalArray,
+    :Interaction,
+    :UpdateGlobal,
+    :UpdateLocal,
+    :UpdateLocalInteraction,
+    :UpdateInteraction,
+    :Equation
+]
+
 RESERVEDVAR = []#[:x1,:x2,:x3,:r];
 RESERVEDSYMBOLS = [:t,:N];
 RESERVEDCALLS =  ["Uniform","Normal"];
