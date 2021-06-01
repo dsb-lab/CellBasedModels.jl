@@ -16,135 +16,67 @@ Main function that plugs in all the declared parts of the Agent Based Model and 
 
 nothing
 """
-function compile!(agentModel::Model;platform="cpu",
-    integrator="euler",neighborhood=NeighborsFull(),saveRAM = false,saveCSV = false, debug = false)
+function compile(abm::Model,space::Space=Free();platform="cpu",
+    integrator=Euler(),saveRAM = false,saveCSV = false, debug = false)
 
-varDeclarations = []
-fDeclarations = []
-execute = []
-kArgs = []
-initialisation = []
+    program = Dict(
+    "declareVar" => [],
+    "declareF" => [],
+    "args" => [],
+    "argsEval" => [],
+    "execInit" => [],
+    "execInloop" => [],
+    "execAfter" => [],
+    "return" => []
+    )
 
-#Neighbours declare
-if typeof(agentModel.neighborhood) in keys(NEIGHBOURS)
-    var,f, execNN, inLoop, arg = NEIGHBOURS[typeof(agentModel.neighborhood)](agentModel,platform=platform)
-    append!(varDeclarations,var)
-    append!(fDeclarations,f)
-    append!(execute,execNN)
-else
-    error("No neigborhood called ", agentModel.neighborhood,".")
-end
+    #Neighbours declare
+    loop = loop_(abm,space)
+    neighbour_!(abm,space)
+    #Integrator
+    integrator_!(abm,space,loop,integrator,platform=platform)
+    #Parameter declare
+    parameterAdapt_!(abm,space,loop,platform=platform)
+    #Saving
+    save_!(abm,space,platform=platform)
 
-#Parameter declare
-var,f,exec,begining = parameterAdapt(agentModel,inLoop,arg,platform=platform)
-append!(varDeclarations,var)
-append!(fDeclarations,f)
-append!(execute,exec)
-append!(initialisation,begining)   
-
-#Integrator
-if integrator in keys(INTEGRATORS)
-    var,f,exec,begining = INTEGRATORS[integrator](agentModel,inLoop,arg,platform=platform)
-    append!(varDeclarations,var)
-    append!(fDeclarations,f)
-    append!(execute,exec)     
-    append!(initialisation,begining)   
-else
-    error("No integrator called ", integrator,".")
-end
-
-#Saving
-saving = false
-execSaveList = []
-execSaveFinal = []
-if saveRAM
-    var,f,exec = saveRAMCompile(agentModel)
-    append!(varDeclarations,var)
-    append!(fDeclarations,f)
-    append!(execSaveList,exec)
-    ret=[:(commRAM_)]
-
-    saving = true
-else
-    var,f,exec = saveRAMCompile(agentModel)
-    append!(varDeclarations,var)
-    append!(fDeclarations,f)
-    append!(execSaveList,exec)
-    ret=[:ob]
-end
-
-if saveCSV
-    var,f,exec = saveCSVCompile(agentModel,saveRAM=saveRAM)
-    append!(varDeclarations,var)
-    append!(fDeclarations,f)
-    append!(execSaveList,exec)
-    append!(kArgs,[:folder])
-
-    saving = true
-end
-
-if saving == true
-    push!(varDeclarations,:(countSave = 1))
-    execSave = [:(
-    if t >= tSave
-        $(execSaveList...)
-        tSave += tSaveStep
-        countSave += 1
-    end    
-    )]
-else
-    execSave = []
-end
-
-program = :(
-function (com::Community;$(kArgs...),tMax, dt, t=com.t, N=com.N, nMax=com.N, neighMax=nMax, tSave=0., tSaveStep=dt, threads_=256)
-    #Declaration of variables
-    $(varDeclarations...)
-    #Declaration of functions
-    $(fDeclarations...)
-    
-    #Execution of the program
-    nBlocks_ = min(round(Int,N/threads_),2560)
-    if nBlocks_ == 0
-        nBlocks_ = 1
-    end
-    
-    $(execNN...)
-    $(initialisation...)
-    $(initialisation...)
-    $(execSave...)
-    while t <= tMax
+    program = :(
+    function (com::Community;$(program["argsEval"]...),tMax, dt, t=com.t, N=com.N, nMax=com.N, threads_=256)
+        #Declaration of variables
+        $(program["declareVar"]...)
+        #Declaration of functions
+        $(program["declareF"]...)
+        
+        #Execution of the program
         nBlocks_ = min(round(Int,N/threads_),2560)
         if nBlocks_ == 0
             nBlocks_ = 1
         end
-        #println(nBlocks_)
-        $(execute...)
+        
+        $(program["execInit"]...)
+        while t <= tMax
+            nBlocks_ = min(round(Int,N/threads_),2560)
+            if nBlocks_ == 0
+                nBlocks_ = 1
+            end
+            $(program["execInloop"]...)
 
-        t += dt
+            t += dt
+        end
+        $(program["execAfter"]...)
+            
+        return $(program["return"]...)
+    end
+    )
+    program = subsArguments_(program,ARGS_,program["args"])
 
-        $(execSave...)
+    if debug == true
+        clean_(program)
     end
 
-    $(execSaveFinal...)
-        
-    #CUDA.unsafe_free!(loc_)
-    #CUDA.unsafe_free!(locInter_)
-    #CUDA.unsafe_free!(nnN_)
-    #CUDA.unsafe_free!(nnList_)
-        
-    return $(ret...)
-end
-)
+    agentModel.evolve = Base.MainInclude.eval(program)
 
-if debug == true
-    clean(program)
-end
-
-agentModel.evolve = Base.MainInclude.eval(program)
-
-return
-
+    return
 end
 
 

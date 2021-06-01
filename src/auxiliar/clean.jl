@@ -10,6 +10,7 @@ nothing
 """
 function clean(a)
     m = string(a)
+    m = replace(m,"=# "=>"=#\n\t\t\t\t")
     l = split(m,"\n")
     f = ""
     counter = 1

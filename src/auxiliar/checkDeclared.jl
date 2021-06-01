@@ -9,7 +9,7 @@ Function that checks if an Symbol has already been declared in the model and ret
 
 nothing
 """
-function checkDeclared(agentModel::Model,s::Symbol)
+function checkDeclared_(agentModel::Model,s::Symbol)
 
     if string(s)[end] == "_" && !(s in RESERVEDVARS)
         error("Not possible to declare symbols with ending lower brace _. These symbols are reserved for the inner work of the module.")
@@ -36,15 +36,45 @@ function checkDeclared(agentModel::Model,s::Symbol)
     return
 end
 
-function checkDeclared(agentModel::Model,s::Array{Symbol})
+function checkDeclared_(agentModel::Model,s::Array{Symbol})
 
     for i in s #Check double declarations
         if length(findall(s.==i))>1
             error("Variable ", i, " declared more than once.")
         end
         #Check if already declared
-        checkDeclared(agentModel,i)
+        checkDeclared_(agentModel,i)
     end
 
     return
+end
+
+function checkIsDeclared_(agentModel::Model,s::Symbol)
+
+    found =  false
+
+    for k in keys(agentModel.declaredSymbols)
+        if s in agentModel.declaredSymbols[k]
+            found = true
+            break
+        end
+    end
+
+    if !found 
+        error("Parameter ", s, " not found in the agent model.")
+    end
+
+    return Nothing
+end
+
+function checkIsDeclared_(agentModel::Model,s::Array{Symbol})
+
+    for i in s #Check double declarations
+        if length(findall(s.==i))>1
+            error("Variable ", i, " declared more than once.")
+        end
+        checkIsDeclared_(agentModel,i)
+    end
+
+    return Nothing
 end

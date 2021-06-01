@@ -156,42 +156,42 @@ macro agent(name, varargs...)
         end
 
         if type == :Global && head == :(::)
-            checkDeclared(m,name)
+            checkDeclared_(m,name)
             if typeof(name) == Array{Symbol,1}
                 append!(m.declaredSymbols["Global"],name)
             else
                 push!(m.declaredSymbols["Global"],name)
             end
         elseif type == :Local && head == :(::)
-            checkDeclared(m,name)
+            checkDeclared_(m,name)
             if typeof(name) == Array{Symbol,1}
                 append!(m.declaredSymbols["Local"],name)
             else
                 push!(m.declaredSymbols["Local"],name)
             end
         elseif type == :Interaction && head == :(::)
-            checkDeclared(m,name)
+            checkDeclared_(m,name)
             if typeof(name) == Array{Symbol,1}
                 append!(m.declaredSymbols["Interaction"],name)
             else
                 push!(m.declaredSymbols["Interaction"],name)
             end
         elseif type == :Variable && head == :(::)
-            checkDeclared(m,name)
+            checkDeclared_(m,name)
             if typeof(name) == Array{Symbol,1}
                 append!(m.declaredSymbols["Variable"],name)
             else
                 push!(m.declaredSymbols["Variable"],name)
             end
         elseif type == :Identity && head == :(::)
-            checkDeclared(m,name)
+            checkDeclared_(m,name)
             if typeof(name) == Array{Symbol,1}
                 append!(m.declaredSymbols["Identity"],name)
             else
                 push!(m.declaredSymbols["Identity"],name)
             end
         elseif type == :GlobalArray && head == :(=)
-            checkDeclared(m,name)
+            checkDeclared_(m,name)
             arg = i.args[2]
             if typeof(arg) != Expr
                 error(type , " in ", i, " has to be declared with an Array{Int} representing the dimensions.")
@@ -340,22 +340,22 @@ function agent!(m::Model, var::Array{Expr,1})
         end
 
         if type == :Global && head == :(::)
-            checkDeclared(m,name)
+            checkDeclared_(m,name)
             push!(m.declaredSymbols["Global"],name)
         elseif type == :Local && head == :(::)
-            checkDeclared(m,name)
+            checkDeclared_(m,name)
             push!(m.declaredSymbols["Local"],name)
         elseif type == :Interaction && head == :(::)
-            checkDeclared(m,name)
+            checkDeclared_(m,name)
             push!(m.declaredSymbols["Interaction"],name)
         elseif type == :Variable && head == :(::)
-            checkDeclared(m,name)
+            checkDeclared_(m,name)
             push!(m.declaredSymbols["Variable"],name)                    
         elseif type == :Identity && head == :(::)
-            checkDeclared(m,name)
+            checkDeclared_(m,name)
             push!(m.declaredSymbols["Identity"],name)
         elseif type == :GlobalArray && head == :(=)
-            checkDeclared(m,name)
+            checkDeclared_(m,name)
             arg = i.args[2]
             if typeof(arg) != Expr
                 error(type , " in ", i, " has to be declared with an Array{Int} representing the dimensions.")

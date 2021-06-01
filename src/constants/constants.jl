@@ -12,11 +12,11 @@ VALID_TYPES = [
     :Equation
 ]
 
-RESERVEDVAR = []#[:x1,:x2,:x3,:r];
-RESERVEDSYMBOLS = [:t,:N];
-RESERVEDCALLS =  ["Uniform","Normal"];
+RESERVEDSYMBOLS = [:t,:N,:dt,:dW,:nMax,
+                    :ic1_,:ic2_,:nnic2_,:pos_
+                    :var_,:loc_,:inter_,:glob_,
+                    :ALGORITHM_,:ARGS_,:AUX1_,:AUX2_];
 
-RESERVED = [RESERVEDVAR;RESERVEDSYMBOLS;RESERVEDCALLS];
 
 #Adaptation functions
 GPUINFUNCTION = 

@@ -83,54 +83,23 @@ function vectParams(agentModel::Model,text)
     #Vectorisation changes
     varsOb = ["NAME_","NAME_₁","NAME_₂","NAME_ₚ"]
     varsTar = ["v_[ic1_,POS_]","v_[ic1_,POS_]","v_[nnic2_,POS_]","v_[ic1_,POS_]"]
-    text = subs(agentModel.declaredSymb["var"],varsOb,varsTar,text)
+    text = subs(agentModel.declaredSymbols["variable"],varsOb,varsTar,text)
         
     interOb = ["NAME_","NAME_₁","NAME_₂","NAME_ₚ"]
     interTar = ["inter_[ic1_,POS_]","inter_[ic1_,POS_]","inter_[nnic2_,POS_]","inter_[ic1_,POS_]"]
-    text = subs(agentModel.declaredSymb["inter"],interOb,interTar,text)
-
-    locInterOb = ["NAME_","NAME_₁","NAME_₂","NAME_ₚ"]
-    locInterTar = ["locInter_[ic1_,POS_]","locInter_[ic1_,POS_]","locInter_[nnic2_,POS_]","locInter_[ic1_,POS_]"]
-    text = subs(agentModel.declaredSymb["locInter"],locInterOb,locInterTar,text)
+    text = subs(agentModel.declaredSymbols["interaction"],interOb,interTar,text)
     
     globOb = ["NAME_"]
     globTar = ["glob_[POS_]"]
-    text = subs(agentModel.declaredSymb["glob"],globOb,globTar,text)
+    text = subs(agentModel.declaredSymbols["global"],globOb,globTar,text)
 
     locOb = ["NAME_","NAME_₁","NAME_₂","NAME_ₚ"]
     locTar = ["loc_[ic1_,POS_]","loc_[ic1_,POS_]","loc_[nnic2_,POS_]","loc_[ic1_,POS_]"]
-    text = subs(agentModel.declaredSymb["loc"],locOb,locTar,text)
+    text = subs(agentModel.declaredSymbols["local"],locOb,locTar,text)
 
-    for (i,j) in agentModel.declaredSymbArrays["glob"]
+    for (i,j) in agentModel.declaredSymbols["globalArray"]
         ii = Meta.parse(string(i,"_"))
         text = subs(text,i,ii)
-    end
-
-    ##Random variables
-    for (i,j) in agentModel.declaredRandSymb["loc"]
-        ii = Meta.parse(string(i,"_"))
-        text = subs(text,i,:($ii[ic1_]))
-    end
-
-    for (i,j) in agentModel.declaredRandSymb["locInter"]
-        ii = Meta.parse(string(i,"_"))
-        text = subs(text,i,:($ii[ic1_,ic2_]))
-    end
-
-    for (i,j) in agentModel.declaredRandSymb["glob"]
-        ii = Meta.parse(string(i,"_"))
-        text = subs(text,i,:($ii[1]))
-    end
-
-    for (i,j) in agentModel.declaredRandSymb["var"]
-        ii = Meta.parse(string(i,"_"))
-        text = subs(text,i,:($ii[ic1_]))
-    end
-
-    for i in agentModel.declaredRandSymbArrays["glob"]
-        print(i[1][1])
-        ii = Meta.parse(string(i[1][1],"_"))
-        text = subs(text,i[1][1],ii)
     end
 
     ##Ids

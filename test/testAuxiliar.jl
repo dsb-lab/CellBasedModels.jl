@@ -1,0 +1,45 @@
+@testset "auxiliar" begin
+
+    m = @agent cell [x,y]::Local
+    @test_nowarn AgentBasedModels.checkIsDeclared_(m,:x) 
+    @test_nowarn AgentBasedModels.checkIsDeclared_(m,[:x]) 
+    @test_nowarn AgentBasedModels.checkIsDeclared_(m,[:x,:y]) 
+    @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,:g) 
+    @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,[:g]) 
+    @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,[:x,:g]) 
+
+    m = @agent(
+        cell,
+        l::Local,
+        v::Variable,
+        i::Interaction,
+        g::Global,
+        h::GlobalArray=[2,3],
+        id::Identity
+    )
+    @test AgentBasedModels.vectorize_(m,:(l = 1)) == :(loc_[ic1_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(l₁ = 1)) == :(loc_[ic1_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(l₂ = 1)) == :(loc_[nnic2_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(v = 1)) == :(var_[ic1_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(v₁ = 1)) == :(var_[ic1_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(v₂ = 1)) == :(var_[nnic2_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(i = 1)) == :(inter_[ic1_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(i₁ = 1)) == :(inter_[ic1_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(i₂ = 1)) == :(inter_[nnic2_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(g = 1)) == :(glob_[1]=1)
+    @test AgentBasedModels.vectorize_(m,:(h[1,2] = 1)) == :(h[1,2]=1)
+    @test AgentBasedModels.vectorize_(m,:(id = 1)) == :(id_[ic1_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(id₁ = 1)) == :(id_[ic1_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(id₂ = 1)) == :(id_[nnic2_,1]=1)
+    
+    m = @agent(
+        cell,
+        l::Local,
+        v::Variable,
+        i::Interaction,
+        g::Global,
+        h::GlobalArray=[2,3],
+        id::Identity
+    )
+    @test prod([i in [:t,:N,:var_,:loc_,:glob_,:inter_,:id_,:h] for i in AgentBasedModels.agentArguments_(m)])
+end
