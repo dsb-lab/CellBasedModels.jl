@@ -1,9 +1,15 @@
 @testset "agent" begin
-    @test_nowarn @agent(
+
+    @test_nowarn Agent()
+
+    @test_nowarn @createAgent(
         Hola
     )
 
-    @test_nowarn @agent(
+    @test_throws ErrorException try @eval @createAgent cell sin::Local catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @createAgent cell Normal::Local catch err; throw(err.error) end
+
+    @test_nowarn @createAgent(
         Hola,
         id::Identity,
         l::Local,
@@ -18,7 +24,7 @@
         uli::UpdateLocalInteraction = i += 1
     )
 
-    m = @agent(
+    m = @createAgent(
         Hola,
         id::Identity,
         l::Local,
@@ -38,7 +44,7 @@
         @test length(m.declaredUpdates[i]) == 1
     end
     
-    @test_nowarn @agent(
+    @test_nowarn @createAgent(
         Hola,
         [id,id2]::Identity,
         [l,l2]::Local,
@@ -52,7 +58,7 @@
         ::UpdateInteraction = i += 1,
         ::UpdateLocalInteraction = i += 1)
     
-    m = @agent(
+    m = @createAgent(
         Hola,
         [id,id2]::Identity,
         [l,l2]::Local,
@@ -98,26 +104,26 @@
 
     @test typeof(l) == Array{Expr,1}
 
-    m = @agent cell
-    @test_nowarn agent!(m,l)
+    m = @createAgent cell
+    @test_nowarn addToAgent!(m,l)
 
-    @test_throws ErrorException try @eval @agent(cell, [l,l]::Local) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(cell, [l,l]::Global) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(cell, [l,l]::Variable) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(cell, [l,l]::Interaction) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(cell, [l,l]::GlobalArray) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @createAgent(cell, [l,l]::Local) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @createAgent(cell, [l,l]::Global) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @createAgent(cell, [l,l]::Variable) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @createAgent(cell, [l,l]::Interaction) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @createAgent(cell, [l,l]::GlobalArray) catch err; throw(err.error) end
 
-    @test_throws ErrorException try @eval @agent(cell, l::Local, l::Global) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(cell, l::Local, l::Variable) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(cell, l::Local, l::Interaction) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(cell, l::Local, l::GlobalArray) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @createAgent(cell, l::Local, l::Global) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @createAgent(cell, l::Local, l::Variable) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @createAgent(cell, l::Local, l::Interaction) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @createAgent(cell, l::Local, l::GlobalArray) catch err; throw(err.error) end
 
-    m = @agent cell l::Local
+    m = @createAgent cell l::Local
     @test_throws ErrorException try @eval agent!(m, @add l::Local) catch err; throw(err.error) end
-    m = @agent cell l::Local
+    m = @createAgent cell l::Local
     @test_throws ErrorException try @eval agent!(m, @add l::Global) catch err; throw(err.error) end
-    m = @agent cell l::Local
+    m = @createAgent cell l::Local
     @test_throws ErrorException try @eval agent!(m, @add l::Interaction) catch err; throw(err.error) end
-    m = @agent cell l::Local
+    m = @createAgent cell l::Local
     @test_throws ErrorException try @eval agent!(m, @add l::GlobalArray) catch err; throw(err.error) end
 end

@@ -1,7 +1,7 @@
 """
-    macro @agent(name, varargs...) 
+    macro @createAgent(name, varargs...) 
 
-Basic Macro to grow an instance of Model. It generates an Agent type with the characteristics specified in its arguments.
+Basic Macro to grow an instance of Agent. It generates an Agent type with the characteristics specified in its arguments.
 
 Input:
     *name*: Name of agent.
@@ -88,7 +88,7 @@ Input:
                 begin
                     ... code including the update rules ...
                 end
-        :UpdateLocalInteraction
+        **:UpdateLocalInteraction**
         Type for declaring interaction update rules for the local parameters and ids. 
         The variables declared in these updates will be updated just once per time step instead of once per integration point. 
         For integrators that evaluate just once as the Euler integrator, UpdateInteraction and UpdateLocalInteraction are equivalent.
@@ -100,9 +100,9 @@ Input:
     Output:
     Nothing
 """
-macro agent(name, varargs...) 
+macro createAgent(name, varargs...) 
 
-    m = Model()
+    m = Agent()
 
     if typeof(name) == Symbol
         m.name = name
@@ -268,12 +268,12 @@ macro add(varargs...)
 end
 
 """
-    agent!(m::Model, var::Array{Expr})
+    addToAgent!(m, var)
 
 Function to add more arguments after declaration to the agent model. Use @add to keep the code clean.
 
 Input:
-    **abm::Model**: Model to be extended
+    **abm::Agent**: Agent to be extended
     **vararg::Expr**: Arguments to add to the model. See @agent to see valid arguments
 Output:
     Nothing
@@ -292,7 +292,7 @@ agent!(m,
 )
 ```
 """
-function agent!(m::Model, var::Array{Expr,1})
+function addToAgent!(m::Agent, var::Array{Expr,1})
 
     #Add all contributions
     for i in var

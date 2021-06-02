@@ -1,6 +1,6 @@
 @testset "auxiliar" begin
 
-    m = @agent cell [x,y]::Local
+    m = @createAgent cell [x,y]::Local
     @test_nowarn AgentBasedModels.checkIsDeclared_(m,:x) 
     @test_nowarn AgentBasedModels.checkIsDeclared_(m,[:x]) 
     @test_nowarn AgentBasedModels.checkIsDeclared_(m,[:x,:y]) 
@@ -8,7 +8,7 @@
     @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,[:g]) 
     @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,[:x,:g]) 
 
-    m = @agent(
+    m = @createAgent(
         cell,
         l::Local,
         v::Variable,
@@ -32,7 +32,7 @@
     @test AgentBasedModels.vectorize_(m,:(id₁ = 1)) == :(id_[ic1_,1]=1)
     @test AgentBasedModels.vectorize_(m,:(id₂ = 1)) == :(id_[nnic2_,1]=1)
     
-    m = @agent(
+    m = @createAgent(
         cell,
         l::Local,
         v::Variable,
@@ -42,4 +42,8 @@
         id::Identity
     )
     @test prod([i in [:t,:N,:var_,:loc_,:glob_,:inter_,:id_,:h] for i in AgentBasedModels.agentArguments_(m)])
+
+    @test AgentBasedModels.cudaAdapt_(:(sin(e^2^x))) == :(CUDA.sin(CUDA.pow(e,CUDA.pow(2,x))))
+    @test AgentBasedModels.cudaAdapt_(:(zeros(e^2))) == :(CUDA.zeros(CUDA.pow(e,2)))
+    
 end

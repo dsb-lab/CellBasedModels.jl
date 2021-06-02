@@ -7,16 +7,19 @@ using DataFrames
 using CSV
 #using WriteVTK
 
-export Model
-export @agent, agent!, @add
-export NeighborsFull, NeighborsGrid
+export Agent, @createAgent, addToAgent!, @add
+export SimulationFree, SimulationGrid
+export SimulationSpace, FlatBoundary, Periodic, NonPeriodic, Open, Hard, Reflecting, OpenReflecting, ReflectingOpen, OpenHard, HardOpen, HardReflecting, ReflectingHard
 
 #Constants
-include("./constants/abstractStructures.jl")
 include("./constants/constants.jl")
 
+#Agent
+include("./agent/agentStructure.jl")
+include("./agent/constructAgent.jl")
+
 #Model
-include("./agent/model.jl")
+include("./model/structProgram.jl")
 
 #Auxiliar variables
 include("./auxiliar/checkDeclared.jl")
@@ -24,13 +27,11 @@ include("./auxiliar/clean.jl")
 include("./auxiliar/substitution.jl")
 include("./auxiliar/vectorize.jl")
 include("./auxiliar/arguments.jl")
+include("./auxiliar/cudaAdapt.jl")
 
-#Agent
-include("./model/agent.jl")
-
-#Neighbours
-include("./neighborhoods/neighbors.jl")
-include("./neighborhoods/neighborsFull.jl")
-include("./neighborhoods/neighborsGrid2.jl")
+#Simulation Space
+include("./simulationSpace/abstractTypes.jl")
+include("./simulationSpace/simulationFree.jl")
+include("./simulationSpace/simulationGrid.jl")
 
 end

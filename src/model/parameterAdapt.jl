@@ -22,7 +22,7 @@ function parameterAdapt(agentModel::Model,inLoop,arg;platform::String="cpu")
     execute = Expr[]
     begining = Expr[]
     
-    #Parameter declare###########################################################################3
+    #Parameter declare###########################################################################
 
         #Float
     if length(agentModel.declaredSymb["var"])>0

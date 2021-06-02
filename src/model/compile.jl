@@ -19,17 +19,6 @@ nothing
 function compile(abm::Model,space::Space=Free();platform="cpu",
     integrator=Euler(),saveRAM = false,saveCSV = false, debug = false)
 
-    program = Dict(
-    "declareVar" => [],
-    "declareF" => [],
-    "args" => [],
-    "argsEval" => [],
-    "execInit" => [],
-    "execInloop" => [],
-    "execAfter" => [],
-    "return" => []
-    )
-
     #Neighbours declare
     loop = loop_(abm,space)
     neighbour_!(abm,space)

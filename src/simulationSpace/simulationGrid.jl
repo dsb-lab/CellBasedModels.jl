@@ -1,6 +1,7 @@
-struct NeighborsGrid <: Neighbors
+struct SimulationGrid <: SimulationSpace
 
-    box::Array{Tuple{Symbol,<:Real,<:Real,<:Real}}
+    box::Array{<:FlatBoundary}
+    radius::Array{<:Real,1}
     dim::Int
     n::Int
     axisSize::Array{Int}
@@ -8,13 +9,13 @@ struct NeighborsGrid <: Neighbors
 
 end
 """
-    function NeighboursGrid(agentModel::Model, vars::Array{Symbol}, box::Matrix{<:AbstractFloat}, radius::AbstractFloat)
+    function NeighboursGrid(agentAgent::Agent, vars::Array{Symbol}, box::Matrix{<:AbstractFloat}, radius::AbstractFloat)
 
 Function that keeps track of the cells by associating them to a grid position. The neighborhood requires that the variables that define the dimensions of the grid are defined, the size of each dimension and the radius of interaction of each particle.
 
 Example
 ```
-m = Model()
+m = Agent()
 
 addLocal!([:x,:y])
 
@@ -24,39 +25,48 @@ radius = 0.5 #The particles interact at most with particles 0.5 far appart from 
 setNeighborhoodGrid!(m,vars,box,radius)
 ```
 """
-function NeighborsGrid(abm::Model, box::Array{<:Tuple{Symbol,<:Real,<:Real,<:Real},1})
+function SimulationGrid(abm::Agent, box::Array{<:Union{<:Tuple{Symbol,<:Real,<:Real},<:FlatBoundary},1}, radius::Union{<:Real,Array{<:Real,1}})
 
     if length(keys(box)) == 0
         error("At least one dimension has to be declared in box.")
     elseif length(keys(box)) > 3
         error("No more than three dimensions are allowed.")
     end
-    vars = [i[1] for i in box]
-    checkIsDeclared_(abm,vars)
-    for i in box
-        if i[3] <= i[2]
-            error("Superior limit is equal or smaller than inferior limit for ", i, ". The entry should be of the form (symbol,min,max,radius).")
+
+    box2 = Array{FlatBoundary,1}()
+    for i in 1:length(box)
+        if typeof(box[i])<:Tuple{Symbol,<:Real,<:Real}
+            push!(box2, Open(box[i]...))
+        else
+            push!(box2,box[i])
         end
     end
 
-    axisSize = [ceil(Int,(i[3]-i[2])/(2*i[4]))+2 for i in box]
+    vars = [i.s for i in box2]
+    checkIsDeclared_(abm,vars)
+    for i in box2
+        if i.max <= i.min
+            error("Superior limit is equal or smaller than inferior limit for ", i.s, ". The entry should be of the form (symbol,min,max,radius).")
+        end
+    end
+
+    if typeof(radius)<:Real
+        radius = [radius for _ in 1:length(box)]
+    elseif length(radius) != length(box)
+        error("Radius has to be an scalar or the same length than box.")
+    end
+
+    axisSize = [ceil(Int,(i.max-i.min)/(2*radius[j]))+2 for (j,i) in enumerate(box2)]
     cum = cumprod(axisSize)
     cumSize = [1;cum[1:end-1]]
     n = cum[end]
 
-    return NeighborsGrid(box,length(vars),n,axisSize,cumSize) 
+    return SimulationGrid(box2,radius,length(vars),n,axisSize,cumSize) 
 end
 
-function NeighborsGrid(abm::Model, box::Array{<:Tuple{Symbol,<:Real,<:Real}}, radius::Real)
-
-    box = [(i...,radius) for i in box]
-
-    return NeighborsGrid(abm,box)
-end
-
-function arguments_(a::NeighborsGrid,platform::String)
+function arguments_!(a::SimulationGrid, data::Program_, platform::String)
     
-    declareVar = 
+    append!(data.declareVar, 
     [
     :(nnGId_ = zeros(Int,nMax,$(a.dim))),
     :(nnVId_ = zeros(Int,nMax)),
@@ -65,6 +75,7 @@ function arguments_(a::NeighborsGrid,platform::String)
     :(nnGCCum_ = zeros(Int,$(a.n))),
     :(nnId_ = zeros(Int,nMax))
     ]
+    )
 
     if platform == "cpu"
 
@@ -73,7 +84,7 @@ function arguments_(a::NeighborsGrid,platform::String)
         for (j,i) in enumerate(a.box)
 
             push!(positionGrid.args,
-            :(nnGId_[ic1_,$j] = min(max(ceil(Int,($(i[1])-$(i[2]))/$(2*i[4]))+1,0),$(a.axisSize[j])))
+            :(nnGId_[ic1_,$j] = min(max(ceil(Int,($(i.s)-$(i.min))/$(2*a.radius[j]))+1,0),$(a.axisSize[j])))
             )
 
             positionArray = string(positionArray,
@@ -84,67 +95,71 @@ function arguments_(a::NeighborsGrid,platform::String)
 
         positionArray = Meta.parse(positionArray)    
 
-        declareF = 
-        quote
-            function insertCounts_(ARGS_)
-                lockadd_ = Threads.SpinLock()
-                Threads.@threads for ic1_ = 1:N
-                        $positionGrid
-                        $positionArray
-                        lock(lockadd_)
-                            nnGC_[nnVId_[ic1_]]+=1
-                        unlock(lockadd_)
-                end
-                return
-            end  
+        push!(data.declareF, 
 
-            function countingSort_(ARGS_)
-                lockadd_ = Threads.SpinLock()          
-                Threads.@threads for ic1_ = 1:N
-                    id_ = nnVId_[ic1_]
-                    if id_ == 1
-                        posInit_ = 0
-                    else
-                        posInit_ = nnGCCum_[id_-1]
+            quote
+                function insertCounts_(ARGS_)
+                    lockadd_ = Threads.SpinLock()
+                    Threads.@threads for ic1_ = 1:N
+                            $positionGrid
+                            $positionArray
+                            lock(lockadd_)
+                                nnGC_[nnVId_[ic1_]]+=1
+                            unlock(lockadd_)
                     end
-                    lock(lockadd_)
-                        posCell_ = nnGCAux_[id_]
-                        nnGCAux_[id_]+=1
-                    unlock(lockadd_)
-                    nnId_[posInit_+posCell_] = ic1_
+                    return
+                end  
+
+                function countingSort_(ARGS_)
+                    lockadd_ = Threads.SpinLock()          
+                    Threads.@threads for ic1_ = 1:N
+                        id_ = nnVId_[ic1_]
+                        if id_ == 1
+                            posInit_ = 0
+                        else
+                            posInit_ = nnGCCum_[id_-1]
+                        end
+                        lock(lockadd_)
+                            posCell_ = nnGCAux_[id_]
+                            nnGCAux_[id_]+=1
+                        unlock(lockadd_)
+                        nnId_[posInit_+posCell_] = ic1_
+                    end
+
+                    return
+                end          
+
+                function computeNN_(ARGS_)
+                    
+                    nnGC_ .= 0
+                    nnGCAux_ .= 1
+                    insertCounts_(ARGS_)
+                    nnGCCum_ .= cumsum(nnGC_)
+                    countingSort_(ARGS_)
+
+                    return
                 end
-
-                return
-            end          
-
-            function computeNN_(ARGS_)
-                
-                nnGC_ .= 0
-                nnGCAux_ .= 1
-                insertCounts_(ARGS_)
-                nnGCCum_ .= cumsum(nnGC_)
-                countingSort_(ARGS_)
-
-                return
             end
-        end
+        )
+
     end
 
-    args = [:nnGId_,:nnVId_,:nnGC_,:nnGCAux_,:nnGCCum_,:nnId_]
+    append!(data.args, [:nnGId_,:nnVId_,:nnGC_,:nnGCAux_,:nnGCCum_,:nnId_])
 
-    argsEval = Nothing
+    #argsEval = Nothing
 
-    execInit = Nothing
-    execInloop = Nothing
+    #execInit = Nothing
+    #execInloop = Nothing
 
-    execAfter = Nothing
-    return declareVar, declareF, args, argsEval, execInit, execInloop, execAfter
+    #execAfter = Nothing
+    
+    return
 end
 
 """
-    function neighboursByGrid(agentModel::Model;platform="cpu")
+    function neighboursByGrid(agentAgent::Agent;platform="cpu")
 """
-function nnFunction(a::NeighborsGrid, platform::String)
+function nnFunction(a::SimulationGrid, platform::String)
     
     #Make the position assotiation in the grid x
     l= [:(aux = min(max(ceil(Int,($(i[1])-$(i[2]))/$(2*i[4]))+1,0),$(a.axisSize[j]))) for (j,i) in enumerate(a.box)]
@@ -198,7 +213,7 @@ function nnFunction(a::NeighborsGrid, platform::String)
         )
     elseif platform == "gpu"
         push!(fDeclare,
-            vectParams(agentModel,:( function insertCounts_($(comArgs...),nnVId_,nnGId_,nnGC_,nnGCAux_)
+            vectParams(agentAgent,:( function insertCounts_($(comArgs...),nnVId_,nnGId_,nnGC_,nnGCAux_)
               stride_ = (blockDim()).x*(gridDim()).x
               index_ = (threadIdx()).x + ((blockIdx()).x - 1) * (blockDim()).x
               for ic1_ = index_:stride_:N
@@ -269,11 +284,11 @@ function nnFunction(a::NeighborsGrid, platform::String)
     inLoop = loopNeighbourGridCreation(a.dim,a.dim,grid)
 
     return varDeclare, fDeclare, execute, inLoop, arg
-    
 end
 
-function loop_(a::NeighborsGrid,code::Expr)
+function loop_(a::SimulationGrid, code::Expr)
 
+    #Make prototypes
     normal = 
     quote
         for AUX1_ in -1:1
@@ -300,12 +315,19 @@ function loop_(a::NeighborsGrid,code::Expr)
         end    
     end
 
-    l = [i for i in 1:a.dim][end:-1:1]
-    for i in l
-        
+    #Make nested loops
+    loop = :(ALGORITHM_)
+    for i in a.dim:-1:1
+        aux = Meta.parse(string("i",i,"__"))
+        if typeof(a.boundaries[i])<:NonPeriodic
+            loop = subs_(loop,:ALGORITHM_,normal)
+        elseif typeof(a.boundaries[i])<:Periodic
+            loop = subs_(loop,:ALGORITHM_,periodic)
+        end
+        loop = subs_(loop,:AUX1_,aux)                        
+        loop = subs_(loop,:AUX2_,i)
     end
-
-    loop = subs_(loop,code,:ALGORITHM_)
+    loop = subs_(loop,:ALGORITHM_,code)
     loop = subs_(loop,:nnic2_,:(nnId_[ic2_]))
 
     return loop
@@ -316,10 +338,6 @@ end
 
 Auxiliar function for creating nested loops during the grid creation.
 """
-
-
-
-
 function loopNeighbourGridCreation(i,i0,n,x=nothing,pos="")
     iterator = Meta.parse(string("i",i))
     if i == i0

@@ -1,4 +1,4 @@
-function vectorize_(abm::Model,code)
+function vectorize_(abm::Agent,code)
         
     #Vectorisation changes
     for (i,v) in enumerate(abm.declaredSymbols["Variable"])

@@ -12,7 +12,7 @@ Returns list of all vectorized parameters of the model added by basic functions.
 
 Array{Symbol}
 """
-function agentArguments_(abm::Model)
+function agentArguments_(abm::Agent)
     l = [:t,:N]
 
     #Floats
