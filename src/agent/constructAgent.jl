@@ -1,104 +1,125 @@
 """
     macro @createAgent(name, varargs...) 
 
-Basic Macro to grow an instance of Agent. It generates an Agent type with the characteristics specified in its arguments.
+Basic Macro to create an instance of Agent. It generates an Agent type with the characteristics specified in its arguments.
 
-Input:
-    *name*: Name of agent.
-    *varargs::Expr*: Arguments describing all the parameters, update rules and other properties of the agent. 
-                The diferent types can be declared more than once. Valid types are: 
-        **:Identity**
-            Parameter with Int signature that can be used to identify individually each agent in the model, its an agent type...
-            It is declared individually for each agent so it can be updated with UpdateLocal types.
-            Has to be declared as:
-                idName::Identity
-                [idName1,idName2,idName3,...]::Identity
-        **:Local**
-            Local parameter with Float signature. It can represent the individual mass of each agent, its radius...
-            It is declared individually for each agent so it can be updated with UpdateLocal types.
-            Has to be declared as:
-                localParameter::Local
-                [localParameter1,localParameter2,localParameter3,...]::Local
-        **:Variable**
-            Variable with Float signature of the dynamical system.
-            It is declared individually for each agent and they are evolved by Equation types.
-            Has to be declared as:
-                variable::Variable
-                [variable1,variable2,variable3,...]::variable
-        **:Global**
-            Global parameter with Float signature. It can represent the temperature felt by all the agents...
-            It is declared globally for all agents and can be updated with UpdateGlobal.
-            Has to be declared as:
-                globalParameter::Global
-                [globalParameter1,globalParameter2,globalParameter3,...]::Global
-        **:GlobalArray**
-            Global array parameter with Float signature. It can represent the force or interaction matrix between different type of agents...
-            It is declared globally for all agents and can be updated with UpdateGlobal.
-            Has to be declared as:
-                globalArrayParameter::GlobalArray = [dims1,dims2,...]
-                [globalArrayParameter1,globalArrayParameter2,...]::GlobalArray = [dims1,dims2,...]
-        **:Interaction**
-            Parameter with float signature describing pairwise interactions between neighbours.
-            It is declared globally for all agents and can be updated with UpdateLocalInteraction or UpdateInteraction.
-            Has to be declared as:
-            interactionParameter::Interaction
-            [interactionParameter,interactionParameter,...]::Interaction
-        **:Equation**
-            Type for declaring dynamical equations for the variables.
-            Has to be declared as:
-            ::Equation = 
-                begin
-                    ... code including the differential equations ...
-                end
-            eqName::Equation = 
-                begin
-                    ... code including the differential equations ...
-                end
-        **:UpdateGlobal**
-            Type for declaring global update rules for the global parameters and global arrays.
-            Has to be declared as:
-            ::UpdateGlobal = 
-                begin
-                    ... code including the update rules ...
-                end
-            globalUpdateName::UpdateGlobal = 
-                begin
-                    ... code including the update rules ...
-                end
-        **:UpdateLocal**
-            Type for declaring local update rules for the local parameters and ids.
-            Has to be declared as:
-            ::UpdateLocal = 
-                begin
-                    ... code including the update rules ...
-                end
-            localUpdateName::UpdateLocal = 
-                begin
-                    ... code including the update rules ...
-                end
-        **:UpdateInteraction**
-        Type for declaring interaction update rules for the interaction parameters. 
-        The variables declared in these updates will be updated during the integration steps.
-            Has to be declared as:
-            ::UpdateInteraction = 
-                begin
-                    ... code including the update rules ...
-                end
-            interactionUpdateName::UpdateInteraction = 
-                begin
-                    ... code including the update rules ...
-                end
-        **:UpdateLocalInteraction**
-        Type for declaring interaction update rules for the local parameters and ids. 
-        The variables declared in these updates will be updated just once per time step instead of once per integration point. 
-        For integrators that evaluate just once as the Euler integrator, UpdateInteraction and UpdateLocalInteraction are equivalent.
-        Has to be declared as:
-        interactionUpdateName::UpdateLocalInteraction = 
-            begin
-                ... code including the update rules ...
-            end
-    Output:
-    Nothing
+The only compulsory input is the name of the agent.
+ - **name**: Name of agent.    
+ 
+Then you can add an arbitrary set of additional parameters and rules for the agent. Valid types so far are:
+
+ - **:Identity**
+Parameter with Int signature that can be used to identify individually each agent in the model, its an agent type...
+It is declared individually for each agent so it can be updated with UpdateLocal types.
+Has to be declared as:
+
+    idName::Identity
+    [idName1,idName2,idName3,...]::Identity
+
+ - **:Local**
+Local parameter with Float signature. It can represent the individual mass of each agent, its radius...
+It is declared individually for each agent so it can be updated with UpdateLocal types.
+Has to be declared as:
+
+    localParameter::Local
+    [localParameter1,localParameter2,localParameter3,...]::Local
+
+ - **:Variable**
+Variable with Float signature of the dynamical system.
+It is declared individually for each agent and they are evolved by Equation types.
+Has to be declared as:
+
+    variable::Variable
+    [variable1,variable2,variable3,...]::variable
+
+ - **:Global**
+Global parameter with Float signature. It can represent the temperature felt by all the agents...
+It is declared globally for all agents and can be updated with UpdateGlobal.
+Has to be declared as:
+
+    globalParameter::Global
+    [globalParameter1,globalParameter2,globalParameter3,...]::Global
+
+ - **:GlobalArray**
+Global array parameter with Float signature. It can represent the force or interaction matrix between different type of agents...
+It is declared globally for all agents and can be updated with UpdateGlobal.
+Has to be declared as:
+
+    globalArrayParameter::GlobalArray = [dims1,dims2,...]
+    [globalArrayParameter1,globalArrayParameter2,...]::GlobalArray = [dims1,dims2,...]
+
+ - **:Interaction**
+Parameter with float signature describing pairwise interactions between neighbours.
+It is declared globally for all agents and can be updated with UpdateLocalInteraction or UpdateInteraction.
+Has to be declared as:
+
+    interactionParameter::Interaction
+    [interactionParameter,interactionParameter,...]::Interaction
+
+ - **:Equation**
+Type for declaring dynamical equations for the variables.
+Has to be declared as:
+
+    ::Equation = 
+        begin
+            ... code including the differential equations ...
+        end
+    eqName::Equation = 
+        begin
+            ... code including the differential equations ...
+        end
+
+ - **:UpdateGlobal**
+Type for declaring global update rules for the global parameters and global arrays.
+Has to be declared as:
+
+    ::UpdateGlobal = 
+        begin
+            ... code including the update rules ...
+        end
+    globalUpdateName::UpdateGlobal = 
+        begin
+            ... code including the update rules ...
+        end
+
+ - **:UpdateLocal**
+Type for declaring local update rules for the local parameters and ids.
+Has to be declared as:
+
+    ::UpdateLocal = 
+        begin
+            ... code including the update rules ...
+        end
+    localUpdateName::UpdateLocal = 
+        begin
+            ... code including the update rules ...
+        end
+
+ - **:UpdateInteraction**
+Type for declaring interaction update rules for the interaction parameters. 
+The variables declared in these updates will be updated during the integration steps.
+Has to be declared as:
+    
+    ::UpdateInteraction = 
+        begin
+            ... code including the update rules ...
+        end
+    interactionUpdateName::UpdateInteraction = 
+        begin
+            ... code including the update rules ...
+        end
+
+ - **:UpdateLocalInteraction**
+Type for declaring interaction update rules for the local parameters and ids. 
+The variables declared in these updates will be updated just once per time step instead of once per integration point. 
+For integrators that evaluate just once as the Euler integrator, UpdateInteraction and UpdateLocalInteraction are equivalent.
+Has to be declared as:
+        
+    interactionUpdateName::UpdateLocalInteraction = 
+        begin
+            ... code including the update rules ...
+        end
+
 """
 macro createAgent(name, varargs...) 
 
@@ -251,12 +272,7 @@ end
 """
     macro add(varargs...)
 
-Return a list of varargs as Expr.
-
-Input:
-    **varargs...**: Anything
-Output:
-    Array{Expr}
+Returns varargs as an array of expressions.
 """
 macro add(varargs...)
     l = Expr[]
@@ -270,27 +286,21 @@ end
 """
     addToAgent!(m, var)
 
-Function to add more arguments after declaration to the agent model. Use @add to keep the code clean.
+Add to an existing Agent more parameters as defined by an array of expressions at var.
 
-Input:
-    **abm::Agent**: Agent to be extended
-    **vararg::Expr**: Arguments to add to the model. See @agent to see valid arguments
-Output:
-    Nothing
+Example
 
-```
-m = @agent cell
-agent!(m,
-@add(
-    l::Local,
-    g::Global,
-    ::UpdateLocal=
-    begin
-        l += dt
-    end
-)
-)
-```
+    m = @agent cell
+    agent!(m,
+    @add(
+        l::Local,
+        g::Global,
+        ::UpdateLocal=
+        begin
+            l += dt
+        end
+    )
+    )
 """
 function addToAgent!(m::Agent, var::Array{Expr,1})
 

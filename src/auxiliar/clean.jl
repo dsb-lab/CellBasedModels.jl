@@ -1,14 +1,9 @@
 """
-Cleans a complex expression. It is very helpful for debuging the compiled model evolve function after parsing everything.
+    function clean(a)
 
-# Arguments
- - **a** (Expr) Expression to be cleaned
-
-# Returns
-
-nothing
+Cleans the complex print of an expression to make it more clear to see.
 """
-function clean(a)
+function clean(a::Expr)
     m = string(a)
     m = replace(m,"=# "=>"=#\n\t\t\t\t")
     l = split(m,"\n")

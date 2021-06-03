@@ -1,56 +1,16 @@
 # API
 
 ```@meta
-CurrentModule = AgentModel
+CurrentModule = AgentBasedModels
 ```
 
-## Model
+## Agent
+
+Methods involved in the construction and modification of the Agent structure.
 
 ```@docs
-Model
-```
-
-### Add Parameters
-```@docs
-addGlobal!
-addLocal!
-addLocalInteraction!
-addVariable!
-addInteraction!
-```
-
-### Special
-```@docs
-addDivision!
-addPseudopode!
-```
-
-### Neighborhoods
-```@docs
-setNeighborhoodFull!
-setNeighborhoodAdjacency!
-setNeighborhoodGrid!
-```
-
-### Compile
-
-```@docs
-compile!
-```
-
-## Community
-
-```@docs
-Community
-CommunityInTime
-```
-
-### Initialisation functions
-
-```@docs
-latticeCompactHexagonal
-latticeCubic
-extrude
-extrude!
-fillVolumeSpheres
+Agent
+@createAgent
+@add
+addToAgent!
 ```

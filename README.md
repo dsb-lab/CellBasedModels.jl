@@ -16,7 +16,7 @@ Additionally, the package incorporates special functions as:
  - Death events
  - Randomly selected pairwise interactions
 
-The created models can run the simulations both in CPU and CUDA GPU thanks to the CUDA.jl. The possibility to run in the simulations in GPU makes it possible to run in a resonable time simulations with a huge number of particles.
+The created models can run the simulations both in CPU and CUDA GPU thanks to the CUDA.jl. The possibility to run in the simulations in GPU makes it possible to run in a resonable time simulations with a huge number of particles in modest computers while allowing to move the simulations to CPU clusters.
 
 ## Installation
 

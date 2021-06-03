@@ -6,7 +6,8 @@ using Documenter, AgentBasedModels
 makedocs(sitename="AgentModel.jl",
 pages = [
     "Home" => "index.md",
-    "Tutorial.md",
+    "QuickStart.md",
+    "Usage.md",
     "API.md",
     "APIdevelopers.md"
 ],

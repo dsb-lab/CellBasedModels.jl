@@ -1,4 +1,9 @@
-function vectorize_(abm::Agent,code)
+"""
+    function vectorize_(abm::Agent,code::Expr)
+
+Function to subtitute all the declared symbols of the agents in the expression into vector form.
+"""
+function vectorize_(abm::Agent,code::Expr)
         
     #Vectorisation changes
     for (i,v) in enumerate(abm.declaredSymbols["Variable"])

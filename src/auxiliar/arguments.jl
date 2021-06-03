@@ -1,16 +1,7 @@
 """
-Returns list of all vectorized parameters of the model added by basic functions.
+    function agentArguments_(abm::Agent)
 
-# Arguments
- - **abm** (Model) Agent Model
-
-# Optional keywork Arguments
-
- - **random** (Bool) If true (default), returns also symbols for the vectorized random variables.
- 
-# Return 
-
-Array{Symbol}
+Returns the list of vectors arguments to be declared in the model function arguments.
 """
 function agentArguments_(abm::Agent)
     l = [:t,:N]

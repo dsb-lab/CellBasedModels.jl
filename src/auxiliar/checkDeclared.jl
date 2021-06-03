@@ -1,13 +1,7 @@
 """
-Function that checks if an Symbol has already been declared in the model and returns an error if it is duplicated.
+    function checkDeclared_(abm,s)
 
-# Arguments
- - **abm** (Agent) Agent Agent
- - **s** (Symbol, Array{Symbol}) Symbol(s) to be checked for duplicated declaration.
-
-# Returns
-
-nothing
+Checks if an symbol or array of symbols has already been declared in the agent and returns an errors if duplications are found. Returns nothing otherwise.
 """
 function checkDeclared_(abm::Agent,s::Symbol)
 
@@ -62,6 +56,11 @@ function checkDeclared_(abm::Agent,s::Array{Symbol})
     return
 end
 
+"""
+    function checkIsDeclared_(abm,s)
+
+Checks if an symbol or array of symbols has already been declared in the agent and returns an errors if it is not found. Returns true otherwise.
+"""
 function checkIsDeclared_(abm::Agent,s::Symbol)
 
     found =  false
@@ -77,7 +76,6 @@ function checkIsDeclared_(abm::Agent,s::Symbol)
         error("Parameter ", s, " not found in the agent model.")
     end
 
-    return Nothing
 end
 
 function checkIsDeclared_(abm::Agent,s::Array{Symbol})
