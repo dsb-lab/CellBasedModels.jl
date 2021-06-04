@@ -163,6 +163,8 @@ function arguments_!(a::SimulationGrid, abm::Agent, data::Program_, platform::St
 
             ),
 
+            :(insertCountsKernel_ = CUDA.@cuda launch = false insertCounts_(ARGS_)),
+
             simpleFirstLoopWrapInFunction_(platform, :countingSort_,
 
                 #Sort the agents ids so they can be accessed by cell number
@@ -179,15 +181,19 @@ function arguments_!(a::SimulationGrid, abm::Agent, data::Program_, platform::St
   
             ),        
 
+            :(countingSortKernel_ = CUDA.@cuda launch = false countingSort_(ARGS_)),
+
             #Just a function to put all the steps of the algorithm together
             quote
                 function computeNN_(ARGS_)
                     
                     nnGC_ .= 0
                     nnGCAux_ .= 1
-                    CUDA.@cuda threads=5 insertCounts_(ARGS_)
+                    (threads_,blocks_) = configurator_(insertCountsKernel_,N)
+                    CUDA.@cuda threads = threads_ blocks = blocks_ insertCounts_(ARGS_)
                     nnGCCum_ .= cumsum(nnGC_)
-                    CUDA.@cuda threads=5 countingSort_(ARGS_)
+                    (threads_,blocks_) = configurator_(countingSortKernel_,N)
+                    CUDA.@cuda  threads = threads_ blocks = blocks_ countingSort_(ARGS_)
 
                     return
                 end
@@ -209,7 +215,7 @@ function arguments_!(a::SimulationGrid, abm::Agent, data::Program_, platform::St
     return nothing
 end
 
-function loop_(a::SimulationFree, abm::Agent, code::Expr, platform::String)
+function loop_(a::SimulationGrid, abm::Agent, code::Expr, platform::String)
 
     code = vectorize_(abm, code)
     #Prototypes of loops to connect cells in the grid as neighbors

@@ -28,9 +28,11 @@ include("./auxiliar/clean.jl")
 include("./auxiliar/substitution.jl")
 include("./auxiliar/vectorize.jl")
 include("./auxiliar/arguments.jl")
-include("./auxiliar/cudaAdapt.jl")
 include("./auxiliar/wrapping.jl")
-include("./auxiliar/cudaConfigurator.jl")
+
+#Cuda specific functions
+include("./cuda/cudaAdapt.jl")
+include("./cuda/cudaConfigurator.jl")
 
 #Simulation Space
 include("./simulationSpace/abstractTypes.jl")

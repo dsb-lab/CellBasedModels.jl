@@ -4,27 +4,38 @@
 CurrentModule = AgentBasedModels
 ```
 
+## Program 
+```@docs
+Program_
+```
+
+## Code cleaning
+
+```@docs
+clean
+```
+
+## Declaration
 This is a compendium of handful functions that are used all the time during the adaptation of the rest of the models.
 ```@docs
 agentArguments_
 checkDeclared_
 checkIsDeclared_
-clean
-subs_
-subsArguments_
-vectorize_
 ```
 
-## Wrapping functions
+## Code modifying
 Auxiliar functions that help to write clearer code.
 
 ```@docs
 simpleFirstLoop_
 wrapInFunction_
 simpleFirstLoopWrapInFunction_
+subs_
+subsArguments_
+vectorize_
 ```
 
-## Cuda specific functions
+## Cuda specific
 
 ```@docs
 cudaAdapt_
