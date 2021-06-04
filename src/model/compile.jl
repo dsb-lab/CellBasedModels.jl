@@ -16,18 +16,18 @@ Main function that plugs in all the declared parts of the Agent Based Model and 
 
 nothing
 """
-function compile(abm::Model,space::Space=Free();platform="cpu",
-    integrator=Euler(),saveRAM = false,saveCSV = false, debug = false)
+function compile(abm::Union{Agent,Array{Agent}},space::Space=Free();platform="cpu", integrator = "euler", save = "RAM", debug = false)
+
+    p = Program_()
 
     #Neighbours declare
-    loop = loop_(abm,space)
-    neighbour_!(abm,space)
-    #Integrator
-    integrator_!(abm,space,loop,integrator,platform=platform)
-    #Parameter declare
-    parameterAdapt_!(abm,space,loop,platform=platform)
+    neighbour_!(abm,space,p,platform)
+    
+    #Declare all the agent properties related functions, arguments, code...
+    agentCode_!(abm,space,p,platform)
+    
     #Saving
-    save_!(abm,space,platform=platform)
+    #save_!(abm,space,platform=platform)
 
     program = :(
     function (com::Community;$(program["argsEval"]...),tMax, dt, t=com.t, N=com.N, nMax=com.N, threads_=256)

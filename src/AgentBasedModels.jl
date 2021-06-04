@@ -20,7 +20,9 @@ include("./agent/agentStructure.jl")
 include("./agent/constructAgent.jl")
 
 #Model
+include("./model/model.jl")
 include("./model/structProgram.jl")
+include("./model/compile.jl")
 
 #Auxiliar variables
 include("./auxiliar/checkDeclared.jl")

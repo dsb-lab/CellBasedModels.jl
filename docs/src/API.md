@@ -15,6 +15,12 @@ Agent
 addToAgent!
 ```
 
+## Agent
+
+```@docs
+Model
+```
+
 ## Simulation Spaces
 
 Methods involved in the creation of spaces of simulation.
