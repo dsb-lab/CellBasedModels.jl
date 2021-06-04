@@ -10,6 +10,7 @@ using CSV
 export Agent, @createAgent, addToAgent!, @add
 export SimulationFree, SimulationGrid
 export SimulationSpace, FlatBoundary, Periodic, NonPeriodic, Open, Hard, Reflecting, OpenReflecting, ReflectingOpen, OpenHard, HardOpen, HardReflecting, ReflectingHard
+export configurator_
 
 #Constants
 include("./constants/constants.jl")
@@ -28,8 +29,8 @@ include("./auxiliar/substitution.jl")
 include("./auxiliar/vectorize.jl")
 include("./auxiliar/arguments.jl")
 include("./auxiliar/cudaAdapt.jl")
-include("./auxiliar/simpleFirstLoop.jl")
-include("./auxiliar/wrapInFunction.jl")
+include("./auxiliar/wrapping.jl")
+include("./auxiliar/cudaConfigurator.jl")
 
 #Simulation Space
 include("./simulationSpace/abstractTypes.jl")

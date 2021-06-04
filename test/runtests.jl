@@ -4,6 +4,7 @@ using Distributions
 using CUDA
 
 #include("testAgent.jl")
-include("testAuxiliar.jl")
-#include("testSimulationSpace.jl")
+#include("testAuxiliar.jl")
+#include("testSimulationFree.jl")
+include("testSimulationGrid.jl")
 

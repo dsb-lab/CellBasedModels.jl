@@ -32,16 +32,19 @@
     @test AgentBasedModels.vectorize_(m,:(id₁ = 1)) == :(id_[ic1_,1]=1)
     @test AgentBasedModels.vectorize_(m,:(id₂ = 1)) == :(id_[nnic2_,1]=1)
     
-    m = @createAgent(
-        cell,
-        l::Local,
-        v::Variable,
-        i::Interaction,
-        g::Global,
-        h::GlobalArray=[2,3],
-        id::Identity
-    )
-    @test prod([i in [:t,:N,:var_,:loc_,:glob_,:inter_,:id_,:h] for i in AgentBasedModels.agentArguments_(m)])
+    @test begin
+        m = @createAgent(
+            cell,
+            l::Local,
+            v::Variable,
+            i::Interaction,
+            g::Global,
+            h::GlobalArray=[2,3],
+            id::Identity
+        )
+            
+        prod([i in [:t,:N,:var_,:loc_,:glob_,:inter_,:id_,:h] for i in AgentBasedModels.agentArguments_(m)])
+    end
 
     @test AgentBasedModels.cudaAdapt_(:(sin(e^2^x))) == :(CUDA.sin(CUDA.pow(e,CUDA.pow(2,x))))
     @test AgentBasedModels.cudaAdapt_(:(zeros(e^2))) == :(CUDA.zeros(CUDA.pow(e,2)))
@@ -49,7 +52,7 @@
     @test begin
         code = :(x .+= 1)
         f = AgentBasedModels.wrapInFunction_(:func,code)
-        f = AgentBasedModels.subs_(f,:ARGUMENTS_,:x)
+        f = AgentBasedModels.subs_(f,:ARGS_,:x)
         eval(quote
             $f
             y = ones(10)
@@ -60,9 +63,22 @@
 
     @test begin
         code = :(x[ic1_] += 1)
-        code = AgentBasedModels.simpleFirstLoop_(code,"cpu")
+        code = AgentBasedModels.simpleFirstLoop_("cpu",code)
         f = AgentBasedModels.wrapInFunction_(:func,code)
-        f = AgentBasedModels.subsArguments_(f,:ARGUMENTS_,[:x,:N])
+        f = AgentBasedModels.subsArguments_(f,:ARGS_,[:x,:N])
+        eval(quote
+            $f
+            N = 10
+            y = ones(N)
+            func(y,N) 
+            y == 2*ones(N)
+        end)        
+    end
+
+    @test begin
+        code = :(x[ic1_] += 1)
+        f = AgentBasedModels.simpleFirstLoopWrapInFunction_("cpu",:func,code)
+        f = AgentBasedModels.subsArguments_(f,:ARGS_,[:x,:N])
         eval(quote
             $f
             N = 10
@@ -75,9 +91,22 @@
     if CUDA.has_cuda()
         @test begin
             code = :(x[ic1_] += 1)
-            code = AgentBasedModels.simpleFirstLoop_(code,"gpu")
+            code = AgentBasedModels.simpleFirstLoop_("gpu",code)
             f = AgentBasedModels.wrapInFunction_(:func,code)
-            f = AgentBasedModels.subsArguments_(f,:ARGUMENTS_,[:x,:N])
+            f = AgentBasedModels.subsArguments_(f,:ARGS_,[:x,:N])
+            eval(quote
+                $f
+                N = 10
+                y = CUDA.ones(N)
+                CUDA.@cuda func(y,N) 
+                Array(y) == 2*ones(N)
+            end)        
+        end
+
+        @test begin
+            code = :(x[ic1_] += 1)
+            f = AgentBasedModels.simpleFirstLoopWrapInFunction_("gpu", :func, code)
+            f = AgentBasedModels.subsArguments_(f,:ARGS_,[:x,:N])
             eval(quote
                 $f
                 N = 10

@@ -19,12 +19,14 @@ end
 
 function SimulationGrid(abm::Agent, box::Array{<:Union{<:Tuple{Symbol,<:Real,<:Real},<:FlatBoundary},1}, radius::Union{<:Real,Array{<:Real,1}})
 
+    #Check dimensionality
     if length(keys(box)) == 0
         error("At least one dimension has to be declared in box.")
     elseif length(keys(box)) > 3
         error("No more than three dimensions are allowed.")
     end
 
+    #Make consistent box format adding Open to tuples
     box2 = Array{FlatBoundary,1}()
     for i in 1:length(box)
         if typeof(box[i])<:Tuple{Symbol,<:Real,<:Real}
@@ -34,6 +36,7 @@ function SimulationGrid(abm::Agent, box::Array{<:Union{<:Tuple{Symbol,<:Real,<:R
         end
     end
 
+    #Check limits are correct
     vars = [i.s for i in box2]
     checkIsDeclared_(abm,vars)
     for i in box2
@@ -42,12 +45,14 @@ function SimulationGrid(abm::Agent, box::Array{<:Union{<:Tuple{Symbol,<:Real,<:R
         end
     end
 
+    #Check radius has the same dimension as box
     if typeof(radius)<:Real
         radius = [radius for _ in 1:length(box)]
     elseif length(radius) != length(box)
         error("Radius has to be an scalar or the same length than box.")
     end
 
+    #Compute additional parameters for the structure
     axisSize = [ceil(Int,(i.max-i.min)/(2*radius[j]))+2 for (j,i) in enumerate(box2)]
     cum = cumprod(axisSize)
     cumSize = [1;cum[1:end-1]]
@@ -69,42 +74,50 @@ function arguments_!(a::SimulationGrid, abm::Agent, data::Program_, platform::St
     ]
     )
 
+    #Compute the cell id for each agent in grid and linearized format for any box possible box dimensions.
+    positionGrid = quote end
+    positionArray = "nnVId_[ic1_] = "
+    for (j,i) in enumerate(a.box)
+
+        push!(positionGrid.args,
+        :(nnGId_[ic1_,$j] = min(max(ceil(Int,($(i.s)-$(i.min))/$(2*a.radius[j]))+1,0),$(a.axisSize[j])))
+        )
+
+        positionArray = string(positionArray,
+        "$(a.cumSize[j])*(nnGId_[ic1_,$j]-1)"
+        ,"+")
+    end
+    positionArray = Meta.parse(string(positionArray,"1"))
+
+    #Create kernels for the algorithm
     if platform == "cpu"
-
-        positionGrid = quote end
-        positionArray = "nnVId_[ic1_] = "
-        for (j,i) in enumerate(a.box)
-
-            push!(positionGrid.args,
-            :(nnGId_[ic1_,$j] = min(max(ceil(Int,($(i.s)-$(i.min))/$(2*a.radius[j]))+1,0),$(a.axisSize[j])))
-            )
-
-            positionArray = string(positionArray,
-            "$(a.cumSize[j])*(nnGId_[ic1_,$j]-1)"
-            ,"+")
-        end
-        positionArray = string(positionArray,"1")
-
-        positionArray = Meta.parse(positionArray)    
 
         push!(data.declareF, 
 
-            quote
-                function insertCounts_(ARGS_)
+            wrapInFunction_(:insertCounts_,
+
+                #Assign a cell to each agent and atomic add to the cell agent count
+                quote
                     lockadd_ = Threads.SpinLock()
                     Threads.@threads for ic1_ = 1:N
-                            $positionGrid
-                            $positionArray
-                            lock(lockadd_)
-                                nnGC_[nnVId_[ic1_]]+=1
-                            unlock(lockadd_)
-                    end
-                    return
-                end  
 
-                function countingSort_(ARGS_)
-                    lockadd_ = Threads.SpinLock()          
+                        $positionGrid
+                        $positionArray
+                        lock(lockadd_)
+                            nnGC_[nnVId_[ic1_]]+=1
+                        unlock(lockadd_)
+                    
+                    end
+                end
+            ),
+
+            wrapInFunction_(:countingSort_,
+
+                #Sort the agents ids so they can be accessed by cell number
+                quote
+                    lockadd_ = Threads.SpinLock()
                     Threads.@threads for ic1_ = 1:N
+                        
                         id_ = nnVId_[ic1_]
                         if id_ == 1
                             posInit_ = 0
@@ -116,11 +129,13 @@ function arguments_!(a::SimulationGrid, abm::Agent, data::Program_, platform::St
                             nnGCAux_[id_]+=1
                         unlock(lockadd_)
                         nnId_[posInit_+posCell_] = ic1_
+                    
                     end
+                end
+            ),
 
-                    return
-                end          
-
+            #Just a function to put all the steps of the algorithm together
+            quote                
                 function computeNN_(ARGS_)
                     
                     nnGC_ .= 0
@@ -129,11 +144,57 @@ function arguments_!(a::SimulationGrid, abm::Agent, data::Program_, platform::St
                     nnGCCum_ .= cumsum(nnGC_)
                     countingSort_(ARGS_)
 
-                    return
+                    return nothing
                 end
             end
         )
 
+    elseif platform == "gpu"
+        push!(data.declareF, 
+
+            simpleFirstLoopWrapInFunction_(platform, :insertCounts_,
+
+                #Assign a cell to each agent and atomic add to the cell agent count
+                quote
+                    $positionGrid
+                    $positionArray
+                    CUDA.atomic_add!(pointer(nnGC_,nnVId_[ic1_]),1)
+                end
+
+            ),
+
+            simpleFirstLoopWrapInFunction_(platform, :countingSort_,
+
+                #Sort the agents ids so they can be accessed by cell number
+                quote
+                    id_ = nnVId_[ic1_]
+                    if id_ == 1
+                        posInit_ = 0
+                    else
+                        posInit_ = nnGCCum_[id_-1]
+                    end
+                    posCell_ = CUDA.atomic_add!(pointer(nnGCAux_,id_),1)
+                    nnId_[posInit_+posCell_] = ic1_
+                end
+  
+            ),        
+
+            #Just a function to put all the steps of the algorithm together
+            quote
+                function computeNN_(ARGS_)
+                    
+                    nnGC_ .= 0
+                    nnGCAux_ .= 1
+                    CUDA.@cuda threads=5 insertCounts_(ARGS_)
+                    nnGCCum_ .= cumsum(nnGC_)
+                    CUDA.@cuda threads=5 countingSort_(ARGS_)
+
+                    return
+                end
+            end
+        )
+    else
+        error("Platform should be or cpu or gpu. ", platform, " was given.")
     end
 
     append!(data.args, [:nnGId_,:nnVId_,:nnGC_,:nnGCAux_,:nnGCCum_,:nnId_])
@@ -145,7 +206,7 @@ function arguments_!(a::SimulationGrid, abm::Agent, data::Program_, platform::St
 
     #execAfter = Nothing
     
-    return
+    return nothing
 end
 
 """
@@ -281,7 +342,7 @@ end
 function loop_(a::SimulationGrid, abm::Agent, code::Expr)
 
     code = vectorize_(abm, code)
-    #Make prototypes
+    #Prototypes of loops to connect cells in the grid as neighbors
     normal = 
     quote
         for AUX1_ in -1:1

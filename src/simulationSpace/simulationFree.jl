@@ -22,7 +22,7 @@ function loop_(a::SimulationFree, abm::Agent, code::Expr, platform::String)
         for ic2_ in 1:N
             $code
         end)
-    loop = simpleFirstLoop_(loop, platform)
+    loop = simpleFirstLoop_(platform, loop)
     loop = subs_(loop,:nnic2_,:ic2_)
 
     return loop

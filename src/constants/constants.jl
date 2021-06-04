@@ -16,7 +16,7 @@ RESERVEDSYMBOLS = [:t,:N,:dt,:dW,:nMax,
                     :ic1_,:ic2_,:nnic2_,:pos_,
                     :var_,:loc_,:inter_,:glob_,
                     :ALGORITHM_,:ARGS_,:AUX1_,:AUX2_,
-                    :index_,:stride_];
+                    :index_,:stride_,:lockadd_];
 
 
 #Adaptation functions

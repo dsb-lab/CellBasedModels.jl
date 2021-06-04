@@ -10,11 +10,23 @@ agentArguments_
 checkDeclared_
 checkIsDeclared_
 clean
-cudaAdapt_
 subs_
 subsArguments_
 vectorize_
-simpleFirstLoop_
-wrapInFunction_
 ```
 
+## Wrapping functions
+Auxiliar functions that help to write clearer code.
+
+```@docs
+simpleFirstLoop_
+wrapInFunction_
+simpleFirstLoopWrapInFunction_
+```
+
+## Cuda specific functions
+
+```@docs
+cudaAdapt_
+configurator_
+```
