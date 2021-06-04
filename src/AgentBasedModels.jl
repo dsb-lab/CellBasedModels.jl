@@ -28,6 +28,8 @@ include("./auxiliar/substitution.jl")
 include("./auxiliar/vectorize.jl")
 include("./auxiliar/arguments.jl")
 include("./auxiliar/cudaAdapt.jl")
+include("./auxiliar/simpleFirstLoop.jl")
+include("./auxiliar/wrapInFunction.jl")
 
 #Simulation Space
 include("./simulationSpace/abstractTypes.jl")

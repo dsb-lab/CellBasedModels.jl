@@ -46,4 +46,45 @@
     @test AgentBasedModels.cudaAdapt_(:(sin(e^2^x))) == :(CUDA.sin(CUDA.pow(e,CUDA.pow(2,x))))
     @test AgentBasedModels.cudaAdapt_(:(zeros(e^2))) == :(CUDA.zeros(CUDA.pow(e,2)))
     
+    @test begin
+        code = :(x .+= 1)
+        f = AgentBasedModels.wrapInFunction_(:func,code)
+        f = AgentBasedModels.subs_(f,:ARGUMENTS_,:x)
+        eval(quote
+            $f
+            y = ones(10)
+            func(y) 
+            y == 2*ones(10)
+        end)
+    end 
+
+    @test begin
+        code = :(x[ic1_] += 1)
+        code = AgentBasedModels.simpleFirstLoop_(code,"cpu")
+        f = AgentBasedModels.wrapInFunction_(:func,code)
+        f = AgentBasedModels.subsArguments_(f,:ARGUMENTS_,[:x,:N])
+        eval(quote
+            $f
+            N = 10
+            y = ones(N)
+            func(y,N) 
+            y == 2*ones(N)
+        end)        
+    end
+
+    if CUDA.has_cuda()
+        @test begin
+            code = :(x[ic1_] += 1)
+            code = AgentBasedModels.simpleFirstLoop_(code,"gpu")
+            f = AgentBasedModels.wrapInFunction_(:func,code)
+            f = AgentBasedModels.subsArguments_(f,:ARGUMENTS_,[:x,:N])
+            eval(quote
+                $f
+                N = 10
+                y = CUDA.ones(N)
+                CUDA.@cuda func(y,N) 
+                Array(y) == 2*ones(N)
+            end)        
+        end
+    end
 end

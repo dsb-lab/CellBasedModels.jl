@@ -14,5 +14,7 @@ cudaAdapt_
 subs_
 subsArguments_
 vectorize_
+simpleFirstLoop_
+wrapInFunction_
 ```
 

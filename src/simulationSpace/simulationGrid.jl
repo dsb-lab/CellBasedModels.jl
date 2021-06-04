@@ -1,3 +1,11 @@
+"""
+    struct SimulationFree <: SimulationSpace
+
+Simulation space for N-body simulations with local interactions.
+The algorithm implemented uses a fixed radial neighbours search as proposed by 
+[Rama C. Hoetzlein](https://on-demand.gputechconf.com/gtc/2014/presentations/S4117-fast-fixed-radius-nearest-neighbor-gpu.pdf)
+both for CPU and GPU. For now, the last step of the proposed algorithm, sorting, is ignored but the idea may be to implement for the GPU case soon if it really makes a difference.
+"""
 struct SimulationGrid <: SimulationSpace
 
     box::Array{<:FlatBoundary}
@@ -8,23 +16,7 @@ struct SimulationGrid <: SimulationSpace
     cumSize::Array{Int}
 
 end
-"""
-    function NeighboursGrid(agentAgent::Agent, vars::Array{Symbol}, box::Matrix{<:AbstractFloat}, radius::AbstractFloat)
 
-Function that keeps track of the cells by associating them to a grid position. The neighborhood requires that the variables that define the dimensions of the grid are defined, the size of each dimension and the radius of interaction of each particle.
-
-Example
-```
-m = Agent()
-
-addLocal!([:x,:y])
-
-vars = [:x,:y] #The particles are neighbors depending on the x and y variables.
-box = [[-1,-1],[1,1]] #The particles are in a square of size 2 around zero.
-radius = 0.5 #The particles interact at most with particles 0.5 far appart from them.
-setNeighborhoodGrid!(m,vars,box,radius)
-```
-"""
 function SimulationGrid(abm::Agent, box::Array{<:Union{<:Tuple{Symbol,<:Real,<:Real},<:FlatBoundary},1}, radius::Union{<:Real,Array{<:Real,1}})
 
     if length(keys(box)) == 0
@@ -64,7 +56,7 @@ function SimulationGrid(abm::Agent, box::Array{<:Union{<:Tuple{Symbol,<:Real,<:R
     return SimulationGrid(box2,radius,length(vars),n,axisSize,cumSize) 
 end
 
-function arguments_!(a::SimulationGrid, data::Program_, platform::String)
+function arguments_!(a::SimulationGrid, abm::Agent, data::Program_, platform::String)
     
     append!(data.declareVar, 
     [
@@ -159,7 +151,7 @@ end
 """
     function neighboursByGrid(agentAgent::Agent;platform="cpu")
 """
-function nnFunction(a::SimulationGrid, platform::String)
+function nnFunction(a::SimulationGrid, abm::Agent, platform::String)
     
     #Make the position assotiation in the grid x
     l= [:(aux = min(max(ceil(Int,($(i[1])-$(i[2]))/$(2*i[4]))+1,0),$(a.axisSize[j]))) for (j,i) in enumerate(a.box)]
@@ -286,8 +278,9 @@ function nnFunction(a::SimulationGrid, platform::String)
     return varDeclare, fDeclare, execute, inLoop, arg
 end
 
-function loop_(a::SimulationGrid, code::Expr)
+function loop_(a::SimulationGrid, abm::Agent, code::Expr)
 
+    code = vectorize_(abm, code)
     #Make prototypes
     normal = 
     quote
@@ -331,47 +324,4 @@ function loop_(a::SimulationGrid, code::Expr)
     loop = subs_(loop,:nnic2_,:(nnId_[ic2_]))
 
     return loop
-end
-
-"""
-    function loopNeighbourGridCreation(i,i0,n,x=nothing,pos="")
-
-Auxiliar function for creating nested loops during the grid creation.
-"""
-function loopNeighbourGridCreation(i,i0,n,x=nothing,pos="")
-    iterator = Meta.parse(string("i",i))
-    if i == i0
-        jump = :($(n.cumSize[i]))
-        pos = string(pos,"$jump*(nnGId_[ic1_,$i]+$iterator-1)")
-        x = :(for $iterator in -1:1
-                if nnGId_[ic1_,$i]+$iterator > 0 && nnGId_[ic1_,$i]+$iterator <= $(n.axisSize[i])
-                    posInit = nnGCCum_[POS+1]-nnGC_[POS+1]+1
-                    posMax = nnGCCum_[POS+1]
-                    for ic2_ in posInit:posMax
-                        ALGORITHM_
-                    end
-                end
-            end)
-        i -= 1 
-        x = loopNeighbourGridCreation(i,i0,n,x,pos)
-    elseif i > 0
-        jump = :($(n.cumSize[i]))
-        pos = string(pos,"+$jump*(nnGId_[ic1_,$i]+$iterator-1)")
-        x = :(for $iterator in -1:1
-                if nnGId_[ic1_,$i]+$iterator > 0 && nnGId_[ic1_,$i]+$iterator <= $(n.axisSize[i])
-                    $x
-                end
-            end)
-        i -= 1 
-        x=loopNeighbourGridCreation(i,i0,n,x,pos)
-    else
-        x = :(
-        begin
-            $x
-        end
-        )
-        x = Meta.parse(replace(string(x),"POS"=>pos))
-    end
-    
-    return x
 end

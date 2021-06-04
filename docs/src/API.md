@@ -14,3 +14,12 @@ Agent
 @add
 addToAgent!
 ```
+
+## Simulation Spaces
+
+Methods involved in the creation of spaces of simulation.
+
+```@docs
+SimulationFree
+SimulationGrid
+```

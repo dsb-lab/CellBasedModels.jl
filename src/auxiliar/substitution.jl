@@ -20,7 +20,7 @@ end
 Substitutes all encounters of a symbol **ob** by an expanded list of symbols **tar** in **exp**. 
 Mainly used to put a list of arguments into a function argument list.
 """
-function subsArguments_(exp::Expr,ob::Symbol,tar::Array{Expr,1})
+function subsArguments_(exp::Expr,ob::Symbol,tar::Array{Symbol,1})
 
     if typeof(tar) == Symbol
         return subs_(exp,ob,tar)
