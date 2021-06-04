@@ -209,137 +209,7 @@ function arguments_!(a::SimulationGrid, abm::Agent, data::Program_, platform::St
     return nothing
 end
 
-"""
-    function neighboursByGrid(agentAgent::Agent;platform="cpu")
-"""
-function nnFunction(a::SimulationGrid, abm::Agent, platform::String)
-    
-    #Make the position assotiation in the grid x
-    l= [:(aux = min(max(ceil(Int,($(i[1])-$(i[2]))/$(2*i[4]))+1,0),$(a.axisSize[j]))) for (j,i) in enumerate(a.box)]
-    position = :(begin $(l...) end)
-        
-    if platform == "cpu"
-        :(begin
-            function insertCounts_(ARGS_)
-                lockadd_ = Threads.SpinLock()
-                Threads.@threads for ic1_ = 1:N
-                        position_ = 1
-                        $position
-                        nnVId_[ic1_] = position_
-                        lock(lockadd_)
-                            nnGC_[position_]+=1
-                        unlock(lockadd_)
-                        nnGCAux_[position_] = 1
-                end
-                return
-            end  
-            
-            function countingSort_(ARGS_)
-                lockadd_ = Threads.SpinLock()          
-                Threads.@threads for ic1_ = 1:N
-                    id_ = nnVId_[ic1_]
-                    if id_ == 1
-                        posInit_ = 0
-                    else
-                        posInit_ = nnGCCum_[id_-1]
-                    end
-                    lock(lockadd_)
-                        posCell_ = nnGCAux_[id_]
-                        nnGCAux_[id_]+=1
-                    unlock(lockadd_)
-                    nnId_[posInit_+posCell_] = ic1_
-                end
-
-                return
-            end  
-
-            function computeNN_(ARGS_)
-                
-                nnGC_ .= 0
-                insertCounts_(ARGS)
-                nnGCCum_ = cumsum(nnGC_)
-                countingSort_(ARGS)
-
-                return
-            end
-        end
-        )
-    elseif platform == "gpu"
-        push!(fDeclare,
-            vectParams(agentAgent,:( function insertCounts_($(comArgs...),nnVId_,nnGId_,nnGC_,nnGCAux_)
-              stride_ = (blockDim()).x*(gridDim()).x
-              index_ = (threadIdx()).x + ((blockIdx()).x - 1) * (blockDim()).x
-              for ic1_ = index_:stride_:N
-                    position_ = 1
-                    $position
-                    nnVId_[ic1_] = position_
-                    CUDA.atomic_add!(pointer(nnGC_,position_),1)
-                    nnGCAux_[position_] = 1
-              end
-                return
-            end    
-            ))
-            )    
-        push!(fDeclare,
-            :( function countingSort_($(comArgs...),nnVId_,nnGC_,nnGCAux_,nnGCCum_,nnId_)
-              stride_ = (blockDim()).x*(gridDim()).x
-              index_ = (threadIdx()).x + ((blockIdx()).x - 1) * (blockDim()).x
-              for ic1_ = index_:stride_:N
-                    id_ = nnVId_[ic1_]
-                    if id_ == 1
-                        posInit_ = 0
-                    else
-                        posInit_ = nnGCCum_[id_-1]
-                    end
-                    posCell_ = CUDA.atomic_add!(pointer(nnGCAux_,id_),1)
-                    nnId_[posInit_+posCell_] = ic1_
-              end
-                
-                return
-            end    
-            )
-            )
-    end
-    #Add execution time functions
-    execute = Expr[]
-    if platform == "cpu"
-        push!(execute,
-        :(begin
-        #Clean counts
-        nnGC_ .= 0
-        #Insert+Counts
-        insertCounts_($(comArgs...),nnVId_,nnGId_,nnGC_,nnGCAux_)
-        #Prefix sum
-        nnGCCum_ = cumsum(nnGC_)
-        #Counting sort
-        countingSort_($(comArgs...),nnVId_,nnGC_,nnGCAux_,nnGCCum_,nnId_)                       
-        end
-        )
-        )
-    elseif platform == "gpu"
-        push!(execute,
-        :(begin
-        #Clean counts
-        nnGC_ .= 0
-        #Insert+Counts
-        CUDA.@cuda threads=threads_ blocks=nBlocks_ insertCounts_($(comArgs...),nnVId_,nnGId_,nnGC_,nnGCAux_)
-        #Prefix sum
-        nnGCCum_ = cumsum(nnGC_)
-        #Counting sort
-        CUDA.@cuda threads=threads_ blocks=nBlocks_ countingSort_($(comArgs...),nnVId_,nnGC_,nnGCAux_,nnGCCum_,nnId_)                        
-        end
-        )
-        )
-    end
-    
-    arg = [:(nnVId_),:(nnGId_),:(nnGC_),:(nnGCCum_),:(nnId_)]
-
-    inLoop = loopNeighbourGridCreation(a.dim,a.dim,grid)
-
-    return varDeclare, fDeclare, execute, inLoop, arg
-end
-
-function loop_(a::SimulationGrid, abm::Agent, code::Expr)
+function loop_(a::SimulationFree, abm::Agent, code::Expr, platform::String)
 
     code = vectorize_(abm, code)
     #Prototypes of loops to connect cells in the grid as neighbors
@@ -382,7 +252,9 @@ function loop_(a::SimulationGrid, abm::Agent, code::Expr)
         loop = subs_(loop,:AUX2_,i)
     end
     loop = subs_(loop,:ALGORITHM_,code)
+    loop = vectorize_(abm, loop)
     loop = subs_(loop,:nnic2_,:(nnId_[ic2_]))
+    loop = simpleFirstLoop_(platform, loop)
 
     return loop
 end
