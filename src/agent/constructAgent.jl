@@ -1,5 +1,5 @@
 """
-    macro @createAgent(name, varargs...) 
+    macro @agent(name, varargs...) 
 
 Basic Macro to create an instance of Agent. It generates an Agent type with the characteristics specified in its arguments.
 
@@ -56,72 +56,56 @@ Has to be declared as:
     interactionParameter::Interaction
     [interactionParameter,interactionParameter,...]::Interaction
 
- - **:Equation**
+ - **Equation**
 Type for declaring dynamical equations for the variables.
 Has to be declared as:
 
-    ::Equation = 
-        begin
-            ... code including the differential equations ...
-        end
-    eqName::Equation = 
-        begin
+    Equation = 
+        quote
             ... code including the differential equations ...
         end
 
- - **:UpdateGlobal**
+ - **UpdateGlobal**
 Type for declaring global update rules for the global parameters and global arrays.
 Has to be declared as:
 
-    ::UpdateGlobal = 
-        begin
-            ... code including the update rules ...
-        end
-    globalUpdateName::UpdateGlobal = 
-        begin
+    UpdateGlobal = 
+        quote
             ... code including the update rules ...
         end
 
- - **:UpdateLocal**
+ - **UpdateLocal**
 Type for declaring local update rules for the local parameters and ids.
 Has to be declared as:
 
-    ::UpdateLocal = 
-        begin
-            ... code including the update rules ...
-        end
-    localUpdateName::UpdateLocal = 
-        begin
+    UpdateLocal = 
+        quote
             ... code including the update rules ...
         end
 
- - **:UpdateInteraction**
+ - **UpdateInteraction**
 Type for declaring interaction update rules for the interaction parameters. 
 The variables declared in these updates will be updated during the integration steps.
 Has to be declared as:
     
-    ::UpdateInteraction = 
-        begin
-            ... code including the update rules ...
-        end
-    interactionUpdateName::UpdateInteraction = 
-        begin
+    UpdateInteraction = 
+        quote
             ... code including the update rules ...
         end
 
- - **:UpdateLocalInteraction**
+ - **UpdateLocalInteraction**
 Type for declaring interaction update rules for the local parameters and ids. 
 The variables declared in these updates will be updated just once per time step instead of once per integration point. 
 For integrators that evaluate just once as the Euler integrator, UpdateInteraction and UpdateLocalInteraction are equivalent.
 Has to be declared as:
         
-    interactionUpdateName::UpdateLocalInteraction = 
-        begin
+    UpdateLocalInteraction = 
+        quote
             ... code including the update rules ...
         end
 
 """
-macro createAgent(name, varargs...) 
+macro agent(name, varargs...) 
 
     m = Agent()
 
@@ -132,287 +116,90 @@ macro createAgent(name, varargs...)
     end
 
     #Add all contributions
-    for i in varargs
-        if typeof(i) != Expr
-            error(i, " should be and expression containing at least a name and a type. Example variable::Variable.") 
-        end
-        
-        if i.head == :(=)
-            if i.args[1].head == :(::)
-                if length(i.args[1].args) == 2
-                    name = i.args[1].args[1]
-                    type = i.args[1].args[2]
-                    head = :(=)
-                elseif length(i.args[1].args) == 1
-                    name = :_
-                    type = i.args[1].args[1]
-                    head = :(=)
-                end
-            else
-                error(i, " should be and expression containing at least a name and a type. Example variable::Variable.") 
-            end
-        elseif i.head == :(::)
-            name = i.args[1]
-            type = i.args[2]
-            head = :(::)
-        else
-            error(i, " should be and expression containing at least a name and a type. Example variable::Variable.") 
+    for ii in varargs
+        if typeof(ii) != Expr
+            error(ii, " should be and expression containing at least a name and a type. Example variable::Variable.") 
         end
 
-        if !(type in VALID_TYPES)
-            error(i, " should be and expression containing at least a name and a type. Example variable::Variable.") 
-        elseif typeof(name) == Expr
-            if !(name.head == :vect)
-                error(name, " should be a symbol or an array of symbols. Check how to declare ", type, " types.")
-            else
-                names = Symbol[]
-                for j in name.args
-                    if typeof(j) != Symbol
-                        error(j, " in ", i, " should be a symbol.  Check how to declare ", type, " types.")
-                    end
-                    push!(names,j)
-                end
-                name = names
+        if ii.head == :call
+            t = eval(ii)
+            if typeof(t) != Expr
+                error("Function ", ii, " should return a piece of code to be added to the agent.")
+            elseif t.head != :block
+                t = quote $t end
             end
+
+            t = t.args
+        else 
+            t = [ii]
         end
 
-        if type == :Global && head == :(::)
-            checkDeclared_(m,name)
-            if typeof(name) == Array{Symbol,1}
-                append!(m.declaredSymbols["Global"],name)
-            else
-                push!(m.declaredSymbols["Global"],name)
-            end
-        elseif type == :Local && head == :(::)
-            checkDeclared_(m,name)
-            if typeof(name) == Array{Symbol,1}
-                append!(m.declaredSymbols["Local"],name)
-            else
-                push!(m.declaredSymbols["Local"],name)
-            end
-        elseif type == :Interaction && head == :(::)
-            checkDeclared_(m,name)
-            if typeof(name) == Array{Symbol,1}
-                append!(m.declaredSymbols["Interaction"],name)
-            else
-                push!(m.declaredSymbols["Interaction"],name)
-            end
-        elseif type == :Variable && head == :(::)
-            checkDeclared_(m,name)
-            if typeof(name) == Array{Symbol,1}
-                append!(m.declaredSymbols["Variable"],name)
-            else
-                push!(m.declaredSymbols["Variable"],name)
-            end
-        elseif type == :Identity && head == :(::)
-            checkDeclared_(m,name)
-            if typeof(name) == Array{Symbol,1}
-                append!(m.declaredSymbols["Identity"],name)
-            else
-                push!(m.declaredSymbols["Identity"],name)
-            end
-        elseif type == :GlobalArray && head == :(=)
-            checkDeclared_(m,name)
-            arg = i.args[2]
-            if typeof(arg) != Expr
-                error(type , " in ", i, " has to be declared with an Array{Int} representing the dimensions.")
-            elseif arg.head != :vect
-                error(type , " in ", i, " has to be declared with an Array{Int} representing the dimensions.")
-            else
-                for j in arg.args
-                    if !(typeof(j) <: Int)
-                        error(type , " in ", i, " has to be declared with an Array{Int} representing the dimensions.")
+        for i in t
+            if typeof(i) == LineNumberNode
+                nothing
+            elseif i.head == :(::)
+                name = i.args[1]
+                type = i.args[2]
+
+                if !(type in VALID_TYPES)
+                    error(i, " should be and expression containing at least a name and a type. Example variable::Variable.") 
+                elseif typeof(name) == Expr
+                    if !(name.head == :vect)
+                        error(name, " should be a symbol or an array of symbols. Check how to declare ", type, " types.")
+                    else
+                        names = Symbol[]
+                        for j in name.args
+                            if typeof(j) != Symbol
+                                error(j, " in ", i, " should be a symbol.  Check how to declare ", type, " types.")
+                            end
+                            push!(names,j)
+                        end
+                        name = names
                     end
-                end
+                end    
+
+                checkDeclared_(m,name)
                 if typeof(name) == Array{Symbol,1}
-                    l = [(j,eval(arg)) for j in name]
-                    append!(m.declaredSymbols["GlobalArray"],l)
+                    append!(m.declaredSymbols[string(type)],name)
                 else
-                    push!(m.declaredSymbols["GlobalArray"],(name,eval(arg)))
+                    push!(m.declaredSymbols[string(type)],name)
                 end
-            end
-        elseif type == :UpdateGlobal && head == :(=)
-            if typeof(i.args[2]) == Expr
-                push!(m.declaredUpdates["Global"],(name,i.args[2]))
+
+            elseif i.head == :(=)
+                if i.args[1] in VALID_UPDATES
+                    if i.args[2].head == :block
+                        append!(m.declaredUpdates[string(i.args[1])].args,i.args[2].args)
+                    else
+                        push!(m.declaredUpdates[string(i.args[1])].args,i.args[2])
+                    end
+                else
+                    error(i.args[1], " is not a valid type.")
+                end
             else
-                error(i , " should be declared with an expression. Type of ", i.args[2], " is ", typeof(i.args[2]),".") 
-            end
-        elseif type == :UpdateLocal && head == :(=)
-            if typeof(i.args[2]) == Expr
-                push!(m.declaredUpdates["Local"],(name,i.args[2]))
-            else
-                error(i , " should be declared with an expression. Type of ", i.args[2], " is ",typeof(i.args[2]),".") 
-            end
-        elseif type == :UpdateInteraction && head == :(=)
-            if typeof(i.args[2]) == Expr
-                push!(m.declaredUpdates["Interaction"],(name,i.args[2]))
-            else
-                error(i , " should be declared with an expression. Type of ", i.args[2], " is ",typeof(i.args[2]),".") 
-            end
-        elseif type == :UpdateLocalInteraction && head == :(=)
-            if typeof(i.args[2]) == Expr
-                push!(m.declaredUpdates["LocalInteraction"],(name,i.args[2]))
-            else
-                error(i , " should be declared with an expression. Type of ", i.args[2], " is ",typeof(i.args[2]),".") 
-            end
-        elseif type == :Equation && head == :(=)
-            if typeof(i.args[2]) == Expr
-                push!(m.declaredUpdates["Equation"],(name,i.args[2]))
-            else
-                error(i , " should be declared with an expression. Type of ", i.args[2], " is ",typeof(i.args[2]),".") 
-            end
-        else
-           error("Expression ", i, " is not a valid expression. Check how to declare expressions of type ", type) 
+                error(i, " is not an understood rule or variable declaration. Error in ", ii)
+            end 
         end
     end
         
     return m
 end
 
-"""
-    macro add(varargs...)
+function add(varags::Agent...)
+    main = deepcopy(varags[1])
 
-Returns varargs as an array of expressions.
-"""
-macro add(varargs...)
-    l = Expr[]
-    for i in varargs
-        push!(l,:($i))
-    end
-
-    return l
-end
-
-"""
-    addToAgent!(m, var)
-
-Add to an existing Agent more parameters as defined by an array of expressions at var.
-
-Example
-
-    m = @agent cell
-    agent!(m,
-    @add(
-        l::Local,
-        g::Global,
-        ::UpdateLocal=
-        begin
-            l += dt
-        end
-    )
-    )
-"""
-function addToAgent!(m::Agent, var::Array{Expr,1})
-
-    #Add all contributions
-    for i in var
-        if typeof(i) != Expr
-            error(i, " should be and expression containing at least a name and a type. Example variable::Variable.") 
-        end
-        
-        if i.head == :(=)
-            if i.args[1].head == :(::)
-                if length(i.args[1].args) == 2
-                    name = i.args[1].args[1]
-                    type = i.args[1].args[2]
-                    head = :(=)
-                elseif length(i.args[1].args) == 1
-                    name = :_
-                    type = i.args[1].args[1]
-                    head = :(=)
-                end
-            else
-                error(i, " should be and expression containing at least a name and a type. Example variable::Variable.") 
+    if length(varags) == 1
+        nothing
+    else
+        for i in varags[2:end]
+            for j in keys(i.declaredSymbols)
+                checkDeclared_(main,i.declaredSymbols[j])
+                append!(main.declaredSymbols[j],i.declaredSymbols[j])
             end
-        elseif i.head == :(::)
-            name = i.args[1]
-            type = i.args[2]
-            head = :(::)
-        else
-            error(i, " should be and expression containing at least a name and a type. Example variable::Variable.") 
-        end
-
-        if !(type in VALID_TYPES)
-            error(i, " should be and expression containing at least a name and a type. Example variable::Variable.") 
-        elseif typeof(name) == Expr
-            if !(name.head == :vect)
-                error(name, " should be a symbol or an array of symbols. Check how to declare ", type, " types.")
-            else
-                names = Symbol[]
-                for j in name.args
-                    if typeof(j) != Symbol
-                        error(j, " in ", i, " should be a symbol.  Check how to declare ", type, " types.")
-                    end
-                    push!(names,j)
-                end
-                name = names
+            for j in keys(i.declaredUpdates)
+                append!(main.declaredUpdates[j].args,i.declaredUpdates[j].args)
             end
-        end
-
-        if type == :Global && head == :(::)
-            checkDeclared_(m,name)
-            push!(m.declaredSymbols["Global"],name)
-        elseif type == :Local && head == :(::)
-            checkDeclared_(m,name)
-            push!(m.declaredSymbols["Local"],name)
-        elseif type == :Interaction && head == :(::)
-            checkDeclared_(m,name)
-            push!(m.declaredSymbols["Interaction"],name)
-        elseif type == :Variable && head == :(::)
-            checkDeclared_(m,name)
-            push!(m.declaredSymbols["Variable"],name)                    
-        elseif type == :Identity && head == :(::)
-            checkDeclared_(m,name)
-            push!(m.declaredSymbols["Identity"],name)
-        elseif type == :GlobalArray && head == :(=)
-            checkDeclared_(m,name)
-            arg = i.args[2]
-            if typeof(arg) != Expr
-                error(type , " in ", i, " has to be declared with an Array{Int} representing the dimensions.")
-            elseif arg.head != :vect
-                error(type , " in ", i, " has to be declared with an Array{Int} representing the dimensions.")
-            else
-                for j in arg.args
-                    if !(typeof(j) <: Int)
-                        error(type , " in ", i, " has to be declared with an Array{Int} representing the dimensions.")
-                    end
-                end
-                push!(m.declaredSymbols["GlobalArray"],(name,eval(arg)))
-            end
-        elseif type == :UpdateGlobal && head == :(=)
-            if typeof(i.args[2]) == Expr
-                push!(m.declaredUpdates["Global"],(name,i.args[2]))
-            else
-                error(i , " should be declared with an expression. Type of ", i.args[2], " is ", typeof(i.args[2]),".") 
-            end
-        elseif type == :UpdateLocal && head == :(=)
-            if typeof(i.args[2]) == Expr
-                push!(m.declaredUpdates["Local"],(name,i.args[2]))
-            else
-                error(i , " should be declared with an expression. Type of ", i.args[2], " is ",typeof(i.args[2]),".") 
-            end
-        elseif type == :UpdateInteraction && head == :(=)
-            if typeof(i.args[2]) == Expr
-                push!(m.declaredUpdates["Interaction"],(name,i.args[2]))
-            else
-                error(i , " should be declared with an expression. Type of ", i.args[2], " is ",typeof(i.args[2]),".") 
-            end
-        elseif type == :UpdateLocalInteraction && head == :(=)
-            if typeof(i.args[2]) == Expr
-                push!(m.declaredUpdates["LocalInteraction"],(name,i.args[2]))
-            else
-                error(i , " should be declared with an expression. Type of ", i.args[2], " is ",typeof(i.args[2]),".") 
-            end
-        elseif type == :Equation && head == :(=)
-            if typeof(i.args[2]) == Expr
-                push!(m.declaredUpdates["Equation"],(name,i.args[2]))
-            else
-                error(i , " should be declared with an expression. Type of ", i.args[2], " is ",typeof(i.args[2]),".") 
-            end
-        else
-           error("Expression ", i, " is not a valid expression. Check how to declare expressions of type ", type) 
         end
     end
 
-    return nothing
+    return main
 end

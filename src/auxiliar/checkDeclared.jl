@@ -34,11 +34,11 @@ function checkDeclared_(abm::Agent,s::Symbol)
         end
     end
 
-    for k in keys(abm.declaredUpdates)
-        if s in abm.declaredUpdates[k]
-            error(s, " already defined in Agent Based model in ", k,".")
-        end
-    end
+    # for k in keys(abm.declaredUpdates)
+    #     if s in abm.declaredUpdates[k]
+    #         error(s, " already defined in Agent Based model in ", k,".")
+    #     end
+    # end
 
     return
 end

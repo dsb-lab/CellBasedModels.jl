@@ -2,128 +2,116 @@
 
     @test_nowarn Agent()
 
-    @test_nowarn @createAgent(
+    @test_nowarn @agent(
         Hola
     )
 
-    @test_throws ErrorException try @eval @createAgent cell sin::Local catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @createAgent cell Normal::Local catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent cell sin::Local catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent cell Normal::Local catch err; throw(err.error) end
 
-    @test_nowarn @createAgent(
+    @test_nowarn @agent(
         Hola,
+        
         id::Identity,
         l::Local,
         v::Variable,
         g::Global,
-        ga::GlobalArray=[2,3],
+        ga::GlobalArray,
         i::Interaction,
-        e::Equation = dv = 34*dt ,
-        ul::UpdateLocal = l += 1,
-        ug::UpdateGlobal = g += 1,
-        ug::UpdateInteraction = i += 1,
-        uli::UpdateLocalInteraction = i += 1
+        
+        Equation = dv = 34*dt ,
+        UpdateLocal = l += 1,
+        UpdateGlobal = g += 1,
+        UpdateInteraction = i += 1,
+        UpdateLocalInteraction = i += 1
     )
 
-    m = @createAgent(
+    m = @agent(
         Hola,
+
         id::Identity,
         l::Local,
         v::Variable,
         g::Global,
-        ga::GlobalArray=[2,3],
+        ga::GlobalArray,
         i::Interaction,
-        e::Equation = dv = 34*dt ,
-        ul::UpdateLocal = l += 1,
-        ug::UpdateGlobal = g += 1,
-        ug::UpdateInteraction = i += 1,
-        uli::UpdateLocalInteraction = i += 1)
+
+        Equation = dv = 34*dt ,
+        UpdateLocal = l += 1,
+        UpdateGlobal = g += 1,
+        UpdateInteraction = i += 1,
+        UpdateLocalInteraction = i += 1
+    )
     for i in keys(m.declaredSymbols)
         @test length(m.declaredSymbols[i]) == 1
     end
     for i in keys(m.declaredUpdates)
-        @test length(m.declaredUpdates[i]) == 1
+        @test [i for i in m.declaredUpdates[i].args if typeof(i) != LineNumberNode] != []
     end
     
-    @test_nowarn @createAgent(
+    @test_nowarn @agent(
         Hola,
+
         [id,id2]::Identity,
         [l,l2]::Local,
         [v,v2]::Variable,
         [g,g2]::Global,
-        [ga,ga2]::GlobalArray=[2,3],
+        [ga,ga2]::GlobalArray,
         [i,i2]::Interaction,
-        ::Equation = dv = 34*dt ,
-        ::UpdateLocal = l += 1,
-        ::UpdateGlobal = g += 1,
-        ::UpdateInteraction = i += 1,
-        ::UpdateLocalInteraction = i += 1)
-    
-    m = @createAgent(
+
+        Equation = dv = 34*dt ,
+        UpdateLocal = l += 1,
+        UpdateGlobal = g += 1,
+        UpdateInteraction = i += 1,
+        UpdateLocalInteraction = i += 1
+    )
+
+    m = @agent(
         Hola,
+
         [id,id2]::Identity,
         [l,l2]::Local,
         [v,v2]::Variable,
         [g,g2]::Global,
-        [ga,ga2]::GlobalArray=[2,3],
+        [ga,ga2]::GlobalArray,
         [i,i2]::Interaction,
-        ::Equation = dv = 34*dt ,
-        ::UpdateLocal = l += 1,
-        ::UpdateGlobal = g += 1,
-        ::UpdateInteraction = i += 1,
-        ::UpdateLocalInteraction = i += 1)
+
+        Equation = dv = 34*dt ,
+        UpdateLocal = l += 1,
+        UpdateGlobal = g += 1,
+        UpdateInteraction = i += 1,
+        UpdateLocalInteraction = i += 1,
+
+    )
     for i in keys(m.declaredSymbols)
         @test length(m.declaredSymbols[i]) == 2
     end
     for i in keys(m.declaredUpdates)
-        @test length(m.declaredUpdates[i]) == 1
+        @test [i for i in m.declaredUpdates[i].args if typeof(i) != LineNumberNode] != []
     end
-        
-    @test_nowarn @add(id::Identity,
-        l::Local,
-        v::Variable,
-        g::Global,
-        ga::GlobalArray=[2,3],
-        i::Interaction,
-        ::Equation = dv = 34*dt ,
-        ::UpdateLocal = l += 1,
-        ::UpdateGlobal = g += 1,
-        ::UpdateInteraction = i += 1,
-        ::UpdateLocalInteraction = i += 1)
 
-    l = @add(id::Identity,
-        l::Local,
-        v::Variable,
-        g::Global,
-        ga::GlobalArray=[2,3],
-        i::Interaction,
-        ::Equation = dv = 34*dt ,
-        ::UpdateLocal = l += 1,
-        ::UpdateGlobal = g += 1,
-        ::UpdateInteraction = i += 1,
-        ::UpdateLocalInteraction = i += 1)
+    @test_throws ErrorException try @eval @agent(cell, [l,l]::Local) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(cell, [l,l]::Global) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(cell, [l,l]::Variable) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(cell, [l,l]::Interaction) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(cell, [l,l]::GlobalArray) catch err; throw(err.error) end
 
-    @test typeof(l) == Array{Expr,1}
+    @test_throws ErrorException try @eval @agent(cell, l::Local, l::Global) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(cell, l::Local, l::Variable) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(cell, l::Local, l::Interaction) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(cell, l::Local, l::GlobalArray) catch err; throw(err.error) end
+    
+    @test_nowarn begin
+        m1 = @agent cell1 l1::Local
+        m2 = @agent cell2 l2::Local
 
-    m = @createAgent cell
-    @test_nowarn addToAgent!(m,l)
+        m3 = add(m1,m2)
+    end
 
-    @test_throws ErrorException try @eval @createAgent(cell, [l,l]::Local) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @createAgent(cell, [l,l]::Global) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @createAgent(cell, [l,l]::Variable) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @createAgent(cell, [l,l]::Interaction) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @createAgent(cell, [l,l]::GlobalArray) catch err; throw(err.error) end
+    @test_throws MethodError begin
+        m1 = @agent cell1 l1::Local
 
-    @test_throws ErrorException try @eval @createAgent(cell, l::Local, l::Global) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @createAgent(cell, l::Local, l::Variable) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @createAgent(cell, l::Local, l::Interaction) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @createAgent(cell, l::Local, l::GlobalArray) catch err; throw(err.error) end
+        m3 = add(m1,3)
+    end
 
-    m = @createAgent cell l::Local
-    @test_throws ErrorException try @eval agent!(m, @add l::Local) catch err; throw(err.error) end
-    m = @createAgent cell l::Local
-    @test_throws ErrorException try @eval agent!(m, @add l::Global) catch err; throw(err.error) end
-    m = @createAgent cell l::Local
-    @test_throws ErrorException try @eval agent!(m, @add l::Interaction) catch err; throw(err.error) end
-    m = @createAgent cell l::Local
-    @test_throws ErrorException try @eval agent!(m, @add l::GlobalArray) catch err; throw(err.error) end
 end

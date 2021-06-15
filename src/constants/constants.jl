@@ -5,6 +5,10 @@ VALID_TYPES = [
     :Global,
     :GlobalArray,
     :Interaction,
+
+]
+
+VALID_UPDATES = [
     :UpdateGlobal,
     :UpdateLocal,
     :UpdateLocalInteraction,

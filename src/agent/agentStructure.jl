@@ -14,8 +14,8 @@ addGlobal!(m,:x); #Add a global variable to the Agent
 mutable struct Agent
     
     name::Symbol
-    declaredSymbols::Dict{String,Array{Any}}
-    declaredUpdates::Dict{String,Array{Any}}
+    declaredSymbols::Dict{String,Array{Symbol,1}}
+    declaredUpdates::Dict{String,Expr}
     
     evolve::Function
     
@@ -25,9 +25,9 @@ mutable struct Agent
             Dict{String,Array{Symbol}}(["Identity"=>Symbol[],"Local"=>Symbol[],
                                         "Variable"=>Symbol[],"Global"=>Symbol[],
                                         "GlobalArray"=>Symbol[],"Interaction"=>Symbol[]]),
-            Dict{String,Array{Symbol}}(["Global"=>Tuple[],"Local"=>Tuple[],
-                                        "LocalInteraction"=>Tuple[],"Interaction"=>Tuple[],
-                                        "Equation"=>Tuple[]]),
+            Dict{String,Expr}(["UpdateGlobal"=>quote end,"UpdateLocal"=>quote end,
+                                        "UpdateLocalInteraction"=>quote end,"UpdateInteraction"=>quote end,
+                                        "Equation"=>quote end]),
             needCompilation)
     end
 end
@@ -40,16 +40,15 @@ function Base.show(io::IO,abm::Agent)
             for j in abm.declaredSymbols[i]
                 print(" ",j,",")
             end
+            print("\n")
         end
     end
     
     print("\n\nUPDATE RULES\n")
     for i in keys(abm.declaredUpdates)
-        if ! isempty(abm.declaredUpdates[i])
-            print(i,"\n\t")
-            for j in abm.declaredUpdates[i]
-                print(" ",j[2],",")
-            end
+        if [i for i in abm.declaredUpdates[i].args if typeof(i) != LineNumberNode] != []
+            print(i,"\n")
+            print(" ",clean(copy(abm.declaredUpdates[i])),"\n\n")
         end
     end
 end

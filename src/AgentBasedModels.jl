@@ -1,5 +1,6 @@
 module AgentBasedModels
 
+using CUDA: Block
 using Random
 using Distributions
 using CUDA
@@ -7,7 +8,7 @@ using DataFrames
 using CSV
 #using WriteVTK
 
-export Agent, @createAgent, addToAgent!, @add
+export Agent, @agent, add
 export SimulationFree, SimulationGrid
 export SimulationSpace, FlatBoundary, Periodic, NonPeriodic, Open, Hard, Reflecting, OpenReflecting, ReflectingOpen, OpenHard, HardOpen, HardReflecting, ReflectingHard
 export configurator_
@@ -20,9 +21,16 @@ include("./agent/agentStructure.jl")
 include("./agent/constructAgent.jl")
 
 #Model
-include("./model/model.jl")
 include("./model/structProgram.jl")
-include("./model/compile.jl")
+
+#Simulation Space
+include("./simulationSpace/abstractTypes.jl")
+include("./simulationSpace/simulationFree.jl")
+include("./simulationSpace/simulationGrid.jl")
+
+#Model
+include("./model/model.jl")
+#include("./model/compile.jl")
 
 #Auxiliar variables
 include("./auxiliar/checkDeclared.jl")
@@ -35,10 +43,5 @@ include("./auxiliar/wrapping.jl")
 #Cuda specific functions
 include("./cuda/cudaAdapt.jl")
 include("./cuda/cudaConfigurator.jl")
-
-#Simulation Space
-include("./simulationSpace/abstractTypes.jl")
-include("./simulationSpace/simulationFree.jl")
-include("./simulationSpace/simulationGrid.jl")
 
 end
