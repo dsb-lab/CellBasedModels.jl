@@ -1,4 +1,5 @@
 validDistributions = [i for i in names(Distributions) if uppercasefirst(string(i)) == string(i)]
+validDistributionsCUDA = [:Normal,:Uniform,:Poisson]
 
 function dist(expr,l=[],it=[1])
     for i in validDistributions

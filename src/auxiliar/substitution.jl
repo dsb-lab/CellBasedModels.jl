@@ -2,13 +2,24 @@
     function subs_(exp,ob,tar)
 
 Substitutes all encounters of a symbolic expression or symbol **ob** by a target expression **tar** in **exp**.
+Is update true, only substitutes those symbols **ob** that are being assigned.
+
+Example
+```@Julia
+> subs_(:(x += 3*x),:x,:y,update=false)
+:(y+=3*y)
+> subs_(:(x += 3*x),:x,:y,update=true)
+:(y+=3*x)
+```
 """
-function subs_(exp::Expr,ob::Union{Expr,Symbol},tar::Union{Expr,Symbol,<:Number})
+function subs_(exp::Expr,ob::Union{Expr,Symbol},tar::Union{Expr,Symbol,<:Number};update=false)
     for (pos,a) in enumerate(exp.args)
-        if a == ob
+        if a == ob && !update
+            exp.args[pos] = tar
+        elseif a == ob && exp.head in [:(=),:(+=),:(-=),:(%=),:(/=)] && pos == 1
             exp.args[pos] = tar
         elseif typeof(a) == Expr
-            a = subs_(a,ob,tar)
+            a = subs_(a,ob,tar,update=update)
         end
     end
     return exp

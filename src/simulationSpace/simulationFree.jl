@@ -10,12 +10,12 @@ struct SimulationFree <: SimulationSpace
 
 end
 
-function arguments_!(a::SimulationFree, abm::Agent, program::Program_, platform::String)
+function arguments_!(abm::Agent, a::SimulationFree, program::Program_, platform::String)
 
     return Nothing
 end
 
-function loop_(a::SimulationFree, abm::Agent, code::Expr, platform::String)
+function loop_(abm::Agent, a::SimulationFree, code::Expr, platform::String)
 
     code = vectorize_(abm, code)
     loop = :(

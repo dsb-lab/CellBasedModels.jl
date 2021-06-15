@@ -2,24 +2,45 @@
     function vectorize_(abm::Agent,code::Expr)
 
 Function to subtitute all the declared symbols of the agents in the expression into vector form.
+optional arguments base and update add some intermediate names to the vectorized variables and to updated ones.
 """
-function vectorize_(abm::Agent,code::Expr)
+function vectorize_(abm::Agent,code::Expr;base="",update="")
         
     #Vectorisation changes
     for (i,v) in enumerate(abm.declaredSymbols["Variable"])
-        code = subs_(code,v,:(var_[ic1_,$i]))
+
+        bs = Meta.parse(string("var",base,"_"))
+        up = Meta.parse(string("var",update,"_"))
+
+        code = subs_(code,v,:($up[ic1_,$i]),update=true)
         v2 = Meta.parse(string(v,"₁"))
-        code = subs_(code,v2,:(var_[ic1_,$i]))
+        code = subs_(code,v2,:($up[ic1_,$i]),update=true)
         v2 = Meta.parse(string(v,"₂"))
-        code = subs_(code,v2,:(var_[nnic2_,$i]))
+        code = subs_(code,v2,:($up[nnic2_,$i]),update=true)
+
+        code = subs_(code,v,:($bs[ic1_,$i]))
+        v2 = Meta.parse(string(v,"₁"))
+        code = subs_(code,v2,:($bs[ic1_,$i]))
+        v2 = Meta.parse(string(v,"₂"))
+        code = subs_(code,v2,:($bs[nnic2_,$i]))
     end
         
     for (i,v) in enumerate(abm.declaredSymbols["Local"])
-        code = subs_(code,v,:(loc_[ic1_,$i]))
+
+        bs = Meta.parse(string("loc",base,"_"))
+        up = Meta.parse(string("loc",update,"_"))
+
+        code = subs_(code,v,:($up[ic1_,$i]),update=true)
         v2 = Meta.parse(string(v,"₁"))
-        code = subs_(code,v2,:(loc_[ic1_,$i]))
+        code = subs_(code,v2,:($up[ic1_,$i]),update=true)
         v2 = Meta.parse(string(v,"₂"))
-        code = subs_(code,v2,:(loc_[nnic2_,$i]))
+        code = subs_(code,v2,:($up[nnic2_,$i]),update=true)
+
+        code = subs_(code,v,:($bs[ic1_,$i]))
+        v2 = Meta.parse(string(v,"₁"))
+        code = subs_(code,v2,:($bs[ic1_,$i]))
+        v2 = Meta.parse(string(v,"₂"))
+        code = subs_(code,v2,:($bs[nnic2_,$i]))
     end
     
     for (i,v) in enumerate(abm.declaredSymbols["Interaction"])
@@ -31,15 +52,31 @@ function vectorize_(abm::Agent,code::Expr)
     end
 
     for (i,v) in enumerate(abm.declaredSymbols["Global"])
-        code = subs_(code,v,:(glob_[$i]))
+
+        bs = Meta.parse(string("glob",base,"_"))
+        up = Meta.parse(string("glob",update,"_"))
+
+        code = subs_(code,v,:($up[$i]),update=true)
+
+        code = subs_(code,v,:($bs[$i]))
     end
 
     for (i,v) in enumerate(abm.declaredSymbols["Identity"])
-        code = subs_(code,v,:(id_[ic1_,$i]))
+
+        bs = Meta.parse(string("id",base,"_"))
+        up = Meta.parse(string("id",update,"_"))
+
+        code = subs_(code,v,:($up[ic1_,$i]),update=true)
         v2 = Meta.parse(string(v,"₁"))
-        code = subs_(code,v2,:(id_[ic1_,$i]))
+        code = subs_(code,v2,:($up[ic1_,$i]),update=true)
         v2 = Meta.parse(string(v,"₂"))
-        code = subs_(code,v2,:(id_[nnic2_,$i]))
+        code = subs_(code,v2,:($up[nnic2_,$i]),update=true)
+
+        code = subs_(code,v,:($bs[ic1_,$i]))
+        v2 = Meta.parse(string(v,"₁"))
+        code = subs_(code,v2,:($bs[ic1_,$i]))
+        v2 = Meta.parse(string(v,"₂"))
+        code = subs_(code,v2,:($bs[nnic2_,$i]))
     end
 
     return code

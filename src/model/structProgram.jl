@@ -5,16 +5,17 @@ Structure that contains all the pieces of code before they are finally assembled
 """
 mutable struct Program_
 
-    declareVar::Array{Expr,1}
-    declareF::Array{Expr,1}
+    declareVar::Expr
+    declareF::Expr
     args::Array{Symbol,1}
-    argsEval::Array{Symbol,1}
-    execInit::Array{Expr,1}
-    execInloop::Array{Expr,1}
-    execAfter::Array{Expr,1}
+    argsEval::Array{Union{Symbol,Expr},1}
+    execInit::Expr
+    execInloop::Expr
+    execAfter::Expr
+    returning::Expr
 
 end
 
 function Program_()
-    return Program_(Array{Expr,1}(),Array{Expr,1}(),Array{Symbol,1}(),Array{Symbol,1}(),Array{Expr,1}(),Array{Expr,1}(),Array{Expr,1}())
+    return Program_(quote end,quote end,Array{Symbol,1}([:t,:N]),Array{Union{Symbol,Expr},1}(),quote end,quote end,quote end,quote end)
 end

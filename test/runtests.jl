@@ -7,4 +7,5 @@ using CUDA
 #include("testAuxiliar.jl")
 #include("testSimulationFree.jl")
 #include("testSimulationGrid.jl")
+include("testModel.jl")
 

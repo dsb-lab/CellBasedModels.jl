@@ -21,6 +21,8 @@ This is a compendium of handful functions that are used all the time during the 
 agentArguments_
 checkDeclared_
 checkIsDeclared_
+emptyquote_
+updatedVariables_
 ```
 
 ## Code modifying
@@ -40,4 +42,12 @@ vectorize_
 ```@docs
 cudaAdapt_
 configurator_
+```
+
+## Compilation
+```@docs
+addParameters_!
+addUpdateGlobal_!
+addUpdateLocal_!
+addUpdateLocalInteraction_!
 ```

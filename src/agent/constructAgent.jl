@@ -138,7 +138,7 @@ macro agent(name, varargs...)
     if typeof(name) == Symbol
         m.name = name
     else
-        error("name should be a symbol.")
+        error("name of agent should be a symbol, not an expression. ", name, " was given.")
     end
 
     #Add all contributions

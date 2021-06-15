@@ -8,6 +8,9 @@
     @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,[:g]) 
     @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,[:x,:g]) 
 
+    @test AgentBasedModels.subs_(:(x += 3*x),:x,:y) == :(y += 3*y)
+    @test AgentBasedModels.subs_(:(x += 3*x),:x,:y,update=true) == :(y += 3*x)
+
     m = @agent(
         cell,
         l::Local,
@@ -31,6 +34,21 @@
     @test AgentBasedModels.vectorize_(m,:(id = 1)) == :(id_[ic1_,1]=1)
     @test AgentBasedModels.vectorize_(m,:(id₁ = 1)) == :(id_[ic1_,1]=1)
     @test AgentBasedModels.vectorize_(m,:(id₂ = 1)) == :(id_[nnic2_,1]=1)
+
+    @test AgentBasedModels.vectorize_(m,:(l = l),base="2",update="1") == :(loc1_[ic1_,1]=loc2_[ic1_,1])
+    @test AgentBasedModels.vectorize_(m,:(l₁ = l₁),base="2",update="1") == :(loc1_[ic1_,1]=loc2_[ic1_,1])
+    @test AgentBasedModels.vectorize_(m,:(l₂ = l₂),base="2",update="1") == :(loc1_[nnic2_,1]=loc2_[nnic2_,1])
+    @test AgentBasedModels.vectorize_(m,:(v = v),base="2",update="1") == :(var1_[ic1_,1]=var2_[ic1_,1])
+    @test AgentBasedModels.vectorize_(m,:(v₁ = v₁),base="2",update="1") == :(var1_[ic1_,1]=var2_[ic1_,1])
+    @test AgentBasedModels.vectorize_(m,:(v₂ = v₂),base="2",update="1") == :(var1_[nnic2_,1]=var2_[nnic2_,1])
+    @test AgentBasedModels.vectorize_(m,:(i = i),base="2",update="1") == :(inter_[ic1_,1]=inter_[ic1_,1])
+    @test AgentBasedModels.vectorize_(m,:(i₁ = i₁),base="2",update="1") == :(inter_[ic1_,1]=inter_[ic1_,1])
+    @test AgentBasedModels.vectorize_(m,:(i₂ = i₂),base="2",update="1") == :(inter_[nnic2_,1]=inter_[nnic2_,1])
+    @test AgentBasedModels.vectorize_(m,:(g = g),base="2",update="1") == :(glob1_[1]=glob2_[1])
+    @test AgentBasedModels.vectorize_(m,:(h[1,2] = h[1,2]),base="2",update="1") == :(h[1,2]=h[1,2])
+    @test AgentBasedModels.vectorize_(m,:(id = id),base="2",update="1") == :(id1_[ic1_,1]=id2_[ic1_,1])
+    @test AgentBasedModels.vectorize_(m,:(id₁ = id₁),base="2",update="1") == :(id1_[ic1_,1]=id2_[ic1_,1])
+    @test AgentBasedModels.vectorize_(m,:(id₂ = id₂),base="2",update="1") == :(id1_[nnic2_,1]=id2_[nnic2_,1])
     
     @test begin
         m = @agent(
@@ -115,5 +133,15 @@
                 Array(y) == 2*ones(N)
             end)        
         end
+    end
+
+    @test begin
+        AgentBasedModels.updatedParameters_(
+            quote
+                l = 5
+                g[1,2] -= 7
+                h += l+g+u
+            end
+        ) == [:l,:g,:h]
     end
 end

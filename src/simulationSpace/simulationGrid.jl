@@ -61,17 +61,17 @@ function SimulationGrid(abm::Agent, box::Array{<:Union{<:Tuple{Symbol,<:Real,<:R
     return SimulationGrid(box2,radius,length(vars),n,axisSize,cumSize) 
 end
 
-function arguments_!(a::SimulationGrid, abm::Agent, data::Program_, platform::String)
+function arguments_!(abm::Agent, a::SimulationGrid, data::Program_, platform::String)
     
-    append!(data.declareVar, 
-    [
-    :(nnGId_ = zeros(Int,nMax,$(a.dim))),
-    :(nnVId_ = zeros(Int,nMax)),
-    :(nnGC_ = zeros(Int,$(a.n))),
-    :(nnGCAux_ = zeros(Int,$(a.n))),
-    :(nnGCCum_ = zeros(Int,$(a.n))),
-    :(nnId_ = zeros(Int,nMax))
-    ]
+    append!(data.declareVar.args, 
+    (quote
+        nnGId_ = zeros(Int,nMax,$(a.dim))
+        nnVId_ = zeros(Int,nMax)
+        nnGC_ = zeros(Int,$(a.n))
+        nnGCAux_ = zeros(Int,$(a.n))
+        nnGCCum_ = zeros(Int,$(a.n))
+        nnId_ = zeros(Int,nMax)
+    end).args
     )
 
     #Compute the cell id for each agent in grid and linearized format for any box possible box dimensions.
@@ -92,7 +92,7 @@ function arguments_!(a::SimulationGrid, abm::Agent, data::Program_, platform::St
     #Create kernels for the algorithm
     if platform == "cpu"
 
-        push!(data.declareF, 
+        push!(data.declareF.args, 
 
             wrapInFunction_(:insertCounts_,
 
@@ -150,7 +150,7 @@ function arguments_!(a::SimulationGrid, abm::Agent, data::Program_, platform::St
         )
 
     elseif platform == "gpu"
-        push!(data.declareF, 
+        push!(data.declareF.args, 
 
             simpleFirstLoopWrapInFunction_(platform, :insertCounts_,
 

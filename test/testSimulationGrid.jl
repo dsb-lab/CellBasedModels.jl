@@ -1,8 +1,8 @@
 @testset "grid simulation" begin
 
     @test hasmethod(SimulationGrid,(Agent, Array{<:Union{<:Tuple{Symbol,<:Real,<:Real},<:FlatBoundary},1}, Union{<:Real,Array{<:Real,1}}))
-    @test hasmethod(AgentBasedModels.arguments_!,(SimulationGrid,Agent,AgentBasedModels.Program_,String))
-    @test hasmethod(AgentBasedModels.loop_,(SimulationFree,Agent,Expr,String))
+    @test hasmethod(AgentBasedModels.arguments_!,(Agent,SimulationGrid,AgentBasedModels.Program_,String))
+    @test hasmethod(AgentBasedModels.loop_,(Agent,SimulationFree,Expr,String))
 
     m = @agent cell [x,y,z,w]::Local;
     @test_throws ErrorException SimulationGrid(m,[(:x,2.,1.)],1)
@@ -21,17 +21,16 @@
     @test nn.axisSize == [3,4,5]
     @test nn.cumSize == [1,3,12] 
 
-    @test_nowarn AgentBasedModels.arguments_!(nn,m,AgentBasedModels.Program_(),"cpu")
+    @test_nowarn AgentBasedModels.arguments_!(m,nn,AgentBasedModels.Program_(),"cpu")
 
     m = @agent cell [x]::Local   
     nn = SimulationGrid(m,[(:x,0.,10.)],.5)
     p = AgentBasedModels.Program_()
-    AgentBasedModels.arguments_!(nn,m,p,"cpu")
+    AgentBasedModels.arguments_!(m,nn,p,"cpu")
     append!(p.args,AgentBasedModels.agentArguments_(m))
-    for i in 1:length(p.declareF)
-        p.declareF[i]=AgentBasedModels.subsArguments_(p.declareF[i],:ARGS_,p.args)
-        p.declareF[i]=AgentBasedModels.vectorize_(m,p.declareF[i])
-    end
+    p.declareF=AgentBasedModels.subsArguments_(p.declareF,:ARGS_,p.args)
+    p.declareF=AgentBasedModels.vectorize_(m,p.declareF)
+
     eval(
         quote
             loc_ = []
@@ -42,8 +41,8 @@
             end
             loc_=reshape(loc_,(:,1))
             N = size(loc_)[1]; nMax = N; t = 0;
-            $(p.declareVar...)
-            $(p.declareF...)
+            $(p.declareVar)
+            $(p.declareF)
             computeNN_($(p.args...))
         end
     )
@@ -56,12 +55,10 @@
     m = @agent cell [x,y,z]::Local   
     nn = SimulationGrid(m,[(:x,0.,1.),(:y,0.,2.),(:z,0.,3.)],.5)
     p = AgentBasedModels.Program_()
-    AgentBasedModels.arguments_!(nn,m,p,"cpu")
+    AgentBasedModels.arguments_!(m,nn,p,"cpu")
     append!(p.args,AgentBasedModels.agentArguments_(m))
-    for i in 1:length(p.declareF)
-        p.declareF[i]=AgentBasedModels.subsArguments_(p.declareF[i],:ARGS_,p.args)
-        p.declareF[i]=AgentBasedModels.vectorize_(m,p.declareF[i])
-    end
+    p.declareF=AgentBasedModels.subsArguments_(p.declareF,:ARGS_,p.args)
+    p.declareF=AgentBasedModels.vectorize_(m,p.declareF)
     eval(
         quote
             m = [[i,j,k] for i in -1:1 for j in -1:2 for k in -1:3]
@@ -73,8 +70,8 @@
             N = size(loc_)[1]
             nMax = N
             t = 0
-            $(p.declareVar...)
-            $(p.declareF[1])
+            $(p.declareVar)
+            $(p.declareF)
             computeNN_($(p.args...))
         end
     )
@@ -86,17 +83,16 @@
 
     if CUDA.has_cuda()
 
-        @test_nowarn AgentBasedModels.arguments_!(nn,@agent(cell),AgentBasedModels.Program_(),"gpu")
+        @test_nowarn AgentBasedModels.arguments_!(@agent(cell),nn,AgentBasedModels.Program_(),"gpu")
 
         m = @agent cell [x]::Local   
         nn = SimulationGrid(m,[(:x,0.,10.)],.5)
         p = AgentBasedModels.Program_()
-        AgentBasedModels.arguments_!(nn,m,p,"gpu")
+        AgentBasedModels.arguments_!(m,nn,p,"gpu")
         append!(p.args,AgentBasedModels.agentArguments_(m))
-        for i in 1:length(p.declareF)
-            p.declareF[i]=AgentBasedModels.subsArguments_(p.declareF[i],:ARGS_,p.args)
-            p.declareF[i]=AgentBasedModels.vectorize_(m,p.declareF[i])
-        end
+        p.declareF=AgentBasedModels.subsArguments_(p.declareF,:ARGS_,p.args)
+        p.declareF=AgentBasedModels.vectorize_(m,p.declareF)
+
         code = 
             quote
                 loc_ = Array{Float64,1}()
@@ -108,8 +104,8 @@
                 loc_=reshape(loc_,(:,1))
                 loc_=CUDA.CuArray(loc_)
                 N = size(loc_)[1]; nMax = N; t = 0;
-                $(p.declareVar...)
-                $(p.declareF...)
+                $(p.declareVar)
+                $(p.declareF)
                 computeNN_($(p.args...))
             end
         code = AgentBasedModels.cudaAdapt_(code)
@@ -123,12 +119,11 @@
         m = @agent cell [x,y,z]::Local   
         nn = SimulationGrid(m,[(:x,0.,1.),(:y,0.,2.),(:z,0.,3.)],.5)
         p = AgentBasedModels.Program_()
-        AgentBasedModels.arguments_!(nn,m,p,"gpu")
+        AgentBasedModels.arguments_!(m,nn,p,"gpu")
         append!(p.args,AgentBasedModels.agentArguments_(m))
-        for i in 1:length(p.declareF)
-            p.declareF[i]=AgentBasedModels.subsArguments_(p.declareF[i],:ARGS_,p.args)
-            p.declareF[i]=AgentBasedModels.vectorize_(m,p.declareF[i])
-        end
+        p.declareF=AgentBasedModels.subsArguments_(p.declareF,:ARGS_,p.args)
+        p.declareF=AgentBasedModels.vectorize_(m,p.declareF)
+
         code =
             quote
                 m = [[i,j,k] for i in -1:1 for j in -1:2 for k in -1:3]
@@ -141,8 +136,8 @@
                 N = size(loc_)[1]
                 nMax = N
                 t = 0
-                $(p.declareVar...)
-                $(p.declareF...)
+                $(p.declareVar)
+                $(p.declareF)
                 computeNN_($(p.args...))
             end
         code = AgentBasedModels.cudaAdapt_(code)
