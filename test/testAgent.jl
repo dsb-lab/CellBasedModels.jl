@@ -105,13 +105,13 @@
         m1 = @agent cell1 l1::Local
         m2 = @agent cell2 l2::Local
 
-        m3 = add(m1,m2)
+        m3 = add(:cell12, m1,m2)
     end
 
     @test_throws MethodError begin
         m1 = @agent cell1 l1::Local
 
-        m3 = add(m1,3)
+        m3 = add(:cell12, m1,3)
     end
 
 end

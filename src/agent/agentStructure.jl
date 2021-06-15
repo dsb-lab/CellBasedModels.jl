@@ -2,14 +2,6 @@
     mutable struct Agent
 
 Basic structure which contains the agent based Agent.
-
-# Examples
-```
-m = Agent(); #Create empty Agent
-
-addGlobal!(m,:x); #Add a global variable to the Agent
-# Here there may be many more additions
-```
 """
 mutable struct Agent
     

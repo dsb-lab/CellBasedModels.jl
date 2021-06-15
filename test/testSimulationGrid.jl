@@ -4,7 +4,7 @@
     @test hasmethod(AgentBasedModels.arguments_!,(SimulationGrid,Agent,AgentBasedModels.Program_,String))
     @test hasmethod(AgentBasedModels.loop_,(SimulationFree,Agent,Expr,String))
 
-    m = @createAgent cell [x,y,z,w]::Local;
+    m = @agent cell [x,y,z,w]::Local;
     @test_throws ErrorException SimulationGrid(m,[(:x,2.,1.)],1)
     @test_throws ErrorException SimulationGrid(m,[(:g,1.,2.)],1)
     @test_throws ErrorException SimulationGrid(m,[(:x,1.,2.),(:x,1.,2.)],1)
@@ -23,7 +23,7 @@
 
     @test_nowarn AgentBasedModels.arguments_!(nn,m,AgentBasedModels.Program_(),"cpu")
 
-    m = @createAgent cell [x]::Local   
+    m = @agent cell [x]::Local   
     nn = SimulationGrid(m,[(:x,0.,10.)],.5)
     p = AgentBasedModels.Program_()
     AgentBasedModels.arguments_!(nn,m,p,"cpu")
@@ -53,7 +53,7 @@
     @test nnGCCum_ == cumsum(0:11)
     @test nnGCAux_ == nnGC_.+1
 
-    m = @createAgent cell [x,y,z]::Local   
+    m = @agent cell [x,y,z]::Local   
     nn = SimulationGrid(m,[(:x,0.,1.),(:y,0.,2.),(:z,0.,3.)],.5)
     p = AgentBasedModels.Program_()
     AgentBasedModels.arguments_!(nn,m,p,"cpu")
@@ -86,9 +86,9 @@
 
     if CUDA.has_cuda()
 
-        @test_nowarn AgentBasedModels.arguments_!(nn,@createAgent(cell),AgentBasedModels.Program_(),"gpu")
+        @test_nowarn AgentBasedModels.arguments_!(nn,@agent(cell),AgentBasedModels.Program_(),"gpu")
 
-        m = @createAgent cell [x]::Local   
+        m = @agent cell [x]::Local   
         nn = SimulationGrid(m,[(:x,0.,10.)],.5)
         p = AgentBasedModels.Program_()
         AgentBasedModels.arguments_!(nn,m,p,"gpu")
@@ -120,7 +120,7 @@
         @test Array(nnGCCum_) == cumsum(0:11)
         @test Array(nnGCAux_) == Array(nnGC_.+1)
 
-        m = @createAgent cell [x,y,z]::Local   
+        m = @agent cell [x,y,z]::Local   
         nn = SimulationGrid(m,[(:x,0.,1.),(:y,0.,2.),(:z,0.,3.)],.5)
         p = AgentBasedModels.Program_()
         AgentBasedModels.arguments_!(nn,m,p,"gpu")

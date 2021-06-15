@@ -1,6 +1,6 @@
 @testset "auxiliar" begin
 
-    m = @createAgent cell [x,y]::Local
+    m = @agent cell [x,y]::Local
     @test_nowarn AgentBasedModels.checkIsDeclared_(m,:x) 
     @test_nowarn AgentBasedModels.checkIsDeclared_(m,[:x]) 
     @test_nowarn AgentBasedModels.checkIsDeclared_(m,[:x,:y]) 
@@ -8,13 +8,13 @@
     @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,[:g]) 
     @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,[:x,:g]) 
 
-    m = @createAgent(
+    m = @agent(
         cell,
         l::Local,
         v::Variable,
         i::Interaction,
         g::Global,
-        h::GlobalArray=[2,3],
+        h::GlobalArray,
         id::Identity
     )
     @test AgentBasedModels.vectorize_(m,:(l = 1)) == :(loc_[ic1_,1]=1)
@@ -33,13 +33,13 @@
     @test AgentBasedModels.vectorize_(m,:(id₂ = 1)) == :(id_[nnic2_,1]=1)
     
     @test begin
-        m = @createAgent(
+        m = @agent(
             cell,
             l::Local,
             v::Variable,
             i::Interaction,
             g::Global,
-            h::GlobalArray=[2,3],
+            h::GlobalArray,
             id::Identity
         )
             

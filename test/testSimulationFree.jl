@@ -3,11 +3,11 @@
     @test hasmethod(AgentBasedModels.arguments_!,(SimulationFree,Agent,AgentBasedModels.Program_,String))
     @test hasmethod(AgentBasedModels.loop_,(SimulationFree,Agent,Expr,String))
 
-    @test AgentBasedModels.arguments_!(SimulationFree(),@createAgent(cell),AgentBasedModels.Program_(),"gpu") == Nothing
+    @test AgentBasedModels.arguments_!(SimulationFree(),@agent(cell),AgentBasedModels.Program_(),"gpu") == Nothing
     
     @test begin     
         code = :(global g += v[nnic2_])
-        loop = AgentBasedModels.loop_(SimulationFree(),@createAgent(cell),code,"cpu")
+        loop = AgentBasedModels.loop_(SimulationFree(),@agent(cell),code,"cpu")
         eval(
             quote
                 i2_ = 0

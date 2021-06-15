@@ -6,7 +6,9 @@ Basic Macro to create an instance of Agent. It generates an Agent type with the 
 The only compulsory input is the name of the agent.
  - **name**: Name of agent.    
  
-Then you can add an arbitrary set of additional parameters and rules for the agent. Valid types so far are:
+Then you can add an arbitrary set of additional parameters and rules for the agent. 
+    
+# Parameter Types
 
  - **:Identity**
 Parameter with Int signature that can be used to identify individually each agent in the model, its an agent type...
@@ -47,6 +49,8 @@ Has to be declared as:
 
     globalArrayParameter::GlobalArray = [dims1,dims2,...]
     [globalArrayParameter1,globalArrayParameter2,...]::GlobalArray = [dims1,dims2,...]
+
+# Update rules
 
  - **:Interaction**
 Parameter with float signature describing pairwise interactions between neighbours.
@@ -104,6 +108,28 @@ Has to be declared as:
             ... code including the update rules ...
         end
 
+# Custom made blocks of code
+
+Any function which returns a piece of code with the structue as the above declared is valid for declaration. This allows repetitive algorithms to be reused and allow a fluent customization.
+
+```
+function localWithIncrements(variable,step)
+    return quote
+        \$variable::Local
+
+        UpdateLocal = \$variable += \$step
+    end
+end
+
+@agent(
+    Agent, #Name of the agent
+
+    l1::Local,
+
+    localWithIncrement(:b)
+)
+
+```
 """
 macro agent(name, varargs...) 
 
@@ -184,13 +210,41 @@ macro agent(name, varargs...)
     return m
 end
 
-function add(varags::Agent...)
-    main = deepcopy(varags[1])
+"""
+    function add(name,varags...)
+
+Function that takes the arguments of the different agents and add them in a single agent if no overlapping between parameters exist. 
+Useful when combining different blocks of code or models that are tested separately.
+
+Example
+```
+    local = @agent(
+        mechanics,
+
+        l1::Local,
+
+        UpdateLocal = l1 += 1
+    )
+
+    global = @agent(
+        mechanics,
+
+        g1::Global,
+
+        Global = g1 += 1
+    )
+
+    jointModel = add(:JointModelName,local,global)
+
+```
+"""
+function add(name::Symbol,varags::Agent...)
+    main = @agent name
 
     if length(varags) == 1
         nothing
     else
-        for i in varags[2:end]
+        for i in varags
             for j in keys(i.declaredSymbols)
                 checkDeclared_(main,i.declaredSymbols[j])
                 append!(main.declaredSymbols[j],i.declaredSymbols[j])

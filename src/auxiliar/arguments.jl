@@ -24,7 +24,7 @@ function agentArguments_(abm::Agent)
     end
     if length(abm.declaredSymbols["GlobalArray"])>0
         for i in abm.declaredSymbols["GlobalArray"]
-            push!(l,i[1])
+            push!(l,i)
         end
     end
     
