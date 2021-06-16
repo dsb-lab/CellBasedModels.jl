@@ -158,7 +158,7 @@ function arguments_!(abm::Agent, a::SimulationGrid, data::Program_, platform::St
                 quote
                     $positionGrid
                     $positionArray
-                    CUDA.atomic_add!(pointer(nnGC_,nnVId_[ic1_]),1)
+                    CUDA.atomic_add!(CUDA.pointer(nnGC_,nnVId_[ic1_]),Int32(1))
                 end
 
             ),
@@ -175,7 +175,7 @@ function arguments_!(abm::Agent, a::SimulationGrid, data::Program_, platform::St
                     else
                         posInit_ = nnGCCum_[id_-1]
                     end
-                    posCell_ = CUDA.atomic_add!(pointer(nnGCAux_,id_),1)
+                    posCell_ = CUDA.atomic_add!(CUDA.pointer(nnGCAux_,id_),Int32(1))
                     nnId_[posInit_+posCell_] = ic1_
                 end
   
