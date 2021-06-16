@@ -1,7 +1,5 @@
 module AgentBasedModels
 
-using Base: Symbol
-using CUDA: Block, MacroTools
 using Random
 using Distributions
 using CUDA
