@@ -16,3 +16,14 @@ function clean(ex::Expr)
     end
     return ex
 end
+
+function clean2(ex::Expr)
+    filter!(e->typeof(e)!=LineNumberNode,ex.args)
+    for i in ex.args
+        if typeof(i) == Expr
+            clean2(i)
+        end
+    end
+    return ex
+end
+

@@ -127,19 +127,16 @@ function addUpdateGlobal_!(abm::Agent,space::SimulationSpace,p::Program_,platfor
 
     if !emptyquote_(abm.declaredUpdates["UpdateGlobal"])
 
-        #Check updated in the wrong place
-        updated = updatedParameters_(abm.declaredUpdates["UpdateGlobal"])
-        for i in updated
-            place = whereDeclared_(abm,i)
-            if place == "Global" || place == "GlobalArray" || place === nothing
-                nothing
-            else
-                error(i, " has been updated in Global but was declared as ", place, " in code:\n", abm.declaredUpdates["UpdateGlobal"])
-            end
-        end
+        #Check updated
+        up = symbols_(abm,abm.declaredUpdates["UpdateGlobal"])
+        up = up[Bool.((up[:,"placeDeclaration"].==:Model) .* Bool.((up[:,"assigned"].==true) .+ (up[:,"updated"].==true))),:]
+        append!(p.update,up.Symbol)
 
-        #Create function
-        f = simpleFirstLoopWrapInFunction_(platform,:globStep_,abm.declaredUpdates["UpdateGlobal"])
+        #Adapt random parameters
+        code = randomAdapt_(p,abm.declaredUpdates["UpdateGlobal"],platform)
+
+        #Construct functions
+        f = simpleFirstLoopWrapInFunction_(platform,:globStep_,code)
         f = vectorize_(abm,f,update="Copy")
 
         push!(p.declareF.args,
@@ -161,6 +158,13 @@ Generate the functions related with Local Updates.
 function addUpdateLocal_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
 
     if !emptyquote_(abm.declaredUpdates["UpdateLocal"])
+
+        #Check updated
+        up = symbols_(abm,abm.declaredUpdates["UpdateLocal"])
+        up = up[Bool.((up[:,"placeDeclaration"].==:Model) .* Bool.((up[:,"assigned"].==true) .+ (up[:,"updated"].==true))),:]
+        append!(p.update,up.Symbol)
+
+        #Construct functions
         f = simpleFirstLoopWrapInFunction_(platform,:locStep_,abm.declaredUpdates["UpdateLocal"])
         f = vectorize_(abm,f,update="Copy")
 
@@ -170,6 +174,7 @@ function addUpdateLocal_!(abm::Agent,space::SimulationSpace,p::Program_,platform
         push!(p.execInloop.args,
                 :(locStep_(ARGS_)) 
             )
+
     end
 
     return nothing
@@ -183,6 +188,13 @@ Generate the functions related with Local Interaction Updates.
 function addUpdateLocalInteraction_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
 
     if !emptyquote_(abm.declaredUpdates["UpdateLocalInteraction"])
+
+        #Check updated
+        up = symbols_(abm,abm.declaredUpdates["UpdateLocalInteraction"])
+        up = up[Bool.((up[:,"placeDeclaration"].==:Model) .* Bool.((up[:,"assigned"].==true) .+ (up[:,"updated"].==true))),:]
+        append!(p.update,up.Symbol)
+
+        #Construct functions
         f = loop_(abm,space,abm.declaredUpdates["UpdateLocalInteraction"],platform)
         f = vectorize_(abm,f)
         f = wrapInFunction_(:locInterStep_,f)
@@ -193,6 +205,7 @@ function addUpdateLocalInteraction_!(abm::Agent,space::SimulationSpace,p::Progra
         push!(p.execInloop.args,
                 :(locInterStep_(ARGS_))
             )
+
     end
 
     return nothing
@@ -206,6 +219,13 @@ Generate the functions related with Local Interaction Updates.
 function addUpdateInteraction_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
 
     if !emptyquote_(abm.declaredUpdates["UpdateInteraction"])
+
+        #Check updated
+        up = symbols_(abm,abm.declaredUpdates["UpdateInteraction"])
+        up = up[Bool.((up[:,"placeDeclaration"].==:Model) .* Bool.((up[:,"assigned"].==true) .+ (up[:,"updated"].==true))),:]
+        append!(p.update,up.Symbol)
+
+        #Construct functions
         f = loop_(abm,space,abm.declaredUpdates["UpdateInteraction"],platform)
         f = vectorize_(abm,f)
         f = wrapInFunction_(:locInterStep_,f)
@@ -218,3 +238,29 @@ function addUpdateInteraction_!(abm::Agent,space::SimulationSpace,p::Program_,pl
     return nothing
 end
 
+"""
+    function addUpdate_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
+
+Generate the functions to update all the modified values.
+"""
+function addUpdate_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
+
+    unique!(p.update)
+
+    up = quote end
+    for i in p.update
+        dec = whereDeclared_(abm,i)[2]
+        if  !(dec in [:GlobalArray,:Interaction])
+            push!(up.args,:($i=$i))
+        end
+    end
+    
+    #Construct functions
+    f = simpleFirstLoopWrapInFunction_(platform,:update_,up)
+    f = vectorize_(abm,f,base="Copy")
+
+    push!(p.declareF.args,
+        f)
+
+    return nothing
+end

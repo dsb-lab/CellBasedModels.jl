@@ -136,12 +136,30 @@
     end
 
     @test begin
-        AgentBasedModels.updatedParameters_(
+
+        m = DataFrame(Symbol=Symbol[], updated=Bool[], assigned=Bool[], referenced=Bool[], called=Bool[], placeDeclaration=Symbol[], type=Symbol[])
+        push!(m,(:l,false,true,false,false,:Model,:Local))
+        push!(m,(:g,true,false,true,false,:Model,:GlobalArray))
+        push!(m,(:h₂,true,false,false,false,:Model,:Interaction2))
+        push!(m,(:+,false,false,false,true,:Math,:None))
+        push!(m,(:l₁,false,false,false,false,:Model,:Local1))
+        push!(m,(:g,false,false,false,false,:Model,:GlobalArray))
+        push!(m,(:u,false,false,false,true,:NotDefined,:None))
+
+        # println(m)
+
+        abm = @agent cell l::Local g::GlobalArray h::Interaction
+
+        m2 = AgentBasedModels.symbols_(abm,
             quote
                 l = 5
                 g[1,2] -= 7
-                h += l+g+u
+                h₂ += l₁+g+u(1)
             end
-        ) == [:l,:g,:h]
+        )
+        
+        # println(m2)
+
+        m == m2
     end
 end

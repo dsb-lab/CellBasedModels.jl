@@ -1,12 +1,13 @@
 module AgentBasedModels
 
 using Base: Symbol
-using CUDA: Block
+using CUDA: Block, MacroTools
 using Random
 using Distributions
 using CUDA
 using DataFrames
 using CSV
+using MacroTools
 #using WriteVTK
 
 export Agent, @agent, add
@@ -39,7 +40,11 @@ include("./model/model.jl")
 include("./model/agentCode.jl")
 include("./model/compile.jl")
 
-#Auxiliar variables
+#Random
+include("./random/distribution.jl")
+include("./random/randomAdapt.jl")
+
+#Auxiliar function
 include("./auxiliar/checkDeclared.jl")
 include("./auxiliar/clean.jl")
 include("./auxiliar/substitution.jl")

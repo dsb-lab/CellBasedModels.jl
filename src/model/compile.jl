@@ -16,7 +16,7 @@ function compile(abm::Union{Agent,Array{Agent}},space::SimulationSpace=Simulatio
     addUpdateGlobal_!(abm,space,p,platform)
     addUpdateLocal_!(abm,space,p,platform)
     addUpdateLocalInteraction_!(abm,space,p,platform)
-    #addUpdate_!(abm,space,p,platform)
+    addUpdate_!(abm,space,p,platform)
     
     #Saving
     #save_!(abm,space,platform=platform)
@@ -42,12 +42,13 @@ function compile(abm::Union{Agent,Array{Agent}},space::SimulationSpace=Simulatio
         end
     end
     program = subsArguments_(program,:ARGS_,p.args)
+    program = MacroTools.gensym_ids(program)
     if platform == "gpu"
         program = cudaAdapt_(program)
     end
     
     if debug == true
-        println(clean(copy(program)))
+        println(prettify(program))
     end
 
     if user_ == true

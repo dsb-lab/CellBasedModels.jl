@@ -9,12 +9,6 @@ CurrentModule = AgentBasedModels
 Program_
 ```
 
-## Code cleaning
-
-```@docs
-clean
-```
-
 ## Declaration
 This is a compendium of handful functions that are used all the time during the adaptation of the rest of the models.
 ```@docs
