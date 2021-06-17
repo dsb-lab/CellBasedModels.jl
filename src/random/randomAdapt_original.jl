@@ -11,11 +11,17 @@ function randomAdapt_(p::Program_, code::Expr, platform::String)
                 error(i," random distribution valid for cpu but still not implemented in gpu.")
             else
 
+                start = Meta.parse(split(string(MacroTools.gensym()),"#")[end])
                 s = Meta.parse(string(i,"_"))
-                if i == :Normal
-                    code = MacroTools.postwalk(x -> @capture(x,$i(v__)) ? :($s(randn(),$(v...))) : x, code)
-                elseif i == :Uniform
-                    code = MacroTools.postwalk(x -> @capture(x,$i(v__)) ? :($s(rand(),$(v...))) : x, code)
+                code = MacroTools.postwalk(x -> @capture(x,$i(v__)) ? :($s($(MacroTools.gensym(string("$i")))[ic1_],$(v...))) : x, code)
+                stop = Meta.parse(split(string(MacroTools.gensym()),"#")[end])
+
+                for j in start+1:stop-1
+                    name = Symbol(string("##",i,"#",j))
+                    println(name)
+                    push!(p.declareVar.args,:($name = zeros(nMax)))
+                    push!(p.execInit.args,:(CUDA.rand($name)))
+                    push!(p.execInloop.args,:(CUDA.rand($name)))
                 end
 
             end
