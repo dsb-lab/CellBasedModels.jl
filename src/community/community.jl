@@ -122,44 +122,44 @@ function Community(abm::Model; N::Int=1, t::AbstractFloat=0.)
     return Community(t,N,declaredSymb,var,inter,loc,locInter,glob,globArray,ids)
 end
 
-# """
-# Structure that basically stores an array of Coomunities at different time points.
+"""
+Structure that basically stores an array of Coomunities at different time points.
 
-# # Elements
+# Elements
 
-#  - **com** (Array{Community}) Array where the communities are stored
+ - **com** (Array{Community}) Array where the communities are stored
 
-# # Constructors
+# Constructors
 
-#     function CommunityInTime()
+    function CommunityInTime()
 
-# Instantiates an empty CommunityInTime folder.
+Instantiates an empty CommunityInTime folder.
 
-# # Base extended methods
+# Base extended methods
 
-#     function Base.push!(a::CommunityInTime,c::Community)
+    function Base.push!(a::CommunityInTime,c::Community)
 
-# Adds one Community element to the CommunityInTime object.
+Adds one Community element to the CommunityInTime object.
 
-#     function Base.length(a::CommunityInTime)
+    function Base.length(a::CommunityInTime)
 
-# Returns the number of time points of the Community in time.
+Returns the number of time points of the Community in time.
 
-#     function Base.getindex(a::CommunityInTime,var::Int)
-#     function Base.firstindex(a::CommunityInTime,var::Int)
-#     function Base.lastindex(a::CommunityInTime,var::Int)
+    function Base.getindex(a::CommunityInTime,var::Int)
+    function Base.firstindex(a::CommunityInTime,var::Int)
+    function Base.lastindex(a::CommunityInTime,var::Int)
 
-# Returns the Community of the corresponding entry.
+Returns the Community of the corresponding entry.
 
-#     function Base.getindex(a::CommunityInTime,var::Symbol)
+    function Base.getindex(a::CommunityInTime,var::Symbol)
 
-# Returns a 2D array with rows being the agents and the rows the timepoints. If the agent did not existed for certain time point, the extry is filled with a NaN value.
-# """
-# mutable struct CommunityInTime
-#     com::Array{Community,1}
+Returns a 2D array with rows being the agents and the rows the timepoints. If the agent did not existed for certain time point, the extry is filled with a NaN value.
+"""
+mutable struct CommunityInTime
+    com::Array{Community,1}
 
-#     function CommunityInTime()
+    function CommunityInTime()
         
-#         return new(Community[])
-#     end
-# end
+        return new(Community[])
+    end
+end
