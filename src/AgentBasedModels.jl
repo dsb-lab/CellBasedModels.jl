@@ -1,5 +1,6 @@
 module AgentBasedModels
 
+using Base: add_with_overflow
 using Random
 using Distributions
 using CUDA
@@ -44,7 +45,7 @@ include("./random/randomAdapt.jl")
 
 #Random
 include("./integrator/euler.jl")
-#include("./integrator/heun.jl")
+include("./integrator/heun.jl")
 include("./integrator/integrators.jl")
 
 #Auxiliar function

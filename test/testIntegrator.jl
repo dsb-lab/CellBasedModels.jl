@@ -7,12 +7,12 @@
             [x,y]::Variable,
             
             Equation = 
-            quote
+            begin
                 ẋ = 34*dt 
                 ẏ = r*dt + 4*dW
-            end,
+            end
         )
-        compile(m, platform="gpu",debug=true)
+        compile(m, integrator="Euler", platform="gpu",debug=true)
     end
 
 end

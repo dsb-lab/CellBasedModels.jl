@@ -13,18 +13,27 @@ function addIntegratorEuler_!(abm::Agent, space::SimulationFree, p::Program_, pl
         
         code = abm.declaredUpdates["Equation"]
 
-        code = MacroTools.postwalk(x -> @capture(x,dW) ? :(randn()) : x, code)
-
         for (i,j) in enumerate(abm.declaredSymbols["Variable"])
             s = Meta.parse(string(j,"̇"))
             code = MacroTools.postwalk(x -> @capture(x,$s=v__) ? :($j = $j + $(v...)) : x, code)
             vectorize_(abm,code,update="Copy")
         end
 
-        f = simpleFirstLoopWrapInFunction_(platform,:integrationStep_,code)
+        f = simpleFirstLoopWrapInFunction_(platform,:integrationStep_!,code)
+
+        if MacroTools.inexpr(code,:dW)
+            push!(p.declareVar.args,:(dW = 0.)) #Declare variable for random initialisation
+            push!(p.args,:dW)
+            addRandInitialisation = [:(dW = rand()*dt)]
+        end
+        push!(p.execInloop.args,
+            :(begin
+                $(addRandInitialisation...)
+                integrationStep_!(ARGS_)
+            end)
+        )
 
         push!(p.declareF.args,f)
-        push!(p.execInloop.args,:(integrationStep_(ARGS_)))
 
     end
         

@@ -13,7 +13,7 @@
             
             Equation = dv = 34*dt ,
             UpdateLocal = l += 1,
-            UpdateGlobal = quote
+            UpdateGlobal = begin
                 g += Normal(1,2) + Normal(1,2) + Uniform(1,2) 
                 ga[3,2] += 3
             end,

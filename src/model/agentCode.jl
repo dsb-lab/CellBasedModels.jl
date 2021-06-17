@@ -186,11 +186,6 @@ function addUpdateLocalInteraction_!(abm::Agent,space::SimulationSpace,p::Progra
 
     if !emptyquote_(abm.declaredUpdates["UpdateLocalInteraction"])
 
-        #Check updated
-        up = symbols_(abm,abm.declaredUpdates["UpdateLocalInteraction"])
-        up = up[Bool.((up[:,"placeDeclaration"].==:Model) .* Bool.((up[:,"assigned"].==true) .+ (up[:,"updated"].==true))),:]
-        append!(p.update,up.Symbol)
-
         #Construct functions
         f = loop_(abm,space,abm.declaredUpdates["UpdateLocalInteraction"],platform)
         f = vectorize_(abm,f)
@@ -217,18 +212,11 @@ function addUpdateInteraction_!(abm::Agent,space::SimulationSpace,p::Program_,pl
 
     if !emptyquote_(abm.declaredUpdates["UpdateInteraction"])
 
-        #Check updated
-        up = symbols_(abm,abm.declaredUpdates["UpdateInteraction"])
-        up = up[Bool.((up[:,"placeDeclaration"].==:Model) .* Bool.((up[:,"assigned"].==true) .+ (up[:,"updated"].==true))),:]
-        append!(p.update,up.Symbol)
-
         #Construct functions
         f = loop_(abm,space,abm.declaredUpdates["UpdateInteraction"],platform)
         f = vectorize_(abm,f)
         f = wrapInFunction_(:locInterStep_,f)
-
-        push!(p.declareF.args,
-            f)
+        push!(p.declareF.args,f)
 
     end
 
