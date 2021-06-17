@@ -1,3 +1,8 @@
+"""
+    function randomAdapt_(p, code, platform)
+
+Function that adapt the random function invocations of the code to be executable in the different platforms.
+"""
 function randomAdapt_(p::Program_, code::Expr, platform::String)
 
     if platform == "cpu"
@@ -11,7 +16,7 @@ function randomAdapt_(p::Program_, code::Expr, platform::String)
                 error(i," random distribution valid for cpu but still not implemented in gpu.")
             else
 
-                s = Meta.parse(string(i,"_"))
+                s = Meta.parse(string(i,"CUDA"))
                 if i == :Normal
                     code = MacroTools.postwalk(x -> @capture(x,$i(v__)) ? :($s(randn(),$(v...))) : x, code)
                 elseif i == :Uniform

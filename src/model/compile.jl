@@ -3,7 +3,7 @@
 
 Function that takes an Agent and a simulation space and constructs the function in charge of the evolutions of the model.
 """
-function compile(abm::Union{Agent,Array{Agent}},space::SimulationSpace=SimulationFree();platform="cpu", integrator::String = "euler", save::String = "RAM", debug = false, user_=true)
+function compile(abm::Union{Agent,Array{Agent}},space::SimulationSpace=SimulationFree();platform="cpu", integrator::String = "Euler", save::String = "RAM", debug = false, user_=true)
 
     p = Program_()
 
@@ -12,7 +12,7 @@ function compile(abm::Union{Agent,Array{Agent}},space::SimulationSpace=Simulatio
     
     #Declare all the agent properties related functions, arguments, code...
     addParameters_!(abm,space,p,platform)
-    #addEquations_!(abm,space,p,platform)
+    addIntegrator_![integrator](abm,space,p,platform)
     addUpdateGlobal_!(abm,space,p,platform)
     addUpdateLocal_!(abm,space,p,platform)
     addUpdateLocalInteraction_!(abm,space,p,platform)
@@ -42,6 +42,7 @@ function compile(abm::Union{Agent,Array{Agent}},space::SimulationSpace=Simulatio
         end
     end
     program = subsArguments_(program,:ARGS_,p.args)
+    program = randomAdapt_(p,program,platform)
     program = MacroTools.gensym_ids(program)
     if platform == "gpu"
         program = cudaAdapt_(program)

@@ -42,6 +42,11 @@ include("./model/compile.jl")
 include("./random/distribution.jl")
 include("./random/randomAdapt.jl")
 
+#Random
+include("./integrator/euler.jl")
+#include("./integrator/heun.jl")
+include("./integrator/integrators.jl")
+
 #Auxiliar function
 include("./auxiliar/checkDeclared.jl")
 include("./auxiliar/clean.jl")

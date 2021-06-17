@@ -132,9 +132,6 @@ function addUpdateGlobal_!(abm::Agent,space::SimulationSpace,p::Program_,platfor
         up = up[Bool.((up[:,"placeDeclaration"].==:Model) .* Bool.((up[:,"assigned"].==true) .+ (up[:,"updated"].==true))),:]
         append!(p.update,up.Symbol)
 
-        #Adapt random parameters
-        code = randomAdapt_(p,abm.declaredUpdates["UpdateGlobal"],platform)
-
         #Construct functions
         f = simpleFirstLoopWrapInFunction_(platform,:globStep_,code)
         f = vectorize_(abm,f,update="Copy")

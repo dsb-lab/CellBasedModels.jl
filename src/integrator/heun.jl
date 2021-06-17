@@ -1,4 +1,45 @@
 """
+    function integratorHeun_(abm, space, p, platform)
+
+Adapter for the Heun integration step method as described in [Stochastic Improved Euler](https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_method_(SDE)) integrator in Îto prescription.
+
+```math
+K₁ = f(x(t),t)*Δt + g(x(t),t)(ΔW-S Δt^{1/2} )
+```
+```math
+K₂ = f(x(t)+K₁,t+Δt)*Δt + g(x(t)+K₁,t+Δt)(ΔW+SΔt^{1/2} )
+```
+```math
+x(t+Δt) = x(t) + (K₁+K₂)/2
+```
+where ``S`` is a random variable chosen to be ±1 with probability 1/2 and
+``ΔW`` is a Wiener process with step proportional to ``Δt^{1/2}``.
+"""
+function addIntegratorHeun_!(abm::Agent, space::SimulationFree, p::Program_, platform::String)
+    
+    if !emptyquote_(abm.declaredUpdates["Equation"])
+        
+        code = abm.declaredUpdates["Equation"]
+
+        code = MacroTools.postwalk(x -> @capture($x,dW) ? randn() : x, code)
+
+        for (i,j) in enumerate(abm.declaredSymbols("Variable"))
+            s = Meta.parse(string(i,"̇ "))
+            code = MacroTools.postwalk(x -> @capture($x,$s) ? $i : x, code)
+            vectorize_(abm,code,update="Copy")
+        end
+
+        f = simpleFirstLoopWrapInFunction_(platform,:integrationStep_,code)
+
+        push!(p.declareF.args,f)
+        push!(p.execInloop.args,:(integrationStep_(ARGS_)))
+
+    end
+        
+    return
+end
+
+"""
 Adaptation to the [Stochastic Improved Euler](https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_method_(SDE)) integrator in Îto prescription.
 
 ```math

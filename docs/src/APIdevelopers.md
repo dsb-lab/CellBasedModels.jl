@@ -29,6 +29,7 @@ simpleFirstLoopWrapInFunction_
 subs_
 subsArguments_
 vectorize_
+randomAdapt_
 ```
 
 ## Cuda specific

@@ -10,6 +10,7 @@ using MacroTools
 #include("testAuxiliar.jl")
 #include("testSimulationFree.jl")
 #include("testSimulationGrid.jl")
-include("testRandom.jl")
+#include("testRandom.jl")
+include("testIntegrator.jl")
 #include("testModel.jl")
 
