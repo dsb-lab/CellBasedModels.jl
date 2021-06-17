@@ -1,3 +1,26 @@
+@testset "free simulation" begin
+
+    @test hasmethod(AgentBasedModels.arguments_!,(Agent,SimulationFree,AgentBasedModels.Program_,String))
+    @test hasmethod(AgentBasedModels.loop_,(Agent,SimulationFree,Expr,String))
+
+    @test AgentBasedModels.arguments_!(@agent(cell),SimulationFree(),AgentBasedModels.Program_(),"gpu") == Nothing
+    
+    @test begin     
+        code = :(global g += v[nnic2_])
+        loop = AgentBasedModels.loop_(@agent(cell),SimulationFree(),code,"cpu")
+        eval(
+            quote
+                i2_ = 0
+                N = 40
+                v = ones(Int,N)
+                g = 0
+                $loop
+            end
+            )
+        g == 40*40
+    end
+end
+
 @testset "grid simulation" begin
 
     @test hasmethod(SimulationGrid,(Agent, Array{<:Union{<:Tuple{Symbol,<:Real,<:Real},<:FlatBoundary},1}, Union{<:Real,Array{<:Real,1}}))
@@ -41,7 +64,7 @@
                 end
             end
             loc_=reshape(loc_,(:,1))
-            N = size(loc_)[1]; nMax = N; t = 0;
+            N = size(loc_)[1]; nMax = N; t = 0; dt = 0;
             $(p.declareVar)
             $(p.declareF)
             computeNN_($(p.args...))
@@ -71,7 +94,7 @@
 
             N = size(loc_)[1]
             nMax = N
-            t = 0
+            t = 0; dt = 0.
             $(p.declareVar)
             $(p.declareF)
             computeNN_($(p.args...))
@@ -153,7 +176,5 @@
         @test Array(nnGCAux_) == 2*ones(N)
 
     end
-
-
 
 end

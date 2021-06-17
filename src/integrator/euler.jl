@@ -13,7 +13,7 @@ function addIntegratorEuler_!(abm::Agent, space::SimulationFree, p::Program_, pl
         
         code = abm.declaredUpdates["Equation"]
 
-        for (i,j) in enumerate(abm.declaredSymbols["Variable"])
+        for (i,j) in enumerate(abm.declaredSymbols["Local"])
             s = Meta.parse(string(j,"̇"))
             code = MacroTools.postwalk(x -> @capture(x,$s=v__) ? :($j = $j + $(v...)) : x, code)
             vectorize_(abm,code,update="Copy")

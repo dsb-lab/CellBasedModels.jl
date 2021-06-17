@@ -14,10 +14,8 @@
         
         id::Identity,
         l::Local,
-        v::Variable,
         g::Global,
         ga::GlobalArray,
-        i::Interaction,
         
         Equation = dv = 34*dt ,
         UpdateLocal = l += 1,
@@ -31,10 +29,8 @@
 
         id::Identity,
         l::Local,
-        v::Variable,
         g::Global,
         ga::GlobalArray,
-        i::Interaction,
 
         Equation = dv = 34*dt ,
         UpdateLocal = l += 1,
@@ -54,10 +50,8 @@
 
         [id,id2]::Identity,
         [l,l2]::Local,
-        [v,v2]::Variable,
         [g,g2]::Global,
         [ga,ga2]::GlobalArray,
-        [i,i2]::Interaction,
 
         Equation = dv = 34*dt ,
         UpdateLocal = l += 1,
@@ -71,10 +65,8 @@
 
         [id,id2]::Identity,
         [l,l2]::Local,
-        [v,v2]::Variable,
         [g,g2]::Global,
         [ga,ga2]::GlobalArray,
-        [i,i2]::Interaction,
 
         Equation = dv = 34*dt ,
         UpdateLocal = l += 1,

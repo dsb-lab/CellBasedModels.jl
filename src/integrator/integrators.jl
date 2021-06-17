@@ -15,8 +15,8 @@ function updateVariables_!(abm::Agent,p::Program_)
     up = symbols_(abm,abm.declaredUpdates["Equation"])
     up = up[(up[:,"assigned"].==true),:]
 
-    var = [Meta.parse(string(i,"̇")) for i in abm.declaredSymbols["Variable"]]
-    for (i,j) in zip(var,abm.declaredSymbols["Variable"])
+    var = [Meta.parse(string(i,"̇")) for i in abm.declaredSymbols["Local"]]
+    for (i,j) in zip(var,abm.declaredSymbols["Local"])
         if i in up.Symbol
             push!(p.update,j)
         end

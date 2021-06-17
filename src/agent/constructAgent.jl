@@ -10,14 +10,6 @@ Then you can add an arbitrary set of additional parameters and rules for the age
     
 # Parameter Types
 
- - **:Identity**
-Parameter with Int signature that can be used to identify individually each agent in the model, its an agent type...
-It is declared individually for each agent so it can be updated with UpdateLocal types.
-Has to be declared as:
-
-    idName::Identity
-    [idName1,idName2,idName3,...]::Identity
-
  - **:Local**
 Local parameter with Float signature. It can represent the individual mass of each agent, its radius...
 It is declared individually for each agent so it can be updated with UpdateLocal types.
@@ -26,13 +18,13 @@ Has to be declared as:
     localParameter::Local
     [localParameter1,localParameter2,localParameter3,...]::Local
 
- - **:Variable**
-Variable with Float signature of the dynamical system.
-It is declared individually for each agent and they are evolved by Equation types.
+ - **:Identity**
+Parameter with Int signature that can be used to identify individually each agent in the model, its an agent type...
+It is declared individually for each agent so it can be updated with UpdateLocal types.
 Has to be declared as:
 
-    variable::Variable
-    [variable1,variable2,variable3,...]::variable
+    idName::Identity
+    [idName1,idName2,idName3,...]::Identity
 
  - **:Global**
 Global parameter with Float signature. It can represent the temperature felt by all the agents...

@@ -14,8 +14,6 @@
     m = @agent(
         cell,
         l::Local,
-        v::Variable,
-        i::Interaction,
         g::Global,
         h::GlobalArray,
         id::Identity
@@ -23,12 +21,6 @@
     @test AgentBasedModels.vectorize_(m,:(l = 1)) == :(loc_[ic1_,1]=1)
     @test AgentBasedModels.vectorize_(m,:(l₁ = 1)) == :(loc_[ic1_,1]=1)
     @test AgentBasedModels.vectorize_(m,:(l₂ = 1)) == :(loc_[nnic2_,1]=1)
-    @test AgentBasedModels.vectorize_(m,:(v = 1)) == :(var_[ic1_,1]=1)
-    @test AgentBasedModels.vectorize_(m,:(v₁ = 1)) == :(var_[ic1_,1]=1)
-    @test AgentBasedModels.vectorize_(m,:(v₂ = 1)) == :(var_[nnic2_,1]=1)
-    @test AgentBasedModels.vectorize_(m,:(i = 1)) == :(inter_[ic1_,1]=1)
-    @test AgentBasedModels.vectorize_(m,:(i₁ = 1)) == :(inter_[ic1_,1]=1)
-    @test AgentBasedModels.vectorize_(m,:(i₂ = 1)) == :(inter_[nnic2_,1]=1)
     @test AgentBasedModels.vectorize_(m,:(g = 1)) == :(glob_[1]=1)
     @test AgentBasedModels.vectorize_(m,:(h[1,2] = 1)) == :(h[1,2]=1)
     @test AgentBasedModels.vectorize_(m,:(id = 1)) == :(id_[ic1_,1]=1)
@@ -38,12 +30,6 @@
     @test AgentBasedModels.vectorize_(m,:(l = l),base="2",update="1") == :(loc1_[ic1_,1]=loc2_[ic1_,1])
     @test AgentBasedModels.vectorize_(m,:(l₁ = l₁),base="2",update="1") == :(loc1_[ic1_,1]=loc2_[ic1_,1])
     @test AgentBasedModels.vectorize_(m,:(l₂ = l₂),base="2",update="1") == :(loc1_[nnic2_,1]=loc2_[nnic2_,1])
-    @test AgentBasedModels.vectorize_(m,:(v = v),base="2",update="1") == :(var1_[ic1_,1]=var2_[ic1_,1])
-    @test AgentBasedModels.vectorize_(m,:(v₁ = v₁),base="2",update="1") == :(var1_[ic1_,1]=var2_[ic1_,1])
-    @test AgentBasedModels.vectorize_(m,:(v₂ = v₂),base="2",update="1") == :(var1_[nnic2_,1]=var2_[nnic2_,1])
-    @test AgentBasedModels.vectorize_(m,:(i = i),base="2",update="1") == :(inter_[ic1_,1]=inter_[ic1_,1])
-    @test AgentBasedModels.vectorize_(m,:(i₁ = i₁),base="2",update="1") == :(inter_[ic1_,1]=inter_[ic1_,1])
-    @test AgentBasedModels.vectorize_(m,:(i₂ = i₂),base="2",update="1") == :(inter_[nnic2_,1]=inter_[nnic2_,1])
     @test AgentBasedModels.vectorize_(m,:(g = g),base="2",update="1") == :(glob1_[1]=glob2_[1])
     @test AgentBasedModels.vectorize_(m,:(h[1,2] = h[1,2]),base="2",update="1") == :(h[1,2]=h[1,2])
     @test AgentBasedModels.vectorize_(m,:(id = id),base="2",update="1") == :(id1_[ic1_,1]=id2_[ic1_,1])
@@ -54,14 +40,12 @@
         m = @agent(
             cell,
             l::Local,
-            v::Variable,
-            i::Interaction,
             g::Global,
             h::GlobalArray,
             id::Identity
         )
             
-        prod([i in [:t,:N,:var_,:loc_,:glob_,:inter_,:id_,:h] for i in AgentBasedModels.agentArguments_(m)])
+        prod([i in [:t,:N,:loc_,:glob_,:id_,:h] for i in AgentBasedModels.agentArguments_(m)])
     end
 
     @test AgentBasedModels.cudaAdapt_(:(sin(e^2^x))) == :(CUDA.sin(CUDA.pow(e,CUDA.pow(2,x))))
@@ -140,7 +124,7 @@
         m = DataFrame(Symbol=Symbol[], updated=Bool[], assigned=Bool[], referenced=Bool[], called=Bool[], placeDeclaration=Symbol[], type=Symbol[])
         push!(m,(:l,false,true,false,false,:Model,:Local))
         push!(m,(:g,true,false,true,false,:Model,:GlobalArray))
-        push!(m,(:h₂,true,false,false,false,:Model,:Interaction2))
+        push!(m,(:h₂,true,false,false,false,:Model,:Local2))
         push!(m,(:+,false,false,false,true,:Math,:None))
         push!(m,(:l₁,false,false,false,false,:Model,:Local1))
         push!(m,(:g,false,false,false,false,:Model,:GlobalArray))
@@ -148,7 +132,7 @@
 
         # println(m)
 
-        abm = @agent cell l::Local g::GlobalArray h::Interaction
+        abm = @agent cell [l,h]::Local g::GlobalArray
 
         m2 = AgentBasedModels.symbols_(abm,
             quote

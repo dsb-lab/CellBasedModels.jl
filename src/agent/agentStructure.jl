@@ -14,12 +14,11 @@ mutable struct Agent
     function Agent()
         new(
             :NoName,
-            Dict{String,Array{Symbol}}(["Identity"=>Symbol[],"Local"=>Symbol[],
-                                        "Variable"=>Symbol[],"Global"=>Symbol[],
-                                        "GlobalArray"=>Symbol[],"Interaction"=>Symbol[]]),
-            Dict{String,Expr}(["UpdateGlobal"=>quote end,"UpdateLocal"=>quote end,
-                                        "UpdateLocalInteraction"=>quote end,"UpdateInteraction"=>quote end,
-                                        "Equation"=>quote end]),
+            Dict{String,Array{Symbol}}("Local"=>Symbol[],"Identity"=>Symbol[],
+                                        "Global"=>Symbol[],"GlobalArray"=>Symbol[]),
+            Dict{String,Expr}("UpdateGlobal"=>quote end,"UpdateLocal"=>quote end,
+                                "UpdateLocalInteraction"=>quote end,"UpdateInteraction"=>quote end,
+                                "Equation"=>quote end),
             needCompilation)
     end
 end

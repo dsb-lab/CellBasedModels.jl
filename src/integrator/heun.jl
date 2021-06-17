@@ -40,7 +40,7 @@ function addIntegratorHeun_!(abm::Agent, space::SimulationFree, p::Program_, pla
 
         #Create first integration step kernel
         codeK1 = MacroTools.postwalk(x -> @capture(x,dW) ? :(dW-S_*sqrt(dt)) : x, code)
-        for (i,j) in enumerate(abm.declaredSymbols["Variable"])
+        for (i,j) in enumerate(abm.declaredSymbols["Local"])
             s = Meta.parse(string(j,"̇ "))
             codeK1 = MacroTools.postwalk(x -> @capture(x,$s) ? :(K₁_[ic1_,$i]) : x, codeK1)
             #Saves intermediate step vᵢₙₜ in final pos varCopy_
@@ -56,7 +56,7 @@ function addIntegratorHeun_!(abm::Agent, space::SimulationFree, p::Program_, pla
         if !emptyquote_(abm.declaredUpdates["UpdateInteraction"])
 
             k3 = loop_(abm,space,abm.declaredUpdates["UpdateInteraction"],platform)
-            for (i,j) in enumerate(abm.declaredSymbols["Variable"])
+            for (i,j) in enumerate(abm.declaredSymbols["Local"])
                 codeK1 = MacroTools.postwalk(x -> @capture(x,$j) ? :(varCopy_[ic1_,$i]) : x, k3)
             end
             k3 = vectorize_(abm,k3)
@@ -68,7 +68,7 @@ function addIntegratorHeun_!(abm::Agent, space::SimulationFree, p::Program_, pla
         
         #Create second integration step kernel
         codeK2 = MacroTools.postwalk(x -> @capture(x,dW) ? :(dW-S_*sqrt(dt)) : x, code)
-        for (i,j) in enumerate(abm.declaredSymbols["Variable"])
+        for (i,j) in enumerate(abm.declaredSymbols["Local"])
             s = Meta.parse(string(j,"̇ "))
             codeK2 = MacroTools.postwalk(x -> @capture(x,$j) ? :(($j+K₁_[ic1_,$i])) : x, codeK2)
             codeK2 = MacroTools.postwalk(x -> @capture(x,t) ? :(t+dt) : x, codeK2)

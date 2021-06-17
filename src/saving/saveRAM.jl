@@ -3,18 +3,6 @@ function addSavingRAM_!(abm::Agent,Space::SimulationSpace,p::Program_,platform::
     #List of nonempty arrays
     l = []
 
-    if length(abm.declaredSymbols["Variable"])>0
-        push!(l,:(Core.Array(var_)[1:N,:]))
-    else
-        push!(l,:(Core.Array{AbstractFloat,2}(undef,0,2)))
-    end
-
-    if length(abm.declaredSymbols["Interaction"])>0
-        push!(l,:(Core.Array(inter_)[1:N,:]))
-    else
-        push!(l,:(Core.Array{AbstractFloat,2}(undef,0,2)))
-    end
-
     if length(abm.declaredSymbols["Local"])>0
         push!(l,:(Core.Array(loc_)[1:N,:]))
     else

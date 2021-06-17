@@ -96,30 +96,25 @@ mutable struct Community
     t::AbstractFloat
     N::Int
     declaredSymbols::Dict{String,Array{Symbol}}
-    var::Array{AbstractFloat,2}
-    inter::Array{AbstractFloat,2}
-    loc::Array{AbstractFloat,2}
-    locInter::Array{AbstractFloat,2}
-    glob::Array{AbstractFloat,1}
-    globArray::Array{Array{AbstractFloat},1}
-    ids::Array{Int,2}
+    Local::Array{AbstractFloat,2}
+    Identity::Array{Int,2}
+    Global::Array{AbstractFloat,1}
+    GlobalArray::Array{Array{AbstractFloat},1}
 end
 
 function Community(abm::Model; N::Int=1, t::AbstractFloat=0.)
 
-    var = zeros(Float64,N,length(abm.declaredSymbols["Variable"]))
-    inter = zeros(Float64,N,length(abm.declaredSymbols["Interaction"]))
-    loc = zeros(Float64,N,length(abm.declaredSymbols["Local"]))
-    glob = zeros(Float64,length(abm.declaredSymbols["Global"]))
+    loc = zeros(Float64,N,length(abm.agent.declaredSymbols["Local"]))
+    ids = ones(Int,N,length(abm.agent.declaredSymbols["Identity"]))
+    glob = zeros(Float64,length(abm.agent.declaredSymbols["Global"]))
     globArray = []
-    for i in abm.declaredSymbols["GlobalArray"]
+    for i in abm.agent.declaredSymbols["GlobalArray"]
         push!(globArray,[])
     end
-    ids = ones(Int,N,length(abm.declaredSymbols["Identity"]))
 
-    declaredSymbols = abm.declaredSymbols
+    declaredSymbols = abm.agent.declaredSymbols
 
-    return Community(t,N,declaredSymb,var,inter,loc,locInter,glob,globArray,ids)
+    return Community(t,N,declaredSymbols,loc,ids,glob,globArray)
 end
 
 """

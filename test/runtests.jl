@@ -8,9 +8,9 @@ using MacroTools
 
 #include("testAgent.jl")
 #include("testAuxiliar.jl")
-#include("testSimulationFree.jl")
-#include("testSimulationGrid.jl")
+#include("testSimulation.jl")
 #include("testRandom.jl")
 #include("testIntegrator.jl")
-include("testModel.jl")
+#include("testModel.jl")
+include("testCommunity.jl")
 

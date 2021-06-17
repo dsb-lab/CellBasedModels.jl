@@ -38,6 +38,7 @@ include("./model/compile.jl")
 
 #Community
 include("./community/community.jl")
+include("./community/baseModuleExtensions.jl")
 
 #Random
 include("./random/distribution.jl")

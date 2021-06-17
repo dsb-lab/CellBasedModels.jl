@@ -1,11 +1,8 @@
 VALID_TYPES = [
     :Identity,
     :Local,
-    :Variable,
     :Global,
-    :GlobalArray,
-    :Interaction,
-
+    :GlobalArray
 ]
 
 VALID_UPDATES = [

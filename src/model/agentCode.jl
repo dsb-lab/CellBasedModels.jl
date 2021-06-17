@@ -7,25 +7,6 @@ function addParameters_!(abm::Agent,space::SimulationSpace,p::Program_,platform:
     
     #Parameter declare###########################################################################
 
-    if length(abm.declaredSymbols["Variable"])>0
-        append!(p.declareVar.args, 
-            (quote
-                var_ = Array([com.var;zeros(nMax-size(com.var)[1],$(length(abm.declaredSymbols["Variable"])))])
-            end).args
-        )
-
-        push!(p.args,:var_)
-
-        if !emptyquote_(abm.declaredUpdates["Equation"])
-            append!(p.declareVar.args, 
-                (quote
-                    varCopy_ = copy(var_)
-                end).args
-            )
-    
-            push!(p.args,:varCopy_)
-        end    
-    end
     if length(abm.declaredSymbols["Local"])>0
         append!(p.declareVar.args, 
             (quote
@@ -35,7 +16,7 @@ function addParameters_!(abm::Agent,space::SimulationSpace,p::Program_,platform:
 
         push!(p.args,:loc_)
 
-        if !emptyquote_(abm.declaredUpdates["UpdateLocal"])
+        if !emptyquote_(abm.declaredUpdates["UpdateLocal"]) || !emptyquote_(abm.declaredUpdates["Equation"])
             append!(p.declareVar.args, 
                 (quote
                     locCopy_ = copy(loc_)
@@ -65,15 +46,6 @@ function addParameters_!(abm::Agent,space::SimulationSpace,p::Program_,platform:
         end
     end
 
-    if length(abm.declaredSymbols["Interaction"])>0
-        append!(p.declareVar.args, 
-            (quote
-                inter_ = zeros(nMax,$(length(abm.declaredSymbols["Interaction"])))
-            end).args
-        )
-
-        push!(p.args,:inter_)
-    end
     if length(abm.declaredSymbols["Global"])>0
         append!(p.declareVar.args, 
             (quote
@@ -92,6 +64,7 @@ function addParameters_!(abm::Agent,space::SimulationSpace,p::Program_,platform:
             push!(p.args,:globCopy_)
         end    
     end
+    
     if length(abm.declaredSymbols["GlobalArray"])>0
         for (j,i) in enumerate(abm.declaredSymbols["GlobalArray"])
             append!(p.declareVar.args, 
