@@ -133,14 +133,14 @@ function addUpdateGlobal_!(abm::Agent,space::SimulationSpace,p::Program_,platfor
         append!(p.update,up.Symbol)
 
         #Construct functions
-        f = simpleFirstLoopWrapInFunction_(platform,:globStep_,code)
+        f = simpleFirstLoopWrapInFunction_(platform,:globStep_!,abm.declaredUpdates["UpdateGlobal"])
         f = vectorize_(abm,f,update="Copy")
 
         push!(p.declareF.args,
             f)
 
         push!(p.execInloop.args,
-                :(globStep_(ARGS_)) 
+                :(globStep_!(ARGS_)) 
             )
     end
 
@@ -162,14 +162,14 @@ function addUpdateLocal_!(abm::Agent,space::SimulationSpace,p::Program_,platform
         append!(p.update,up.Symbol)
 
         #Construct functions
-        f = simpleFirstLoopWrapInFunction_(platform,:locStep_,abm.declaredUpdates["UpdateLocal"])
+        f = simpleFirstLoopWrapInFunction_(platform,:locStep_!,abm.declaredUpdates["UpdateLocal"])
         f = vectorize_(abm,f,update="Copy")
 
         push!(p.declareF.args,
             f)
 
         push!(p.execInloop.args,
-                :(locStep_(ARGS_)) 
+                :(locStep_!(ARGS_)) 
             )
 
     end
@@ -189,13 +189,13 @@ function addUpdateLocalInteraction_!(abm::Agent,space::SimulationSpace,p::Progra
         #Construct functions
         f = loop_(abm,space,abm.declaredUpdates["UpdateLocalInteraction"],platform)
         f = vectorize_(abm,f)
-        f = wrapInFunction_(:locInterStep_,f)
+        f = wrapInFunction_(:locInterStep_!,f)
 
         push!(p.declareF.args,
             f)
 
         push!(p.execInloop.args,
-                :(locInterStep_(ARGS_))
+                :(locInterStep_!(ARGS_))
             )
 
     end
