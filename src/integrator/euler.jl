@@ -25,6 +25,8 @@ function addIntegratorEuler_!(abm::Agent, space::SimulationFree, p::Program_, pl
             push!(p.declareVar.args,:(dW = 0.)) #Declare variable for random initialisation
             push!(p.args,:dW)
             addRandInitialisation = [:(dW = rand()*dt)]
+        else
+            addRandInitialisation = []
         end
         push!(p.execInloop.args,
             :(begin

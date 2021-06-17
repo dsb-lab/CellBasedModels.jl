@@ -221,11 +221,11 @@ function addUpdate_!(abm::Agent,space::SimulationSpace,p::Program_,platform::Str
     end
     
     #Construct functions
-    f = simpleFirstLoopWrapInFunction_(platform,:update_,up)
+    f = simpleFirstLoopWrapInFunction_(platform,:update_!,up)
     f = vectorize_(abm,f,base="Copy")
 
-    push!(p.declareF.args,
-        f)
+    push!(p.declareF.args,f)
+    push!(p.execInloop.args,:(update_!(ARGS_)))
 
     return nothing
 end
