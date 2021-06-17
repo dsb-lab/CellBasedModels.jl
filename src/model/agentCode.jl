@@ -19,7 +19,7 @@ function addParameters_!(abm::Agent,space::SimulationSpace,p::Program_,platform:
         if !emptyquote_(abm.declaredUpdates["Equation"])
             append!(p.declareVar.args, 
                 (quote
-                    varCopy_ = Array([com.var;zeros(nMax-size(com.var)[1],$(length(abm.declaredSymbols["Variable"])))])
+                    varCopy_ = copy(var_)
                 end).args
             )
     
@@ -38,7 +38,7 @@ function addParameters_!(abm::Agent,space::SimulationSpace,p::Program_,platform:
         if !emptyquote_(abm.declaredUpdates["UpdateLocal"])
             append!(p.declareVar.args, 
                 (quote
-                    locCopy_ = Array([com.var;zeros(nMax-size(com.var)[1],$(length(abm.declaredSymbols["Local"])))])
+                    locCopy_ = copy(loc_)
                 end).args
             )
     
@@ -57,7 +57,7 @@ function addParameters_!(abm::Agent,space::SimulationSpace,p::Program_,platform:
         if !emptyquote_(abm.declaredUpdates["UpdateLocal"])
             append!(p.declareVar.args, 
                 (quote
-                    idCopy_ = Array([com.var;zeros(nMax-size(com.var)[1],$(length(abm.declaredSymbols["Identity"])))])
+                    idCopy_ = copy(id_)
                 end).args
             )
     

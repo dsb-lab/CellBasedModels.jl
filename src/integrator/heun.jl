@@ -71,6 +71,7 @@ function addIntegratorHeun_!(abm::Agent, space::SimulationFree, p::Program_, pla
         for (i,j) in enumerate(abm.declaredSymbols["Variable"])
             s = Meta.parse(string(j,"̇ "))
             codeK2 = MacroTools.postwalk(x -> @capture(x,$j) ? :(($j+K₁_[ic1_,$i])) : x, codeK2)
+            codeK2 = MacroTools.postwalk(x -> @capture(x,t) ? :(t+dt) : x, codeK2)
             codeK2 = MacroTools.postwalk(x -> @capture(x,$s) ? :(varCopy_[ic1_,$i]) : x, codeK2) #Directly add to final point, saves an additional declaration
             
             #Add old pos, K2 (stored in final pos for now) and K1 to final pos

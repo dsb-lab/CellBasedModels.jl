@@ -19,7 +19,7 @@ function compile(abm::Union{Agent,Array{Agent}},space::SimulationSpace=Simulatio
     addUpdate_!(abm,space,p,platform)
     
     #Saving
-    #save_!(abm,space,platform=platform)
+    addSaving_![save](abm,space,p,platform)
 
     program = quote
         function (com::Community;$(p.argsEval...),tMax, dt, t=com.t, N=com.N, nMax=com.N)

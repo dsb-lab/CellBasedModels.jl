@@ -28,3 +28,9 @@ SimulationGrid
 ```@docs
 Model
 ```
+
+## Community
+
+```@docs
+Community
+```

@@ -31,22 +31,27 @@ include("./simulationSpace/abstractTypes.jl")
 include("./simulationSpace/simulationFree.jl")
 include("./simulationSpace/simulationGrid.jl")
 
-#Community
-include("./community/community.jl")
-
 #Model
 include("./model/model.jl")
 include("./model/agentCode.jl")
 include("./model/compile.jl")
 
+#Community
+include("./community/community.jl")
+
 #Random
 include("./random/distribution.jl")
 include("./random/randomAdapt.jl")
 
-#Random
+#Integrators
 include("./integrator/euler.jl")
 include("./integrator/heun.jl")
 include("./integrator/integrators.jl")
+
+#Saving
+include("./saving/saveRAM.jl")
+#include("./saving/saveCSV.jl")
+include("./saving/saving.jl")
 
 #Auxiliar function
 include("./auxiliar/checkDeclared.jl")
