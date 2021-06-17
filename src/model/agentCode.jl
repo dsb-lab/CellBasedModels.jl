@@ -204,26 +204,6 @@ function addUpdateLocalInteraction_!(abm::Agent,space::SimulationSpace,p::Progra
 end
 
 """
-    function addUpdateLocalInteraction_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
-
-Generate the functions related with Local Interaction Updates.
-"""
-function addUpdateInteraction_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
-
-    if !emptyquote_(abm.declaredUpdates["UpdateInteraction"])
-
-        #Construct functions
-        f = loop_(abm,space,abm.declaredUpdates["UpdateInteraction"],platform)
-        f = vectorize_(abm,f)
-        f = wrapInFunction_(:locInterStep_,f)
-        push!(p.declareF.args,f)
-
-    end
-
-    return nothing
-end
-
-"""
     function addUpdate_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
 
 Generate the functions to update all the modified values.

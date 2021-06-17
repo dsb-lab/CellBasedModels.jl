@@ -119,6 +119,8 @@ function addIntegratorHeun_!(abm::Agent, space::SimulationFree, p::Program_, pla
         #Add integration step to the main function
         push!(p.execInloop.args,:(integrationStep_!(ARGS_)))
 
+        updateVariables_!(abm,p)
+
     end
         
     return

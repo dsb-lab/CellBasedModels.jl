@@ -35,6 +35,8 @@ function addIntegratorEuler_!(abm::Agent, space::SimulationFree, p::Program_, pl
 
         push!(p.declareF.args,f)
 
+        updateVariables_!(abm,p)
+
     end
         
     return
