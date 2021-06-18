@@ -1,5 +1,6 @@
 module AgentBasedModels
 
+using DataFrames: AbstractAggregate
 using CUDA: findfirst
 using Base: add_with_overflow
 using Random
@@ -12,7 +13,7 @@ import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, flatten
 
 export Agent, @agent, add
 export Model, compile
-export Community
+export Community, CommunityInTime
 export SimulationFree, SimulationGrid
 export SimulationSpace, FlatBoundary, Periodic, NonPeriodic, Open, Hard, Reflecting, OpenReflecting, ReflectingOpen, OpenHard, HardOpen, HardReflecting, ReflectingHard
 export configurator_
