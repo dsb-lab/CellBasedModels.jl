@@ -55,15 +55,20 @@ function compile(abm::Union{Agent,Array{Agent}},space::SimulationSpace=Simulatio
     program = subsArguments_(program,:ARGS_,p.args)
     program = randomAdapt_(p,program,platform)
     program = gensym_ids(program)
+    program = flatten(program)
     
-    if debug == true
-        println(prettify(program))
-    end
+    # if debug == true
+    #     s = string(program)
+    #     for (i,j) in enumerate(split(s,"\n"))
+    #         println(string("#####",i,"#")[end-5:end]," ",j)
+    #     end
+    #     #println(program)
+    # end
 
     if user_ == true
-        model = Model(abm,space,Base.MainInclude.eval(program))
+        model = Model(abm,space,program,Base.MainInclude.eval(program))
     else
-        model = Model(abm,space,AgentBasedModel.eval(program))
+        model = Model(abm,space,program,AgentBasedModel.eval(program))
     end
 
     return model

@@ -7,5 +7,6 @@ struct Model
     agent::Agent
     space::SimulationSpace
 
+    program::Expr
     evolve::Function
 end
