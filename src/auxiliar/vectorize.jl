@@ -9,8 +9,8 @@ function vectorize_(abm::Agent,code::Expr;base="",update="")
     #Vectorisation changes        
     for (i,v) in enumerate(abm.declaredSymbols["Local"])
 
-        bs = Meta.parse(string("loc",base,"_"))
-        up = Meta.parse(string("loc",update,"_"))
+        bs = Meta.parse(string("local",base,"_"))
+        up = Meta.parse(string("local",update,"_"))
 
         code = subs_(code,v,:($up[ic1_,$i]),update=true)
         v2 = Meta.parse(string(v,"₁"))
@@ -27,8 +27,8 @@ function vectorize_(abm::Agent,code::Expr;base="",update="")
 
     for (i,v) in enumerate(abm.declaredSymbols["Identity"])
 
-        bs = Meta.parse(string("id",base,"_"))
-        up = Meta.parse(string("id",update,"_"))
+        bs = Meta.parse(string("identity",base,"_"))
+        up = Meta.parse(string("identity",update,"_"))
 
         code = subs_(code,v,:($up[ic1_,$i]),update=true)
         v2 = Meta.parse(string(v,"₁"))
@@ -45,8 +45,8 @@ function vectorize_(abm::Agent,code::Expr;base="",update="")
     
     for (i,v) in enumerate(abm.declaredSymbols["Global"])
 
-        bs = Meta.parse(string("glob",base,"_"))
-        up = Meta.parse(string("glob",update,"_"))
+        bs = Meta.parse(string("global",base,"_"))
+        up = Meta.parse(string("global",update,"_"))
 
         code = subs_(code,v,:($up[$i]),update=true)
 

@@ -10,7 +10,7 @@ struct SimulationFree <: SimulationSpace
 
 end
 
-function arguments_!(abm::Agent, a::SimulationFree, program::Program_, platform::String)
+function arguments_!(program::Program_, abm::Agent, a::SimulationFree, platform::String)
 
     return Nothing
 end

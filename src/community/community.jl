@@ -95,11 +95,11 @@ julia> community[:x]
 mutable struct Community
     t::AbstractFloat
     N::Int
-    declaredSymbols::Dict{String,Array{Symbol}}
-    Local::Array{AbstractFloat,2}
-    Identity::Array{Int,2}
-    Global::Array{AbstractFloat,1}
-    GlobalArray::Array{Array{AbstractFloat},1}
+    declaredSymbols_::Dict{String,Array{Symbol}}
+    local_::Array{AbstractFloat,2}
+    identity_::Array{Int,2}
+    global_::Array{AbstractFloat,1}
+    globalArray_::Array{Array{AbstractFloat},1}
 end
 
 function Community(abm::Model; N::Int=1, t::AbstractFloat=0.)

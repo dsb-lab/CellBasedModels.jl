@@ -7,19 +7,23 @@ function compile(abm::Union{Agent,Array{Agent}},space::SimulationSpace=Simulatio
 
     p = Program_()
 
+    #Update
+    updates_!(p,abm)
+
     #Neighbours declare
-    arguments_!(abm,space,p,platform)
+    arguments_!(p,abm,space,platform)
     
     #Declare all the agent properties related functions, arguments, code...
-    addParameters_!(abm,space,p,platform)
-    addIntegrator_![integrator](abm,space,p,platform)
-    addUpdateGlobal_!(abm,space,p,platform)
-    addUpdateLocal_!(abm,space,p,platform)
-    addUpdateLocalInteraction_!(abm,space,p,platform)
-    addUpdate_!(abm,space,p,platform)
+    addCleanInteraction_!(p,abm,space,platform)
+    addParameters_!(p,abm,space,platform)
+    addIntegrator_![integrator](p,abm,space,platform)
+    addUpdateGlobal_!(p,abm,space,platform)
+    addUpdateLocal_!(p,abm,space,platform)
+    addUpdateLocalInteraction_!(p,abm,space,platform)
+    addUpdate_!(p,abm,space,platform)
     
     #Saving
-    addSaving_![save](abm,space,p,platform)
+    addSaving_![save](p,abm,space,platform)
 
     program = quote
         function (com::Community;$(p.argsEval...),tMax, dt, t=com.t, N=com.N, nMax=com.N)
@@ -41,12 +45,16 @@ function compile(abm::Union{Agent,Array{Agent}},space::SimulationSpace=Simulatio
             return $(p.returning)
         end
     end
-    program = subsArguments_(program,:ARGS_,p.args)
-    program = randomAdapt_(p,program,platform)
-    program = MacroTools.gensym_ids(program)
-    if platform == "gpu"
+
+    if platform == "cpu"
+        program = postwalk(x->@capture(x,@platformAdapt v_(ARGS__)) ? :($v(ARGS_)) : x, program)
+    elseif platform == "gpu"
+        program = postwalk(x->@capture(x,@platformAdapt v_(ARGS__)) ? :(@cuda $v(ARGS_)) : x, program)
         program = cudaAdapt_(program)
     end
+    program = subsArguments_(program,:ARGS_,p.args)
+    program = randomAdapt_(p,program,platform)
+    program = gensym_ids(program)
     
     if debug == true
         println(prettify(program))

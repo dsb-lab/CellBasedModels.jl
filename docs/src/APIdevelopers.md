@@ -16,7 +16,7 @@ agentArguments_
 checkDeclared_
 checkIsDeclared_
 emptyquote_
-updatedVariables_
+updates_!
 ```
 
 ## Code modifying

@@ -16,16 +16,16 @@ function Base.getproperty(a::Community,var::Symbol)
     catch
         if var in a.declaredSymbols["Local"]
             pos = findfirst(a.declaredSymbols["Local"].==var) 
-            return a.Localal[:,pos]
+            return a.local_[:,pos]
         elseif var in a.declaredSymbols["Identity"]
             pos = findfirst(a.declaredSymbols["Identity"].==var) 
-            return a.Identity[:,pos]
+            return a.identity_[:,pos]
         elseif var in a.declaredSymbols["Global"]
             pos = findfirst(a.declaredSymbols["Global"].==var) 
-            return a.Global[pos]
+            return a.global_[pos]
         elseif var in a.declaredSymbols["GlobalArray"]
             pos = findfirst(a.declaredSymbols["GlobalArray"].==var) 
-            return a.GlobalArray[pos]
+            return a.globalArray_[pos]
         elseif var == :t
             return a.t
         elseif var == :N
@@ -52,14 +52,14 @@ function Base.setproperty!(a::Community,var::Symbol,v::Array{<:Number})
     
     if var in a.declaredSymbols["Local"]
         pos = findfirst(a.declaredSymbols["Local"].==var) 
-        vec = a.Local
+        vec = a.local_
         vec[:,pos] = v
-        setfield!(a,:Local,vec)
+        setfield!(a,:local_,vec)
     elseif var in a.declaredSymbols["Identity"]
         pos = findfirst(a.declaredSymbols["Identity"].==var) 
-        vec = a.Identity
+        vec = a.identity_
         vec[:,pos] = v
-        setfield!(a,:Identity,vec)
+        setfield!(a,:identity_,vec)
     elseif var in a.declaredSymbols["GlobalArray"]
         pos = findfirst(a.declaredSymbols["GlobalArray"].==var) 
         a.GlobalArray[pos] = v
@@ -73,13 +73,13 @@ function Base.setproperty!(a::Community,var::Symbol,v::Number)
     
     if var in a.declaredSymbols["Local"]
         pos = findfirst(a.declaredSymbols["Local"].==var) 
-        a.Local[:,pos] .= v
+        a.local_[:,pos] .= v
     elseif var in a.declaredSymbols["Identity"]
         pos = findfirst(a.declaredSymbols["Identity"].==var) 
-        a.Identity[:,pos] .= v
+        a.identity_[:,pos] .= v
     elseif var in a.declaredSymbols["Global"]
         pos = findfirst(a.declaredSymbols["Global"].==var) 
-        a.Global[pos] = v
+        a.global_[pos] = v
     elseif var == :N
         a.N = v
     elseif var == :t

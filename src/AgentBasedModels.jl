@@ -1,12 +1,13 @@
 module AgentBasedModels
 
+using CUDA: findfirst
 using Base: add_with_overflow
 using Random
 using Distributions
 using CUDA
 using DataFrames
 using CSV
-using MacroTools
+import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids
 #using WriteVTK
 
 export Agent, @agent, add
@@ -63,6 +64,7 @@ include("./auxiliar/arguments.jl")
 include("./auxiliar/wrapping.jl")
 include("./auxiliar/emptyquote.jl")
 include("./auxiliar/symbols.jl")
+include("./auxiliar/updates.jl")
 
 #Cuda specific functions
 include("./cuda/cudaAdapt.jl")

@@ -61,7 +61,7 @@ function SimulationGrid(abm::Agent, box::Array{<:Union{<:Tuple{Symbol,<:Real,<:R
     return SimulationGrid(box2,radius,length(vars),n,axisSize,cumSize) 
 end
 
-function arguments_!(abm::Agent, a::SimulationGrid, data::Program_, platform::String)
+function arguments_!(data::Program_, abm::Agent, a::SimulationGrid, platform::String)
     
     append!(data.declareVar.args, 
     (quote
@@ -189,11 +189,9 @@ function arguments_!(abm::Agent, a::SimulationGrid, data::Program_, platform::St
                     
                     nnGC_ .= 0
                     nnGCAux_ .= 1
-                    (threads_,blocks_) = configurator_(insertCountsKernel_,N)
-                    CUDA.@cuda threads = threads_ blocks = blocks_ insertCounts_(ARGS_)
+                    @platformAdapt insertCounts_(ARGS_)
                     nnGCCum_ .= cumsum(nnGC_)
-                    (threads_,blocks_) = configurator_(countingSortKernel_,N)
-                    CUDA.@cuda  threads = threads_ blocks = blocks_ countingSort_(ARGS_)
+                    @platformAdapt countingSort_(ARGS_)
 
                     return
                 end

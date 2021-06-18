@@ -1,55 +1,55 @@
 """
-    function addParameters_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
+    function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
 
 Generate the variables of the model and declare them.
 """
-function addParameters_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
+function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
     
     #Parameter declare###########################################################################
 
     if length(abm.declaredSymbols["Local"])>0
         append!(p.declareVar.args, 
             (quote
-                loc_ = Array([com.loc;zeros(nMax-size(com.loc)[1],$(length(abm.declaredSymbols["Local"])))])
+                local_ = Array([com.local_;zeros(nMax-size(com.N)[1],$(length(abm.declaredSymbols["Local"])))])
             end).args
         )
 
-        push!(p.args,:loc_)
+        push!(p.args,:local_)
 
         if !emptyquote_(abm.declaredUpdates["UpdateLocal"]) || !emptyquote_(abm.declaredUpdates["Equation"])
             append!(p.declareVar.args, 
                 (quote
-                    locCopy_ = copy(loc_)
+                    localCopy_ = zeros(nMax-size(com.N)[1],$(length(keys(p.update["Local"]))))
                 end).args
             )
     
-            push!(p.args,:locCopy_)
+            push!(p.args,:localCopy_)
         end
     end
     if length(abm.declaredSymbols["Identity"])>0
         append!(p.declareVar.args, 
             (quote
-                id_ = Array(Int,[com.ids;zeros(Int,nMax-size(com.ids)[1],$(length(abm.declaredSymbols["Identity"])))])
+                identity_ = Array(Int,[com.identity_;zeros(Int,nMax-size(com.N)[1],$(length(abm.declaredSymbols["Identity"])))])
             end).args 
         ) 
 
-        push!(p.args,:id_)
+        push!(p.args,:identity_)
 
         if !emptyquote_(abm.declaredUpdates["UpdateLocal"])
             append!(p.declareVar.args, 
                 (quote
-                    idCopy_ = copy(id_)
+                    identityCopy_ = zeros(nMax-size(com.N)[1],$(length(keys(p.update["Identity"]))))
                 end).args
             )
     
-            push!(p.args,:idCopy_)
+            push!(p.args,:identityCopy_)
         end
     end
 
     if length(abm.declaredSymbols["Global"])>0
         append!(p.declareVar.args, 
             (quote
-                glob_ = Array(com.glob)
+                global_ = Array(com.global_)
             end).args
         )
 
@@ -57,11 +57,11 @@ function addParameters_!(abm::Agent,space::SimulationSpace,p::Program_,platform:
         if !emptyquote_(abm.declaredUpdates["UpdateGlobal"])
             append!(p.declareVar.args, 
                 (quote
-                    globCopy_ = Array(com.glob)
+                    globalCopy_ = Array(com.glob)
                 end).args
             )
     
-            push!(p.args,:globCopy_)
+            push!(p.args,:globalCopy_)
         end    
     end
     
@@ -79,11 +79,11 @@ function addParameters_!(abm::Agent,space::SimulationSpace,p::Program_,platform:
             for (j,i) in enumerate(abm.declaredSymbols["GlobalArray"])
                 append!(p.declareVar.args, 
                 (quote
-                    $(Meta.parse(string(i,"Copy_"))) = Array(com.globArray[$j])
+                    $(Meta.parse(string(i,"Copy__"))) = Array(com.globArray[$j])
                 end).args 
                 )
     
-                push!(p.args,Meta.parse(string(i,"Copy_")))
+                push!(p.args,Meta.parse(string(i,"Copy__")))
             end
         end
     end
@@ -92,18 +92,17 @@ function addParameters_!(abm::Agent,space::SimulationSpace,p::Program_,platform:
 end
 
 """
-    function addUpdateLocal_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
+    function addUpdateLocal_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
 
 Generate the functions related with Global Updates.
 """
-function addUpdateGlobal_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
+function addUpdateGlobal_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
 
     if !emptyquote_(abm.declaredUpdates["UpdateGlobal"])
 
         #Check updated
         up = symbols_(abm,abm.declaredUpdates["UpdateGlobal"])
         up = up[Bool.((up[:,"placeDeclaration"].==:Model) .* Bool.((up[:,"assigned"].==true) .+ (up[:,"updated"].==true))),:]
-        append!(p.update,up.Symbol)
 
         #Construct functions
         f = simpleFirstLoopWrapInFunction_(platform,:globStep_!,abm.declaredUpdates["UpdateGlobal"])
@@ -113,7 +112,7 @@ function addUpdateGlobal_!(abm::Agent,space::SimulationSpace,p::Program_,platfor
             f)
 
         push!(p.execInloop.args,
-                :(globStep_!(ARGS_)) 
+                :(@platformAdapt globStep_!(ARGS_)) 
             )
     end
 
@@ -121,18 +120,17 @@ function addUpdateGlobal_!(abm::Agent,space::SimulationSpace,p::Program_,platfor
 end
 
 """
-    function addUpdateLocal_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
+    function addUpdateLocal_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
 
 Generate the functions related with Local Updates.
 """
-function addUpdateLocal_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
+function addUpdateLocal_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
 
     if !emptyquote_(abm.declaredUpdates["UpdateLocal"])
 
         #Check updated
         up = symbols_(abm,abm.declaredUpdates["UpdateLocal"])
         up = up[Bool.((up[:,"placeDeclaration"].==:Model) .* Bool.((up[:,"assigned"].==true) .+ (up[:,"updated"].==true))),:]
-        append!(p.update,up.Symbol)
 
         #Construct functions
         f = simpleFirstLoopWrapInFunction_(platform,:locStep_!,abm.declaredUpdates["UpdateLocal"])
@@ -142,7 +140,7 @@ function addUpdateLocal_!(abm::Agent,space::SimulationSpace,p::Program_,platform
             f)
 
         push!(p.execInloop.args,
-                :(locStep_!(ARGS_)) 
+                :(@platformAdapt locStep_!(ARGS_)) 
             )
 
     end
@@ -151,53 +149,127 @@ function addUpdateLocal_!(abm::Agent,space::SimulationSpace,p::Program_,platform
 end
 
 """
-    function addUpdateLocalInteraction_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
+    function addCleanInteraction_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+
+Generate the functions related with Cleaning Interaction Updates.
+"""
+function addCleanInteraction_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+
+    if !emptyquote_(abm.declaredUpdates["UpdateLocalInteraction"]) || !emptyquote_(abm.declaredUpdates["UpdateInteraction"])
+
+        #Construct cleanup function
+        s = []
+        for i in ["UpdateLocalInteraction","UpdateInteraction"]
+            syms = symbols_(abm,abm.declaredUpdates[i])
+            syms = syms[Bool.((syms[:,"placeDeclaration"] .== :Model) .* syms[:,"updated"]),"Symbol"]
+            append!(s,syms)
+        end
+        unique!(s)
+        up = quote end
+        for i in s
+            pos = findfirst(abm.declaredSymbols["Local"] .== i)
+            push!(up.args,:(local_[ic1_,$pos]=0))
+        end
+        fclean = simpleFirstLoopWrapInFunction_(platform,:cleanInteraction_!,up)
+        push!(p.declareF.args,fclean)
+    end
+
+    return nothing
+end
+
+"""
+    function addUpdateLocalInteraction_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
 
 Generate the functions related with Local Interaction Updates.
 """
-function addUpdateLocalInteraction_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
+function addUpdateLocalInteraction_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
 
     if !emptyquote_(abm.declaredUpdates["UpdateLocalInteraction"])
 
-        #Construct functions
-        f = loop_(abm,space,abm.declaredUpdates["UpdateLocalInteraction"],platform)
-        f = vectorize_(abm,f)
-        f = wrapInFunction_(:locInterStep_!,f)
+        #Construct update computation function
+        fcompute = loop_(abm,space,abm.declaredUpdates["UpdateLocalInteraction"],platform)
+        fcompute = vectorize_(abm,fcompute)
+        fcompute = wrapInFunction_(:locInterCompute_!,fcompute)
+        push!(p.declareF.args,fcompute)
 
-        push!(p.declareF.args,
-            f)
+        #Wrap both functions in a clean step function
+        f = push!(p.declareF.args,
+            :(
+                function locInterStep_!(ARGS_)
+                    @platformAdapt cleanInteraction_!(ARGS_)
+                    @platformAdapt locInterCompute_!(ARGS_)
+                    return
+                end
+            )
+            )
+
 
         push!(p.execInloop.args,
                 :(locInterStep_!(ARGS_))
             )
-
     end
 
     return nothing
 end
 
 """
-    function addUpdate_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
+    function addUpdate_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
 
 Generate the functions to update all the modified values.
 """
-function addUpdate_!(abm::Agent,space::SimulationSpace,p::Program_,platform::String)
+function addUpdate_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
 
-    unique!(p.update)
-
+    gen = quote end #General update
     up = quote end
-    for i in p.update
-        dec = whereDeclared_(abm,i)[2]
-        if  !(dec in [:GlobalArray,:Interaction])
-            push!(up.args,:($i=$i))
+    for i in keys(abm.declaredSymbols)
+        if  i == "GlobalArray"
+            for j in keys(p.update[i]) 
+                n = Meta.parse(string(j,"Copy_")) 
+                push!(gen.args,:($j.=$n))
+            end
+        elseif i in ["Local","Identity"]
+            var = Meta.parse(lowercase(string(i,"_")))
+            varCopy = Meta.parse(string(lowercase(i),"Copy_"))
+            for j in keys(p.update[i])
+                pos = findfirst(abm.declaredSymbols[i] .== j)
+                posCopy = p.update[i][j]
+                push!(up.args,:($var[ic1_,$pos]=$varCopy[ic1_,$posCopy]))
+            end
+        elseif i == "Global"
+            var = Meta.parse(lowercase(string(i,"_")))
+            varCopy = Meta.parse(string(lowercase(i),"Copy_"))
+            
+            upb = quote end #Assign updates of the global to the first thread
+            for j in keys(p.update[i])
+                pos = findfirst(abm.declaredSymbols[i] .== j)
+                posCopy = p.update[i][j]
+                push!(upb.args,:($var[$pos]=$varCopy[$posCopy]))
+            end
+
+            push!(up.args,
+                :(begin
+                    if ic1_ == 1
+                        $(upb)
+                    end
+                end))
         end
     end
     
-    #Construct functions
-    f = simpleFirstLoopWrapInFunction_(platform,:update_!,up)
-    f = vectorize_(abm,f,base="Copy")
-
+    #Construct global and local update function
+    f = simpleFirstLoopWrapInFunction_(platform,:updateLocGlob_!,up)
     push!(p.declareF.args,f)
+    #Construct general update function
+    push!(p.declareF.args,
+        :(begin 
+            function update_!(ARGS_)
+                $gen
+                @platformAdapt updateLocGlob_!(ARGS_)
+                return
+            end
+        end)
+        )
+
+    #Add to execution cue
     push!(p.execInloop.args,:(update_!(ARGS_)))
 
     return nothing

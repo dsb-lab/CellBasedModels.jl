@@ -146,4 +146,45 @@
 
         m == m2
     end
+
+    @test_nowarn begin
+        
+        abm = @agent(
+            cell,
+
+            [l1,l2]::Local,
+            [g1,g2]::Global,
+            [id1,id2]::Identity,
+            [ga1,ga2]::GlobalArray,
+
+            UpdateLocal = 
+            begin
+                l1 += 1
+                l2 = 3
+                id1 = 1
+            end,
+
+            Equation =
+            begin
+                ∂l1 = a*dt + b*dW
+            end,
+
+            UpdateGlobal = 
+            begin
+                g1 += 1
+                ga1[1,2] += 1
+            end
+        )
+
+        p = AgentBasedModels.Program_()
+
+        AgentBasedModels.updates_!(p,abm)
+
+        if p.update["Identity"] != Dict(:id1=>1) error() end
+        if p.update["Global"] != Dict(:g1=>1) error() end
+        if p.update["GlobalArray"] != Dict(:ga1=>1) error() end
+        if p.update["Local"] != Dict(:l2=>2,:l1=>1) error() end
+        if p.update["Variables"] != Dict(:l1=>1) error() end
+    end    
+
 end
