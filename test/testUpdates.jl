@@ -28,17 +28,17 @@ f(x,y,z) = (z-y)*x+y
 
         @test_nowarn begin
 
-            com = Community(mo,N=10)
+            com = Community(mo,N=1000)
             com.x .= 0.
             com.y .= 0.
             com.z .= 0.
             com.w = rand(Uniform(1,2),com.N)
-            comt = mo.evolve(com,dt=1.,tMax=10)#,t=0.,N=com.N,nMax=com.N)
+            comt = mo.evolve(com,dt=1.,tMax=100)#,t=0.,N=com.N,nMax=com.N)
 
             for i in 1:10
-                if comt[i].x != (i-1)*ones(10) println("x ", i, " ", comt[i].x);error() end 
-                if comt[i].y != 7*zeros(10) println("y ", i, " ", comt[i].y);error() end 
-                if comt[i].z != 2*(i-1)*ones(10) println("z ", i, " ", comt[i].z);error() end 
+                if comt[i].x != (i-1)*ones(com.N) println("x ", i, " ", comt[i].x);error() end 
+                if comt[i].y != 7*zeros(com.N) println("y ", i, " ", comt[i].y);error() end 
+                if comt[i].z != 2*(i-1)*ones(com.N) println("z ", i, " ", comt[i].z);error() end 
                 if !prod(Bool.((comt[i].w .>= 1) .* (comt[i].w .<= 2))) println("w ", i, " ", comt[i].w);error() end 
             end
         end

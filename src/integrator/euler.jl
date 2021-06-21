@@ -32,19 +32,14 @@ function addIntegratorEuler_!(p::Program_, abm::Agent, space::SimulationFree, pl
         for (i,j) in enumerate(abm.declaredSymbols["Local"])
             s = Meta.parse(string("∂",j))
             code = postwalk(x -> @capture(x,$s=v__) ? :($j = $j + $(v...)) : x, code)
+            # code = postwalk(x -> @capture(x,dW) ? :(rand()*sqrt(dt)) : x, code)
         end
         code = vectorize_(abm,code,p)
+        pushfirst!(code.args,:(dW = Normal(0.,1.)*sqrt(dt)))
         f = simpleFirstLoopWrapInFunction_(platform,:integrationStep1_!,code)
         push!(p.declareF.args,f)
 
         #Create wrapped integration step function
-        if inexpr(code,:dW)
-            push!(p.declareVar.args,:(dW = 0.)) #Declare variable for random initialisation
-            push!(p.args,:dW)
-            addRandInitialisation = [:(dW = rand()*dt)]
-        else
-            addRandInitialisation = []
-        end
         if !emptyquote_(abm.declaredUpdates["UpdateInteraction"])
             addInteraction = [:(@platformAdapt cleanInteraction_!(ARGS_);@platformAdapt interactionCompute_!(ARGS_))]
         else
@@ -53,7 +48,6 @@ function addIntegratorEuler_!(p::Program_, abm::Agent, space::SimulationFree, pl
         push!(p.declareF.args,
             :(begin
                 function integrationStep_!(ARGS_)
-                    $(addRandInitialisation...)
                     $(addInteraction...)
                     @platformAdapt integrationStep1_!(ARGS_)
                     #println(localVCopy[1,:])

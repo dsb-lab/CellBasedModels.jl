@@ -10,7 +10,9 @@ VALID_UPDATES = [
     :UpdateLocal,
     :UpdateLocalInteraction,
     :UpdateInteraction,
-    :Equation
+    :Equation,
+    :DivisionEvent,
+    :DeathEvent
 ]
 
 UPDATINGOPERATORS = [:+= ,:-=,:*=,:/=,:\=,:÷=,:%=,:^=,:&=,:|=,:⊻=,:>>>=,:>>=,:<<=]

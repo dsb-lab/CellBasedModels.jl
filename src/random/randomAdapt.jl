@@ -17,11 +17,7 @@ function randomAdapt_(p::Program_, code::Expr, platform::String)
             else
 
                 s = Meta.parse(string("AgentBasedModels.",i,"CUDA"))
-                if i == :Normal
-                    code = postwalk(x -> @capture(x,$i(v__)) ? :($s(randn(),$(v...))) : x, code)
-                elseif i == :Uniform
-                    code = postwalk(x -> @capture(x,$i(v__)) ? :($s(rand(),$(v...))) : x, code)
-                end
+                code = postwalk(x -> @capture(x,$i(v__)) ? :($s(rand(),$(v...))) : x, code)
 
             end
 

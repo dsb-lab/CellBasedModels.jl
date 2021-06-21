@@ -41,25 +41,33 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationFree, pla
 
 
         #Create first integration step kernel
-        codeK1 = postwalk(x -> @capture(x,dW) ? :(dW-S_*sqrt(dt)) : x, code)
+        codeK1 = postwalk(x -> @capture(x,dW) ? :(dW[ic1_]-S_[ic1_]) : x, code)
         for (i,j) in enumerate(abm.declaredSymbols["Local"])
-            s = Meta.parse(string(j,"̇ "))
-            codeK1 = postwalk(x -> @capture(x,$s) ? :(K₁_[ic1_,$i]) : x, codeK1)
-            #Saves intermediate step vᵢₙₜ in final pos varCopy_
-            push!(codeK1.args,:(varCopy_[ic1_,$i] = var_[ic1_,$i] + K₁_[ic1_,$i]))
+            if j in keys(p.update["Variables"])
+                ii = p.update["Local"][j]
+                ki = p.update["Variables"][j]
+                s = Meta.parse(string("∂",j))
+                codeK1 = postwalk(x -> @capture(x,$s) ? :(K₁_[ic1_,$ki]) : x, codeK1)
+                #Saves intermediate step vᵢₙₜ in final pos localVCopy
+                push!(codeK1.args,:(localVCopy[ic1_,$ii] = localV[ic1_,$i] + K₁_[ic1_,$ki]))
+            end
         end
-        vectorize_(abm,code,p)
+        codeK1 = vectorize_(abm,codeK1,p)
+        if inexpr(codeK1,:dW) #Add initialisation is necessary
+            pushfirst!(codeK1.args,:(dW[ic1_] = Uniform(0,1)*sqrt(dt)))
+            pushfirst!(codeK1.args,:(S_[ic1_] = 2*(round(rand())- .5)*sqrt(dt)))
+        end
         k2 = simpleFirstLoopWrapInFunction_(platform,:integrationStep1_,codeK1) #First function declaration
         push!(p.declareF.args,k2)        
-        push!(p.declareVar.args,:(K₁_ = copy(var_)))  
+        push!(p.declareVar.args,:(K₁_ = copy(zeros(Float64,nMax,$(length(p.update["Variables"]))))))  
         push!(p.args,:K₁_ )  
 
-        #Create second interaction parameter kernel using varCopy_ if there is any
+        #Create second interaction parameter kernel using localVCopy if there is any
         if !emptyquote_(abm.declaredUpdates["UpdateInteraction"])
 
             k3 = loop_(p,abm,space,abm.declaredUpdates["UpdateInteraction"],platform)
             for (i,j) in enumerate(abm.declaredSymbols["Local"])
-                codeK1 = postwalk(x -> @capture(x,$j) ? :(varCopy_[ic1_,$i]) : x, k3)
+                codeK1 = postwalk(x -> @capture(x,$j) ? :(localVCopy[ic1_,$ii]) : x, k3)
             end
             k3 = vectorize_(abm,k3,p)
             k3 = wrapInFunction_(:interactionStep2_,k3)
@@ -69,17 +77,21 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationFree, pla
         
         
         #Create second integration step kernel
-        codeK2 = postwalk(x -> @capture(x,dW) ? :(dW-S_*sqrt(dt)) : x, code)
+        codeK2 = postwalk(x -> @capture(x,dW) ? :(dW[ic1_]+S_[ic1_]) : x, code)
         for (i,j) in enumerate(abm.declaredSymbols["Local"])
-            s = Meta.parse(string(j,"̇ "))
-            codeK2 = postwalk(x -> @capture(x,$j) ? :(($j+K₁_[ic1_,$i])) : x, codeK2)
-            codeK2 = postwalk(x -> @capture(x,t) ? :(t+dt) : x, codeK2)
-            codeK2 = postwalk(x -> @capture(x,$s) ? :(varCopy_[ic1_,$i]) : x, codeK2) #Directly add to final point, saves an additional declaration
-            
-            #Add old pos, K2 (stored in final pos for now) and K1 to final pos
-            push!(codeK2.args,:(varCopy_[ic1_,$i] = var_[ic1_,$i] + (varCopy_[ic1_,$i] + K₁_[ic1_,$i])/2))
+            if j in keys(p.update["Variables"])
+                ii = p.update["Local"][j]
+                ki = p.update["Variables"][j]
+                s = Meta.parse(string("∂",j))
+                codeK2 = postwalk(x -> @capture(x,$j) ? :(($j+K₁_[ic1_,$ki])) : x, codeK2)
+                codeK2 = postwalk(x -> @capture(x,t) ? :(t+dt) : x, codeK2)
+                codeK2 = postwalk(x -> @capture(x,$s) ? :(localVCopy[ic1_,$ii]) : x, codeK2) #Directly add to final point, saves an additional declaration
+
+                #Add old pos, K2 (stored in final pos for now) and K1 to final pos
+                push!(codeK2.args,:(localVCopy[ic1_,$ii] = localV[ic1_,$i] + (localVCopy[ic1_,$ii] + K₁_[ic1_,$ki])/2))
+            end
         end
-        vectorize_(abm,code,p)
+        codeK2 = vectorize_(abm,codeK2,p)
         k4 = simpleFirstLoopWrapInFunction_(platform,:integrationStep2_,codeK2)
         push!(p.declareF.args,k4)
 
@@ -88,15 +100,12 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationFree, pla
         if inexpr(codeK1,:dW)
             push!(p.declareVar.args, #declare random variables for Stochastic integration
                 :(begin
-                    dW = 0.
-                    S_ = 0.
+                    dW = zeros(Float64,nMax)
+                    S_ = zeros(Float64,nMax)
                 end)
             )
-            addRandInitialisation = [:(dW = randn()*dt; S_ = round(rand()))]
 
             push!(p.args,:dW,:S_)
-        else
-            addRandInitialisation = []
         end
         if !emptyquote_(abm.declaredUpdates["UpdateInteraction"])
             addInteraction1 = [:(@platformAdapt cleanInteraction_!(ARGS_);@platformAdapt interactionStep1_(ARGS_))]
@@ -108,7 +117,6 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationFree, pla
         push!(p.declareF.args,
             :(begin
                 function integrationStep_!(ARGS_)
-                    $(addRandInitialisation...)
                     $(addInteraction1...)
                     @platformAdapt integrationStep1_(ARGS_)
                     $(addInteraction2...)

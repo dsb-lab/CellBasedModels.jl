@@ -298,3 +298,10 @@ function addUpdate_!(p::Program_,abm::Agent,space::SimulationSpace,platform::Str
 
     return nothing
 end
+
+function addDivision_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+
+    
+
+    return nothing
+end
