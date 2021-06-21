@@ -14,4 +14,5 @@ using MacroTools
 #include("testCommunity.jl")
 #include("testUpdates.jl")
 #include("testIntegrator.jl")
+include("testEvent.jl")
 
