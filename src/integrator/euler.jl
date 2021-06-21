@@ -66,8 +66,6 @@ function addIntegratorEuler_!(p::Program_, abm::Agent, space::SimulationFree, pl
             :(integrationStep_!(ARGS_))
         )
 
-        updateVariables_!(abm,p)
-
     end
         
     return

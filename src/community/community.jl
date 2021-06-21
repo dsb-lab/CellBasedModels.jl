@@ -96,10 +96,10 @@ mutable struct Community
     t::AbstractFloat
     N::Int
     declaredSymbols_::Dict{String,Array{Symbol}}
-    local_::Array{AbstractFloat,2}
+    local_::Array{Float64,2}
     identity_::Array{Int,2}
-    global_::Array{AbstractFloat,1}
-    globalArray_::Array{Array{AbstractFloat},1}
+    global_::Array{Float64,1}
+    globalArray_::Array{Array{Float64},1}
 end
 
 function Community(abm::Model; N::Int=1, t::AbstractFloat=0.)

@@ -13,9 +13,11 @@ VALID_UPDATES = [
     :Equation
 ]
 
+UPDATINGOPERATORS = [:+= ,:-=,:*=,:/=,:\=,:÷=,:%=,:^=,:&=,:|=,:⊻=,:>>>=,:>>=,:<<=]
+
 RESERVEDSYMBOLS = [:t,:N,:dt,:dW,:nMax,
                     :ic1_,:ic2_,:nnic2_,:pos_,
-                    :var_,:loc_,:inter_,:glob_,
+                    :localV,:identityV,:globalV,
                     :ALGORITHM_,:ARGS_,:AUX1_,:AUX2_,
                     :index_,:stride_,:lockadd_];
 

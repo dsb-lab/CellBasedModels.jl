@@ -14,22 +14,18 @@ function Base.getproperty(a::Community,var::Symbol)
     try 
         return getfield(a,var)
     catch
-        if var in a.declaredSymbols["Local"]
-            pos = findfirst(a.declaredSymbols["Local"].==var) 
-            return a.local_[:,pos]
-        elseif var in a.declaredSymbols["Identity"]
-            pos = findfirst(a.declaredSymbols["Identity"].==var) 
-            return a.identity_[:,pos]
-        elseif var in a.declaredSymbols["Global"]
-            pos = findfirst(a.declaredSymbols["Global"].==var) 
-            return a.global_[pos]
-        elseif var in a.declaredSymbols["GlobalArray"]
-            pos = findfirst(a.declaredSymbols["GlobalArray"].==var) 
+        if var in a.declaredSymbols_["Local"]
+            pos = findfirst(a.declaredSymbols_["Local"].==var) 
+            return @views a.local_[:,pos]
+        elseif var in a.declaredSymbols_["Identity"]
+            pos = findfirst(a.declaredSymbols_["Identity"].==var) 
+            return @views a.identity_[:,pos]
+        elseif var in a.declaredSymbols_["Global"]
+            pos = findfirst(a.declaredSymbols_["Global"].==var) 
+            return @views a.global_[pos]
+        elseif var in a.declaredSymbols_["GlobalArray"]
+            pos = findfirst(a.declaredSymbols_["GlobalArray"].==var) 
             return a.globalArray_[pos]
-        elseif var == :t
-            return a.t
-        elseif var == :N
-            return a.N
         else
             error("Parameter ", var, " not fount in the community.")
         end
@@ -50,19 +46,25 @@ Array{Float} otherwise
 """
 function Base.setproperty!(a::Community,var::Symbol,v::Array{<:Number})
     
-    if var in a.declaredSymbols["Local"]
-        pos = findfirst(a.declaredSymbols["Local"].==var) 
+    if var in a.declaredSymbols_["Local"]
+        if size(v) != (a.N,)
+            error("Trying to assign array with shape ", shape(v), ". It should be of size (N,)")
+        end
+        pos = findfirst(a.declaredSymbols_["Local"].==var) 
         vec = a.local_
         vec[:,pos] = v
         setfield!(a,:local_,vec)
-    elseif var in a.declaredSymbols["Identity"]
-        pos = findfirst(a.declaredSymbols["Identity"].==var) 
+    elseif var in a.declaredSymbols_["Identity"]
+        if size(v) != (a.N,)
+            error("Trying to assign array with shape ", shape(v), ". It should be of size (N,)")
+        end
+        pos = findfirst(a.declaredSymbols_["Identity"].==var) 
         vec = a.identity_
         vec[:,pos] = v
         setfield!(a,:identity_,vec)
-    elseif var in a.declaredSymbols["GlobalArray"]
-        pos = findfirst(a.declaredSymbols["GlobalArray"].==var) 
-        a.GlobalArray[pos] = v
+    elseif var in a.declaredSymbols_["GlobalArray"]
+        pos = findfirst(a.declaredSymbols_["GlobalArray"].==var) 
+        a.globalArray_[pos] = v
     else
         error("Parameter ", var, " not fount in the community.")
     end
@@ -71,15 +73,15 @@ end
 
 function Base.setproperty!(a::Community,var::Symbol,v::Number)
     
-    if var in a.declaredSymbols["Local"]
-        pos = findfirst(a.declaredSymbols["Local"].==var) 
-        a.local_[:,pos] .= v
-    elseif var in a.declaredSymbols["Identity"]
-        pos = findfirst(a.declaredSymbols["Identity"].==var) 
-        a.identity_[:,pos] .= v
-    elseif var in a.declaredSymbols["Global"]
-        pos = findfirst(a.declaredSymbols["Global"].==var) 
+    if var in a.declaredSymbols_["Local"]
+        error("Local parameter ", i, " cannot be assigned with a scalar. Use .= instead.")
+    elseif var in a.declaredSymbols_["Identity"]
+        error("Identity parameter", i, " cannot be assigned with a scalar. Use .= instead.")
+    elseif var in a.declaredSymbols_["Global"]
+        pos = findfirst(a.declaredSymbols_["Global"].==var) 
         a.global_[pos] = v
+    elseif var in a.declaredSymbols_["GlobalArray"]
+        error("GlobalArray ", i, " cannot be assigned with a scalar.")
     elseif var == :N
         a.N = v
     elseif var == :t
@@ -110,7 +112,7 @@ end
 #         return [i.N for i in a.com]
 #     end
 
-#     if var in a.com[1].declaredSymbols["globArray"]
+#     if var in a.com[1].declaredSymbols_["globArray"]
 
 #         out = []
 #         for i in 1:length(a)
@@ -119,10 +121,10 @@ end
 
 #         return out
 
-#     elseif :id_ in a.com[1].declaredSymbols["ids"]
+#     elseif :id_ in a.com[1].declaredSymbols_["ids"]
 
 #         #Find number of ids
-#         posId = findfirst(a.com[1].declaredSymbols["ids"].==:id_)
+#         posId = findfirst(a.com[1].declaredSymbols_["ids"].==:id_)
 #         l = []
 #         for i in a.com
 #             append!(l, i.Identity[:,posId])
@@ -153,11 +155,11 @@ end
 #     return
 # end
 
-# function Base.getindex(a::CommunityInTime,var::Int)
+function Base.getindex(a::CommunityInTime,var::Int)
     
-#     return a.com[var]
+    return a.com[var]
 
-# end
+end
 
-# Base.first(a::CommunityInTime) = 1
-# Base.lastindex(a::CommunityInTime) = length(a)
+Base.first(a::CommunityInTime) = 1
+Base.lastindex(a::CommunityInTime) = length(a)

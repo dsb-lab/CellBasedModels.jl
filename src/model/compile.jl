@@ -3,8 +3,10 @@
 
 Function that takes an Agent and a simulation space and constructs the function in charge of the evolutions of the model.
 """
-function compile(abm::Union{Agent,Array{Agent}},space::SimulationSpace=SimulationFree();platform="cpu", integrator::String = "Euler", save::String = "RAM", debug = false, user_=true)
+function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=SimulationFree();platform="cpu", integrator::String = "Euler", save::String = "RAM", debug = false, user_=true)
 
+    abm = deepcopy(abmOriginal)
+    
     p = Program_()
 
     #Update
@@ -26,7 +28,12 @@ function compile(abm::Union{Agent,Array{Agent}},space::SimulationSpace=Simulatio
     addSaving_![save](p,abm,space,platform)
 
     program = quote
-        function (com::Community;$(p.argsEval...),tMax, dt, t=com.t, N=com.N, nMax=com.N)
+        function (com::Community; dt::Real, tMax::Real, t::Real=com.t, N::Integer=com.N, nMax::Integer=com.N, $(p.argsEval...))
+            #Promoting to the correct type
+            dt = Float64(dt)
+            tMax = Float64(tMax)
+            t = Float64(t)
+            N = Int(N)
             #Declaration of variables
             $(p.declareVar)
             #Declaration of functions
@@ -66,9 +73,9 @@ function compile(abm::Union{Agent,Array{Agent}},space::SimulationSpace=Simulatio
     # end
 
     if user_ == true
-        model = Model(abm,space,program,Base.MainInclude.eval(program))
+        model = Model(abm,space,program,Main.eval(program))
     else
-        model = Model(abm,space,program,AgentBasedModel.eval(program))
+        model = Model(abm,space,program,AgentBasedModels.eval(program))
     end
 
     return model

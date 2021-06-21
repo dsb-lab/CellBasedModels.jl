@@ -213,9 +213,9 @@ function arguments_!(data::Program_, abm::Agent, a::SimulationGrid, platform::St
     return nothing
 end
 
-function loop_(a::SimulationGrid, abm::Agent, code::Expr, platform::String)
+function loop_(program::Program_, a::SimulationGrid, abm::Agent, code::Expr, platform::String)
 
-    code = vectorize_(abm, code)
+    code = vectorize_(abm, code, program)
     #Prototypes of loops to connect cells in the grid as neighbors
     normal = 
     quote

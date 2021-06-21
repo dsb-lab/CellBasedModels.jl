@@ -16,7 +16,7 @@ function randomAdapt_(p::Program_, code::Expr, platform::String)
                 error(i," random distribution valid for cpu but still not implemented in gpu.")
             else
 
-                s = Meta.parse(string(i,"CUDA"))
+                s = Meta.parse(string("AgentBasedModels.",i,"CUDA"))
                 if i == :Normal
                     code = postwalk(x -> @capture(x,$i(v__)) ? :($s(randn(),$(v...))) : x, code)
                 elseif i == :Uniform

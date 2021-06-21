@@ -11,6 +11,7 @@ using MacroTools
 #include("testSimulation.jl")
 #include("testRandom.jl")
 #include("testIntegrator.jl")
-include("testModel.jl")
+#include("testModel.jl")
 #include("testCommunity.jl")
+include("testUpdates.jl")
 

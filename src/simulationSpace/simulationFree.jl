@@ -15,9 +15,9 @@ function arguments_!(program::Program_, abm::Agent, a::SimulationFree, platform:
     return Nothing
 end
 
-function loop_(abm::Agent, a::SimulationFree, code::Expr, platform::String)
+function loop_(program::Program_, abm::Agent, a::SimulationFree, code::Expr, platform::String)
 
-    code = vectorize_(abm, code)
+    code = vectorize_(abm, code, program)
     loop = :(
         for ic2_ in 1:N
             $code
