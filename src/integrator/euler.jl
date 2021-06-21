@@ -21,8 +21,8 @@ function addIntegratorEuler_!(p::Program_, abm::Agent, space::SimulationFree, pl
         #Create interaction parameter kernel if there is any interaction parameter updated
         if !emptyquote_(abm.declaredUpdates["UpdateInteraction"])
 
-            k1 = loop_(abm,space,abm.declaredUpdates["UpdateInteraction"],platform)
-            k1 = vectorize_(abm,k1)
+            k1 = loop_(p,abm,space,abm.declaredUpdates["UpdateInteraction"],platform)
+            k1 = vectorize_(abm,k1,p)
             k1 = wrapInFunction_(:interactionCompute_!,k1)
             push!(p.declareF.args,k1)
 
@@ -30,10 +30,10 @@ function addIntegratorEuler_!(p::Program_, abm::Agent, space::SimulationFree, pl
 
         #Create integration step function
         for (i,j) in enumerate(abm.declaredSymbols["Local"])
-            s = Meta.parse(string(j,"̇"))
+            s = Meta.parse(string("∂",j))
             code = postwalk(x -> @capture(x,$s=v__) ? :($j = $j + $(v...)) : x, code)
-            vectorize_(abm,code,update="Copy")
         end
+        code = vectorize_(abm,code,p)
         f = simpleFirstLoopWrapInFunction_(platform,:integrationStep1_!,code)
         push!(p.declareF.args,f)
 
@@ -55,7 +55,8 @@ function addIntegratorEuler_!(p::Program_, abm::Agent, space::SimulationFree, pl
                 function integrationStep_!(ARGS_)
                     $(addRandInitialisation...)
                     $(addInteraction...)
-                    @platformAdapt integrationStep1_(ARGS_)
+                    @platformAdapt integrationStep1_!(ARGS_)
+                    #println(localVCopy[1,:])
 
                     return
                 end

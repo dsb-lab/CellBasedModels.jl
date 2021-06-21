@@ -42,7 +42,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=S
             #Execution of the program
             
             $(p.execInit)
-            while t <= tMax
+            while t <= (tMax-dt)
                 $(p.execInloop)
 
                 t += dt

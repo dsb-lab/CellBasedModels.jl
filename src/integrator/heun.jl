@@ -32,8 +32,8 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationFree, pla
         #Create first interaction parameter kernel if there is any interaction parameter updated
         if !emptyquote_(abm.declaredUpdates["UpdateInteraction"])
 
-            k1 = loop_(abm,space,abm.declaredUpdates["UpdateInteraction"],platform)
-            k1 = vectorize_(abm,k1)
+            k1 = loop_(p,abm,space,abm.declaredUpdates["UpdateInteraction"],platform)
+            k1 = vectorize_(abm,k1,p)
             k1 = wrapInFunction_(:interactionStep1_,k1)
             push!(p.declareF.args,k1)
 
@@ -48,7 +48,7 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationFree, pla
             #Saves intermediate step vᵢₙₜ in final pos varCopy_
             push!(codeK1.args,:(varCopy_[ic1_,$i] = var_[ic1_,$i] + K₁_[ic1_,$i]))
         end
-        vectorize_(abm,code,update="Copy")
+        vectorize_(abm,code,p)
         k2 = simpleFirstLoopWrapInFunction_(platform,:integrationStep1_,codeK1) #First function declaration
         push!(p.declareF.args,k2)        
         push!(p.declareVar.args,:(K₁_ = copy(var_)))  
@@ -57,11 +57,11 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationFree, pla
         #Create second interaction parameter kernel using varCopy_ if there is any
         if !emptyquote_(abm.declaredUpdates["UpdateInteraction"])
 
-            k3 = loop_(abm,space,abm.declaredUpdates["UpdateInteraction"],platform)
+            k3 = loop_(p,abm,space,abm.declaredUpdates["UpdateInteraction"],platform)
             for (i,j) in enumerate(abm.declaredSymbols["Local"])
                 codeK1 = postwalk(x -> @capture(x,$j) ? :(varCopy_[ic1_,$i]) : x, k3)
             end
-            k3 = vectorize_(abm,k3)
+            k3 = vectorize_(abm,k3,p)
             k3 = wrapInFunction_(:interactionStep2_,k3)
             push!(p.declareF.args,k3)
 
@@ -79,7 +79,7 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationFree, pla
             #Add old pos, K2 (stored in final pos for now) and K1 to final pos
             push!(codeK2.args,:(varCopy_[ic1_,$i] = var_[ic1_,$i] + (varCopy_[ic1_,$i] + K₁_[ic1_,$i])/2))
         end
-        vectorize_(abm,code,update="Copy")
+        vectorize_(abm,code,p)
         k4 = simpleFirstLoopWrapInFunction_(platform,:integrationStep2_,codeK2)
         push!(p.declareF.args,k4)
 

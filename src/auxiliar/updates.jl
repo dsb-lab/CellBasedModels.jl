@@ -37,6 +37,13 @@ function updates_!(p::Program_,abm::Agent)
             if ss in s
                 dict[i] = counter
                 counter += 1
+                if !(i in keys(p.update["Local"]))
+                    if isempty(p.update["Local"])
+                        p.update["Local"][i] = 1
+                    else
+                        p.update["Local"][i] = maximum(values(p.update["Local"])) + 1
+                    end
+                end
             end
         end
     end

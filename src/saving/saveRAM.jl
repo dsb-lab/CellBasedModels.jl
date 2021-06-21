@@ -40,7 +40,7 @@ function addSavingRAM_!(p::Program_,abm::Agent,Space::SimulationSpace,platform::
 
     push!(p.execInit.args,
     :(begin
-        ob = Community(t+dt,N,com.declaredSymbols_,$(l...))
+        ob = Community(t,N,com.declaredSymbols_,$(l...))
         push!(commRAM_,ob)
         end)
     )
@@ -50,12 +50,12 @@ function addSavingRAM_!(p::Program_,abm::Agent,Space::SimulationSpace,platform::
         push!(commRAM_,ob)
         end)
     )
-    push!(p.execAfter.args,
-    :(begin
-        ob = Community(t+dt,N,com.declaredSymbols_,$(l...))
-        push!(commRAM_,ob)
-        end)
-    )
+    # push!(p.execAfter.args,
+    # :(begin
+    #     ob = Community(t+dt,N,com.declaredSymbols_,$(l...))
+    #     push!(commRAM_,ob)
+    #     end)
+    # )
     
     push!(p.returning.args,:(commRAM_))
 

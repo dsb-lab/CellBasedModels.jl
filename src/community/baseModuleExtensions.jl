@@ -104,56 +104,43 @@ function Base.length(a::CommunityInTime)
     return length(a.com)
 end
 
-# function Base.getindex(a::CommunityInTime,var::Symbol)
-    
-#     if var == :t
-#         return [i.t for i in a.com]
-#     elseif var == :N
-#         return [i.N for i in a.com]
-#     end
+function Base.getproperty(a::CommunityInTime,var::Symbol)
 
-#     if var in a.com[1].declaredSymbols_["globArray"]
-
-#         out = []
-#         for i in 1:length(a)
-#             push!(out,a.com[i][var])
-#         end
-
-#         return out
-
-#     elseif :id_ in a.com[1].declaredSymbols_["ids"]
-
-#         #Find number of ids
-#         posId = findfirst(a.com[1].declaredSymbols_["ids"].==:id_)
-#         l = []
-#         for i in a.com
-#             append!(l, i.Identity[:,posId])
-#         end
-#         idMax = maximumIdentity
-#         #Create NaN array
-#         out = zeros(eltype(a.com[1][var]),length(a),idMax)
-#         out .= NaN
-#         #Fill array
-#         for i in 1:length(a)
-#             out[i,a.com[i][:id_]] .= a.com[i][var]
-#         end
-
-#         return out
-
-#     else
-#         #Create array
-#         out = zeros(eltype(a.com[1][var]),length(a),a[1].N)
-#         #Fill array
-#         for i in 1:length(a)
-#             out[i,:] .= a.com[i][var]
-#         end
+    try 
+        return getfield(a,var)
+    catch
         
-#         return out
+        if var == :t
+            return [i.t for i in a.com]
+        elseif var == :N
+            return [i.N for i in a.com]
+        end
 
-#     end
+        if var in a.com[1].declaredSymbols_["GlobalArray"]
 
-#     return
-# end
+            out = []
+            for i in 1:length(a)
+                push!(out,getproperty(a.com[i],var))
+            end
+
+            return out
+
+        else
+            #Create array
+            out = zeros(eltype(getproperty(a.com[1],var)),a[1].N,length(a))
+            #Fill array
+            for i in 1:length(a)
+                out[:,i] .= getproperty(a.com[i],var)
+            end
+            
+            return out
+
+        end
+
+    end
+
+    return
+end
 
 function Base.getindex(a::CommunityInTime,var::Int)
     
