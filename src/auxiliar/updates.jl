@@ -30,7 +30,7 @@ function updates_!(p::Program_,abm::Agent)
     ## Check equations and their update variables
     dict = Dict{Symbol,Int}()
     counter = 1
-    if !(emptyquote_(abm.declaredUpdates["Equation"]))
+    if "Equation" in keys(abm.declaredUpdates)
         s = symbols_(abm,abm.declaredUpdates["Equation"]).Symbol
         for i in abm.declaredSymbols["Local"]
             ss = Meta.parse(string("∂",i))
@@ -52,7 +52,7 @@ function updates_!(p::Program_,abm::Agent)
     ## Check division and their update variables
     dict = Dict{Symbol,Int}()
     counter = 1
-    if !(emptyquote_(abm.declaredUpdates["EventDivision"]))
+    if "EventDivision" in keys(abm.declaredUpdates)
         s = symbols_(abm,abm.declaredUpdates["EventDivision"]).Symbol
         for place in ["Local","Identity"]
             for i in abm.declaredSymbols[place]

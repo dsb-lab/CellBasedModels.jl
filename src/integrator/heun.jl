@@ -25,7 +25,7 @@ The algorithm can be reduced to six kernels invocations performing the following
 """
 function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationFree, platform::String)
     
-    if !emptyquote_(abm.declaredUpdates["Equation"])
+    if  "Equation" in keys(abm.declaredUpdates)
 
         code = abm.declaredUpdates["Equation"]
 

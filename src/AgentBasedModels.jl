@@ -1,7 +1,7 @@
 module AgentBasedModels
 
 using DataFrames: AbstractAggregate
-using CUDA: findfirst
+using CUDA: findfirst, atomic_add!
 using Base: add_with_overflow
 using Random
 using Distributions

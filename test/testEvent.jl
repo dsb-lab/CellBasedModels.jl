@@ -1,9 +1,15 @@
 using Base: LogicalIndex
 @testset "event" begin
 
-    for platform in ["gpu"]#,"gpu"]
+    if CUDA.has_cuda()
+        testplatforms = ["cpu","gpu"]
+    else
+        testplatforms = ["cpu"]
+    end
 
-        #Execute
+    for platform in testplatforms
+
+        #Execute Division without problems
         @test_nowarn begin
             m = @agent(
                 cell,
@@ -40,7 +46,7 @@ using Base: LogicalIndex
         )
 
         m = compile(m,platform=platform)
-        println(m.program)
+        #println(m.program)
 
         @test_nowarn begin
 
@@ -90,9 +96,59 @@ using Base: LogicalIndex
 
             comt = m.evolve(com,dt=1,tMax=6,nMax=100)
 
-            if comt[end].N != n*2^(comt[end].t-1) error() end
+            if comt[end].N != n*2^comt[end].t error() end
             if !prod(comt[end].id1 .== comt[end].t) error() end
 
         end
+
+        #Execute Death without problems
+        @test_nowarn begin
+            m = @agent(
+                cell,
+
+                [active,id1]::Identity,
+                loc::Local,
+
+                EventDeath = loc < t
+            )
+
+            m = compile(m,platform=platform)
+        end
+
+        m = @agent(
+            cell,
+
+            [active,id1]::Identity,
+            [x,loc]::Local,
+
+            UpdateLocal = begin
+                id1 = 3
+                x = x
+            end,
+
+            EventDeath = loc <= t
+        )
+
+        m = compile(m,platform=platform)
+        #println(m.program)
+        
+        @test_nowarn begin
+
+            com = Community(m,N=100)
+            n = com.N 
+
+            com.loc .= 0:99
+            com.x .= 1:100
+
+            comt = m.evolve(com,dt=1,tMax=105,nMax=100)
+
+            if !Bool(prod(comt.N[1:101] .== Array(100:-1:0))) error() end
+            if !Bool(prod(comt.N[101:end] .== 0)) error() end
+            for i in 1:100
+                if !Bool(prod(comt[i].agentId .== comt[i].x)) error() end
+            end
+
+        end
+
     end
 end

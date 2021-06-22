@@ -185,10 +185,10 @@ macro agent(name, varargs...)
 
             elseif i.head == :(=)
                 if i.args[1] in VALID_UPDATES
-                    if i.args[2].head == :block
+                    if !(string(i.args[1]) in keys(m.declaredUpdates))
+                        m.declaredUpdates[string(i.args[1])] = i.args[2]
+                    elseif i.args[2].head == :block
                         append!(m.declaredUpdates[string(i.args[1])].args,i.args[2].args)
-                    else
-                        push!(m.declaredUpdates[string(i.args[1])].args,i.args[2])
                     end
                 else
                     error(i.args[1], " is not a valid type.")

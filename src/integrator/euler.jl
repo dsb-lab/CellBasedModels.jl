@@ -14,7 +14,7 @@ The algorithm can be reduced to three kernel invocations performing the followin
 """
 function addIntegratorEuler_!(p::Program_, abm::Agent, space::SimulationFree, platform::String)
     
-    if !emptyquote_(abm.declaredUpdates["Equation"])
+    if "Equation" in keys(abm.declaredUpdates)
 
         code = abm.declaredUpdates["Equation"]
 

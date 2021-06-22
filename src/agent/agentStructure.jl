@@ -16,9 +16,7 @@ mutable struct Agent
             :NoName,
             Dict{String,Array{Symbol}}("Local"=>Symbol[],"Identity"=>Symbol[:agentId],
                                         "Global"=>Symbol[],"GlobalArray"=>Symbol[]),
-            Dict{String,Expr}("UpdateGlobal"=>quote end,"UpdateLocal"=>quote end,
-                                "UpdateLocalInteraction"=>quote end,"UpdateInteraction"=>quote end,
-                                "Equation"=>quote end,"EventDivision"=>quote end,"EventDeath"=>quote end),
+            Dict{String,Expr}(),
             needCompilation)
     end
 end

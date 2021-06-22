@@ -23,6 +23,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=S
     addUpdateLocal_!(p,abm,space,platform)
     addUpdateLocalInteraction_!(p,abm,space,platform)
     addEventDivision_!(p,abm,space,platform)
+    addEventDeath_!(p,abm,space,platform)
     addUpdate_!(p,abm,space,platform)
     
     #Saving
