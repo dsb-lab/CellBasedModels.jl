@@ -106,6 +106,7 @@ function Community(abm::Model; N::Int=1, t::AbstractFloat=0.)
 
     loc = zeros(Float64,N,length(abm.agent.declaredSymbols["Local"]))
     ids = ones(Int,N,length(abm.agent.declaredSymbols["Identity"]))
+    ids[:,1] .= 1:N
     glob = zeros(Float64,length(abm.agent.declaredSymbols["Global"]))
     globArray = []
     for i in abm.agent.declaredSymbols["GlobalArray"]

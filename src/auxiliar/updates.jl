@@ -49,16 +49,16 @@ function updates_!(p::Program_,abm::Agent)
     end
     p.update["Variables"] = dict
 
-    ## Check equations and their update variables
+    ## Check division and their update variables
     dict = Dict{Symbol,Int}()
     counter = 1
     if !(emptyquote_(abm.declaredUpdates["EventDivision"]))
         s = symbols_(abm,abm.declaredUpdates["EventDivision"]).Symbol
         for place in ["Local","Identity"]
             for i in abm.declaredSymbols[place]
-                for j in ["₁","₂"]
+                for j in ["_₁","_₂"]
                     ss = Meta.parse(string(i,j))
-                    if ss in s
+                    if ss in s && !(i in keys(dict))
                         dict[i] = counter
                         counter += 1
                         if !(i in keys(p.update[place]))

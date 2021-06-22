@@ -99,7 +99,7 @@ function vectorize_(abm::Agent,code::Expr,p::Program_)
 
     for (i,v) in enumerate(abm.declaredSymbols["GlobalArray"])
 
-        if v in p.update["GlobalArray"]
+        if v in keys(p.update["GlobalArray"])
             name = Meta.parse(string(v,"Copy"))
             code = postwalk(x->@capture(x, $v[c__] = v__) ? :($name[$(c...)] = $(v...)) : x, code)
             code = postwalk(x->@capture(x, $v[c__] += v__) ? :($name[$(c...)] += $(v...)) : x, code)

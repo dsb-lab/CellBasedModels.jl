@@ -16,7 +16,7 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
 
         push!(p.args,:localV)
 
-        if !emptyquote_(abm.declaredUpdates["UpdateLocal"]) || !emptyquote_(abm.declaredUpdates["Equation"])
+        if !isempty(p.update["Local"])
             append!(p.declareVar.args, 
                 (quote
                     localVCopy = zeros(Float64,size(localV)[1],$(length(keys(p.update["Local"]))))
@@ -35,7 +35,7 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
 
         push!(p.args,:identityV)
 
-        if !emptyquote_(abm.declaredUpdates["UpdateLocal"])
+        if !isempty(p.update["Identity"])
             append!(p.declareVar.args, 
                 (quote
                     identityVCopy = zeros(Int,size(identityV)[1],$(length(keys(p.update["Identity"]))))
@@ -54,7 +54,7 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
         )
 
         push!(p.args,:globalV)
-        if !emptyquote_(abm.declaredUpdates["UpdateGlobal"])
+        if !isempty(p.update["Global"]) && !isempty([ v for v in keys(p.update["Global"]) if v in abm.declaredSymbols["Global"] ])
             append!(p.declareVar.args, 
                 (quote
                     globalVCopy = zeros(Float64,$(length(p.update["Global"])))
@@ -75,7 +75,7 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
            
             push!(p.args,Meta.parse(string(i)))
         end
-        if !emptyquote_(abm.declaredUpdates["UpdateGlobal"])
+        if !isempty(p.update["Global"])
             for (j,i) in enumerate(abm.declaredSymbols["GlobalArray"])
                 append!(p.declareVar.args, 
                 (quote
@@ -308,45 +308,79 @@ function addEventDivision_!(p::Program_,abm::Agent,space::SimulationSpace,platfo
 
     code = abm.declaredUpdates["EventDivision"]
 
-    println(p.update)
-    #Add atomic_add
-    subcode = code.args[end].args[end]
-    pushfirst!(subcode.args, :(ic1New_ = Threads.atomic_add!(NV,Int(1)) + 1))
-    for k in ["Local","Identity"]
-        for (i,j) in enumerate(abm.declaredSymbols[k])
+    if !emptyquote_(code)
+
+        #Add atomic_add
+        code = vectorize_(abm,code,p)
+        subcode = code.args[end].args[end]
+        if platform == "cpu"
+            pushfirst!(subcode.args, :(ic1New_ = Threads.atomic_add!(NV,Int(1)) + 1))
+            pushfirst!(subcode.args, :(idNew_ = Threads.atomic_add!(agentIdMax,Int(2)) + 1))
+        elseif platform == "gpu"
+            pushfirst!(subcode.args, :(ic1New_ = CUDA.atomic_add!(CUDA.pointer(NV,1),Int32(1)) + 1))
+            pushfirst!(subcode.args, :(idNew_ = CUDA.atomic_add!(CUDA.pointer(agentIdMax,1),Int32(2)) + 1))
+        end
+        for k in ["Local","Identity"]
             vec = Meta.parse(string(lowercase(k),"V"))
             vecCopy = Meta.parse(string(lowercase(k),"VCopy"))
-            #Parse content
-            s = Meta.parse(string(j,"₁"))
-            subcode = postwalk(x -> @capture(x,$s=v__) ? :($vec[ic1_,$i] = $(v...)) : x, subcode)
-            s = Meta.parse(string(j,"₂"))
-            subcode = postwalk(x -> @capture(x,$s=v__) ? :($vec[ic1New_,$i] = $(v...)) : x, subcode)
+            for (i,j) in enumerate(abm.declaredSymbols[k])
+                if j in keys(p.update["EventDivision"])
+                    ii = p.update[k][j]
+                    #Parse content
+                    s = Meta.parse(string(j,"_₁"))
+                    subcode = postwalk(x -> @capture(x,$s=v__) ? :($vecCopy[ic1_,$ii] = $(v...)) : x, subcode)
+                    s = Meta.parse(string(j,"_₂"))
+                    subcode = postwalk(x -> @capture(x,$s=v__) ? :($vecCopy[ic1New_,$ii] = $(v...)) : x, subcode)
+                end
+            end          
+        end
+        for k in ["Local","Identity"]  #Add other updates of non changed variables
+            vec = Meta.parse(string(lowercase(k),"V"))
+            vecCopy = Meta.parse(string(lowercase(k),"VCopy"))  
+            for (i,j) in enumerate(abm.declaredSymbols[k])
+                #Add update if doesn't exist
+                if !(j in keys(p.update["EventDivision"])) && j != :agentId
+                    push!(subcode.args,:($vec[ic1New_,$i] = $vec[ic1_,$i]))
+                elseif j != :agentId
+                    ii = p.update[k][j]
+                    push!(subcode.args,:($vec[ic1_,$i] = $vecCopy[ic1_,$ii]))
+                    push!(subcode.args,:($vec[ic1New_,$i] = $vecCopy[ic1New_,$ii]))                
+                else
+                    ii = findfirst(abm.declaredSymbols["Identity"] .== j)
+                    push!(subcode.args,:($vec[ic1_,$ii] = idNew_))
+                    push!(subcode.args,:($vec[ic1New_,$ii] = idNew_ + 1))                                    
+                end
+            end        
+        end
+        code.args[end].args[end] = subcode
 
-            #Add update if doesn't exist
-            if !(j in keys(p.update["EventDivision"]))
-                push!(subcode.args,:($vec[ic1New_,$i] = $vec[ic1_,$i]))
-            else
-                pos = p.update[k][j]
-                push!(subcode.args,:($vecCopy[ic1_,$pos] = $vec[ic1_,$i]))
-                push!(subcode.args,:($vecCopy[ic1New_,$pos] = $vec[ic1New_,$i]))                
-            end
-        end    
+        code = simpleFirstLoopWrapInFunction_(platform,:division_!,code)
+
+        push!(p.declareF.args,code)
+        push!(p.args,:(NV))
+        if platform == "cpu"
+            push!(p.declareVar.args,:(NV = Threads.Atomic{Int}(N)))
+            push!(p.declareVar.args,:(agentIdMax = Threads.Atomic{Int}(N)))
+
+            push!(p.execInloop.args,
+                    :(begin
+                        @platformAdapt division_!(ARGS_)
+                        N = NV[]
+                    end)
+                )
+        elseif platform == "gpu"
+            push!(p.declareVar.args,:(NV = N .*CUDA.ones(Int,1)))
+            push!(p.declareVar.args,:(agentIdMax = N .*CUDA.ones(Int,1)))
+
+            push!(p.execInloop.args,
+                    :(begin
+                        @platformAdapt division_!(ARGS_)
+                        N = Core.Array(NV)[1]
+                    end)
+                )
+        end
+
     end
-    code.args[end].args[end] = subcode
-    code = vectorize_(abm,code,p)
-
-    code = simpleFirstLoopWrapInFunction_(platform,:division_!,code)
-
-    push!(p.declareVar.args,:(NV = Threads.Atomic{Int}()))
-    push!(p.declareF.args,code)
-    push!(p.args,:(NV))
-
-    push!(p.execInloop.args,
-        :(begin
-            division_!(ARGS_)
-            N = NV[]
-        end)
-        )
 
     return nothing
 end

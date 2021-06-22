@@ -11,9 +11,9 @@ Array{Float} otherwise
 """
 function Base.getproperty(a::Community,var::Symbol)
     
-    try 
+    if var in fieldnames(Community)
         return getfield(a,var)
-    catch
+    else
         if var in a.declaredSymbols_["Local"]
             pos = findfirst(a.declaredSymbols_["Local"].==var) 
             return @views a.local_[:,pos]
@@ -26,6 +26,8 @@ function Base.getproperty(a::Community,var::Symbol)
         elseif var in a.declaredSymbols_["GlobalArray"]
             pos = findfirst(a.declaredSymbols_["GlobalArray"].==var) 
             return a.globalArray_[pos]
+        elseif var == :agentId
+            return 1:a.N
         else
             error("Parameter ", var, " not fount in the community.")
         end
@@ -106,9 +108,9 @@ end
 
 function Base.getproperty(a::CommunityInTime,var::Symbol)
 
-    try 
+    if var in fieldnames(CommunityInTime)
         return getfield(a,var)
-    catch
+    else
         
         if var == :t
             return [i.t for i in a.com]
@@ -126,11 +128,14 @@ function Base.getproperty(a::CommunityInTime,var::Symbol)
             return out
 
         else
+
+            nMax = maximum(a.com[end].agentId)
             #Create array
-            out = zeros(eltype(getproperty(a.com[1],var)),a[1].N,length(a))
+            out = fill(NaN,length(a),nMax)
             #Fill array
             for i in 1:length(a)
-                out[:,i] .= getproperty(a.com[i],var)
+                a.com[i].agentId
+                out[i,a[i].agentId] .= getproperty(a.com[i],var)
             end
             
             return out
