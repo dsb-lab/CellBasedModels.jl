@@ -44,20 +44,12 @@ Has to be declared as:
 
 # Update rules
 
- - **:Interaction**
-Parameter with float signature describing pairwise interactions between neighbours.
-It is declared globally for all agents and can be updated with UpdateLocalInteraction or UpdateInteraction.
-Has to be declared as:
-
-    interactionParameter::Interaction
-    [interactionParameter,interactionParameter,...]::Interaction
-
  - **Equation**
 Type for declaring dynamical equations for the variables.
 Has to be declared as:
 
     Equation = 
-        quote
+        begin
             ... code including the differential equations ...
         end
 
@@ -66,7 +58,7 @@ Type for declaring global update rules for the global parameters and global arra
 Has to be declared as:
 
     UpdateGlobal = 
-        quote
+        begin
             ... code including the update rules ...
         end
 
@@ -75,7 +67,7 @@ Type for declaring local update rules for the local parameters and ids.
 Has to be declared as:
 
     UpdateLocal = 
-        quote
+        begin
             ... code including the update rules ...
         end
 
@@ -85,7 +77,7 @@ The variables declared in these updates will be updated during the integration s
 Has to be declared as:
     
     UpdateInteraction = 
-        quote
+        begin
             ... code including the update rules ...
         end
 
@@ -96,7 +88,7 @@ For integrators that evaluate just once as the Euler integrator, UpdateInteracti
 Has to be declared as:
         
     UpdateLocalInteraction = 
-        quote
+    begin
             ... code including the update rules ...
         end
 
@@ -106,7 +98,7 @@ Any function which returns a piece of code with the structue as the above declar
 
 ```
 function localWithIncrements(variable,step)
-    return quote
+    return begin
         \$variable::Local
 
         UpdateLocal = \$variable += \$step
@@ -186,7 +178,11 @@ macro agent(name, varargs...)
             elseif i.head == :(=)
                 if i.args[1] in VALID_UPDATES
                     if !(string(i.args[1]) in keys(m.declaredUpdates))
-                        m.declaredUpdates[string(i.args[1])] = i.args[2]
+                        if i.args[2].head == :block
+                            m.declaredUpdates[string(i.args[1])] = i.args[2]
+                        else
+                            m.declaredUpdates[string(i.args[1])] = quote $(i.args[2]) end
+                        end
                     elseif i.args[2].head == :block
                         append!(m.declaredUpdates[string(i.args[1])].args,i.args[2].args)
                     end
@@ -238,7 +234,7 @@ function add(name::Symbol,varags::Agent...)
     else
         for i in varags
             for j in keys(i.declaredSymbols)
-                checkDeclared_(main,i.declaredSymbols[j])
+                checkDeclared_(main,[x for x in i.declaredSymbols[j] if x != :agentId])
                 append!(main.declaredSymbols[j],i.declaredSymbols[j])
             end
             for j in keys(i.declaredUpdates)

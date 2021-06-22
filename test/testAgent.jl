@@ -27,7 +27,6 @@
     m = @agent(
         Hola,
 
-        id::Identity,
         l::Local,
         g::Global,
         ga::GlobalArray,
@@ -63,7 +62,7 @@
     m = @agent(
         Hola,
 
-        [id,id2]::Identity,
+        [id]::Identity,
         [l,l2]::Local,
         [g,g2]::Global,
         [ga,ga2]::GlobalArray,

@@ -49,9 +49,9 @@
                 com.z .= 0.
                 comt = m.evolve(com,dt=0.01,tMax=5)
 
-                if !prod(abs.(comt.x[1,1:end] .- exp.(-comt.t)) .< 0.02) error() end
-                if !prod(comt.y[1,1:end] .≈ 2 ) error() end
-                if !prod(comt.z[1,1:end] .≈ comt.t) error() end
+                if !prod(abs.(comt.x[1:end,1] .- exp.(-comt.t)) .< 0.02) error() end
+                if !prod(comt.y[1:end,1] .≈ 2 ) error() end
+                if !prod(comt.z[1:end,1] .≈ comt.t) error() end
             end
 
             #SDE
@@ -62,7 +62,7 @@
                 
                 Equation = 
                 begin
-                    ∂x = -0*dt + dW 
+                    ∂x = -0*dt + dW
                 end
             )
             m = compile(m, integrator=integrator, platform=platform, debug=false)
@@ -74,7 +74,7 @@
                 com.x .= 0.
                 comt = m.evolve(com,dt=0.01,tMax=5)
 
-                v = [var(comt.x[:,i]) for i in 1:size(comt.x)[2]]
+                v = [var(comt.x[i,:]) for i in 1:size(comt.x)[1]]
                 if !prod(abs.(v .- comt.t) .< 0.8) error() end
             end
 

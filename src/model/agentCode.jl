@@ -166,9 +166,11 @@ function addCleanInteraction_!(p::Program_,abm::Agent,space::SimulationSpace,pla
         #Construct cleanup function
         s = []
         for i in ["UpdateLocalInteraction","UpdateInteraction"]
-            syms = symbols_(abm,abm.declaredUpdates[i])
-            syms = syms[Bool.((syms[:,"placeDeclaration"] .== :Model) .* syms[:,"updated"]),"Symbol"]
-            append!(s,syms)
+            if i in keys(abm.declaredUpdates)
+                syms = symbols_(abm,abm.declaredUpdates[i])
+                syms = syms[Bool.((syms[:,"placeDeclaration"] .== :Model) .* syms[:,"updated"]),"Symbol"]
+                append!(s,syms)
+            end
         end
         unique!(s)
         up = quote end
@@ -395,7 +397,7 @@ function addEventDeath_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
 
     if "EventDeath" in keys(abm.declaredUpdates)
 
-        condition = abm.declaredUpdates["EventDeath"]
+        condition = abm.declaredUpdates["EventDeath"].args[end]
 
         #Create function to check dead elements
         if platform == "cpu"

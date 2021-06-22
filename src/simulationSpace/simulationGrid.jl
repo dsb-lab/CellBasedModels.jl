@@ -61,9 +61,9 @@ function SimulationGrid(abm::Agent, box::Array{<:Union{<:Tuple{Symbol,<:Real,<:R
     return SimulationGrid(box2,radius,length(vars),n,axisSize,cumSize) 
 end
 
-function arguments_!(data::Program_, abm::Agent, a::SimulationGrid, platform::String)
+function arguments_!(program::Program_, abm::Agent, a::SimulationGrid, platform::String)
     
-    append!(data.declareVar.args, 
+    append!(program.declareVar.args, 
     (quote
         nnGId_ = zeros(Int,nMax,$(a.dim))
         nnVId_ = zeros(Int,nMax)
@@ -89,10 +89,13 @@ function arguments_!(data::Program_, abm::Agent, a::SimulationGrid, platform::St
     end
     positionArray = Meta.parse(string(positionArray,"1"))
 
+    positionArray = vectorize_(abm,positionArray,program)
+    positionGrid = vectorize_(abm,positionGrid,program)
+
     #Create kernels for the algorithm
     if platform == "cpu"
 
-        push!(data.declareF.args, 
+        push!(program.declareF.args, 
 
             wrapInFunction_(:insertCounts_,
 
@@ -144,13 +147,20 @@ function arguments_!(data::Program_, abm::Agent, a::SimulationGrid, platform::St
                     nnGCCum_ .= cumsum(nnGC_)
                     countingSort_(ARGS_)
 
+                    println(nnGId_)
+                    println(nnVId_)
+                    println(nnGC_) 
+                    println(nnGCAux_) 
+                    println(nnGCCum_)
+                    println(nnId_) 
+
                     return nothing
                 end
             end
         )
 
     elseif platform == "gpu"
-        push!(data.declareF.args, 
+        push!(program.declareF.args, 
 
             simpleFirstLoopWrapInFunction_(platform, :insertCounts_,
 
@@ -201,64 +211,256 @@ function arguments_!(data::Program_, abm::Agent, a::SimulationGrid, platform::St
         error("Platform should be or cpu or gpu. ", platform, " was given.")
     end
 
-    append!(data.args, [:nnGId_,:nnVId_,:nnGC_,:nnGCAux_,:nnGCCum_,:nnId_])
+    append!(program.args, [:nnGId_,:nnVId_,:nnGC_,:nnGCAux_,:nnGCCum_,:nnId_])
 
     #argsEval = Nothing
 
     #execInit = Nothing
-    #execInloop = Nothing
+    push!(program.execInit.args, :(computeNN_(ARGS_)))
+    push!(program.execInloop.args, :(computeNN_(ARGS_)))
 
     #execAfter = Nothing
     
     return nothing
 end
 
-function loop_(program::Program_, a::SimulationGrid, abm::Agent, code::Expr, platform::String)
+function loop_(program::Program_, abm::Agent, a::SimulationGrid, code::Expr, platform::String)
 
     code = vectorize_(abm, code, program)
     #Prototypes of loops to connect cells in the grid as neighbors
     normal = 
     quote
-        for AUX1_ in -1:1
-            if nnGId_[ic1_,AUX2_]+AUX1_ > 0 && nnGId_[ic1_,AUX2_]+AUX1_ <= $(n.axisSize[AUX2_])
-                pos_ +=  $(n.cumSize[AUX2_])*(nnGId_[ic1_,AUX2_]+AUX1_-1)
-                ALGORITHM_
+        for AUX1 in -1:1
+            if nnGId_[ic1_,AUX2]+AUX1 > 0 && nnGId_[ic1_,AUX2]+AUX1 <= AXISSIZE
+                pos_ +=  CUMSIZE*(nnGId_[ic1_,AUX2]+AUX1-1)
+                ALGORITHM
             end
         end    
     end
 
     periodic = 
     quote
-        for AUX1_ in -1:1
-            if nnGId_[ic1_,AUX2_]+AUX1_ < 0
-                pos_ +=  $(n.cumSize[AUX2_])*($(n.axisSize[AUX2_])-1)
-                ALGORITHM_
-            elseif nnGId_[ic1_,AUX2_]+AUX1_ > $(n.axisSize[AUX2_])
+        for AUX1 in -1:1
+            if nnGId_[ic1_,AUX2]+AUX1 < 0
+                pos_ +=  CUMSIZE*(AXISSIZE-1)
+                ALGORITHM
+            elseif nnGId_[ic1_,AUX2]+AUX1 > AXISSIZE
                 pos_ +=  0
-                ALGORITHM_
+                ALGORITHM
             else
-                pos_ +=  $(n.cumSize[AUX2_])*(nnGId_[ic1_,AUX2_]+AUX1_-1)
-                ALGORITHM_
+                pos_ +=  CUMSIZE*(nnGId_[ic1_,AUX2]+AUX1-1)
+                ALGORITHM
+            end
+        end    
+    end
+
+    normal0 = 
+    quote
+        for AUX1 in -1:1
+            if nnGId_[ic1_,AUX2]+AUX1 > 0 && nnGId_[ic1_,AUX2]+AUX1 <= AXISSIZE
+                pos_ =  CUMSIZE*(nnGId_[ic1_,AUX2]+AUX1-1)
+                ALGORITHM
+            end
+        end    
+    end
+
+    periodic0 = 
+    quote
+        for AUX1 in -1:1
+            if nnGId_[ic1_,AUX2]+AUX1 < 0
+                pos_ =  CUMSIZE*(AXISSIZE-1)
+                ALGORITHM
+            elseif nnGId_[ic1_,AUX2]+AUX1 > AXISSIZE
+                pos_ =  0
+                ALGORITHM
+            else
+                pos_ =  CUMSIZE*(nnGId_[ic1_,AUX2]+AUX1-1)
+                ALGORITHM
             end
         end    
     end
 
     #Make nested loops
-    loop = :(ALGORITHM_)
+    loop = quote ALGORITHM end
     for i in a.dim:-1:1
         aux = Meta.parse(string("i",i,"__"))
-        if typeof(a.boundaries[i])<:NonPeriodic
-            loop = subs_(loop,:ALGORITHM_,normal)
-        elseif typeof(a.boundaries[i])<:Periodic
-            loop = subs_(loop,:ALGORITHM_,periodic)
+        if typeof(a.box[i])<:NonPeriodic
+            if i != a.dim
+                loop = postwalk(x->@capture(x,ALGORITHM) ? normal : x, loop)
+            else
+                loop = postwalk(x->@capture(x,ALGORITHM) ? normal0 : x, loop)
+            end
+        elseif typeof(a.box[i])<:Periodic
+            if i != a.dim
+                loop = postwalk(x->@capture(x,ALGORITHM) ? periodic : x, loop)
+            else
+                loop = postwalk(x->@capture(x,ALGORITHM) ? periodic0 : x, loop)
+            end
         end
-        loop = subs_(loop,:AUX1_,aux)                        
-        loop = subs_(loop,:AUX2_,i)
+        loop = postwalk(x->@capture(x,AUX1) ? aux : x, loop)
+        loop = postwalk(x->@capture(x,AUX2) ? i : x, loop)
+        loop = postwalk(x->@capture(x,AXISSIZE) ? :($(a.axisSize[i])) : x, loop)
+        loop = postwalk(x->@capture(x,CUMSIZE) ? :($(a.cumSize[i])) : x, loop)
     end
-    loop = subs_(loop,:ALGORITHM_,code)
-    loop = vectorize_(abm, loop)
+    code = :(begin
+        for ic2_ in nnGCCum_[pos_]:nnGCCum_[pos_]+nnGCAux_[pos_]
+            println(ic2_)
+            #$code
+        end
+    end)
+    loop = postwalk(x->@capture(x,ALGORITHM) ? code : x, loop)
+    loop = vectorize_(abm, loop, program)
     loop = subs_(loop,:nnic2_,:(nnId_[ic2_]))
+#    loop = postwalk(x->@capture(x,nnic2_) ? :(nnId_[ic2_]) : x, loop)
     loop = simpleFirstLoop_(platform, loop)
 
     return loop
+end
+
+function position2gridVectorPosition_(x,minX,dX,nX)
+
+    pos = min(max(ceil(Int,(x-minX)/dX+1),1),nX)
+
+    return pos
+end
+
+function position2gridVectorPosition_(x,minX,dX,nX,y,minY,dY,nY)
+
+    posX = min(max(ceil(Int,(x-minX)/dX+1),1),nX)
+    posY = min(max(ceil(Int,(y-minY)/dY+1),1),nY)
+
+    return posX + nX * (posY-1)
+end
+
+function position2gridVectorPosition_(x,minX,dX,nX,y,minY,dY,nY,z,minZ,dZ,nZ)
+
+    posX = min(max(ceil(Int,(x-minX)/dX+1),1),nX)
+    posY = min(max(ceil(Int,(y-minY)/dY+1),1),nY)
+    posZ = min(max(ceil(Int,(z-minZ)/dZ+1),1),nZ)
+
+    return posX + nX * (posY-1) + nX * nY * (posZ-1)
+end
+
+function gridVectorPositionNeighbour(p,neighbour,nX,periodicX)
+    posX = p+(neighbour-2)
+    if posX == 0
+        if periodicX == true
+            return nX
+        else
+            return -1
+        end
+    elseif posX == nX + 1
+        if periodicX == true
+            return 1
+        else
+            return -1
+        end
+    else
+        return posX
+    end
+end
+
+function gridVectorPositionNeighbour(p,neighbour,nX,periodicX,nY,periodicY)
+    posY = floor(Int,p/nX-.1) + floor(Int,neighbour/3-1/3)
+
+    posX = (p-1)%nX + (neighbour-1)%3
+
+    abort = false
+
+    if posX == 0
+        if periodicX == true
+            posX = nX
+        else
+            abort = true
+        end
+    elseif posX == nX + 1
+        if periodicX == true
+            posX = 1
+        else
+            abort = true
+        end
+    end
+
+    if posY == 0
+        if periodicY == true
+            posY = nY
+        else
+            abort = true
+        end
+    elseif posY == nY + 1
+        if periodicY == true
+            posY = 1
+        else
+            abort = true
+        end
+    end
+
+    #println(posX," ",posY)
+
+    if abort
+        return -1
+    else
+        return posX + nX*(posY-1)
+    end
+end
+
+function gridVectorPositionNeighbour(p,neighbour,nX,periodicX,nY,periodicY,nZ,periodicZ)
+
+    auxZ = floor(Int,p/nX/nY-.1)
+    posZ = auxZ + floor(Int,neighbour/9-1/9)
+
+    auxY = floor(Int,(p-auxZ*nX*nY)/nX-.1)
+    posY = auxY + floor(Int,neighbour/3-1/3)
+
+    posX = ((p-auxY*nX-auxZ*nX*nY)-1)%nX + (neighbour-1)%3
+
+    abort = false
+
+    if posX == 0
+        if periodicX == true
+            posX == nX
+        else
+            abort = true
+        end
+    elseif posX == nX + 1
+        if periodicX == true
+            posX == 1
+        else
+            abort = true
+        end
+    end
+
+    if posY == 0
+        if periodicY == true
+            posY == nY
+        else
+            abort = true
+        end
+    elseif posY == nY + 1
+        if periodicY == true
+            posY == 1
+        else
+            abort = true
+        end
+    end
+
+    if posZ == 0
+        if periodicZ == true
+            posZ == nZ
+        else
+            abort = true
+        end
+    elseif posZ == nZ + 1
+        if periodicZ == true
+            posZ == 1
+        else
+            abort = true
+        end
+    end
+
+    if abort
+        return -1
+    else
+        return posX + nX*(posY-1) + nY*nX*(posZ-1)
+    end
 end

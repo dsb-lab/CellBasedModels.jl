@@ -15,7 +15,7 @@ function vectorize_(abm::Agent,code::Expr,p::Program_)
         v2 = Meta.parse(string(v,"₁"))
         code = postwalk(x->@capture(x, $v2) ? :($bs[ic1_,$i]) : x, code)
         v2 = Meta.parse(string(v,"₂"))
-        code = postwalk(x->@capture(x, $v2) ? :($bs[ic1_,$i]) : x, code)
+        code = postwalk(x->@capture(x, $v2) ? :($bs[nnic2_,$i]) : x, code)
 
         if v in keys(p.update["Local"])
             pos = p.update["Local"][v]
@@ -46,7 +46,7 @@ function vectorize_(abm::Agent,code::Expr,p::Program_)
         v2 = Meta.parse(string(v,"₁"))
         code = postwalk(x->@capture(x, $v2) ? :($bs[ic1_,$i]) : x, code)
         v2 = Meta.parse(string(v,"₂"))
-        code = postwalk(x->@capture(x, $v2) ? :($bs[ic1_,$i]) : x, code)
+        code = postwalk(x->@capture(x, $v2) ? :($bs[nnic2_,$i]) : x, code)
 
         if v in keys(p.update["Identity"])
             pos = p.update["Identity"][v]
@@ -74,7 +74,7 @@ function vectorize_(abm::Agent,code::Expr,p::Program_)
 
         bs = :globalV
 
-        code = subs_(code,v,:($bs[$i]),update=true)
+        code = postwalk(x->@capture(x, $v) ? :($bs[$i]) : x, code)
 
         if v in keys(p.update["Global"])
             pos = p.update["Global"][v]

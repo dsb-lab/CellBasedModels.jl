@@ -12,14 +12,14 @@ The algorithm can be reduced to three kernel invocations performing the followin
  - Compute interaction parameters at original position v₀ (if there are interaction parameters)
  - Compute final position v₁
 """
-function addIntegratorEuler_!(p::Program_, abm::Agent, space::SimulationFree, platform::String)
+function addIntegratorEuler_!(p::Program_, abm::Agent, space::SimulationSpace, platform::String)
     
     if "Equation" in keys(abm.declaredUpdates)
 
         code = abm.declaredUpdates["Equation"]
 
         #Create interaction parameter kernel if there is any interaction parameter updated
-        if !emptyquote_(abm.declaredUpdates["UpdateInteraction"])
+        if "UpdateInteraction" in keys(abm.declaredUpdates)
 
             k1 = loop_(p,abm,space,abm.declaredUpdates["UpdateInteraction"],platform)
             k1 = vectorize_(abm,k1,p)
@@ -40,7 +40,7 @@ function addIntegratorEuler_!(p::Program_, abm::Agent, space::SimulationFree, pl
         push!(p.declareF.args,f)
 
         #Create wrapped integration step function
-        if !emptyquote_(abm.declaredUpdates["UpdateInteraction"])
+        if "UpdateInteraction" in keys(abm.declaredUpdates)
             addInteraction = [:(@platformAdapt cleanInteraction_!(ARGS_);@platformAdapt interactionCompute_!(ARGS_))]
         else
             addInteraction = []

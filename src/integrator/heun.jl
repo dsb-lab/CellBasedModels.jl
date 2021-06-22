@@ -23,14 +23,14 @@ The algorithm can be reduced to six kernels invocations performing the following
  - Compute interaction parameters at intermediate position vᵢₙₜ  (if there are interaction parameters)
  - Compute K₂ parameters and final position v₁
 """
-function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationFree, platform::String)
+function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationSpace, platform::String)
     
     if  "Equation" in keys(abm.declaredUpdates)
 
         code = abm.declaredUpdates["Equation"]
 
         #Create first interaction parameter kernel if there is any interaction parameter updated
-        if !emptyquote_(abm.declaredUpdates["UpdateInteraction"])
+        if "UpdateInteraction" in keys(abm.declaredUpdates)
 
             k1 = loop_(p,abm,space,abm.declaredUpdates["UpdateInteraction"],platform)
             k1 = vectorize_(abm,k1,p)
@@ -63,7 +63,7 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationFree, pla
         push!(p.args,:K₁_ )  
 
         #Create second interaction parameter kernel using localVCopy if there is any
-        if !emptyquote_(abm.declaredUpdates["UpdateInteraction"])
+        if "UpdateInteraction" in keys(abm.declaredUpdates)
 
             k3 = loop_(p,abm,space,abm.declaredUpdates["UpdateInteraction"],platform)
             for (i,j) in enumerate(abm.declaredSymbols["Local"])
@@ -107,7 +107,7 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationFree, pla
 
             push!(p.args,:dW,:S_)
         end
-        if !emptyquote_(abm.declaredUpdates["UpdateInteraction"])
+        if "UpdateInteraction" in keys(abm.declaredUpdates)
             addInteraction1 = [:(@platformAdapt cleanInteraction_!(ARGS_);@platformAdapt interactionStep1_(ARGS_))]
             addInteraction2 = [:(@platformAdapt cleanInteraction_!(ARGS_);@platformAdapt interactionStep2_(ARGS_))]
         else

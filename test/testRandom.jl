@@ -13,7 +13,7 @@
         r = :(Normal(2,3) += Uniform(3,4))
         r = AgentBasedModels.randomAdapt_(m, r, "gpu")
 
-        r == :(NormalCUDA(randn(),2,3) += UniformCUDA(rand(),3,4))
+        r == :(AgentBasedModels.NormalCUDA(rand(),2,3) += AgentBasedModels.UniformCUDA(rand(),3,4))
     end
 
     @test_throws ErrorException begin
