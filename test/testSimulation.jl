@@ -278,7 +278,7 @@ end
     @test_nowarn AgentBasedModels.arguments_!(AgentBasedModels.Program_(),m,nn,"cpu")
 
     if CUDA.has_cuda()
-        testplatforms = ["cpu"]#,"gpu"]
+        testplatforms = ["cpu","gpu"]
     else
         testplatforms = ["cpu"]
     end
