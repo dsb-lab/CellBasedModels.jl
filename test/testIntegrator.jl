@@ -18,9 +18,9 @@
                     
                     Equation = 
                     begin
-                        ∂x = x*dt 
-                        ∂y = 0*dt 
-                        ∂z = 1*dt
+                        d_x = x*dt 
+                        d_y = 0*dt 
+                        d_z = 1*dt
                     end
                 )
                 m = compile(m, integrator=integrator, platform=platform, debug=false)
@@ -34,8 +34,8 @@
                 
                 Equation = 
                 begin
-                    ∂x = -x*dt 
-                    ∂z = 1*dt
+                    d_x = -x*dt 
+                    d_z = 1*dt
                 end
             )
             m = compile(m, integrator=integrator, platform=platform, debug=false)
@@ -62,7 +62,7 @@
                 
                 Equation = 
                 begin
-                    ∂x = -0*dt + dW
+                    d_x = -0*dt + dW
                 end
             )
             m = compile(m, integrator=integrator, platform=platform, debug=false)

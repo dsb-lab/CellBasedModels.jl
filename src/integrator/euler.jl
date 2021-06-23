@@ -30,7 +30,7 @@ function addIntegratorEuler_!(p::Program_, abm::Agent, space::SimulationSpace, p
 
         #Create integration step function
         for (i,j) in enumerate(abm.declaredSymbols["Local"])
-            s = Meta.parse(string("∂",j))
+            s = Meta.parse(string(EQUATIONSYMBOL,j))
             code = postwalk(x -> @capture(x,$s=v__) ? :($j = $j + $(v...)) : x, code)
             # code = postwalk(x -> @capture(x,dW) ? :(rand()*sqrt(dt)) : x, code)
         end
@@ -42,6 +42,7 @@ function addIntegratorEuler_!(p::Program_, abm::Agent, space::SimulationSpace, p
         #Create wrapped integration step function
         if "UpdateInteraction" in keys(abm.declaredUpdates)
             addInteraction = [:(@platformAdapt cleanInteraction_!(ARGS_);@platformAdapt interactionCompute_!(ARGS_))]
+            push!(p.execInit.args, :(@platformAdapt cleanInteraction_!(ARGS_); @platformAdapt interactionCompute_!(ARGS_)))
         else
             addInteraction = []
         end

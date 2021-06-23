@@ -119,7 +119,7 @@ end
     @test_nowarn SimulationGrid(m,[(:x,0.,1.),(:y,0.,2.),(:z,0.,3.)],[1.,2.,3.])
     @test_nowarn SimulationGrid(m,[Open(:x,0.,1.),Periodic(:y,0.,2.),HardReflecting(:z,0.,3.)],5.)
 
-    nn = SimulationGrid(m,[(:x,0.,1.),(:y,0.,2.),(:z,0.,3.)],.5)
+    nn = SimulationGrid(m,[(:x,0.,1.),(:y,0.,2.),(:z,0.,3.)],1.)
     @test nn.dim == 3
     @test nn.n == 3*4*5
     @test nn.axisSize == [3,4,5]
@@ -158,7 +158,7 @@ end
     @test begin
         xx = []
         for x in 1:3
-            push!(xx,AgentBasedModels.gridVectorPositionNeighbour(1,x,5,false))
+            push!(xx,AgentBasedModels.gridVectorPositionNeighbour_(1,x,5,false))
         end 
         xx == [-1,1,2]
     end
@@ -166,7 +166,7 @@ end
     @test begin
         xx = []
         for x in 1:3
-            push!(xx,AgentBasedModels.gridVectorPositionNeighbour(2,x,5,false))
+            push!(xx,AgentBasedModels.gridVectorPositionNeighbour_(2,x,5,false))
         end 
         xx == [1,2,3]
     end
@@ -174,23 +174,23 @@ end
     @test begin
         xx = []
         for x in 1:3
-            push!(xx,AgentBasedModels.gridVectorPositionNeighbour(1,x,5,true))
+            push!(xx,AgentBasedModels.gridVectorPositionNeighbour_(2,x,5,true))
         end 
-        xx == [5,1,2]
+        xx == [4,2,3]
     end
 
     @test begin
         xx = []
         for x in 1:3
-            push!(xx,AgentBasedModels.gridVectorPositionNeighbour(5,x,5,true))
+            push!(xx,AgentBasedModels.gridVectorPositionNeighbour_(4,x,5,true))
         end 
-        xx == [4,5,1]
+        xx == [3,4,2]
     end
 
     @test begin
         xx = []
         for x in 1:9
-            push!(xx,AgentBasedModels.gridVectorPositionNeighbour(1,x,5,false,7,false))
+            push!(xx,AgentBasedModels.gridVectorPositionNeighbour_(1,x,5,false,7,false))
         end 
         xx == [-1,-1,-1,-1,1,2,-1,6,7]
     end
@@ -198,7 +198,7 @@ end
     @test begin
         xx = []
         for x in 1:9
-            push!(xx,AgentBasedModels.gridVectorPositionNeighbour(7,x,5,false,7,false))
+            push!(xx,AgentBasedModels.gridVectorPositionNeighbour_(7,x,5,false,7,false))
         end 
         xx == [1,2,3,6,7,8,11,12,13]
     end
@@ -206,7 +206,7 @@ end
     @test begin
         xx = []
         for x in 1:9
-            push!(xx,AgentBasedModels.gridVectorPositionNeighbour(25,x,5,false,5,false))
+            push!(xx,AgentBasedModels.gridVectorPositionNeighbour_(25,x,5,false,5,false))
         end 
         xx == [19,20,-1,24,25,-1,-1,-1,-1]
     end
@@ -214,73 +214,124 @@ end
     @test begin
         xx = []
         for x in 1:9
-            push!(xx,AgentBasedModels.gridVectorPositionNeighbour(1,x,5,true,7,false))
+            push!(xx,AgentBasedModels.gridVectorPositionNeighbour_(2,x,5,true,7,false))
         end 
-        xx == [-1,-1,-1,5,1,2,10,6,7]
+        xx == [-1,-1,-1,4,2,3,9,7,8]
     end
 
     @test begin
         xx = []
         for x in 1:9
-            push!(xx,AgentBasedModels.gridVectorPositionNeighbour(5,x,5,true,7,false))
+            push!(xx,AgentBasedModels.gridVectorPositionNeighbour_(4,x,5,true,7,false))
         end 
-        xx == [-1,-1,-1,4,5,1,9,10,6]
+        xx == [-1,-1,-1,3,4,2,8,9,7]
     end
 
     @test begin
         xx = []
         for x in 1:9
-            push!(xx,AgentBasedModels.gridVectorPositionNeighbour(1,x,5,false,7,true))
+            push!(xx,AgentBasedModels.gridVectorPositionNeighbour_(6,x,5,false,7,true))
         end 
-        xx == [-1,31,32,-1,1,2,-1,6,7]
+        xx == [-1,26,27,-1,6,7,-1,11,12]
     end
 
     @test begin
         xx = []
         for x in 1:9
-            push!(xx,AgentBasedModels.gridVectorPositionNeighbour(25,x,5,true,5,true))
+            push!(xx,AgentBasedModels.gridVectorPositionNeighbour_(19,x,5,true,5,true))
         end 
-        xx == [19,20,16,24,25,21,4,5,1]
+        xx == [13,14,12,18,19,17,8,9,7]
     end
 
-    # @test_nowarn AgentBasedModels.arguments_!(AgentBasedModels.Program_(),m,nn,"cpu")
+    @test begin
+        xx = []
+        for x in 1:27
+            push!(xx,AgentBasedModels.gridVectorPositionNeighbour_(1,x,5,false,5,false,5,false))
+        end 
+        xx == [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,1,2,-1,6,7,-1,-1,-1,-1,26,27,-1,31,32]
+    end
 
-    # m = @agent(
-    #     cell,
+    @test begin
+        xx = []
+        for x in 1:27
+            push!(xx,AgentBasedModels.gridVectorPositionNeighbour_(125,x,5,false,5,false,5,false))
+        end 
+        xx == [94,95,-1,99,100,-1,-1,-1,-1,119,120,-1,124,125,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]
+    end
 
-    #     [l1,l2,intLocal,int]::Local,
-    #     [i1,i2]::Identity,
+    @test begin
+        xx = []
+        for x in 1:27
+            push!(xx,AgentBasedModels.gridVectorPositionNeighbour_(32,x,5,false,5,false,5,false))
+        end 
+        xx == [1,2,3,6,7,8,11,12,13,26,27,28,31,32,33,36,37,38,51,52,53,56,57,58,61,62,63]
+    end
 
-    #     Equation = begin
-    #         nothing
-    #     end,
+    @test begin
+        xx = []
+        for x in 1:27
+            push!(xx,AgentBasedModels.gridVectorPositionNeighbour_(32,x,5,true,5,true,5,true))
+        end 
+        xx == [94,92,93,84,82,83,89,87,88,44,42,43,34,32,33,39,37,38,69,67,68,59,57,58,64,62,63]
+    end
 
-    #     # UpdateInteraction = begin
-    #     #     if sqrt((l1₂-l1₁)^2+(l2₂-l2₁)^2) < 5
-    #     #         int += 1
-    #     #     end
-    #     # end,
+    @test_nowarn AgentBasedModels.arguments_!(AgentBasedModels.Program_(),m,nn,"cpu")
 
-    #     UpdateLocalInteraction = begin
-    #         if sqrt((l1₂-l1₁)^2+(l2₂-l2₁)^2) < 5
-    #             intLocal += 1
-    #         end
-    #     end,
+    if CUDA.has_cuda()
+        testplatforms = ["cpu"]#,"gpu"]
+    else
+        testplatforms = ["cpu"]
+    end
 
-    # )
-    # s = SimulationGrid(m,[(:l1,-20,20)],[1.])
-    # m = compile(m,s)
-    # println(m.program)
+    for platform in testplatforms
 
-    #  @test_nowarn begin
-    #      com = Community(m,N=5)
-    #      com.l1 .= [-20,10,0,10,20]
-    #      com.l2 .= 0
+        m = @agent(
+            cell,
 
-    #      comt = m.evolve(com,dt=0.1,tMax=1)
-    #      comt[1].int == [4,4,4,4] 
-    # end        
+            [l1,l2,l3,intLocal,int]::Local,
+            [i1,i2]::Identity,
 
+            Equation = begin
+                d_l2 = 0.
+            end,
+
+            UpdateInteraction = begin
+                if abs(l1₁ - l1₂) <= 4.5
+                    int += 1
+                end
+            end,
+
+            UpdateLocalInteraction = begin
+                intLocal += 1
+            end,
+        )
+
+        s = SimulationGrid(m,[(:l1,-10,10)],[5.])
+        mo = compile(m,s,platform=platform)
+        #println(mo.program)
+        @test begin
+            com = Community(mo,N=12)
+            com.l1 .= [-11,-7,-2,2,7,11,-11,-7,-2,2,7,11]
+            com.l2 .= 0
+
+            comt = mo.evolve(com,dt=0.1,tMax=1)
+            (comt[1].intLocal == [4.,6.,6.,6.,6.,4.,4.,6.,6.,6.,6.,4.]) && (comt[1].int == [4.,4.,4.,4.,4.,4.,4.,4.,4.,4.,4.,4.])
+        end        
+
+        s = SimulationGrid(m,[Periodic(:l1,-10,10)],[5.])
+        mo = compile(m,s,platform=platform)
+        #println(mo.program)
+        @test begin
+            com = Community(mo,N=4)
+            com.l1 .= [-7,-2,2,7]
+            com.l2 .= 0
+
+            comt = mo.evolve(com,dt=0.1,tMax=1)
+            println(comt[1].intLocal)
+            comt[1].intLocal == [3.,3.,3.,3.]
+        end        
+
+    end
     # @test_nowarn begin
     #     com = Community(m,N=4)
     #     com.l1 = [1,1,0,0]

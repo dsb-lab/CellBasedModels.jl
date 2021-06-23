@@ -46,7 +46,7 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationSpace, pl
             if j in keys(p.update["Variables"])
                 ii = p.update["Local"][j]
                 ki = p.update["Variables"][j]
-                s = Meta.parse(string("∂",j))
+                s = Meta.parse(string(EQUATIONSYMBOL,j))
                 codeK1 = postwalk(x -> @capture(x,$s) ? :(K₁_[ic1_,$ki]) : x, codeK1)
                 #Saves intermediate step vᵢₙₜ in final pos localVCopy
                 push!(codeK1.args,:(localVCopy[ic1_,$ii] = localV[ic1_,$i] + K₁_[ic1_,$ki]))
@@ -82,7 +82,7 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationSpace, pl
             if j in keys(p.update["Variables"])
                 ii = p.update["Local"][j]
                 ki = p.update["Variables"][j]
-                s = Meta.parse(string("∂",j))
+                s = Meta.parse(string(EQUATIONSYMBOL,j))
                 codeK2 = postwalk(x -> @capture(x,$j) ? :(($j+K₁_[ic1_,$ki])) : x, codeK2)
                 codeK2 = postwalk(x -> @capture(x,t) ? :(t+dt) : x, codeK2)
                 codeK2 = postwalk(x -> @capture(x,$s) ? :(localVCopy[ic1_,$ii]) : x, codeK2) #Directly add to final point, saves an additional declaration
@@ -110,6 +110,7 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationSpace, pl
         if "UpdateInteraction" in keys(abm.declaredUpdates)
             addInteraction1 = [:(@platformAdapt cleanInteraction_!(ARGS_);@platformAdapt interactionStep1_(ARGS_))]
             addInteraction2 = [:(@platformAdapt cleanInteraction_!(ARGS_);@platformAdapt interactionStep2_(ARGS_))]
+            push!(p.execInit.args, :(@platformAdapt cleanInteraction_!(ARGS_); @platformAdapt interactionCompute_!(ARGS_)))
         else
             addInteraction1 = []
             addInteraction2 = []
@@ -128,6 +129,7 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationSpace, pl
         )
         
         #Add integration step to the main function
+        push!(p.execInit.args,:(integrationStep_!(ARGS_)))
         push!(p.execInloop.args,:(integrationStep_!(ARGS_)))
 
     end

@@ -17,6 +17,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=S
     
     #Declare all the agent properties related functions, arguments, code...
     addCleanInteraction_!(p,abm,space,platform)
+    addCleanLocalInteraction_!(p,abm,space,platform)
     addParameters_!(p,abm,space,platform)
     addIntegrator_![integrator](p,abm,space,platform)
     addUpdateGlobal_!(p,abm,space,platform)
