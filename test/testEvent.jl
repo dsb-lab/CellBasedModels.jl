@@ -1,12 +1,6 @@
 using Base: LogicalIndex
 @testset "event" begin
 
-    if CUDA.has_cuda()
-        testplatforms = ["cpu","gpu"]
-    else
-        testplatforms = ["cpu"]
-    end
-
     for platform in testplatforms
 
         #Execute Division without problems
