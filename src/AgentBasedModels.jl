@@ -1,94 +1,74 @@
 module AgentBasedModels
 
+using DataFrames: AbstractAggregate
+using CUDA: findfirst, atomic_add!
+using Base: add_with_overflow
 using Random
 using Distributions
 using CUDA
 using DataFrames
 using CSV
+import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, flatten
 #using WriteVTK
 
-export Community, Model, CommunityInTime
-export addGlobal!, addLocal!, addVariable!, addLocalInteraction!, addInteraction!, addIdentifier!
-export addDivision!, addPseudopode!
-export compile!
-export plotCommunitySpheres
+export Agent, @agent, add
+export Model, compile
+export Community, CommunityInTime
+export SimulationFree, SimulationGrid
+export SimulationSpace, FlatBoundary, Periodic, NonPeriodic, Bound
+export configurator_
 
-export save, save!, loadCommunity, loadTimeSeries
-export latticeCompactHexagonal, latticeCubic, extrude
-export extrude!
-export fillVolumeSpheres
-
-export platformAdapt, commonArguments, vectParams, subs, splitEqs, splits
-
-#Reserved variables of the model
+#Constants
 include("./constants/constants.jl")
-include("./constants/abstractStructures.jl")
 
-#Structure
+#Agent
+include("./agent/agentStructure.jl")
+include("./agent/constructAgent.jl")
+
+#Model
+include("./model/structProgram.jl")
+
+#Simulation Space
+include("./simulationSpace/abstractTypes.jl")
+include("./simulationSpace/simulationFree.jl")
+include("./simulationSpace/simulationGrid.jl")
+
+#Model
 include("./model/model.jl")
+include("./model/agentCode.jl")
+include("./model/compile.jl")
+
+#Community
 include("./community/community.jl")
 include("./community/baseModuleExtensions.jl")
-include("./community/save.jl")
-include("./community/load.jl")
 
-#Auxiliar variables
-include("./auxiliar/addIfNot.jl")
-include("./auxiliar/checkDeclared.jl")
-include("./auxiliar/commonArguments.jl")
-include("./auxiliar/findSymbol.jl")
-include("./auxiliar/adapt.jl")
-include("./auxiliar/splitting.jl")
-include("./auxiliar/substitution.jl")
-include("./auxiliar/clean.jl")
-
-#Random variables
-include("./random/randomAdapt.jl")
-
-#Model functions
-include("./model/parameterAdapt.jl")
-include("./model/basic/addGlobal.jl")
-include("./model/basic/addLocal.jl")
-include("./model/basic/addLocalInteraction.jl")
-include("./model/basic/addVariable.jl")
-include("./model/basic/addInteraction.jl")
-include("./model/basic/addIdentifier.jl")
-
-#Agent Macro
-include("./model/AgentMacro/agent.jl")
-include("./model/AgentMacro/distribution.jl")
-
-#Neighborhoods
-include("./model/neighborhoods/neighboursFull.jl")
-include("./model/neighborhoods/neighboursByAdjacency.jl")
-include("./model/neighborhoods/neighboursByGrid.jl")
-include("./model/neighborhoods/neighbours.jl")
-include("./model/neighborhoods/makeInLoop.jl")
-
-#Special
-include("./model/special/division.jl")
-include("./model/special/pseudopodes.jl")
-include("./model/special/special.jl")
+#Random
+include("./model//random/distribution.jl")
+include("./model//random/randomAdapt.jl")
 
 #Integrators
-include("./integrator/euler.jl")
-include("./integrator/heun.jl")
-include("./integrator/integrators.jl")
+include("./model/integrator/euler.jl")
+include("./model/integrator/heun.jl")
+include("./model/integrator/integrators.jl")
 
 #Saving
-include("./saving/saveRAM.jl")
-include("./saving/saveCSV.jl")
-include("./saving/saveVTK.jl")
+include("./model/saving/saveRAM.jl")
+#include("./model/saving/saveCSV.jl")
+include("./model/saving/saving.jl")
 
-#Compile
-include("./compile/compile.jl")
+#Auxiliar function
+include("./auxiliar/checkDeclared.jl")
+include("./auxiliar/clean.jl")
+include("./auxiliar/substitution.jl")
+include("./auxiliar/vectorize.jl")
+include("./auxiliar/arguments.jl")
+include("./auxiliar/wrapping.jl")
+include("./auxiliar/emptyquote.jl")
+include("./auxiliar/symbols.jl")
+include("./auxiliar/updates.jl")
 
-#Predefined models
-include("./predefinedModels/basic.jl")
-
-#Adds to the community
-include("./community/latices/latticeCompactHexagonal.jl")
-include("./community/latices/latticeCubic.jl")
-include("./community/extrude.jl")
-include("./community/initialisers.jl")
+#Cuda specific functions
+include("./cuda/cudaAdapt.jl")
+include("./cuda/cudaConfigurator.jl")
 
 end

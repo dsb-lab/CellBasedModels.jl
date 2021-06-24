@@ -1,83 +1,48 @@
-
 """
-Substitution of a symbol by another symbol in a block of code.
+    function subs_(exp,ob,tar)
 
-# Arguments
- - **exp** (String, Expr, Array{String}, Array{Expr}) Block of code where to substitute the symbol
- - **ob** (String, Expr, Array{String}, Array{Expr}) Object to be substituted
- - **tar** (String, Expr, Array{String}, Array{Expr}) Target by which is substituted, it must have the same type than **ob**.
+Substitutes all encounters of a symbolic expression or symbol **ob** by a target expression **tar** in **exp**.
+Is update true, only substitutes those symbols **ob** that are being assigned.
 
-# Returns
-Expr or Array{Expr}
+Example
+```@Julia
+> subs_(:(x += 3*x),:x,:y,update=false)
+:(y+=3*y)
+> subs_(:(x += 3*x),:x,:y,update=true)
+:(y+=3*x)
+```
 """
-function subs(exp,ob,tar)
+function subs_(exp::Expr,ob::Union{Expr,Symbol},tar::Union{Expr,Symbol,<:Number};update=false)
     for (pos,a) in enumerate(exp.args)
-        if a == ob
+        if a == ob && !update
+            exp.args[pos] = tar
+        elseif a == ob && exp.head in [:(=),:(+=),:(-=),:(%=),:(/=)] && pos == 1
             exp.args[pos] = tar
         elseif typeof(a) == Expr
-            a = subs(a,ob,tar)
+            a = subs_(a,ob,tar,update=update)
         end
     end
     return exp
 end
 
+"""
+    function subsArguments_(exp,ob,tar)
 
-function subs(exp::String,ob,tar)
-    expE = subs(Meta.parse(exp),ob,tar)
-    return expE
-end
+Substitutes all encounters of a symbol **ob** by an expanded list of symbols **tar** in **exp**. 
+Mainly used to put a list of arguments into a function argument list.
+"""
+function subsArguments_(exp::Expr,ob::Symbol,tar::Array{Symbol,1})
 
-function subs(exp::Array,ob,tar)
-    expL = []
-    for i in exp
-        push!(expL,subs(i,ob,tar))
-    end
-    return expL
-end
-
-function subs(exp,obVec::Array,tarVec::Array)
-    for (ob,tar) in zip(obVec,tarVec)
-        subs(exp,ob,tar)
-    end
-    return exp
-end
-
-function subs(exp::Array,obVec::Array,tarVec::Array)
-    expL = [] 
-    for i in exp
-        for (ob,tar) in zip(obVec,tarVec)
-            push!(expL,subs(i,ob,tar))
+    if typeof(tar) == Symbol
+        return subs_(exp,ob,tar)
+    elseif typeof(tar) <: Array
+        add = ""
+        for i in tar
+            add = string(add,i,",")
         end
+        
+        return Meta.parse(replace(string(exp),string(ob)=>add[1:end-1]))
+    else
+        error("Arguments sent are wrong.")
     end
-    return expL
-end
-
-function subs(vars,varsOb,varsTar,exp)
-    for (pos,name) in enumerate(vars)
-        lOb = [Meta.parse(replace(i,"NAME_"=>string(name))) for i in varsOb]
-        lVar = [Meta.parse(replace(i,"POS_"=>string(pos))) for i in varsTar]
-        exp = subs(exp,lOb,lVar)
-    end
-    
-    return exp
-end
-
-function subs(vars,varsOb,varsTar,exp::Array)
-    expL = [] 
-    for expi in exp
-        push!(expL,subs(vars,varsOb,varsTar,expi))
-    end
-    
-    return expL
-end
-
-function subs(vars,varsOb,varsTar,text::String)
-    exp = Meta.parse(text)
-    for (pos,name) in enumerate(vars)
-        lOb = [Meta.parse(replace(i,"NAME_"=>string(name))) for i in varsOb]
-        lVar = [Meta.parse(replace(i,"POS_"=>string(pos))) for i in varsTar]
-        exp = subs(exp,lOb,lVar)
-    end
-    
-    return exp
 end

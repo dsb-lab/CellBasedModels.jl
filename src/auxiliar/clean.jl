@@ -1,34 +1,29 @@
 """
-Cleans a complex expression. It is very helpful for debuging the compiled model evolve function after parsing everything.
+    function clean(a)
 
-# Arguments
- - **a** (Expr) Expression to be cleaned
+Cleans the complex print of an expression to make it more clear to see.
 
-# Returns
-
-nothing
+Code reused from comments on [Julia](https://discourse.julialang.org/t/code-generation-unnecessary-comment-lines-when-using-quote/398/2)
 """
-function clean(a)
-    m = string(a)
-    l = split(m,"\n")
-    f = ""
-    counter = 1
-    for i in l
-        if occursin("begin",i)
-            counter += 4
-        else
-            if occursin("end",i) && length(i) == 3+counter-5
-                counter -= 4
-            else
-                i = i[counter:end]
-                if occursin("#=",i) && occursin("=#",i)
-                    1
-                else
-                    f = string(f,"\t",i,"\n")
-                end
-            end
+function clean(ex::Expr)
+    filter!(ex.args) do e
+        isa(e, LineNumberNode) && return false
+        if isa(e, Expr)
+            (e::Expr).head === :line && return false
+            clean(e::Expr)
+        end
+        return true
+    end
+    return ex
+end
+
+function clean2(ex::Expr)
+    filter!(e->typeof(e)!=LineNumberNode,ex.args)
+    for i in ex.args
+        if typeof(i) == Expr
+            clean2(i)
         end
     end
-    
-    return f
+    return ex
 end
+

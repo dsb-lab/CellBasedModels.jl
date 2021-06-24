@@ -9,37 +9,29 @@ Extends the getindex method to access symbolic variables from the Community stru
 Float if symbol is global parameter
 Array{Float} otherwise
 """
-function Base.getindex(a::Community,var::Symbol)
+function Base.getproperty(a::Community,var::Symbol)
     
-    if var in a.declaredSymb["var"]
-        pos = findfirst(a.declaredSymb["var"].==var)
-        return a.var[:,pos]
-    elseif var in a.declaredSymb["inter"]
-        pos = findfirst(a.declaredSymb["inter"].==var) 
-        return a.inter[:,pos]
-    elseif var in a.declaredSymb["loc"]
-        pos = findfirst(a.declaredSymb["loc"].==var) 
-        return a.loc[:,pos]
-    elseif var in a.declaredSymb["locInter"]
-        pos = findfirst(a.declaredSymb["locInter"].==var) 
-        return a.locInter[:,pos]
-    elseif var in a.declaredSymb["glob"]
-        pos = findfirst(a.declaredSymb["glob"].==var) 
-        return a.glob[pos]
-    elseif var in a.declaredSymb["ids"]
-        pos = findfirst(a.declaredSymb["ids"].==var) 
-        return a.ids[:,pos]
-    elseif var in a.declaredSymb["globArray"]
-        pos = findfirst(a.declaredSymb["globArray"].==var) 
-        return a.globArray[pos]
-    elseif var == :t
-        return a.t
-    elseif var == :N
-        return a.N
+    if var in fieldnames(Community)
+        return getfield(a,var)
     else
-        error("Parameter not fount in the community.")
+        if var in a.declaredSymbols_["Local"]
+            pos = findfirst(a.declaredSymbols_["Local"].==var) 
+            return @views a.local_[:,pos]
+        elseif var in a.declaredSymbols_["Identity"]
+            pos = findfirst(a.declaredSymbols_["Identity"].==var) 
+            return @views a.identity_[:,pos]
+        elseif var in a.declaredSymbols_["Global"]
+            pos = findfirst(a.declaredSymbols_["Global"].==var) 
+            return @views a.global_[pos]
+        elseif var in a.declaredSymbols_["GlobalArray"]
+            pos = findfirst(a.declaredSymbols_["GlobalArray"].==var) 
+            return a.globalArray_[pos]
+        elseif var == :agentId
+            return 1:a.N
+        else
+            error("Parameter ", var, " not fount in the community.")
+        end
     end
-
 end
 
 """
@@ -54,56 +46,44 @@ Extends the setindex method to assign symbolic variables from the Community stru
 Float if symbol is global parameter
 Array{Float} otherwise
 """
-function Base.setindex!(a::Community,v::Array{<:AbstractFloat},var::Symbol)
+function Base.setproperty!(a::Community,var::Symbol,v::Array{<:Number})
     
-    if var in a.declaredSymb["var"]
-        pos = findfirst(a.declaredSymb["var"].==var) 
-        a.var[:,pos] = v
-    elseif var in a.declaredSymb["inter"]
-        pos = findfirst(a.declaredSymb["inter"].==var) 
-        a.inter[:,pos] = v
-    elseif var in a.declaredSymb["loc"]
-        pos = findfirst(a.declaredSymb["loc"].==var) 
-        a.loc[:,pos] = v
-    elseif var in a.declaredSymb["locInter"]
-        pos = findfirst(a.declaredSymb["locInter"].==var) 
-        a.locInter[:,pos] = v
-    elseif var in a.declaredSymb["ids"]
-        pos = findfirst(a.declaredSymb["ids"].==var) 
-        a.ids[:,pos] = v
-    elseif var in a.declaredSymb["globArray"]
-        pos = findfirst(a.declaredSymb["globArray"].==var) 
-        if size(a.globArray[pos]) == size(v)
-            a.globArray[pos] = v
-        else
-            error("Wrong dimensions. They should be ", shape(a.globArray[pos]), ".")
+    if var in a.declaredSymbols_["Local"]
+        if size(v) != (a.N,)
+            error("Trying to assign array with shape ", shape(v), ". It should be of size (N,)")
         end
+        pos = findfirst(a.declaredSymbols_["Local"].==var) 
+        vec = a.local_
+        vec[:,pos] = v
+        setfield!(a,:local_,vec)
+    elseif var in a.declaredSymbols_["Identity"]
+        if size(v) != (a.N,)
+            error("Trying to assign array with shape ", shape(v), ". It should be of size (N,)")
+        end
+        pos = findfirst(a.declaredSymbols_["Identity"].==var) 
+        vec = a.identity_
+        vec[:,pos] = v
+        setfield!(a,:identity_,vec)
+    elseif var in a.declaredSymbols_["GlobalArray"]
+        pos = findfirst(a.declaredSymbols_["GlobalArray"].==var) 
+        a.globalArray_[pos] = v
     else
-        error("Parameter not fount in the community.")
+        error("Parameter ", var, " not fount in the community.")
     end
 
 end
 
-function Base.setindex!(a::Community,v::Number,var::Symbol)
+function Base.setproperty!(a::Community,var::Symbol,v::Number)
     
-    if var in a.declaredSymb["var"]
-        pos = findfirst(a.declaredSymb["var"].==var) 
-        a.var[:,pos] .= v
-    elseif var in a.declaredSymb["inter"]
-        pos = findfirst(a.declaredSymb["inter"].==var) 
-        a.inter[:,pos] .= v
-    elseif var in a.declaredSymb["loc"]
-        pos = findfirst(a.declaredSymb["loc"].==var) 
-        a.loc[:,pos] .= v
-    elseif var in a.declaredSymb["locInter"]
-        pos = findfirst(a.declaredSymb["locInter"].==var) 
-        a.locInter[:,pos] .= v
-    elseif var in a.declaredSymb["glob"]
-        pos = findfirst(a.declaredSymb["glob"].==var) 
-        a.glob[pos] = v
-    elseif var in a.declaredSymb["ids"]
-        pos = findfirst(a.declaredSymb["ids"].==var) 
-        a.ids[:,pos] .= v
+    if var in a.declaredSymbols_["Local"]
+        error("Local parameter ", i, " cannot be assigned with a scalar. Use .= instead.")
+    elseif var in a.declaredSymbols_["Identity"]
+        error("Identity parameter", i, " cannot be assigned with a scalar. Use .= instead.")
+    elseif var in a.declaredSymbols_["Global"]
+        pos = findfirst(a.declaredSymbols_["Global"].==var) 
+        a.global_[pos] = v
+    elseif var in a.declaredSymbols_["GlobalArray"]
+        error("GlobalArray ", i, " cannot be assigned with a scalar.")
     elseif var == :N
         a.N = v
     elseif var == :t
@@ -126,51 +106,41 @@ function Base.length(a::CommunityInTime)
     return length(a.com)
 end
 
-function Base.getindex(a::CommunityInTime,var::Symbol)
-    
-    if var == :t
-        return [i.t for i in a.com]
-    elseif var == :N
-        return [i.N for i in a.com]
-    end
+function Base.getproperty(a::CommunityInTime,var::Symbol)
 
-    if var in a.com[1].declaredSymb["globArray"]
-
-        out = []
-        for i in 1:length(a)
-            push!(out,a.com[i][var])
-        end
-
-        return out
-
-    elseif :id_ in a.com[1].declaredSymb["ids"]
-
-        #Find number of ids
-        posId = findfirst(a.com[1].declaredSymb["ids"].==:id_)
-        l = []
-        for i in a.com
-            append!(l, i.ids[:,posId])
-        end
-        idMax = maximum(l)
-        #Create NaN array
-        out = zeros(eltype(a.com[1][var]),length(a),idMax)
-        out .= NaN
-        #Fill array
-        for i in 1:length(a)
-            out[i,a.com[i][:id_]] .= a.com[i][var]
-        end
-
-        return out
-
+    if var in fieldnames(CommunityInTime)
+        return getfield(a,var)
     else
-        #Create array
-        out = zeros(eltype(a.com[1][var]),length(a),a[1].N)
-        #Fill array
-        for i in 1:length(a)
-            out[i,:] .= a.com[i][var]
-        end
         
-        return out
+        if var == :t
+            return [i.t for i in a.com]
+        elseif var == :N
+            return [i.N for i in a.com]
+        end
+
+        if var in a.com[1].declaredSymbols_["GlobalArray"]
+
+            out = []
+            for i in 1:length(a)
+                push!(out,getproperty(a.com[i],var))
+            end
+
+            return out
+
+        else
+
+            nMax = maximum(a.com[end].agentId)
+            #Create array
+            out = fill(NaN,length(a),nMax)
+            #Fill array
+            for i in 1:length(a)
+                a.com[i].agentId
+                out[i,a[i].agentId] .= getproperty(a.com[i],var)
+            end
+            
+            return out
+
+        end
 
     end
 

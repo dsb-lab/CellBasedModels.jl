@@ -1,8 +1,33 @@
-RESERVEDVAR = []#[:x1,:x2,:x3,:r];
-RESERVEDSYMBOLS = [:t,:N];
-RESERVEDCALLS =  ["Uniform","Normal"];
+VALID_TYPES = [
+    :Identity,
+    :Local,
+    :Global,
+    :GlobalArray
+]
 
-RESERVED = [RESERVEDVAR;RESERVEDSYMBOLS;RESERVEDCALLS];
+VALID_UPDATES = [
+    :UpdateGlobal,
+    :UpdateLocal,
+    :UpdateLocalInteraction,
+    :UpdateInteraction,
+    :Equation,
+    :EventDivision,
+    :EventDeath
+]
+
+UPDATINGOPERATORS = [:+= ,:-=,:*=,:/=,:\=,:÷=,:%=,:^=,:&=,:|=,:⊻=,:>>>=,:>>=,:<<=]
+
+RESERVEDSYMBOLS = [:t,:N,:dt,:dW,:nMax,
+                    :ic1_,:ic2_,:nnic2_,:pos_,
+                    :localV,:identityV,:globalV,
+                    :ALGORITHM_,:ARGS_,:AUX1_,:AUX2_,
+                    :index_,:stride_,:lockadd_];
+
+EQUATIONSYMBOL = "d_"
+
+INTERACTIONSYMBOLS = Dict(["ᵢ"=>"[ic1_,VAR]","ᵢ"=>"[nnic2_,VAR]"])
+
+DIVISIONSYMBOLS = Dict(["_₁"=>"[ic1_,VAR]","_₂"=>"[nnic2_,VAR]"])
 
 #Adaptation functions
 GPUINFUNCTION = 

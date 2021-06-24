@@ -16,10 +16,10 @@ Basic structure keeping the parameters of all the agents in the current simulati
 
 # Constructors
 
-    function Community(agentModel::Model; N::Int=1, t::AbstractFloat=0.)
+    function Community(abm::Model; N::Int=1, t::AbstractFloat=0.)
 
 ### Arguments
- - **agentModel** (Model) Agent Model structure
+ - **abm** (Model) Agent Model structure
 
 ### Additional keyword arguments
  - **N** (Int) Number of Agent with wich start the model. N=1 by default.
@@ -57,7 +57,7 @@ Example
 ```julia
  julia> model.N
  2
- julia> community.declaredSymb["loc"]
+ julia> community.declaredSymbols["loc"]
  1-element Array{Symbol,1}:
  :x
  julia> community[:x]
@@ -95,41 +95,27 @@ julia> community[:x]
 mutable struct Community
     t::AbstractFloat
     N::Int
-    declaredSymb::Dict{String,Array{Symbol}}
-    var::Array{AbstractFloat,2}
-    inter::Array{AbstractFloat,2}
-    loc::Array{AbstractFloat,2}
-    locInter::Array{AbstractFloat,2}
-    glob::Array{AbstractFloat,1}
-    globArray::Array{Array{AbstractFloat},1}
-    ids::Array{Int,2}
+    declaredSymbols_::Dict{String,Array{Symbol}}
+    local_::Array{Float64,2}
+    identity_::Array{Int,2}
+    global_::Array{Float64,1}
+    globalArray_::Array{Array{Float64},1}
 end
 
-function Community(agentModel::Model; N::Int=1, t::AbstractFloat=0.)
+function Community(abm::Model; N::Int=1, t::AbstractFloat=0.)
 
-    var = zeros(Float64,N,length(agentModel.declaredSymb["var"]))
-    inter = zeros(Float64,N,length(agentModel.declaredSymb["inter"]))
-    loc = zeros(Float64,N,length(agentModel.declaredSymb["loc"]))
-    locInter = zeros(Float64,N,length(agentModel.declaredSymb["locInter"]))
-    glob = zeros(Float64,length(agentModel.declaredSymb["glob"]))
+    loc = zeros(Float64,N,length(abm.agent.declaredSymbols["Local"]))
+    ids = ones(Int,N,length(abm.agent.declaredSymbols["Identity"]))
+    ids[:,1] .= 1:N
+    glob = zeros(Float64,length(abm.agent.declaredSymbols["Global"]))
     globArray = []
-    for i in agentModel.declaredSymbArrays["glob"]
-        push!(globArray,zeros(i[2]...))
-    end
-    ids = ones(Int,N,length(agentModel.declaredIds))
-
-    declaredSymb = agentModel.declaredSymb
-    declaredSymb["ids"] = agentModel.declaredIds
-    declaredSymb["globArray"] = [i[1] for i in agentModel.declaredSymbArrays["glob"]]
-
-    if :id_ in declaredSymb["ids"]
-        ids[:,findfirst(declaredSymb["ids"].==:id_)] .= Array(1:N)
-    end
-    if :parent_ in declaredSymb["ids"]
-        ids[:,findfirst(declaredSymb["ids"].==:parent_)] .= -1
+    for i in abm.agent.declaredSymbols["GlobalArray"]
+        push!(globArray,[])
     end
 
-    return Community(t,N,declaredSymb,var,inter,loc,locInter,glob,globArray,ids)
+    declaredSymbols = abm.agent.declaredSymbols
+
+    return Community(t,N,declaredSymbols,loc,ids,glob,globArray)
 end
 
 """
