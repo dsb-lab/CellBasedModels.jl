@@ -15,7 +15,7 @@ export Agent, @agent, add
 export Model, compile
 export Community, CommunityInTime
 export SimulationFree, SimulationGrid
-export SimulationSpace, FlatBoundary, Periodic, NonPeriodic, Open, Hard, Reflecting, OpenReflecting, ReflectingOpen, OpenHard, HardOpen, HardReflecting, ReflectingHard
+export SimulationSpace, FlatBoundary, Periodic, NonPeriodic, Bound
 export configurator_
 
 #Constants
@@ -43,18 +43,18 @@ include("./community/community.jl")
 include("./community/baseModuleExtensions.jl")
 
 #Random
-include("./random/distribution.jl")
-include("./random/randomAdapt.jl")
+include("./model//random/distribution.jl")
+include("./model//random/randomAdapt.jl")
 
 #Integrators
-include("./integrator/euler.jl")
-include("./integrator/heun.jl")
-include("./integrator/integrators.jl")
+include("./model/integrator/euler.jl")
+include("./model/integrator/heun.jl")
+include("./model/integrator/integrators.jl")
 
 #Saving
-include("./saving/saveRAM.jl")
-#include("./saving/saveCSV.jl")
-include("./saving/saving.jl")
+include("./model/saving/saveRAM.jl")
+#include("./model/saving/saveCSV.jl")
+include("./model/saving/saving.jl")
 
 #Auxiliar function
 include("./auxiliar/checkDeclared.jl")

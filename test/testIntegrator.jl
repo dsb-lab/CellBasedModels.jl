@@ -1,11 +1,5 @@
 @testset "model" begin
 
-    if CUDA.has_cuda()
-        testplatforms = ["cpu","gpu"]
-    else
-        testplatforms = ["cpu"]
-    end
-
     for integrator in keys(AgentBasedModels.addIntegrator_!)
         for platform in testplatforms
 

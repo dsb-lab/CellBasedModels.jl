@@ -17,22 +17,23 @@ struct SimulationGrid <: SimulationSpace
 
 end
 
-function SimulationGrid(abm::Agent, box::Array{<:Union{<:Tuple{Symbol,<:Real,<:Real},<:FlatBoundary},1}, radius::Union{<:Real,Array{<:Real,1}})
+function SimulationGrid(abm::Agent, box::Array{<:Any,1}, radius::Union{<:Real,Array{<:Real,1}})
 
     #Check dimensionality
-    if length(keys(box)) == 0
+    if length(box) == 0
         error("At least one dimension has to be declared in box.")
-    elseif length(keys(box)) > 3
+    elseif length(box) > 3
         error("No more than three dimensions are allowed.")
     end
-
-    #Make consistent box format adding Open to tuples
+    #Make consistent box format adding Bound to tuples
     box2 = Array{FlatBoundary,1}()
     for i in 1:length(box)
         if typeof(box[i])<:Tuple{Symbol,<:Real,<:Real}
-            push!(box2, Open(box[i]...))
-        else
+            push!(box2, Bound(box[i]...))
+        elseif typeof(box[i])<:FlatBoundary
             push!(box2,box[i])
+        else
+            error("Dimension has to be defined as a tupple with (Symbol, Real, Real) or a FlatBoundary Type.")
         end
     end
 
@@ -42,6 +43,15 @@ function SimulationGrid(abm::Agent, box::Array{<:Union{<:Tuple{Symbol,<:Real,<:R
     for i in box2
         if i.max <= i.min
             error("Superior limit is equal or smaller than inferior limit for ", i.s, ". The entry should be of the form (symbol,min,max,radius).")
+        end
+    end
+
+    #Check symbols
+    for b in box2
+        for i in keys(b.addSymbols)
+            for j in b.addSymbols[i]
+                checkIsDeclared_(abm,j)
+            end
         end
     end
 
@@ -258,8 +268,8 @@ function loop_(program::Program_, abm::Agent, a::SimulationGrid, code::Expr, pla
         end)
     elseif a.dim == 3
         periodicX = typeof(a.box[1]) <: Periodic
-        periodicY = typeof(a.box[1]) <: Periodic
-        periodicZ = typeof(a.box[1]) <: Periodic
+        periodicY = typeof(a.box[2]) <: Periodic
+        periodicZ = typeof(a.box[3]) <: Periodic
         loop=:(begin 
             for iAux1_ in 1:27
                 pos_ = AgentBasedModels.gridVectorPositionNeighbour_(nnPosIdCell_[ic1_],iAux1_,$(a.axisSize[1]),$periodicX,$(a.axisSize[2]),$periodicY,$(a.axisSize[3]),$periodicZ)
@@ -447,6 +457,6 @@ function gridVectorPositionNeighbour_(p,neighbour,nX,periodicX,nY,periodicY,nZ,p
     if abort
         return -1
     else
-        return posX + nX*(posY-1) + nY*nX*(posZ-1)
+        return posX + nX*(posY-1) + nXY*(posZ-1)
     end
 end

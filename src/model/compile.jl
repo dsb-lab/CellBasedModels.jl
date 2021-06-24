@@ -10,7 +10,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=S
     p = Program_()
 
     #Update
-    updates_!(p,abm)
+    updates_!(p,abm,space)
 
     #Neighbours declare
     arguments_!(p,abm,space,platform)
@@ -19,14 +19,18 @@ function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=S
     addCleanInteraction_!(p,abm,space,platform)
     addCleanLocalInteraction_!(p,abm,space,platform)
     addParameters_!(p,abm,space,platform)
+    addCopyInitialisation_!(p,abm,space,platform)
     addIntegrator_![integrator](p,abm,space,platform)
     addUpdateGlobal_!(p,abm,space,platform)
     addUpdateLocal_!(p,abm,space,platform)
     addUpdateLocalInteraction_!(p,abm,space,platform)
+    addCheckBounds_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+    addUpdate_!(p,abm,space,platform)
+    #Events
     addEventDivision_!(p,abm,space,platform)
     addEventDeath_!(p,abm,space,platform)
-    addUpdate_!(p,abm,space,platform)
-    
+
+
     #Saving
     addSaving_![save](p,abm,space,platform)
 

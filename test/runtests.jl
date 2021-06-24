@@ -6,6 +6,12 @@ using CUDA
 using DataFrames
 using MacroTools
 
+if CUDA.has_cuda()
+    testplatforms = ["cpu","gpu"]
+else
+    testplatforms = ["cpu"]
+end
+
 # include("testAgent.jl")
 # include("testAuxiliar.jl")
 # include("testModel.jl")
@@ -14,5 +20,6 @@ using MacroTools
 # include("testUpdates.jl")
 # include("testIntegrator.jl")
 # include("testEvent.jl")
-include("testSimulation.jl")
+# include("testSimulation.jl")
+ include("testBound.jl")
 

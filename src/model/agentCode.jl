@@ -134,12 +134,10 @@ function addUpdateLocal_!(p::Program_,abm::Agent,space::SimulationSpace,platform
 
     if "UpdateLocal" in keys(abm.declaredUpdates)
 
-        #Check updated
-        up = symbols_(abm,abm.declaredUpdates["UpdateLocal"])
-        up = up[Bool.((up[:,"placeDeclaration"].==:Model) .* Bool.((up[:,"assigned"].==true) .+ (up[:,"updated"].==true))),:]
+        code = abm.declaredUpdates["UpdateLocal"]
 
         #Construct functions
-        f = simpleFirstLoopWrapInFunction_(platform,:locStep_!,abm.declaredUpdates["UpdateLocal"])
+        f = simpleFirstLoopWrapInFunction_(platform,:locStep_!,code)
         f = vectorize_(abm,f,p)
 
         push!(p.declareF.args,
@@ -148,6 +146,37 @@ function addUpdateLocal_!(p::Program_,abm::Agent,space::SimulationSpace,platform
         push!(p.execInloop.args,
                 :(@platformAdapt locStep_!(ARGS_)) 
             )
+
+    end
+
+    return nothing
+end
+
+"""
+    function addCheckBounds_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+
+Generate the functions related with boundary checking.
+"""
+function addCheckBounds_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+
+    if !isempty([i for i in keys(p.update["Local"])])
+        ##Add bound code if bound symbols update
+        code = returnBound_(space.box,p)
+
+        if !emptyquote_(code)
+
+            #Construct functions
+            f = simpleFirstLoopWrapInFunction_(platform,:boundsCheck_!,code)
+            f = vectorize_(abm,f,p)
+
+            push!(p.declareF.args,
+                f)
+
+            push!(p.execInloop.args,
+                    :(@platformAdapt boundsCheck_!(ARGS_)) 
+                )
+
+        end
 
     end
 
@@ -326,6 +355,80 @@ function addUpdate_!(p::Program_,abm::Agent,space::SimulationSpace,platform::Str
 
         #Add to execution cue
         push!(p.execInloop.args,:(update_!(ARGS_)))
+    end
+
+    return nothing
+end
+
+"""
+    function addCopyInitialisation_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+
+Generate the functions to update all the modified values.
+"""
+function addCopyInitialisation_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+
+    create = false
+
+    for i in keys(abm.declaredUpdates)
+        if !(i in ["UpdateLocalInteraction","UpdateInteraction","EventDivision"]) && !emptyquote_(abm.declaredUpdates[i])
+            create = true
+        end
+    end 
+
+    if create
+        gen = quote end #General update
+        up = quote end
+        for i in keys(abm.declaredSymbols)
+            if  i == "GlobalArray"
+                for j in keys(p.update[i]) 
+                    n = Meta.parse(string(j,"Copy_")) 
+                    push!(gen.args,:($n.=$j))
+                end
+            elseif i in ["Local","Identity"]
+                var = Meta.parse(string(lowercase(i),"V"))
+                varCopy = Meta.parse(string(lowercase(i),"VCopy"))
+                for j in keys(p.update[i])
+                    pos = findfirst(abm.declaredSymbols[i] .== j)
+                    posCopy = p.update[i][j]
+                    push!(up.args,:($varCopy[ic1_,$posCopy]=$var[ic1_,$pos]))
+                end
+            elseif i == "Global"
+                var = Meta.parse(string(lowercase(i),"V"))
+                varCopy = Meta.parse(string(lowercase(i),"VCopy"))
+                
+                upb = quote end #Assign updates of the global to the first thread
+                for j in keys(p.update[i])
+                    pos = findfirst(abm.declaredSymbols[i] .== j)
+                    posCopy = p.update[i][j]
+                    push!(upb.args,:($varCopy[$posCopy]=$var[$pos]))
+                end
+
+                push!(up.args,
+                    :(begin
+                        if ic1_ == 1
+                            $(upb)
+                        end
+                    end))
+            end
+
+        end
+        
+        #Construct global and local update function
+        f = simpleFirstLoopWrapInFunction_(platform,:initialiseLocGlobCopy_!,up)
+        push!(p.declareF.args,f)
+        #Construct general update function
+        push!(p.declareF.args,
+            :(begin 
+                function initialiseCopy_!(ARGS_)
+                    $gen
+                    @platformAdapt initialiseLocGlobCopy_!(ARGS_)
+                    return
+                end
+            end)
+            )
+
+        #Add to execution cue
+        push!(p.execInit.args,:(initialiseCopy_!(ARGS_)))
     end
 
     return nothing

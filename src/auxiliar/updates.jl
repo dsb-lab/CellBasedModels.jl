@@ -3,7 +3,7 @@
 
 Function that checks the variables in the model that are modified at each step in order to make appropiate copy vectors and add them to program.
 """
-function updates_!(p::Program_,abm::Agent)
+function updates_!(p::Program_,abm::Agent,space::SimulationSpace)
     syms = []
     for i in keys(abm.declaredUpdates)
         if !(emptyquote_(abm.declaredUpdates[i])) && !(i in ["UpdateInteraction","UpdateLocalInteraction"])
@@ -33,7 +33,7 @@ function updates_!(p::Program_,abm::Agent)
     if "Equation" in keys(abm.declaredUpdates)
         s = symbols_(abm,abm.declaredUpdates["Equation"]).Symbol
         for i in abm.declaredSymbols["Local"]
-            ss = Meta.parse(string("∂",i))
+            ss = Meta.parse(string(EQUATIONSYMBOL,i))
             if ss in s
                 dict[i] = counter
                 counter += 1
@@ -74,6 +74,19 @@ function updates_!(p::Program_,abm::Agent)
         end
     end
     p.update["EventDivision"] = dict
+
+    ## Check space and bound updates
+    for i in space.box
+        if i.s in keys(p.update["Local"])
+            for j in keys(i.addSymbols)
+                for k in i.addSymbols[j]
+                    if !(k in keys(p.update["Local"]))
+                        p.update["Local"][k] = maximum(values(p.update["Local"])) + 1
+                    end
+                end
+            end
+        end
+    end
 
     return
 end

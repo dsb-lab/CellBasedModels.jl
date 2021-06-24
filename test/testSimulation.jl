@@ -50,7 +50,7 @@
     s = SimulationFree()
     m = compile(m,s)
 
-    @test_nowarn begin
+    @test begin
         com = Community(m,N=4)
         com.l1 = [1,1,0,0]
         com.l2 = [0,1,1,0]
@@ -59,7 +59,7 @@
         comt[1].int == [4,4,4,4] 
     end    
 
-    @test_nowarn begin
+    @test begin
         com = Community(m,N=4)
         com.l1 = [1,1,0,0]
         com.l2 = [0,1,1,0]
@@ -68,7 +68,7 @@
         comt[1].intLocal == [4,4,4,4] 
     end    
 
-    @test_nowarn begin
+    @test begin
         com = Community(m,N=4)
         com.l1 = [7,7,0,0]
         com.l2 = [0,7,7,0]
@@ -77,7 +77,7 @@
         comt[1].int == [1,1,1,1] 
     end    
 
-    @test_nowarn begin
+    @test begin
         com = Community(m,N=4)
         com.l1 = [7,7,0,0]
         com.l2 = [0,7,7,0]
@@ -86,25 +86,11 @@
         comt[1].intLocal == [1,1,1,1] 
     end    
 
-    # @test begin     
-    #     code = :(global g += v[nnic2_])
-    #     loop = AgentBasedModels.loop_(@agent(cell),SimulationFree(),code,"cpu")
-    #     eval(
-    #         quote
-    #             i2_ = 0
-    #             N = 40
-    #             v = ones(Int,N)
-    #             g = 0
-    #             $loop
-    #         end
-    #         )
-    #     g == 40*40
-    # end
 end
 
 @testset "grid simulation" begin
 
-    @test hasmethod(SimulationGrid,(Agent, Array{<:Union{<:Tuple{Symbol,<:Real,<:Real},<:FlatBoundary},1}, Union{<:Real,Array{<:Real,1}}))
+    @test hasmethod(SimulationGrid,(Agent, Array{<:Any,1}, Union{<:Real,Array{<:Real,1}}))
     @test hasmethod(AgentBasedModels.arguments_!,(AgentBasedModels.Program_, Agent, SimulationGrid, String))
     @test hasmethod(AgentBasedModels.loop_,(AgentBasedModels.Program_, Agent, SimulationGrid, Expr, String))
 
@@ -117,7 +103,7 @@ end
 
     @test_nowarn SimulationGrid(m,[(:x,0.,1.),(:y,0.,2.),(:z,0.,3.)],1)
     @test_nowarn SimulationGrid(m,[(:x,0.,1.),(:y,0.,2.),(:z,0.,3.)],[1.,2.,3.])
-    @test_nowarn SimulationGrid(m,[Open(:x,0.,1.),Periodic(:y,0.,2.),HardReflecting(:z,0.,3.)],5.)
+    @test_nowarn SimulationGrid(m,[Bound(:x,0.,1.),Periodic(:y,0.,2.),Bound(:z,0.,3.)],5.)
 
     nn = SimulationGrid(m,[(:x,0.,1.),(:y,0.,2.),(:z,0.,3.)],1.)
     @test nn.dim == 3
@@ -327,176 +313,97 @@ end
             com.l2 .= 0
 
             comt = mo.evolve(com,dt=0.1,tMax=1)
-            println(comt[1].intLocal)
+            comt[1].intLocal == [3.,3.,3.,3.]
+        end        
+
+        m = @agent(
+            cell,
+
+            [l1,l2,l3,intLocal,int]::Local,
+            [i1,i2]::Identity,
+
+            Equation = begin
+                d_l2 = 0.
+            end,
+
+            UpdateInteraction = begin
+                if abs(l2₁ - l2₂) <= 4.5
+                    int += 1
+                end
+            end,
+
+            UpdateLocalInteraction = begin
+                intLocal += 1
+            end,
+        )
+
+        s = SimulationGrid(m,[(:l1,-20,20),(:l2,-10,10)],[5.,5.])
+        mo = compile(m,s,platform=platform)
+        #println(mo.program)
+        @test begin
+            com = Community(mo,N=12)
+            com.l2 .= [-11,-7,-2,2,7,11,-11,-7,-2,2,7,11]
+            com.l1 .= 0
+
+            comt = mo.evolve(com,dt=0.1,tMax=1)
+            (comt[1].intLocal == [4.,6.,6.,6.,6.,4.,4.,6.,6.,6.,6.,4.]) && (comt[1].int == [4.,4.,4.,4.,4.,4.,4.,4.,4.,4.,4.,4.])
+        end        
+
+        s = SimulationGrid(m,[Bound(:l1,-20,20),Periodic(:l2,-10,10)],[5.,5.])
+        mo = compile(m,s,platform=platform)
+        #println(mo.program)
+        @test begin
+            com = Community(mo,N=4)
+            com.l2 .= [-7,-2,2,7]
+            com.l1 .= 0
+
+            comt = mo.evolve(com,dt=0.1,tMax=1)
+            comt[1].intLocal == [3.,3.,3.,3.]
+        end        
+
+        m = @agent(
+            cell,
+
+            [l1,l2,l3,intLocal,int]::Local,
+            [i1,i2]::Identity,
+
+            Equation = begin
+                d_l2 = 0.
+            end,
+
+            UpdateInteraction = begin
+                if abs(l3₁ - l3₂) <= 4.5
+                    int += 1
+                end
+            end,
+
+            UpdateLocalInteraction = begin
+                intLocal += 1
+            end,
+        )
+
+        s = SimulationGrid(m,[(:l1,-20,20),(:l2,-10,10),(:l3,-10,10)],[5.,5.,5.])
+        mo = compile(m,s,platform=platform)
+        #println(mo.program)
+        @test begin
+            com = Community(mo,N=12)
+            com.l3 .= [-11,-7,-2,2,7,11,-11,-7,-2,2,7,11]
+
+            comt = mo.evolve(com,dt=0.1,tMax=1)
+            (comt[1].intLocal == [4.,6.,6.,6.,6.,4.,4.,6.,6.,6.,6.,4.]) && (comt[1].int == [4.,4.,4.,4.,4.,4.,4.,4.,4.,4.,4.,4.])
+        end        
+
+        s = SimulationGrid(m,[(:l1,-10,10),(:l2,-10,10),Periodic(:l3,-10,10)],[5.,5.,5.])
+        mo = compile(m,s,platform=platform)
+        #println(mo.program)
+        @test begin
+            com = Community(mo,N=4)
+            com.l3 .= [-7,-2,2,7]
+
+            comt = mo.evolve(com,dt=0.1,tMax=1)
             comt[1].intLocal == [3.,3.,3.,3.]
         end        
 
     end
-    # @test_nowarn begin
-    #     com = Community(m,N=4)
-    #     com.l1 = [1,1,0,0]
-    #     com.l2 = [0,1,1,0]
-
-    #     comt = m.evolve(com,dt=0.1,tMax=1)
-    #     comt[1].int = [4,4,4,4] 
-    # end    
-
-    # @test_nowarn begin
-    #     com = Community(m,N=4)
-    #     com.l1 = [1,1,0,0]
-    #     com.l2 = [0,1,1,0]
-
-    #     comt = m.evolve(com,dt=0.1,tMax=1)
-    #     comt[1].intLocal = [4,4,4,4] 
-    # end    
-
-    # @test_nowarn begin
-    #     com = Community(m,N=4)
-    #     com.l1 = [7,7,0,0]
-    #     com.l2 = [0,7,7,0]
-
-    #     comt = m.evolve(com,dt=0.1,tMax=1)
-    #     comt[1].int = [1,1,1,1] 
-    # end    
-
-    # @test_nowarn begin
-    #     com = Community(m,N=4)
-    #     com.l1 = [7,7,0,0]
-    #     com.l2 = [0,7,7,0]
-
-    #     comt = m.evolve(com,dt=0.1,tMax=1)
-    #     comt[1].intLocal = [1,1,1,1] 
-    # end    
-
-    # m = @agent cell [x]::Local   
-    # nn = SimulationGrid(m,[(:x,0.,10.)],.5)
-    # p = AgentBasedModels.Program_()
-    # AgentBasedModels.arguments_!(m,nn,p,"cpu")
-    # append!(p.args,AgentBasedModels.agentArguments_(m))
-    # unique!(p.args)
-    # p.declareF=AgentBasedModels.subsArguments_(p.declareF,:ARGS_,p.args)
-    # p.declareF=AgentBasedModels.vectorize_(m,p.declareF)
-
-    # eval(
-    #     quote
-    #         loc_ = []
-    #         for i in 0:11
-    #             for j in 1:i
-    #                 push!(loc_, i - 0.5)
-    #             end
-    #         end
-    #         loc_=reshape(loc_,(:,1))
-    #         N = size(loc_)[1]; nMax = N; t = 0; dt = 0;
-    #         $(p.declareVar)
-    #         $(p.declareF)
-    #         computeNN_($(p.args...))
-    #     end
-    # )
-    # @test nnGId_ == loc_.+1.5
-    # @test nnVId_ == reshape(loc_.+1.5,(:))
-    # @test nnGC_ == [i for i in 0:11]
-    # @test nnGCCum_ == cumsum(0:11)
-    # @test nnGCAux_ == nnGC_.+1
-
-    # m = @agent cell [x,y,z]::Local   
-    # nn = SimulationGrid(m,[(:x,0.,1.),(:y,0.,2.),(:z,0.,3.)],.5)
-    # p = AgentBasedModels.Program_()
-    # AgentBasedModels.arguments_!(m,nn,p,"cpu")
-    # append!(p.args,AgentBasedModels.agentArguments_(m))
-    # unique!(p.args)
-    # p.declareF=AgentBasedModels.subsArguments_(p.declareF,:ARGS_,p.args)
-    # p.declareF=AgentBasedModels.vectorize_(m,p.declareF)
-    # eval(
-    #     quote
-    #         m = [[i,j,k] for i in -1:1 for j in -1:2 for k in -1:3]
-    #         loc_ = zeros(3*4*5,3)
-    #         for (j,i) in enumerate(m) 
-    #             loc_[j,:] .= i .+ .5
-    #         end
-
-    #         N = size(loc_)[1]
-    #         nMax = N
-    #         t = 0; dt = 0.
-    #         $(p.declareVar)
-    #         $(p.declareF)
-    #         computeNN_($(p.args...))
-    #     end
-    # )
-    # @test prod([i in nnVId_ for i in cumsum(ones(N))])
-    # @test nnGC_ == ones(N)
-    # @test nnGCCum_ == cumsum(ones(Int,N))
-    # @test prod([i in nnId_ for i in cumsum(ones(N))])
-    # @test nnGCAux_ == 2*ones(N)
-
-    # if CUDA.has_cuda()
-
-    #     @test_nowarn AgentBasedModels.arguments_!(@agent(cell),nn,AgentBasedModels.Program_(),"gpu")
-
-    #     m = @agent cell [x]::Local   
-    #     nn = SimulationGrid(m,[(:x,0.,10.)],.5)
-    #     p = AgentBasedModels.Program_()
-    #     AgentBasedModels.arguments_!(m,nn,p,"gpu")
-    #     append!(p.args,AgentBasedModels.agentArguments_(m))
-    #     unique!(p.args)
-    #     p.declareF=AgentBasedModels.subsArguments_(p.declareF,:ARGS_,p.args)
-    #     p.declareF=AgentBasedModels.vectorize_(m,p.declareF)
-
-    #     code = 
-    #         quote
-    #             loc_ = Vector{Float32}([])
-    #             for i in 0:11
-    #                 for j in 1:i
-    #                     push!(loc_, i - 0.5)
-    #                 end
-    #             end
-    #             loc_=reshape(loc_,(:,1))
-    #             loc_=CUDA.CuArray(loc_)
-    #             N = size(loc_)[1]; nMax = N; t = 0.;
-    #             $(p.declareVar)
-    #             $(p.declareF)
-    #             computeNN_($(p.args...))
-    #         end
-    #     code = AgentBasedModels.cudaAdapt_(code)
-    #     eval(code)
-    #     @test Array(nnGId_) == Array(loc_.+1.5)
-    #     @test Array(nnVId_) == reshape(Array(loc_.+1.5),(:))
-    #     @test Array(nnGC_) == [i for i in 0:11]
-    #     @test Array(nnGCCum_) == cumsum(0:11)
-    #     @test Array(nnGCAux_) == Array(nnGC_.+1)
-
-    #     m = @agent cell [x,y,z]::Local   
-    #     nn = SimulationGrid(m,[(:x,0.,1.),(:y,0.,2.),(:z,0.,3.)],.5)
-    #     p = AgentBasedModels.Program_()
-    #     AgentBasedModels.arguments_!(m,nn,p,"gpu")
-    #     append!(p.args,AgentBasedModels.agentArguments_(m))
-    #     unique!(p.args)
-    #     p.declareF=AgentBasedModels.subsArguments_(p.declareF,:ARGS_,p.args)
-    #     p.declareF=AgentBasedModels.vectorize_(m,p.declareF)
-
-    #     code =
-    #         quote
-    #             m = [[i,j,k] for i in -1:1 for j in -1:2 for k in -1:3]
-    #             loc_ = Base.zeros(Float32,3*4*5,3)
-    #             for (j,i) in enumerate(m) 
-    #                 loc_[j,:] .= i .+ .5
-    #             end
-    #             loc_ = CUDA.CuArray(loc_)
-
-    #             N = size(loc_)[1]
-    #             nMax = N
-    #             t = 0
-    #             $(p.declareVar)
-    #             $(p.declareF)
-    #             computeNN_($(p.args...))
-    #         end
-    #     code = AgentBasedModels.cudaAdapt_(code)
-    #     eval(code)            
-    #     @test prod([i in Array(nnVId_) for i in cumsum(ones(N))])
-    #     @test Array(nnGC_) == ones(N)
-    #     @test Array(nnGCCum_) == cumsum(ones(Int,N))
-    #     @test prod([i in Array(nnId_) for i in cumsum(ones(N))])
-    #     @test Array(nnGCAux_) == 2*ones(N)
-
-    # end
 
 end

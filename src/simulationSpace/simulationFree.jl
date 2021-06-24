@@ -8,6 +8,52 @@ In the future we will implement parallelization over the second loop to further 
 """
 struct SimulationFree <: SimulationSpace
 
+    box::Array{<:FlatBoundary,1}
+
+end
+
+function SimulationFree()
+    return SimulationFree(Array{FlatBoundary,1}())
+end
+
+function SimulationFree(abm::Agent, box::Array{<:Any,1}=Array{FlatBoundary,1}())
+
+    #Check dimensionality
+    if length(box) > 3
+        error("No more than three dimensions are allowed.")
+    end
+    #Make consistent box format adding Open to tuples
+    box2 = Array{FlatBoundary,1}()
+    for i in 1:length(box)
+        if typeof(box[i])<:Tuple{Symbol,<:Real,<:Real}
+            push!(box2, Bound(box[i]...))
+        elseif typeof(box[i])<:FlatBoundary
+            push!(box2,box[i])
+        else
+            error("Dimension has to be defined as a tupple with (Symbol, Real, Real) or a FlatBoundary Type.")
+        end
+    end
+
+    #Check limits are correct
+    vars = [i.s for i in box2]
+    checkIsDeclared_(abm,vars)
+    for i in box2
+        if i.max <= i.min
+            error("Superior limit is equal or smaller than inferior limit for ", i.s, ". The entry should be of the form (BoundaryType)(symbol,min,max,vargs...).")
+        end
+    end
+
+    #Check symbols
+    for b in box2
+        for i in keys(b.addSymbols)
+            for j in b.addSymbols[i]
+                checkIsDeclared_(abm,j)
+            end
+        end
+    end
+
+    return SimulationFree(box2)
+
 end
 
 function arguments_!(program::Program_, abm::Agent, a::SimulationFree, platform::String)
