@@ -1,4 +1,4 @@
-@testset "free simulation" begin
+@testset "SimulationSpace Free" begin
 
     @test hasmethod(AgentBasedModels.arguments_!,(AgentBasedModels.Program_,Agent,SimulationFree,String))
     @test hasmethod(AgentBasedModels.loop_,(AgentBasedModels.Program_,Agent,SimulationFree,Expr,String))
@@ -88,7 +88,7 @@
 
 end
 
-@testset "grid simulation" begin
+@testset "SimulationSpace Grid" begin
 
     @test hasmethod(SimulationGrid,(Agent, Array{<:Any,1}, Union{<:Real,Array{<:Real,1}}))
     @test hasmethod(AgentBasedModels.arguments_!,(AgentBasedModels.Program_, Agent, SimulationGrid, String))
@@ -262,12 +262,6 @@ end
     end
 
     @test_nowarn AgentBasedModels.arguments_!(AgentBasedModels.Program_(),m,nn,"cpu")
-
-    if CUDA.has_cuda()
-        testplatforms = ["cpu","gpu"]
-    else
-        testplatforms = ["cpu"]
-    end
 
     for platform in testplatforms
 

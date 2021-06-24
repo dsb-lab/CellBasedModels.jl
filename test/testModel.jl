@@ -9,7 +9,7 @@
             g::Global,
             ga::GlobalArray,
             
-            Equation = dv = 34*dt ,
+            Equation = d_v = 34*dt ,
             UpdateLocal = l += 1,
             UpdateGlobal = begin
                 g += Normal(1,2) + Normal(1,2) + Uniform(1,2) 

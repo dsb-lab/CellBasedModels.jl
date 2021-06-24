@@ -12,14 +12,14 @@ else
     testplatforms = ["cpu"]
 end
 
-# include("testAgent.jl")
-# include("testAuxiliar.jl")
-# include("testModel.jl")
-# include("testRandom.jl")
-# include("testCommunity.jl")
-# include("testUpdates.jl")
-# include("testIntegrator.jl")
-# include("testEvent.jl")
-# include("testSimulation.jl")
- include("testBound.jl")
+include("testAgent.jl")
+include("testAuxiliar.jl")
+include("testModel.jl")
+include("testRandom.jl")
+include("testCommunity.jl")
+include("testUpdates.jl")
+include("testIntegrator.jl")
+include("testEvent.jl")
+include("testSimulationSpace.jl")
+include("testBound.jl")
 

@@ -286,7 +286,6 @@ function loop_(program::Program_, abm::Agent, a::SimulationGrid, code::Expr, pla
     end
 
     loop = subs_(loop,:nnic2_,:(ic2_))
-    loop = vectorize_(abm,loop,program)
 #    loop = postwalk(x->@capture(x,nnic2_) ? :(nnId_[ic2_]) : x, loop)
     loop = simpleFirstLoop_(platform, loop)
 

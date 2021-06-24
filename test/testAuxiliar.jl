@@ -18,8 +18,8 @@
         h::GlobalArray,
         id::Identity
     )
-    p = AgentBasedModels.Program_()
-    AgentBasedModels.updates_!(p,m)
+    p = AgentBasedModels.Program_(); s = SimulationFree()
+    AgentBasedModels.updates_!(p,m,s)
     @test AgentBasedModels.vectorize_(m,:(l = 1), p) == :(localV[ic1_,1]=1)
     @test AgentBasedModels.vectorize_(m,:(l₁ = 1), p) == :(localV[ic1_,1]=1)
     @test AgentBasedModels.vectorize_(m,:(l₂ = 1), p) == :(localV[nnic2_,1]=1)
@@ -168,7 +168,7 @@
 
             Equation =
             begin
-                ∂l1 = a*dt + b*dW
+                d_l1 = a*dt + b*dW
             end,
 
             UpdateGlobal = 
@@ -178,9 +178,9 @@
             end
         )
 
-        p = AgentBasedModels.Program_()
+        p = AgentBasedModels.Program_(); s= SimulationFree()
 
-        AgentBasedModels.updates_!(p,abm)
+        AgentBasedModels.updates_!(p,abm,s)
 
         if p.update["Identity"] != Dict(:id1=>1) error() end
         if p.update["Global"] != Dict(:g1=>1) error() end

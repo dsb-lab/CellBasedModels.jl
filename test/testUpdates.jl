@@ -1,14 +1,6 @@
-f(x,y,z) = (z-y)*x+y
-
 @testset "Updates" begin
 
-    if CUDA.has_cuda()
-        testplatforms = ["cpu","gpu"]
-    else
-        testplatforms = ["cpu"]
-    end
-
-    for i in ["gpu","cpu"]#testplatforms
+    for i in testplatforms
 
         #Update Local
         m = @agent(

@@ -13,7 +13,7 @@ struct Periodic<:FlatBoundary
     addSymbols::Dict{String,Array{Symbol,1}}
 end 
 
-function Periodic(s::Symbol,min::Real,max::Real;additional::Array{Symbol}=Array{Symbol}())
+function Periodic(s::Symbol,min::Real,max::Real;additional::Array{Symbol,1}=Array{Symbol,1}())
     return Periodic(s,min,max,Dict("add"=>additional))
 end
 

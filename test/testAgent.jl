@@ -17,7 +17,7 @@
         g::Global,
         ga::GlobalArray,
         
-        Equation = dv = 34*dt ,
+        Equation = d_v = 34*dt ,
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
@@ -31,7 +31,7 @@
         g::Global,
         ga::GlobalArray,
 
-        Equation = dv = 34*dt ,
+        Equation = d_v = 34*dt ,
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
@@ -52,7 +52,7 @@
         [g,g2]::Global,
         [ga,ga2]::GlobalArray,
 
-        Equation = dv = 34*dt ,
+        Equation = d_v = 34*dt ,
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
@@ -67,7 +67,7 @@
         [g,g2]::Global,
         [ga,ga2]::GlobalArray,
 
-        Equation = dv = 34*dt ,
+        Equation = d_v = 34*dt ,
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
