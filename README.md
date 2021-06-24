@@ -1,6 +1,6 @@
-# AgentBasedModels.jl
-
 ![](/docs/src/assets/logo.png)
+
+# AgentBasedModels.jl
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://dsb-lab.github.io/AgentBasedModels.jl/stable/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://dsb-lab.github.io/AgentBasedModels.jl/dev/)
