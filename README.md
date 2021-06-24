@@ -1,4 +1,4 @@
-<img src="docs/src/assets/logo.png" width="1000">
+<img src="docs/src/assets/logo.png" width="500">
 
 # AgentBasedModels.jl 
 
