@@ -23,6 +23,8 @@ SimulationFree
 SimulationGrid
 ```
 
+[https://developer.nvidia.com/gpugems/gpugems3/contributors](https://developer.nvidia.com/gpugems/gpugems3/contributors)
+
 ## Model
 
 ```@docs

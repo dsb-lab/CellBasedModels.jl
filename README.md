@@ -17,13 +17,13 @@ The following methods can be implemented in the model:
 
 For now, the only way of installing the library is by cloning the project. Hopefully soon we will make an official release in the Julia repository.
 
-```@julia
+```julia
 julia> using Pkg
 julia> Pkg.add(https://github.com/dsb-lab/AgentBasedModels.jl)
 ```
 
 or from the Pkg REPL
 
-```@julia
+```julia
 (v1.6) pkg> add https://github.com/dsb-lab/AgentBasedModels.jl
 ```

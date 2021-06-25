@@ -1,4 +1,4 @@
-# Tutorial
+# Examples
 
 In order to see the capabilities and how to generate and run models, we will consider a real example from the field of life sciences [Saiz 2020](https://elifesciences.org/articles/56079).
 
