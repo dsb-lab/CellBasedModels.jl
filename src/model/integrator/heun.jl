@@ -41,7 +41,14 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationSpace, pl
 
 
         #Create first integration step kernel
-        codeK1 = postwalk(x -> @capture(x,dW) ? :(dW[ic1_]-S_[ic1_]) : x, code)
+        #Make the substitution dW -> (dW-S) and count number of calls to dW
+        m1 = [i for i in split(string(gensym("dW")),"#") if i != ""]
+        codeK1 = gensym_ids(postwalk(x->@capture(x,dW) ? :($(gensym("dW"))) : x, code))
+        codeK1 = postwalk(x->@capture(x,v_) && (split(string(v),"_")[1] == "dW") ? :(dW[ic1_,$(Meta.parse(split(string(v),"_")[2]))]) : x, codeK1)
+        codeK1 = postwalk(x->@capture(x,dW[ic1_,pos_]) ? :(dW[ic1_,$pos]-S_[ic1_,$pos]) : x, codeK1)
+        m2 = [i for i in split(string(gensym("dW")),"#") if i != ""]
+        m = Meta.parse(m2[2])-Meta.parse(m1[2])-1
+
         for (i,j) in enumerate(abm.declaredSymbols["Local"])
             if j in keys(p.update["Variables"])
                 ii = p.update["Local"][j]
@@ -54,8 +61,10 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationSpace, pl
         end
         codeK1 = vectorize_(abm,codeK1,p)
         if inexpr(codeK1,:dW) #Add initialisation is necessary
-            pushfirst!(codeK1.args,:(dW[ic1_] = Uniform(0,1)*sqrt(dt)))
-            pushfirst!(codeK1.args,:(S_[ic1_] = 2*(round(rand())- .5)*sqrt(dt)))
+            for i in 1:m
+                pushfirst!(codeK1.args,:(dW[ic1_,$i] = Uniform(0,1)*sqrt(dt)))
+                pushfirst!(codeK1.args,:(S_[ic1_,$i] = 2*(round(rand())- .5)*sqrt(dt)))
+            end
         end
         k2 = simpleFirstLoopWrapInFunction_(platform,:integrationStep1_,codeK1) #First function declaration
         push!(p.declareF.args,k2)        
@@ -77,7 +86,9 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationSpace, pl
         
         
         #Create second integration step kernel
-        codeK2 = postwalk(x -> @capture(x,dW) ? :(dW[ic1_]+S_[ic1_]) : x, code)
+        codeK2 = gensym_ids(postwalk(x->@capture(x,dW) ? :($(gensym("dW"))) : x, code))
+        codeK2 = postwalk(x->@capture(x,v_) && (split(string(v),"_")[1] == "dW") ? :(dW[ic1_,$(Meta.parse(split(string(v),"_")[2]))]) : x, codeK2)
+        codeK2 = postwalk(x->@capture(x,dW[ic1_,pos_]) ? :(dW[ic1_,$pos]+S_[ic1_,$pos]) : x, codeK2)
         for (i,j) in enumerate(abm.declaredSymbols["Local"])
             if j in keys(p.update["Variables"])
                 ii = p.update["Local"][j]
@@ -100,8 +111,8 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationSpace, pl
         if inexpr(codeK1,:dW)
             push!(p.declareVar.args, #declare random variables for Stochastic integration
                 :(begin
-                    dW = zeros(Float64,nMax)
-                    S_ = zeros(Float64,nMax)
+                    dW = zeros(Float64,nMax,$m)
+                    S_ = zeros(Float64,nMax,$m)
                 end)
             )
 
