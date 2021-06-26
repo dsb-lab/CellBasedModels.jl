@@ -54,10 +54,11 @@ m = @agent(agentName,
 )
 ```
 
-!!! tip "Already declared parameters"
+!!! warning "Already Declared Parameters"
     All the agents already include a few parameters by default that can be used:
      - **t::Global**: Absolute time of the model incremented at each integration step.
      - **dt::Global**: Step of the time integration.
+     - **dW::Local**: Step of the Stochastic Term.
      - **N::Global**: Number of particles in the model at the present time.
      - **idAgent::Identity**: Identification number of each agent.
 
@@ -65,11 +66,11 @@ m = @agent(agentName,
 
 !!! tip "Parameter Names"
     In principle, except for a handful of restricted parameter names that are used internally, any parameter name can be used. However, AgentBasedModels.jl works with a reasonable amount of metaprograming and, although it has been throughfully tested, it can have some unexpected behaviours depending on how to declare variables. It is advised to follow these not-too-restrictive guidelines for being extremely safe:
-     - Define parameters with starting lower-case format (`variable` instead of `Variable`).
-     - For compount name variables, avoid underscores and connect with capitals (`compoundName` instead of `compound_Name`).
+     - Define parameters with starting lower-case format (`variable` instead of `Variable`). As in the Julia guidelines these variables are by convention for Modules and Structures.
+     - Avoid finishing the variable name with an underscore (`variable` instead of `variable_`). As in the Julia guidelines these variables are by convention private variables.
     It shouldn't be a problem at all and you can be perfectly skiping those recomendations, really, but code is never bullet proof and for sure will avoid unexpected and nasty bugs in that very rare situation when the program crashes for some unpredicted reason.
 
-### Updates rules
+### Updating rules
 
 All the declared parameters of the model and of each agent may change in time. For that, we use Update rules. All update rules are defined as:
 
@@ -108,7 +109,7 @@ m = @agent(agentName,
 
  - **UpdateGlobal**: Includes updates that will be performed at every time step on each agent independently.
 
-Example.
+ Example.
 ```julia
 m = @agent(agentName,
     glob1::Global,
@@ -121,9 +122,9 @@ m = @agent(agentName,
 )
 ```
 
- - **Equation**: Define the evolution of a local parameter that acts as a continous variable. Equations accept both ODE and SDE systems of equations. Each equation is defined by using the special symbols `d_` in front the the differential variable, `dt` for deterministic component and `dW` for the stochastic term.
+ - **Equation**: Pecific local update rule for the definition of ODE ans SDE systems of equations governing the dynamics of the agents. Equations accept both ODE and SDE systems of equations. Each equation is defined by using the special symbols `d_` in front the the differential variable, `dt` for deterministic component and `dW` for the stochastic term.
 
-Example: Consider a 2D [Ornstein–Uhlenbeck process](https://en.wikipedia.org/wiki/Ornstein%E2%80%93Uhlenbeck_process) with asymmetric difussivity. The system of equations would look like:
+ Example: Consider a 2D [Ornstein–Uhlenbeck process](https://en.wikipedia.org/wiki/Ornstein%E2%80%93Uhlenbeck_process) with asymmetric difussivity. The system of equations would look like:
 
 $$dx = -xdt + \sqrt{D_x}dW$$
 $$dy = -ydt + \sqrt{D_y}dW$$
@@ -140,7 +141,60 @@ m = @agent(agentName,
 )
 ```
 
- - **UpdateInteraction**: Define pairwise 
+ - **UpdateLocalInteraction**: Define the rules for interacting agents one in each integration step. In these rules, local and identity parameters of two agents will be used. To differentiate the parameters of which agent we are using, we use the notation `_i` to indicate the agent we are updating the rules and `_j` for the other agents interacting with the agent being updated. This notation resembles the notation of a contracting index $x_i=\sum_jx_{ij}$.
+
+ Example, consider that an agent flips between an stressed or an unstressed state depending on the number of neighbours that it has around. We will define such a rule as,
+
+```julia
+m = @agent(agentName,
+    x::Local,
+    n::Identity, #Keep the number of neighbours
+    stressed::Identity #0 not stressed, 1 stressed 
+
+    UpdateLocalInteraction = begin
+        if abs(x_i - x_j) < 3. #If agent j is in some neighbourhood of i
+            n += 1
+            if n > 5
+                stressed = 1
+            else
+                stressed = 0
+            end
+        end
+    end
+)
+```
+
+!!! warning "Interaction Parameter Erasing Behaviour"
+    By default, all local and identity **parameters that are modified using an [updating operator](https://docs.julialang.org/en/v1/manual/mathematical-operations/#Updating-operators) are set to zero** before the UpdateLocalInteraction and the UpdateInteraction rules happen.** This is intended as, in most part of the cases, want an continuous increase of the operator. In the example above, for example, we want to count every step how many neighbours we have with the parameter `n`, not that this increases every time.
+
+    In case that we would like to not erase the parameter before the update rule, use instead the expanded version of the update operator** : `n = n + 1`. This will prevent the program to detect it as an interacting operator and will not erase it before the computation.
+
+
+ - **UpdateInteraction**: Define the rules of interacting terms and other rules of interaction between agents. The difference with the UpdateLocalInteraction rules is that these interactions will be computed for every intermediate step of the integrtion rule (Euler integration a one step integrator, Heun's method uses two evaluations before computing the final step). The same notation as for the UpdateLocalInteraction applies here.
+
+ Consider the example of a dynamical system consisting of interacting particles of the form:
+
+$$\dot{x}_i = g + l_i + \sum_jf(x_i,x_j)$$
+where $x$ is a variable, $g$ a global parameter, $l$ is a local parameter, and $sum_j f(x_i,x_j)$ is a sum over the pairwise forces between particles. The sum contracts the index $j$, so the contribution of interactions are effectively defined by a local parameter $int_i=\sum_jf(x_i,x_j)$. The update of the local parameter $int_i$ will be defined as an interaction term.
+
+```julia
+m = @agent(agentName,
+    [x,l,int]::Local,
+    [g]::Global,
+
+    Equation = begin
+        d_x = g*dt + l*dt + int*dt
+    end
+
+    UpdateInteraction = begin
+        int_i += f(x_i,x_j)
+    end
+)
+```
+
+### Events
+
+Events are sets of rules that change the total number of agents in a simulation.
 
 ## Definging a Simulation Space
 
