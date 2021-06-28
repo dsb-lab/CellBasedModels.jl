@@ -445,9 +445,11 @@ function addEventDivision_!(p::Program_,abm::Agent,space::SimulationSpace,platfo
 
         code = abm.declaredUpdates["EventDivision"]
 
-        #Add atomic_add
         code = vectorize_(abm,code,p)
-        subcode = code.args[end].args[end]
+        subcode = postwalk(x->@capture(if v_ g__ end) ? :($(g...)) : x, code)
+        condition = postwalk(x->@capture(if v_ g__ end) ? :($v) : x, code)
+
+        #Add atomic_add
         if platform == "cpu"
             pushfirst!(subcode.args, :(ic1New_ = Threads.atomic_add!(NV,Int(1)) + 1))
             pushfirst!(subcode.args, :(idNew_ = Threads.atomic_add!(agentIdMax,Int(2)) + 1))
@@ -487,7 +489,11 @@ function addEventDivision_!(p::Program_,abm::Agent,space::SimulationSpace,platfo
                 end
             end        
         end
-        code.args[end].args[end] = subcode
+        code = quote
+            if $condition
+                $subcode
+            end
+        end
 
         code = simpleFirstLoopWrapInFunction_(platform,:division_!,code)
 
