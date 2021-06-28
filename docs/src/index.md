@@ -24,6 +24,12 @@ or from the Pkg REPL
 (v1.6) pkg> add https://github.com/dsb-lab/AgentBasedModels.jl
 ```
 
+## Examples
+
+|Embryogenesys|
+|:---:|
+|[![Embryogenesis](./assets/Saiz.gif)](@ref saiz)|
+
 ## Limitations
 
 To the present stage of the development, the limitations, the library is not capable of working on batches of data. That means that the size of the simulated models will be limited by the memory disponibility in RAM or the GPU, depending on the platform in which the simulations are being tested.
