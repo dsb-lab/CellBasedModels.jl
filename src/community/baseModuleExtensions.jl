@@ -89,7 +89,7 @@ function Base.setproperty!(a::Community,var::Symbol,v::Number)
     elseif var == :t
         a.t = v
     else
-        error("Parameter not fount in the community.")
+        error("Parameter ", var," not fount in the community.")
     end
 
 end
