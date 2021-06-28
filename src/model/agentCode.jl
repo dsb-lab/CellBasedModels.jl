@@ -446,8 +446,10 @@ function addEventDivision_!(p::Program_,abm::Agent,space::SimulationSpace,platfo
         code = abm.declaredUpdates["EventDivision"]
 
         code = vectorize_(abm,code,p)
-        subcode = postwalk(x->@capture(if v_ g__ end) ? :($(g...)) : x, code)
-        condition = postwalk(x->@capture(if v_ g__ end) ? :($v) : x, code)
+        subcode = postwalk(x->@capture(x,if v_ g__ end) ? quote $(g...) end : x, code)
+        subcode = unblock(subcode)
+        condition = postwalk(x->@capture(x,if v_ g__ end) ? v : x, code)
+        condition = unblock(condition)
 
         #Add atomic_add
         if platform == "cpu"
@@ -465,9 +467,9 @@ function addEventDivision_!(p::Program_,abm::Agent,space::SimulationSpace,platfo
                     ii = p.update[k][j]
                     #Parse content
                     s = Meta.parse(string(j,"_1"))
-                    subcode = postwalk(x -> @capture(x,$s=v__) ? :($vecCopy[ic1_,$ii] = $(v...)) : x, subcode)
+                    subcode = postwalk(x -> @capture(x,g_=v__) && g == s ? :($vecCopy[ic1_,$ii] = $(v...)) : x, subcode)
                     s = Meta.parse(string(j,"_2"))
-                    subcode = postwalk(x -> @capture(x,$s=v__) ? :($vecCopy[ic1New_,$ii] = $(v...)) : x, subcode)
+                    subcode = postwalk(x -> @capture(x,g_=v__) && g == s ? :($vecCopy[ic1New_,$ii] = $(v...)) : x, subcode)
                 end
             end          
         end

@@ -8,7 +8,7 @@ using Distributions
 using CUDA
 using DataFrames
 using CSV
-import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, flatten
+import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, flatten, unblock
 #using WriteVTK
 
 export Agent, @agent, add
