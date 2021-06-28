@@ -78,7 +78,7 @@ function Base.setproperty!(a::Community,var::Symbol,v::Number)
     if var in a.declaredSymbols_["Local"]
         error("Local parameter ", var, " cannot be assigned with a scalar. Use .= instead.")
     elseif var in a.declaredSymbols_["Identity"]
-        error("Identity parameter", var, " cannot be assigned with a scalar. Use .= instead.")
+        error("Identity parameter ", var, " cannot be assigned with a scalar. Use .= instead.")
     elseif var in a.declaredSymbols_["Global"]
         pos = findfirst(a.declaredSymbols_["Global"].==var) 
         a.global_[pos] = v

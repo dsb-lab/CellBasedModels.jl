@@ -121,7 +121,7 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationSpace, pl
         if "UpdateInteraction" in keys(abm.declaredUpdates)
             addInteraction1 = [:(@platformAdapt cleanInteraction_!(ARGS_);@platformAdapt interactionStep1_(ARGS_))]
             addInteraction2 = [:(@platformAdapt cleanInteraction_!(ARGS_);@platformAdapt interactionStep2_(ARGS_))]
-            push!(p.execInit.args, :(@platformAdapt cleanInteraction_!(ARGS_); @platformAdapt interactionCompute_!(ARGS_)))
+            push!(p.execInit.args, :(@platformAdapt cleanInteraction_!(ARGS_); @platformAdapt interactionStep1_(ARGS_)))
         else
             addInteraction1 = []
             addInteraction2 = []
