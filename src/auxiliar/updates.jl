@@ -56,7 +56,7 @@ function updates_!(p::Program_,abm::Agent,space::SimulationSpace)
         s = symbols_(abm,abm.declaredUpdates["EventDivision"]).Symbol
         for place in ["Local","Identity"]
             for i in abm.declaredSymbols[place]
-                for j in ["_₁","_₂"]
+                for j in DIVISIONSYMBOLS
                     ss = Meta.parse(string(i,j))
                     if ss in s && !(i in keys(dict))
                         dict[i] = counter

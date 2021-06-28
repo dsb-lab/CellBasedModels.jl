@@ -87,7 +87,7 @@
                 w = Uniform(1.,2.)
             end
         )
-        mo = compile(m, platform = i, debug=true)
+        mo = compile(m, platform = i, debug=false)
         #println(mo.program)
 
         @test_nowarn begin

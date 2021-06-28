@@ -25,9 +25,11 @@ RESERVEDSYMBOLS = [:t,:N,:dt,:dW,:nMax,
 
 EQUATIONSYMBOL = "d_"
 
-INTERACTIONSYMBOLS = Dict(["ᵢ"=>"[ic1_,VAR]","ᵢ"=>"[nnic2_,VAR]"])
+INTERACTIONSYMBOLS = ["_i","_j"]
+INTERACTIONSYMBOLSDICT = Dict(["_i"=>"[ic1_,VAR]","_j"=>"[nnic2_,VAR]"])
 
-DIVISIONSYMBOLS = Dict(["_₁"=>"[ic1_,VAR]","_₂"=>"[nnic2_,VAR]"])
+DIVISIONSYMBOLS = ["_1","_2"]
+DIVISIONSYMBOLSDICT = Dict(["_1"=>"[ic1_,VAR]","_1"=>"[nnic2_,VAR]"])
 
 #Adaptation functions
 GPUINFUNCTION = 

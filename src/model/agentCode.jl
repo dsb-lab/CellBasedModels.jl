@@ -462,9 +462,9 @@ function addEventDivision_!(p::Program_,abm::Agent,space::SimulationSpace,platfo
                 if j in keys(p.update["EventDivision"])
                     ii = p.update[k][j]
                     #Parse content
-                    s = Meta.parse(string(j,"_₁"))
+                    s = Meta.parse(string(j,"_1"))
                     subcode = postwalk(x -> @capture(x,$s=v__) ? :($vecCopy[ic1_,$ii] = $(v...)) : x, subcode)
-                    s = Meta.parse(string(j,"_₂"))
+                    s = Meta.parse(string(j,"_2"))
                     subcode = postwalk(x -> @capture(x,$s=v__) ? :($vecCopy[ic1New_,$ii] = $(v...)) : x, subcode)
                 end
             end          

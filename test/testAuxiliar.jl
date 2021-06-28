@@ -21,22 +21,22 @@
     p = AgentBasedModels.Program_(); s = SimulationFree()
     AgentBasedModels.updates_!(p,m,s)
     @test AgentBasedModels.vectorize_(m,:(l = 1), p) == :(localV[ic1_,1]=1)
-    @test AgentBasedModels.vectorize_(m,:(l₁ = 1), p) == :(localV[ic1_,1]=1)
-    @test AgentBasedModels.vectorize_(m,:(l₂ = 1), p) == :(localV[nnic2_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(l_i = 1), p) == :(localV[ic1_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(l_j = 1), p) == :(localV[nnic2_,1]=1)
     @test AgentBasedModels.vectorize_(m,:(g = 1), p) == :(globalV[1]=1)
     @test AgentBasedModels.vectorize_(m,:(h[1,2] = 1), p) == :(h[1,2]=1)
     @test AgentBasedModels.vectorize_(m,:(id = 1), p) == :(identityV[ic1_,2]=1)
-    @test AgentBasedModels.vectorize_(m,:(id₁ = 1), p) == :(identityV[ic1_,2]=1)
-    @test AgentBasedModels.vectorize_(m,:(id₂ = 1), p) == :(identityV[nnic2_,2]=1)
+    @test AgentBasedModels.vectorize_(m,:(id_i = 1), p) == :(identityV[ic1_,2]=1)
+    @test AgentBasedModels.vectorize_(m,:(id_j = 1), p) == :(identityV[nnic2_,2]=1)
 
     @test AgentBasedModels.vectorize_(m,:(l = l), p) == :(localV[ic1_,1]=localV[ic1_,1])
-    @test AgentBasedModels.vectorize_(m,:(l₁ = l₁), p) == :(localV[ic1_,1]=localV[ic1_,1])
-    @test AgentBasedModels.vectorize_(m,:(l₂ = l₂), p) == :(localV[nnic2_,1]=localV[nnic2_,1])
+    @test AgentBasedModels.vectorize_(m,:(l_i = l_i), p) == :(localV[ic1_,1]=localV[ic1_,1])
+    @test AgentBasedModels.vectorize_(m,:(l_j = l_j), p) == :(localV[nnic2_,1]=localV[nnic2_,1])
     @test AgentBasedModels.vectorize_(m,:(g = g), p) == :(globalV[1]=globalV[1])
     @test AgentBasedModels.vectorize_(m,:(h[1,2] = h[1,2]), p) == :(h[1,2]=h[1,2])
     @test AgentBasedModels.vectorize_(m,:(id = id), p) == :(identityV[ic1_,2]=identityV[ic1_,2])
-    @test AgentBasedModels.vectorize_(m,:(id₁ = id₁), p) == :(identityV[ic1_,2]=identityV[ic1_,2])
-    @test AgentBasedModels.vectorize_(m,:(id₂ = id₂), p) == :(identityV[nnic2_,2]=identityV[nnic2_,2])
+    @test AgentBasedModels.vectorize_(m,:(id_i = id_i), p) == :(identityV[ic1_,2]=identityV[ic1_,2])
+    @test AgentBasedModels.vectorize_(m,:(id_j = id_j), p) == :(identityV[nnic2_,2]=identityV[nnic2_,2])
     
     @test begin
         m = @agent(
@@ -126,13 +126,13 @@
         m = DataFrame(Symbol=Symbol[], updated=Bool[], assigned=Bool[], referenced=Bool[], called=Bool[], placeDeclaration=Symbol[], type=Symbol[])
         push!(m,(:l,false,true,false,false,:Model,:Local))
         push!(m,(:g,true,false,true,false,:Model,:GlobalArray))
-        push!(m,(:h₂,true,false,false,false,:Model,:Local2))
+        push!(m,(:h_j,true,false,false,false,:Model,:Localj))
         push!(m,(:+,false,false,false,true,:Math,:None))
-        push!(m,(:l₁,false,false,false,false,:Model,:Local1))
+        push!(m,(:l_i,false,false,false,false,:Model,:Locali))
         push!(m,(:g,false,false,false,false,:Model,:GlobalArray))
         push!(m,(:u,false,false,false,true,:NotDefined,:None))
 
-        # println(m)
+        #println(m)
 
         abm = @agent cell [l,h]::Local g::GlobalArray
 
@@ -140,11 +140,11 @@
             quote
                 l = 5
                 g[1,2] -= 7
-                h₂ += l₁+g+u(1)
+                h_j += l_i+g+u(1)
             end
         )
         
-        # println(m2)
+        #println(m2)
 
         m == m2
     end

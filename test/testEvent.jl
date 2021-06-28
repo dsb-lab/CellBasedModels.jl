@@ -14,8 +14,8 @@ using Base: LogicalIndex
                 EventDivision = 
                 begin
                     if active == 1
-                        active_₁ == 2
-                        active_₂ == 1
+                        active_1 == 2
+                        active_2 == 1
                     end
                 end
             )
@@ -33,14 +33,14 @@ using Base: LogicalIndex
             EventDivision = 
             begin
                 if active == 1
-                    active_₁ = 2
-                    active_₂ = 1
+                    active_1 = 2
+                    active_2 = 1
                 end
             end
         )
 
         m = compile(m,platform=platform)
-        #println(m.program)
+        println(m.program)
 
         @test_nowarn begin
 
@@ -70,8 +70,8 @@ using Base: LogicalIndex
             EventDivision = 
             begin
                 if active == 2
-                    id1_₁ = id1 + 1
-                    id1_₂ = id1 + 1
+                    id1_1 = id1 + 1
+                    id1_2 = id1 + 1
                 end
             end
         )

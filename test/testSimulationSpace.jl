@@ -14,7 +14,7 @@
             [i1,i2]::Identity,
 
             UpdateLocalInteraction = begin
-                if sqrt((l1₂-l1₁)^2+(l2₂-l2₁)^2) < 5
+                if sqrt((l1_j-l1_i)^2+(l2_j-l2_i)^2) < 5
                     l1 += 1
                 end
             end
@@ -36,13 +36,13 @@
         end,
 
         UpdateInteraction = begin
-            if sqrt((l1₂-l1₁)^2+(l2₂-l2₁)^2) < 5
+            if sqrt((l1_j-l1_i)^2+(l2_j-l2_i)^2) < 5
                 int += 1
             end
         end,
 
         UpdateLocalInteraction = begin
-            if sqrt((l1₂-l1₁)^2+(l2₂-l2₁)^2) < 5
+            if sqrt((l1_j-l1_i)^2+(l2_j-l2_i)^2) < 5
                 intLocal += 1
             end
         end
@@ -276,7 +276,7 @@ end
             end,
 
             UpdateInteraction = begin
-                if abs(l1₁ - l1₂) <= 4.5
+                if abs(l1_i - l1_j) <= 4.5
                     int += 1
                 end
             end,
@@ -321,7 +321,7 @@ end
             end,
 
             UpdateInteraction = begin
-                if abs(l2₁ - l2₂) <= 4.5
+                if abs(l2_i - l2_j) <= 4.5
                     int += 1
                 end
             end,
@@ -366,7 +366,7 @@ end
             end,
 
             UpdateInteraction = begin
-                if abs(l3₁ - l3₂) <= 4.5
+                if abs(l3_i - l3_j) <= 4.5
                     int += 1
                 end
             end,

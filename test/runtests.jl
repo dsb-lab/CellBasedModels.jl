@@ -10,6 +10,7 @@ if CUDA.has_cuda()
     testplatforms = ["cpu","gpu"]
 else
     testplatforms = ["cpu"]
+    println("CUDA was not found, only checking cpu.")
 end
 
 include("testAgent.jl")

@@ -18,7 +18,7 @@
             UpdateInteraction = l += 1,
             UpdateLocalInteraction = l += 1
         )
-        compile(m, platform="cpu",debug=true)
+        compile(m, platform="cpu",debug=false)
     end
 
 end

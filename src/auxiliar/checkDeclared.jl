@@ -108,19 +108,43 @@ function whereDeclared_(abm::Agent,s::Symbol)
     elseif isdefined(Main,s)
         return (:Main,:GPU)
     else
-        if string(s)[end] == '₂'
-            ss = Meta.parse(string(s)[1:end-1])
+        if occursin("_2",string(s))
+            ss = Meta.parse(string(s)[1:end-2])
             for k in keys(abm.declaredSymbols)
                 if ss in abm.declaredSymbols[k]
                     place = (:Model,Meta.parse(string(k,"2")))
                     break
                 end
             end
-        elseif string(s)[end] == '₁'
-            ss = Meta.parse(string(s)[1:end-1])
+        elseif occursin("_1",string(s))
+            ss = Meta.parse(string(s)[1:end-2])
             for k in keys(abm.declaredSymbols)
                 if ss in abm.declaredSymbols[k]
                     place = (:Model,Meta.parse(string(k,"1")))
+                    break
+                end
+            end
+        elseif occursin("_i",string(s))
+            ss = Meta.parse(string(s)[1:end-2])
+            for k in keys(abm.declaredSymbols)
+                if ss in abm.declaredSymbols[k]
+                    place = (:Model,Meta.parse(string(k,"i")))
+                    break
+                end
+            end
+        elseif occursin("_j",string(s))
+            ss = Meta.parse(string(s)[1:end-2])
+            for k in keys(abm.declaredSymbols)
+                if ss in abm.declaredSymbols[k]
+                    place = (:Model,Meta.parse(string(k,"j")))
+                    break
+                end
+            end
+        elseif occursin("d_",string(s))
+            ss = Meta.parse(string(s)[3:end])
+            for k in keys(abm.declaredSymbols)
+                if ss in abm.declaredSymbols[k]
+                    place = (:Model,Meta.parse(string(k,"d")))
                     break
                 end
             end
