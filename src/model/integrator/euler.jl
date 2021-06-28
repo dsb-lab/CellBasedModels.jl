@@ -30,7 +30,7 @@ function addIntegratorEuler_!(p::Program_, abm::Agent, space::SimulationSpace, p
 
         #Create integration step function
         for (i,j) in enumerate(abm.declaredSymbols["Local"])
-            s = Meta.parse(string(EQUATIONSYMBOLDICT,j))
+            s = Meta.parse(string(EQUATIONSYMBOL,j))
             code = postwalk(x -> @capture(x,ss_=v__) && ss == s ? :($j = $j + $(v...)) : x, code)
             code = postwalk(x -> @capture(x,dW) ? :(Normal(0.,sqrt(dt))) : x, code)
         end
