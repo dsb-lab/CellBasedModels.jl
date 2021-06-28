@@ -8,8 +8,7 @@ pages = [
     "Home" => "index.md",
     "Usage.md",
     "Examples"=>[
-        "Examples.md",
-        "Examples.md"
+        "Saiz.md",
     ],
     "API.md",
     "APIdevelopers.md"

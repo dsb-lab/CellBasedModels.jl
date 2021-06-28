@@ -23,16 +23,21 @@ SimulationFree
 SimulationGrid
 ```
 
-[https://developer.nvidia.com/gpugems/gpugems3/contributors](https://developer.nvidia.com/gpugems/gpugems3/contributors)
-
 ## Model
 
 ```@docs
 Model
 ```
 
+## [Compile](@id APIcompilation)
+
+```@docs
+compile
+```
+
 ## Community
 
 ```@docs
 Community
+CommunityInTime
 ```
