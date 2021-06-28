@@ -66,11 +66,6 @@ function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=S
         program = postwalk(x->@capture(x,@platformAdapt v_(ARGS__)) ? :(@cuda $v(ARGS_)) : x, program)
         program = cudaAdapt_(program)
     end
-
-    if debug == true
-        println(prettify(program))
-    end
-
     program = subsArguments_(program,:ARGS_,p.args)
     program = randomAdapt_(p,program,platform)
     programugly = gensym_ids(program)
