@@ -443,11 +443,11 @@ function addEventDivision_!(p::Program_,abm::Agent,space::SimulationSpace,platfo
 
     if "EventDivision" in keys(abm.declaredUpdates)
 
+        code = abm.declaredUpdates["EventDivision"]
+
         if !@capture(code,if v_ g__ end)
             error("Erroneos structure of division events. Should be if something update end")
         end
-
-        code = abm.declaredUpdates["EventDivision"]
 
         code = vectorize_(abm,code,p)
         subcode = postwalk(x->@capture(x,if v_ g__ end) ? quote $(g...) end : x, code)
