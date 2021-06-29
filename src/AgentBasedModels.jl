@@ -18,6 +18,7 @@ export Community, CommunityInTime
 export SimulationFree, SimulationGrid
 export SimulationSpace, FlatBoundary, Periodic, NonPeriodic, Bound
 export configurator_
+export extrude
 export compactHexagonal
 
 #Constants
@@ -44,6 +45,7 @@ include("./model/compile.jl")
 include("./community/community.jl")
 include("./community/baseModuleExtensions.jl")
 include("./community/constructors/latices/hexagonal.jl")
+include("./community/constructors/extrude.jl")
 
 #Random
 include("./model//random/distribution.jl")
