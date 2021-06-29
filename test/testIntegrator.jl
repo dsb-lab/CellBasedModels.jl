@@ -1,4 +1,4 @@
-@testset "model" begin
+@testset "integrators" begin
 
     for integrator in keys(AgentBasedModels.addIntegrator_!)
         for platform in testplatforms

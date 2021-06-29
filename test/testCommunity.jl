@@ -120,7 +120,7 @@
         if com.ga3 != 6. *ones(2,2) error() end
     end
 
-    @test_throws UndefVarError begin
+    @test_throws ErrorException begin
         m = @agent(Cell,id::Identity) 
         m = compile(m)
         com = Community(m,N=10)
@@ -136,7 +136,7 @@
         com.id = [1]
     end
 
-    @test_throws UndefVarError begin
+    @test_throws ErrorException begin
         m = @agent(Cell,id::Local) 
         m = compile(m)
         com = Community(m,N=10)
@@ -152,7 +152,7 @@
         com.id = [1]
     end
 
-    @test_throws UndefVarError begin
+    @test_throws ErrorException begin
         m = @agent(Cell,ga::GlobalArray) 
         m = compile(m)
         com = Community(m,N=10)

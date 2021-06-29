@@ -23,5 +23,6 @@ include("testIntegrator.jl")
 include("testEvent.jl")
 include("testSimulationSpace.jl")
 include("testBound.jl")
+include("testSave.jl")
 # include("testConstructors.jl")
 

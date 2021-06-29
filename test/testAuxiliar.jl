@@ -50,8 +50,8 @@
         prod([i in [:t,:N,:loc_,:glob_,:id_,:h] for i in AgentBasedModels.agentArguments_(m)])
     end
 
-    @test AgentBasedModels.cudaAdapt_(:(sin(e^2^x))) == :(CUDA.sin(CUDA.pow(e,CUDA.pow(2,x))))
-    @test AgentBasedModels.cudaAdapt_(:(zeros(e^2))) == :(CUDA.zeros(CUDA.pow(e,2)))
+    @test AgentBasedModels.cudaAdapt_(:(sin(e^2^x))) == :(CUDA.sin(e^2^x))
+    @test AgentBasedModels.cudaAdapt_(:(zeros(e^2))) == :(CUDA.zeros(e^2))
     
     @test begin
         code = :(x .+= 1)

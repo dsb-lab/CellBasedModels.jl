@@ -39,17 +39,21 @@ function addSavingRAM_!(p::Program_,abm::Agent,Space::SimulationSpace,platform::
     push!(p.declareVar.args,:(commRAM_ = CommunityInTime()))
 
     push!(p.execInit.args,
-    :(begin
-        ob = Community(t,N,com.declaredSymbols_,$(l...))
-        push!(commRAM_,ob)
+        :(begin
+            ob = Community(t,N,com.declaredSymbols_,$(l...))
+            push!(commRAM_,ob)
         end)
     )
     push!(p.execInloop.args,
-    :(begin
-        ob = Community(t+dt,N,com.declaredSymbols_,$(l...))
-        push!(commRAM_,ob)
+        :(begin
+            if t >= tSave
+                tSave += dtSave
+                ob = Community(t+dt,N,com.declaredSymbols_,$(l...))
+                push!(commRAM_,ob)
+            end
         end)
     )
+
     # push!(p.execAfter.args,
     # :(begin
     #     ob = Community(t+dt,N,com.declaredSymbols_,$(l...))

@@ -34,8 +34,13 @@ function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=S
     #Saving
     addSaving_![save](p,abm,space,platform)
 
+    if platform == "gpu"
+        gpuConf = :()
+    end
+
     program = quote
-        function (com::Community; dt::Real, tMax::Real, t::Real=com.t, N::Integer=com.N, nMax::Integer=com.N, $(p.argsEval...))
+        function (com::Community; dt::Real, tMax::Real, t::Real=com.t, N::Integer=com.N, nMax::Integer=com.N, 
+                dtSave::Real=dt,tSave::Real=0,saveFolder::String="")
             #Promoting to the correct type
             dt = Float64(dt)
             tMax = Float64(tMax)
@@ -63,7 +68,9 @@ function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=S
     if platform == "cpu"
         program = postwalk(x->@capture(x,@platformAdapt v_(ARGS__)) ? :($v(ARGS_)) : x, program)
     elseif platform == "gpu"
-        program = postwalk(x->@capture(x,@platformAdapt v_(ARGS__)) ? :(@cuda $v(ARGS_)) : x, program)
+        program = postwalk(x->@capture(x,@platformAdapt v_(ARGS__)) ? :(kernel_ = @cuda launch = false $v(ARGS_); 
+                                                                    prop_ = AgentBasedModels.configurator_(kernel_,N); 
+                                                                    kernel_(ARGS_;threads=prop_[1],blocks=prop_[2])) : x, program)
         program = cudaAdapt_(program)
     end
     program = subsArguments_(program,:ARGS_,p.args)

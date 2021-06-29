@@ -8,7 +8,6 @@ mutable struct Program_
     declareVar::Expr
     declareF::Expr
     args::Array{Symbol,1}
-    argsEval::Array{Union{Symbol,Expr},1}
     execInit::Expr
     execInloop::Expr
     execAfter::Expr
@@ -18,5 +17,6 @@ mutable struct Program_
 end
 
 function Program_()
-    return Program_(quote end,quote end,Array{Symbol,1}([:t,:N,:dt]),Array{Union{Symbol,Expr},1}(),quote end,quote end,quote end,quote end,Dict{String,Dict{Symbol,Int}}())
+    return Program_(quote end,quote end,Array{Symbol,1}([:t,:N,:dt]),
+                    quote end,quote end,quote end,quote end,Dict{String,Dict{Symbol,Int}}())
 end
