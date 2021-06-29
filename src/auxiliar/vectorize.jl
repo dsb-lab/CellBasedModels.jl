@@ -109,7 +109,7 @@ function vectorize_(abm::Agent,code::Expr,p::Program_)
 
         if "GlobalArray" in keys(p.update)
             if v in keys(p.update["GlobalArray"])
-                name = Meta.parse(string(v,"Copy"))
+                name = Meta.parse(string(v,GLOBALARRAYCOPY))
                 code = postwalk(x->@capture(x, cc_[c__] = v1__) && cc==v ? :($name[$(c...)] = $(v1...)) : x, code)
                 code = postwalk(x->@capture(x, cc_[c__] += v1__) && cc==v ? :($name[$(c...)] += $(v1...)) : x, code)
                 code = postwalk(x->@capture(x, cc_[c__] -= v1__) && cc==v ? :($name[$(c...)] -= $(v1...)) : x, code)

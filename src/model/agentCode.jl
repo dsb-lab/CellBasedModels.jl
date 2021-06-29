@@ -69,21 +69,21 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
         for (j,i) in enumerate(abm.declaredSymbols["GlobalArray"])
             append!(p.declareVar.args, 
             (quote
-                $(Meta.parse(string(i))) = Array(com.globArray[$j])
+                $(Meta.parse(string(i))) = Array(copy(com.globalArray_[$j]))
             end).args 
             )
            
             push!(p.args,Meta.parse(string(i)))
         end
-        if !isempty(p.update["Global"])
-            for (j,i) in enumerate(abm.declaredSymbols["GlobalArray"])
+        if !isempty(p.update["GlobalArray"])
+            for (j,i) in enumerate(keys(p.update["GlobalArray"]))
                 append!(p.declareVar.args, 
                 (quote
-                    $(Meta.parse(string(i,"Copy"))) = Array(com.globArray[$j])
+                    $(Meta.parse(string(i,GLOBALARRAYCOPY))) = Array(copy(com.globalArray_[$j]))
                 end).args 
                 )
     
-                push!(p.args,Meta.parse(string(i,"Copy")))
+                push!(p.args,Meta.parse(string(i,GLOBALARRAYCOPY)))
             end
         end
     end
@@ -307,7 +307,7 @@ function addUpdate_!(p::Program_,abm::Agent,space::SimulationSpace,platform::Str
         for i in keys(abm.declaredSymbols)
             if  i == "GlobalArray"
                 for j in keys(p.update[i]) 
-                    n = Meta.parse(string(j,"Copy_")) 
+                    n = Meta.parse(string(j,GLOBALARRAYCOPY)) 
                     push!(gen.args,:($j.=$n))
                 end
             elseif i in ["Local","Identity"]
@@ -381,7 +381,7 @@ function addCopyInitialisation_!(p::Program_,abm::Agent,space::SimulationSpace,p
         for i in keys(abm.declaredSymbols)
             if  i == "GlobalArray"
                 for j in keys(p.update[i]) 
-                    n = Meta.parse(string(j,"Copy_")) 
+                    n = Meta.parse(string(j,GLOBALARRAYCOPY)) 
                     push!(gen.args,:($n.=$j))
                 end
             elseif i in ["Local","Identity"]

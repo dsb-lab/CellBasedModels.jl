@@ -23,6 +23,8 @@ RESERVEDSYMBOLS = [:t,:N,:dt,:dW,:nMax,
                     :ALGORITHM_,:ARGS_,:AUX1_,:AUX2_,
                     :index_,:stride_,:lockadd_];
 
+GLOBALARRAYCOPY = "_Copy"
+
 EQUATIONSYMBOL = "d_"
 
 INTERACTIONSYMBOLS = ["_i","_j"]
