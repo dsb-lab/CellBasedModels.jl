@@ -4,6 +4,7 @@ using DataFrames: AbstractAggregate
 using CUDA: findfirst, atomic_add!
 using Base: add_with_overflow
 using Random
+using LinearAlgebra
 using Distributions
 using CUDA
 using DataFrames
@@ -17,6 +18,7 @@ export Community, CommunityInTime
 export SimulationFree, SimulationGrid
 export SimulationSpace, FlatBoundary, Periodic, NonPeriodic, Bound
 export configurator_
+export compactHexagonal
 
 #Constants
 include("./constants/constants.jl")
@@ -41,6 +43,7 @@ include("./model/compile.jl")
 #Community
 include("./community/community.jl")
 include("./community/baseModuleExtensions.jl")
+include("./community/constructors/latices/hexagonal.jl")
 
 #Random
 include("./model//random/distribution.jl")
