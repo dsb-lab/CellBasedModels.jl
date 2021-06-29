@@ -39,7 +39,7 @@ using Base: LogicalIndex
             end
         )
 
-        m = compile(m,platform=platform)
+        m = compile(m,platform=platform,debug=false)
         # println(m.program)
 
         @test_nowarn begin

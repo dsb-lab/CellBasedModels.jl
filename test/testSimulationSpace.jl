@@ -37,18 +37,18 @@
 
         UpdateInteraction = begin
             if sqrt((l1_j-l1_i)^2+(l2_j-l2_i)^2) < 5
-                int += 1
+                int_i += 1
             end
         end,
 
         UpdateLocalInteraction = begin
             if sqrt((l1_j-l1_i)^2+(l2_j-l2_i)^2) < 5
-                intLocal += 1
+                intLocal_i += 1
             end
         end
     )
     s = SimulationFree()
-    m = compile(m,s)
+    m = compile(m,s,debug=false)
 
     @test begin
         com = Community(m,N=4)
@@ -287,7 +287,7 @@ end
         )
 
         s = SimulationGrid(m,[(:l1,-10,10)],[5.])
-        mo = compile(m,s,platform=platform)
+        mo = compile(m,s,platform=platform,debug=false)
         #println(mo.program)
         @test begin
             com = Community(mo,N=12)

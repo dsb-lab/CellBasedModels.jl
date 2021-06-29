@@ -11,11 +11,11 @@ function vectorize_(abm::Agent,code::Expr,p::Program_)
 
         bs = :localV
 
-        code = postwalk(x->@capture(x, $v) ? :($bs[ic1_,$i]) : x, code)
+        code = postwalk(x->@capture(x, vAux_) && vAux == v ? :($bs[ic1_,$i]) : x, code)
         v2 = Meta.parse(string(v,"_i"))
-        code = postwalk(x->@capture(x, $v2) ? :($bs[ic1_,$i]) : x, code)
+        code = postwalk(x->@capture(x, vAux_) && vAux == v2 ? :($bs[ic1_,$i]) : x, code)
         v2 = Meta.parse(string(v,"_j"))
-        code = postwalk(x->@capture(x, $v2) ? :($bs[nnic2_,$i]) : x, code)
+        code = postwalk(x->@capture(x, vAux_) && vAux == v2 ? :($bs[nnic2_,$i]) : x, code)
 
         if "Local" in keys(p.update)
             if v in keys(p.update["Local"])
@@ -45,11 +45,11 @@ function vectorize_(abm::Agent,code::Expr,p::Program_)
 
         bs = :identityV
 
-        code = postwalk(x->@capture(x, $v) ? :($bs[ic1_,$i]) : x, code)
+        code = postwalk(x->@capture(x, vAux_) && vAux == v ? :($bs[ic1_,$i]) : x, code)
         v2 = Meta.parse(string(v,"_i"))
-        code = postwalk(x->@capture(x, $v2) ? :($bs[ic1_,$i]) : x, code)
+        code = postwalk(x->@capture(x, vAux_) && vAux == v2 ? :($bs[ic1_,$i]) : x, code)
         v2 = Meta.parse(string(v,"_j"))
-        code = postwalk(x->@capture(x, $v2) ? :($bs[nnic2_,$i]) : x, code)
+        code = postwalk(x->@capture(x, vAux_) && vAux == v2 ? :($bs[nnic2_,$i]) : x, code)
 
         if "Identity" in keys(p.update)
             if v in keys(p.update["Identity"])

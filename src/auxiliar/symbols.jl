@@ -11,11 +11,13 @@ function symbols_(abm::Agent,exp::Expr,
     for (pos,a) in enumerate(exp.args)
         if called
             aux = whereDeclared_(abm,a)
+            for i in ENDSYMBOLS a = Meta.parse(split(string(a),i)[1]) end
             push!(symb,(a,false,false,false,true,aux[1],aux[2]))
             called = false
         elseif exp.head in [:(+=),:(-=),:(%=),:(/=)] && pos == 1
             if typeof(a) == Symbol
                 aux = whereDeclared_(abm,a)
+                for i in ENDSYMBOLS a = Meta.parse(split(string(a),i)[1]) end
                 push!(symb,(a,true,false,false,false,aux[1],aux[2]))
             elseif typeof(a) == Expr && a.head == :ref
                 aux = whereDeclared_(abm,a.args[1])
@@ -24,6 +26,7 @@ function symbols_(abm::Agent,exp::Expr,
         elseif exp.head in [:(=)] && pos == 1
             if typeof(a) == Symbol
                 aux = whereDeclared_(abm,a)
+                for i in ENDSYMBOLS a = Meta.parse(split(string(a),i)[1]) end
                 push!(symb,(a,false,true,false,false,aux[1],aux[2]))
             elseif typeof(a) == Expr && a.head == :ref
                 aux = whereDeclared_(abm,a.args[1])
@@ -36,6 +39,7 @@ function symbols_(abm::Agent,exp::Expr,
             symbols_(abm,a,symb,true)
         elseif typeof(a) == Symbol
             aux = whereDeclared_(abm,a)
+            for i in ENDSYMBOLS a = Meta.parse(split(string(a),i)[1]) end
             push!(symb,(a,false,false,false,false,aux[1],aux[2]))
         elseif typeof(a) == Expr
             symbols_(abm,a,symb)

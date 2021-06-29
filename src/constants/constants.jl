@@ -31,6 +31,8 @@ INTERACTIONSYMBOLSDICT = Dict(["_i"=>"[ic1_,VAR]","_j"=>"[nnic2_,VAR]"])
 DIVISIONSYMBOLS = ["_1","_2"]
 DIVISIONSYMBOLSDICT = Dict(["_1"=>"[ic1_,VAR]","_1"=>"[nnic2_,VAR]"])
 
+ENDSYMBOLS = ["_i","_j"]
+
 #Adaptation functions
 GPUINFUNCTION = 
 "index_ = (threadIdx().x) + (blockIdx().x - 1) * blockDim().x
