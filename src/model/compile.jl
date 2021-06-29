@@ -40,7 +40,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=S
 
     program = quote
         function (com::Community; dt::Real, tMax::Real, t::Real=com.t, N::Integer=com.N, nMax::Integer=com.N, 
-                dtSave::Real=dt,tSave::Real=0,saveFolder::String="")
+                dtSave::Real=dt,tSave::Real=0,saveFile::String="")
             #Promoting to the correct type
             dt = Float64(dt)
             tMax = Float64(tMax)

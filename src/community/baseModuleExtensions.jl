@@ -85,9 +85,9 @@ function Base.setproperty!(a::Community,var::Symbol,v::Number)
     elseif var in a.declaredSymbols_["GlobalArray"]
         error("GlobalArray ", var, " cannot be assigned with a scalar.")
     elseif var == :N
-        a.N = v
+        setfield!(a,:N,v)
     elseif var == :t
-        a.t = v
+        setfield!(a,:t,v)
     else
         error("Parameter ", var," not fount in the community.")
     end

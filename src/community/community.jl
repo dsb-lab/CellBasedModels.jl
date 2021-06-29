@@ -118,6 +118,20 @@ function Community(abm::Model; N::Int=1, t::AbstractFloat=0.)
     return Community(t,N,declaredSymbols,loc,ids,glob,globArray)
 end
 
+function Base.show(io::IO,com::Community)
+    print("PARAMETERS\n")
+    for i in keys(com.declaredSymbols_)
+        if ! isempty(com.declaredSymbols_[i])
+            print(i,"\n\t")
+            for j in com.declaredSymbols_[i]
+                println(" ",j)
+                println(" ",getproperty(com,j))
+            end
+            print("\n")
+        end
+    end
+end
+
 """
 Structure that basically stores an array of Coomunities at different time points.
 

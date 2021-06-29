@@ -1,6 +1,6 @@
 module AgentBasedModels
 
-using DataFrames: AbstractAggregate
+using DataFrames: AbstractAggregate, getiterator
 using CUDA: findfirst, atomic_add!
 using Base: add_with_overflow
 using Random
@@ -14,7 +14,7 @@ import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, flatten, un
 
 export Agent, @agent, add
 export Model, compile
-export Community, CommunityInTime
+export Community, CommunityInTime, saveCSV, loadCommunityFromCSV, loadCommunityInTimeFromCSV
 export SimulationFree, SimulationGrid
 export SimulationSpace, FlatBoundary, Periodic, NonPeriodic, Bound
 export configurator_
@@ -46,6 +46,8 @@ include("./community/community.jl")
 include("./community/baseModuleExtensions.jl")
 include("./community/constructors/latices/hexagonal.jl")
 include("./community/constructors/extrude.jl")
+include("./community/IO/save.jl")
+include("./community/IO/load.jl")
 
 #Random
 include("./model//random/distribution.jl")
@@ -58,7 +60,7 @@ include("./model/integrator/integrators.jl")
 
 #Saving
 include("./model/saving/saveRAM.jl")
-#include("./model/saving/saveCSV.jl")
+include("./model/saving/saveCSV.jl")
 include("./model/saving/saving.jl")
 
 #Auxiliar function

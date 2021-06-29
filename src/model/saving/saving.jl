@@ -1,6 +1,6 @@
 addSaving_! = 
 Dict{String,Function}(
     "RAM"=>addSavingRAM_!,
-#    "CSV"=>addSavingCSV_!,
+    "CSV"=>addSavingCSV_!,
 )
 
