@@ -38,7 +38,15 @@ include("./simulationSpace/simulationGrid.jl")
 
 #Model
 include("./model/model.jl")
-include("./model/agentCode.jl")
+include("./model/agentCode/addParameters.jl")
+include("./model/agentCode/checkBounds.jl")
+include("./model/agentCode/cleanInteraction.jl")
+include("./model/agentCode/eventDeath.jl")
+include("./model/agentCode/eventDivision.jl")
+include("./model/agentCode/updateGlobal.jl")
+include("./model/agentCode/updateLocal.jl")
+include("./model/agentCode/updateLocalInteraction.jl")
+include("./model/agentCode/updateMedium.jl")
 include("./model/compile.jl")
 
 #Community

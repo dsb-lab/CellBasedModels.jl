@@ -4,9 +4,9 @@
 
         #Update Local
         m = @agent(
-            Hola,
+            3,
             
-            [x,y,z,w]::Local,
+            [w]::Local,
             
             UpdateLocal = 
             begin
@@ -38,9 +38,9 @@
 
         #Update Identity
         m = @agent(
-            Hola,
+            3,
             
-            [x,y,z,w1,w2]::Identity,
+            [w1,w2]::Identity,
             
             UpdateLocal = 
             begin
@@ -76,14 +76,14 @@
 
         #Update Global
         m = @agent(
-            Hola,
+            3,
             
-            [x,y,z,w]::Global,
+            [x1,y1,z1,w]::Global,
             
             UpdateGlobal = 
             begin
-                x += 1 
-                z += 2
+                x1 += 1 
+                z1 += 2
                 w = Uniform(1.,2.)
             end
         )
@@ -93,16 +93,16 @@
         @test_nowarn begin
 
             com = Community(mo,N=10)
-            com.x = 0.
-            com.y = 0.
-            com.z = 0.
+            com.x1 = 0.
+            com.y1 = 0.
+            com.z1 = 0.
             com.w = 1.2
             comt = mo.evolve(com,dt=1.,tMax=10)#,t=0.,N=com.N,nMax=com.N)
 
             for i in 1:10
-                if comt[i].x != 1. *(i-1) println("x ", i, " ", comt[i].x);error() end 
-                if comt[i].y != 0. println("y ", i, " ", comt[i].y);error() end 
-                if comt[i].z != 2. *(i-1) println("z ", i, " ", comt[i].z);error() end 
+                if comt[i].x1 != 1. *(i-1) println("x ", i, " ", comt[i].x);error() end 
+                if comt[i].y1 != 0. println("y ", i, " ", comt[i].y);error() end 
+                if comt[i].z1 != 2. *(i-1) println("z ", i, " ", comt[i].z);error() end 
                 if !prod(Bool((comt[i].w .>= 1) * (comt[i].w .<= 2))) println("w ", i, " ", comt[i].w);error() end 
             end
         end
@@ -110,9 +110,7 @@
 
         #Update Local Interaction
         m = @agent(
-            Hola,
-            
-            [x,y,z]::Local,
+            3,
             
             UpdateLocalInteraction = 
             begin

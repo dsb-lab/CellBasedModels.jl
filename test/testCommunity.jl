@@ -3,7 +3,7 @@
     #Create community
     @test_nowarn begin
         m = @agent(
-            Hola,
+            0,
             
             id::Identity,
             [v,l,i]::Local,
@@ -29,7 +29,7 @@
     #Get variables
     @test_nowarn begin
         m = @agent(
-            Hola,
+            0,
             
             [id1,id2,id3]::Identity,
             [l1,l2,l3]::Local,
@@ -61,7 +61,7 @@
     #Get variables
     @test_nowarn begin
         m = @agent(
-            Hola,
+            0,
             
             [id1,id2,id3]::Identity,
             [l1,l2,l3]::Local,
@@ -121,7 +121,7 @@
     end
 
     @test_throws ErrorException begin
-        m = @agent(Cell,id::Identity) 
+        m = @agent(0,id::Identity) 
         m = compile(m)
         com = Community(m,N=10)
 
@@ -129,7 +129,7 @@
     end
 
     @test_throws MethodError begin
-        m = @agent(Cell,id::Identity) 
+        m = @agent(0,id::Identity) 
         m = compile(m)
         com = Community(m,N=10)
 
@@ -137,7 +137,7 @@
     end
 
     @test_throws ErrorException begin
-        m = @agent(Cell,id::Local) 
+        m = @agent(0,id::Local) 
         m = compile(m)
         com = Community(m,N=10)
 
@@ -145,7 +145,7 @@
     end
 
     @test_throws MethodError begin
-        m = @agent(Cell,id::Local) 
+        m = @agent(0,id::Local) 
         m = compile(m)
         com = Community(m,N=10)
 
@@ -153,7 +153,7 @@
     end
 
     @test_throws ErrorException begin
-        m = @agent(Cell,ga::GlobalArray) 
+        m = @agent(0,ga::GlobalArray) 
         m = compile(m)
         com = Community(m,N=10)
 

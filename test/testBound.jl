@@ -4,9 +4,8 @@
 
         #By local update
         m = @agent(
-            cell,
+            3,
 
-            [x,y,z]::Local,
             [sx,sy,sz]::Local, #Steps
 
             [s,sMin,sMax]::Local, #Stop bounds 
@@ -77,9 +76,8 @@
 
 
         m = @agent(
-            cell,
+            3,
 
-            [x,y,z]::Local,
             [x1,y1,z1]::Local,
             [sx,sy,sz]::Local, #Steps
 
@@ -130,9 +128,8 @@
 
         #Integration
         m = @agent(
-            cell,
+            3,
 
-            [x,y,z]::Local,
             [sx,sy,sz]::Local, #Steps
 
             [s,sMin,sMax]::Local, #Stop bounds 
@@ -204,9 +201,8 @@
 
 
         m = @agent(
-            cell,
-
-            [x,y,z]::Local,
+            3,
+            
             [x1,y1,z1]::Local,
             [sx,sy,sz]::Local, #Steps
 

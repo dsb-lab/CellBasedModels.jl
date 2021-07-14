@@ -1,7 +1,7 @@
 @testset "save" begin
 
     @test_nowarn begin
-        m = @agent(cell,
+        m = @agent(0,
             l::Local,
             g::Global,
             id::Identity,
@@ -20,7 +20,7 @@
         com2 = loadCommunityFromCSV(model,"testCSV")
     end
 
-    m = @agent(cell,
+    m = @agent(0,
         l::Local,
         g::Global,
         id::Identity,
@@ -41,11 +41,10 @@
     @test com.globalArray_ == com2.globalArray_
     @test com.t == com2.t
     @test com.N == com2.N
-    dir = readdir("./")
 
     for platform in testplatforms
 
-        m = @agent(cell,
+        m = @agent(0,
             l::GlobalArray,
 
             UpdateGlobal = begin
@@ -65,7 +64,7 @@
 
     for platform in testplatforms
 
-        m = @agent(cell,
+        m = @agent(0,
             l::GlobalArray,
 
             UpdateGlobal = begin
@@ -81,6 +80,7 @@
         @test_nowarn loadCommunityInTimeFromCSV(model,"testCSV")
     end
 
+    dir = readdir("./")
     for i in dir
         if occursin(".csv",i)
             rm(i)

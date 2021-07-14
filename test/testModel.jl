@@ -2,7 +2,7 @@
 
     @test_nowarn begin
         m = @agent(
-            Hola,
+            0,
             
             id::Identity,
             l::Local,

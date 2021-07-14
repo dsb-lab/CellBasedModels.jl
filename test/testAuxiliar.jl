@@ -1,18 +1,18 @@
 @testset "auxiliar" begin
 
-    m = @agent cell [x,y]::Local
-    @test_nowarn AgentBasedModels.checkIsDeclared_(m,:x) 
-    @test_nowarn AgentBasedModels.checkIsDeclared_(m,[:x]) 
-    @test_nowarn AgentBasedModels.checkIsDeclared_(m,[:x,:y]) 
+    m = @agent 2 [x1,y1]::Local
+    @test_nowarn AgentBasedModels.checkIsDeclared_(m,:x1) 
+    @test_nowarn AgentBasedModels.checkIsDeclared_(m,[:x1]) 
+    @test_nowarn AgentBasedModels.checkIsDeclared_(m,[:x1,:y1]) 
     @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,:g) 
     @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,[:g]) 
-    @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,[:x,:g]) 
+    @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,[:x1,:g]) 
 
     @test AgentBasedModels.subs_(:(x += 3*x),:x,:y) == :(y += 3*y)
     @test AgentBasedModels.subs_(:(x += 3*x),:x,:y,update=true) == :(y += 3*x)
 
     m = @agent(
-        cell,
+        0,
         l::Local,
         g::Global,
         h::GlobalArray,
@@ -40,7 +40,7 @@
     
     @test begin
         m = @agent(
-            cell,
+            0,
             l::Local,
             g::Global,
             h::GlobalArray,
@@ -134,7 +134,7 @@
 
         #println(m)
 
-        abm = @agent cell [l,h]::Local g::GlobalArray
+        abm = @agent 0 [l,h]::Local g::GlobalArray
 
         m2 = AgentBasedModels.symbols_(abm,
             quote
@@ -152,7 +152,7 @@
     @test_nowarn begin
         
         abm = @agent(
-            cell,
+            0,
 
             [l1,l2]::Local,
             [g1,g2]::Global,

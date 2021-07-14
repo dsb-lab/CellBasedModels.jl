@@ -4,18 +4,18 @@
 Basic structure which contains the agent based Agent.
 """
 mutable struct Agent
+
+    dims::Int
     
-    name::Symbol
     declaredSymbols::Dict{String,Array{Symbol,1}}
     declaredUpdates::Dict{String,Expr}
     
     evolve::Function
     
     function Agent()
-        new(
-            :NoName,
+        new(0,
             Dict{String,Array{Symbol}}("Local"=>Symbol[],"Identity"=>Symbol[:agentId],
-                                        "Global"=>Symbol[],"GlobalArray"=>Symbol[]),
+                                        "Global"=>Symbol[],"GlobalArray"=>Symbol[],"Medium"=>Symbol[]),
             Dict{String,Expr}(),
             needCompilation)
     end

@@ -14,7 +14,7 @@ function symbols_(abm::Agent,exp::Expr,
             for i in ENDSYMBOLS a = Meta.parse(split(string(a),i)[1]) end
             push!(symb,(a,false,false,false,true,aux[1],aux[2]))
             called = false
-        elseif exp.head in [:(+=),:(-=),:(%=),:(/=)] && pos == 1
+        elseif exp.head in UPDATINGOPERATORS && pos == 1
             if typeof(a) == Symbol
                 aux = whereDeclared_(abm,a)
                 for i in ENDSYMBOLS a = Meta.parse(split(string(a),i)[1]) end

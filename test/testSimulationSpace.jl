@@ -3,12 +3,12 @@
     @test hasmethod(AgentBasedModels.arguments_!,(AgentBasedModels.Program_,Agent,SimulationFree,String))
     @test hasmethod(AgentBasedModels.loop_,(AgentBasedModels.Program_,Agent,SimulationFree,Expr,String))
 
-    @test AgentBasedModels.arguments_!(AgentBasedModels.Program_(),@agent(cell),SimulationFree(),"gpu") == Nothing
+    @test AgentBasedModels.arguments_!(AgentBasedModels.Program_(),@agent(3),SimulationFree(),"gpu") == Nothing
     
     @test_nowarn begin
         
         m = @agent(
-            cell,
+            0,
 
             [l1,l2]::Local,
             [i1,i2]::Identity,
@@ -26,7 +26,7 @@
     end
 
     m = @agent(
-        cell,
+        0,
 
         [l1,l2,intLocal,int]::Local,
         [i1,i2]::Identity,
@@ -94,7 +94,7 @@ end
     @test hasmethod(AgentBasedModels.arguments_!,(AgentBasedModels.Program_, Agent, SimulationGrid, String))
     @test hasmethod(AgentBasedModels.loop_,(AgentBasedModels.Program_, Agent, SimulationGrid, Expr, String))
 
-    m = @agent cell [x,y,z,w]::Local;
+    m = @agent 3 [w]::Local;
     @test_throws ErrorException SimulationGrid(m,[(:x,2.,1.)],1)
     @test_throws ErrorException SimulationGrid(m,[(:g,1.,2.)],1)
     @test_throws ErrorException SimulationGrid(m,[(:x,1.,2.),(:x,1.,2.)],1)
@@ -266,7 +266,7 @@ end
     for platform in testplatforms
 
         m = @agent(
-            cell,
+            0,
 
             [l1,l2,l3,intLocal,int]::Local,
             [i1,i2]::Identity,
@@ -311,7 +311,7 @@ end
         end        
 
         m = @agent(
-            cell,
+            0,
 
             [l1,l2,l3,intLocal,int]::Local,
             [i1,i2]::Identity,
@@ -356,7 +356,7 @@ end
         end        
 
         m = @agent(
-            cell,
+            0,
 
             [l1,l2,l3,intLocal,int]::Local,
             [i1,i2]::Identity,

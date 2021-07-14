@@ -4,7 +4,7 @@
 Basic Macro to create an instance of Agent. It generates an Agent type with the characteristics specified in its arguments.
 
 The only compulsory input is the name of the agent.
- - **name**: Name of agent.    
+ - **dims**: Dimensions.    
  
 Then you can add an arbitrary set of additional parameters and rules for the agent. 
     
@@ -39,8 +39,15 @@ Global array parameter with Float signature. It can represent the force or inter
 It is declared globally for all agents and can be updated with UpdateGlobal.
 Has to be declared as:
 
-    globalArrayParameter::GlobalArray = [dims1,dims2,...]
-    [globalArrayParameter1,globalArrayParameter2,...]::GlobalArray = [dims1,dims2,...]
+    globalArrayParameter::GlobalArray
+    [globalArrayParameter1,globalArrayParameter2,...]::GlobalArray
+
+- **:Medium**
+    Medium parameter with Float signature. These paremeters are the parameters of a medium in which the agents are embeded.
+    Has to be declared as:
+    
+        mediumParameter::Medium
+        [mediumParameter1,mediumParameter2,...]::Medium
 
 # Update rules
 
@@ -115,14 +122,21 @@ end
 
 ```
 """
-macro agent(name, varargs...) 
+macro agent(dims, varargs...) 
 
     m = Agent()
+    m.dims = dims
 
-    if typeof(name) == Symbol
-        m.name = name
+    if dims == 0
+        nothing
+    elseif dims == 1
+        push!(m.declaredSymbols["Local"],:x)
+    elseif dims == 2
+        push!(m.declaredSymbols["Local"],:x,:y)
+    elseif dims == 3
+        push!(m.declaredSymbols["Local"],:x,:y,:z)
     else
-        error("name of agent should be a symbol, not an expression. ", name, " was given.")
+        error("Dims has to be an integer between 0 and 3.")
     end
 
     #Add all contributions
@@ -198,50 +212,3 @@ macro agent(name, varargs...)
     return m
 end
 
-"""
-    function add(name,varags...)
-
-Function that takes the arguments of the different agents and add them in a single agent if no overlapping between parameters exist. 
-Useful when combining different blocks of code or models that are tested separately.
-
-Example
-```
-    local = @agent(
-        mechanics,
-
-        l1::Local,
-
-        UpdateLocal = l1 += 1
-    )
-
-    global = @agent(
-        mechanics,
-
-        g1::Global,
-
-        Global = g1 += 1
-    )
-
-    jointModel = add(:JointModelName,local,global)
-
-```
-"""
-function add(name::Symbol,varags::Agent...)
-    main = @agent name
-
-    if length(varags) == 1
-        nothing
-    else
-        for i in varags
-            for j in keys(i.declaredSymbols)
-                checkDeclared_(main,[x for x in i.declaredSymbols[j] if x != :agentId])
-                append!(main.declaredSymbols[j],i.declaredSymbols[j])
-            end
-            for j in keys(i.declaredUpdates)
-                append!(main.declaredUpdates[j].args,i.declaredUpdates[j].args)
-            end
-        end
-    end
-
-    return main
-end

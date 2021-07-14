@@ -6,7 +6,7 @@ using Base: LogicalIndex
         #Execute Division without problems
         @test_nowarn begin
             m = @agent(
-                cell,
+                0,
 
                 [active,id1]::Identity,
                 loc::Local,
@@ -25,7 +25,7 @@ using Base: LogicalIndex
 
         #Linear growth
         m = @agent(
-            cell,
+            0,
 
             [active,id1]::Identity,
             loc::Local,
@@ -62,7 +62,7 @@ using Base: LogicalIndex
 
         #Exponential growth
         m = @agent(
-            cell,
+            0,
 
             [active,id1,d]::Identity,
             loc::Local,
@@ -98,7 +98,7 @@ using Base: LogicalIndex
         #Execute Death without problems
         @test_nowarn begin
             m = @agent(
-                cell,
+                0,
 
                 [active,id1]::Identity,
                 loc::Local,
@@ -110,10 +110,10 @@ using Base: LogicalIndex
         end
 
         m = @agent(
-            cell,
+            1,
 
             [active,id1]::Identity,
-            [x,loc]::Local,
+            [loc]::Local,
 
             UpdateLocal = begin
                 id1 = 3

@@ -6,13 +6,18 @@ In the steps we will go over the steps for constructing and evolving an agent ba
 
 The creation of models is based on the macro `@agent`.
 
-The unique parameter compoulsory required by the agent model is a name of the agent.
+The unique parameter compoulsory required by the agent model is the dimensionality of the agent.
 
 ```julia
-m = @agent(agentName)
+m = @agent(dims)
 ```
 
-In addition to the name, there are three types of pieces of code that can be included in the model:
+The agent will add by default the position paremeters of the agents depending on the spatial dimensionality.
+
+|dims=0|dims=1|dims=2|dims=3|
+||`x`|`x`,`y`|`x`,`y`,`z`|
+
+In addition to specify the dimensions, there are three types of pieces of code that can be included in the model:
 
  - **Parameters**: All the properties of each agent and the model.
  - **Updates**: Set of rules that change the parameters of the agent model.
@@ -26,12 +31,15 @@ For now, the following methods are included:
 ||Identity||
 ||Global||
 ||GlobalArray||
+||Medium||
 |[**Updates**](@ref updates)|[UpdateLocal](@ref updateLocal)||
 ||[UpdateGlobal](@ref updateGlobal)||
 ||[Equation](@ref equation)|`d_`,`dt`,`dW`|
 ||[UpdateLocalInteraction](@ref updateLocalInteraction)|`_i`,`_j`|
 ||[UpdateInteraction](@ref updateInteraction)|`_i`,`_j`|
+||[UpdateMedium](@ref updateInteraction)|`∂t_`,`∇_`,`∇x_`,`∇y_`,`∇z_`,`Δ_`,`Δx_`,`Δy_`,`Δz_`,`δ_`|
 |[**Events**](@ref events)|[EventDeath](@ref eventDeath)||
+||[EventDeath](@ref eventDeath)||
 ||[EventDivision](@ref eventDivision)|`_1`,`_2`|
 
 ### [Parameter declaration](@id parameters)
@@ -42,11 +50,12 @@ With this special characters, we define all the parameters that a model may have
  - **Identity**: These parameters are discrete parameters that are assigned to a each agent.
  - **Global**: Parameters that are shared by all the agents.
  - **GlobalArray**: Parameters in terms of array formats that are shared by all agents.
+ - **Medium**: Parameters that form part of a continuous medium the agents are interacting with.
 
 The parameters can be declared individually of collect them in an array declaration.
 
 ```julia
-m = @agent(agentName,
+m = @agent(dims,
     local1::Local,
     local2::Local,
 
@@ -57,7 +66,10 @@ m = @agent(agentName,
     glob2::Global,
 
     array1::GlobalArray,
-    array2::GlobalArray
+    array2::GlobalArray,
+
+    medium1::Medium,
+    medium2::Medium
 )
 ```
 or equivalently,
@@ -70,7 +82,9 @@ m = @agent(agentName,
 
     [glob1,glob2]::Global,
 
-    [array1,array2]::GlobalArray
+    [array1,array2]::GlobalArray,
+
+    [medium1,medium2]
 )
 ```
 

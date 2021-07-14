@@ -6,9 +6,7 @@
             #Declare
             @test_nowarn begin
                 m = @agent(
-                    Hola,
-                    
-                    [x,y,z]::Local,
+                    3,
                     
                     Equation = 
                     begin
@@ -22,9 +20,7 @@
             
             #ODE
             m = @agent(
-                Hola,
-                
-                [x,y,z]::Local,
+                3,
                 
                 Equation = 
                 begin
@@ -46,9 +42,7 @@
 
             #SDE
             m = @agent(
-                Hola,
-                
-                [x,y,z]::Local,
+                3,
                 
                 Equation = 
                 begin

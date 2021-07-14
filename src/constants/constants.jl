@@ -2,7 +2,8 @@ VALID_TYPES = [
     :Identity,
     :Local,
     :Global,
-    :GlobalArray
+    :GlobalArray,
+    :Medium
 ]
 
 VALID_UPDATES = [
@@ -10,6 +11,7 @@ VALID_UPDATES = [
     :UpdateLocal,
     :UpdateLocalInteraction,
     :UpdateInteraction,
+    :UpdateMedium,
     :Equation,
     :EventDivision,
     :EventDeath
@@ -17,11 +19,12 @@ VALID_UPDATES = [
 
 UPDATINGOPERATORS = [:+= ,:-=,:*=,:/=,:\=,:÷=,:%=,:^=,:&=,:|=,:⊻=,:>>>=,:>>=,:<<=]
 
-RESERVEDSYMBOLS = [:t,:N,:dt,:dW,:nMax,
+RESERVEDSYMBOLS = [:x,:y,:z,:t,:N,:dt,:dW,:nMax,
                     :ic1_,:ic2_,:nnic2_,:pos_,
                     :localV,:identityV,:globalV,
                     :ALGORITHM_,:ARGS_,:AUX1_,:AUX2_,
-                    :index_,:stride_,:lockadd_];
+                    :index_,:stride_,:lockadd_,
+                    :∇,:∇x,:∇y,:∇z,:Δ,:Δx,:Δy,:Δz,:δr];
 
 GLOBALARRAYCOPY = "_Copy"
 
@@ -34,6 +37,9 @@ DIVISIONSYMBOLS = ["_1","_2"]
 DIVISIONSYMBOLSDICT = Dict(["_1"=>"[ic1_,VAR]","_1"=>"[nnic2_,VAR]"])
 
 ENDSYMBOLS = ["_i","_j"]
+
+MEDIUMSYMBOL = ["∂t_"]
+MEDIUMSYMBOLS = ["∂t_","∇","∇x","∇y","∇z","Δ","Δx","Δy","Δz","δr"]
 
 #Adaptation functions
 GPUINFUNCTION = 

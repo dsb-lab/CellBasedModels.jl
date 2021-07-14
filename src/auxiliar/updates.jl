@@ -88,5 +88,27 @@ function updates_!(p::Program_,abm::Agent,space::SimulationSpace)
         end
     end
 
+    ## Check equations and their update variables
+    dict = Dict{Symbol,Int}()
+    counter = 1
+    if "UpdateMedium" in keys(abm.declaredUpdates)
+        s = symbols_(abm,abm.declaredUpdates["UpdateMedium"]).Symbol
+        for i in abm.declaredSymbols["Medium"]
+            ss = Meta.parse(string(MEDIUMSYMBOL,i))
+            if ss in s
+                dict[i] = counter
+                counter += 1
+                if !(i in keys(p.update["Medium"]))
+                    if isempty(p.update["Medium"])
+                        p.update["Medium"][i] = 1
+                    else
+                        p.update["Medium"][i] = maximum(values(p.update["Medium"])) + 1
+                    end
+                end
+            end
+        end
+    end
+    p.update["Medium"] = dict
+
     return
 end
