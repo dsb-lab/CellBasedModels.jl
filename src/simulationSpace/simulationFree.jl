@@ -9,18 +9,15 @@ In the future we will implement parallelization over the second loop to further 
 struct SimulationFree <: SimulationSpace
 
     box::Array{<:FlatBoundary,1}
+    medium::Array{<:Medium,1}
 
 end
 
-function SimulationFree()
-    return SimulationFree(Array{FlatBoundary,1}())
-end
-
-function SimulationFree(abm::Agent, box::Array{<:Any,1}=Array{FlatBoundary,1}())
+function SimulationFree(abm::Agent; box::Array{<:Any,1}=Array{FlatBoundary,1}(), medium::Array{<:Medium,1}=Array{Medium,1}())
 
     #Check dimensionality
-    if length(box) > 3
-        error("No more than three dimensions are allowed.")
+    if length(box) != abm.dims && !emptyquote_(abm.declaredUpdates["Medium"])
+        error("Box has to be the same length as dimensions.")
     end
     #Make consistent box format adding Open to tuples
     box2 = Array{FlatBoundary,1}()
@@ -36,11 +33,18 @@ function SimulationFree(abm::Agent, box::Array{<:Any,1}=Array{FlatBoundary,1}())
 
     #Check limits are correct
     vars = [i.s for i in box2]
-    checkIsDeclared_(abm,vars)
+    if !isempty(vars)
+        checkIsDeclared_(abm,vars)
+    end
     for i in box2
         if i.max <= i.min
             error("Superior limit is equal or smaller than inferior limit for ", i.s, ". The entry should be of the form (BoundaryType)(symbol,min,max,vargs...).")
         end
+    end
+
+    #Check medium has the same dimensions
+    if abm.dims != length(medium)
+        error("Medium has to be specified with the same dimensions as the model. For that, it is necessary to also define a box.")
     end
 
     #Check symbols
@@ -52,7 +56,7 @@ function SimulationFree(abm::Agent, box::Array{<:Any,1}=Array{FlatBoundary,1}())
         end
     end
 
-    return SimulationFree(box2)
+    return SimulationFree(box2,medium)
 
 end
 

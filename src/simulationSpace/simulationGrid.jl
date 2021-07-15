@@ -14,10 +14,11 @@ struct SimulationGrid <: SimulationSpace
     n::Int
     axisSize::Array{Int}
     cumSize::Array{Int}
+    medium::Array{Medium,1}
 
 end
 
-function SimulationGrid(abm::Agent, box::Array{<:Any,1}, radius::Union{<:Real,Array{<:Real,1}})
+function SimulationGrid(abm::Agent; box::Array{<:Any,1}, radius::Union{<:Real,Array{<:Real,1}}, medium::Array{<:Medium,1}=Array{Medium,1}())
 
     #Check dimensionality
     if length(box) == 0
@@ -25,6 +26,12 @@ function SimulationGrid(abm::Agent, box::Array{<:Any,1}, radius::Union{<:Real,Ar
     elseif length(box) > 3
         error("No more than three dimensions are allowed.")
     end
+
+    #Check medium has the same dimensions
+    if abm.dims != length(medium)
+        error("Medium has to be specified with the same dimensions as the model. For that, it is necessary to also define a box.")
+    end
+
     #Make consistent box format adding Bound to tuples
     box2 = Array{FlatBoundary,1}()
     for i in 1:length(box)
@@ -68,7 +75,7 @@ function SimulationGrid(abm::Agent, box::Array{<:Any,1}, radius::Union{<:Real,Ar
     cumSize = [1;cum[1:end-1]]
     n = cum[end]
 
-    return SimulationGrid(box2,radius,length(vars),n,axisSize,cumSize) 
+    return SimulationGrid(box2,radius,length(vars),n,axisSize,cumSize,medium) 
 end
 
 function arguments_!(program::Program_, abm::Agent, a::SimulationGrid, platform::String)

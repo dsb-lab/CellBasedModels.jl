@@ -1,12 +1,16 @@
 @testset "Medium" begin
 
-    m = @agent(1,
+    m = @agent(3,
     
         u::Medium,
 
-        UpdateMedium = ∂t_u = Δ(f(u))
+        UpdateMedium = ∂t_u = Δ(u)
     )
-    println(m.declaredSymbols["Medium"])
-    m=compile(m,debug=false)
+    s = SimulationFree(m,box=[(:x,0.,1.),(:y,0.,1.),(:z,0.,1.)],
+                        medium=[MediumFlat("Periodic","Periodic",0.1),
+                                MediumFlat("Periodic","Periodic",0.1),
+                                MediumFlat("Periodic","Periodic",0.1)])
+
+    m=compile(m,s,debug=false)
 
 end

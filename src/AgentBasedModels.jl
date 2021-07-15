@@ -17,6 +17,7 @@ export Model, compile
 export Community, CommunityInTime, saveCSV, loadCommunityFromCSV, loadCommunityInTimeFromCSV
 export SimulationFree, SimulationGrid
 export SimulationSpace, FlatBoundary, Periodic, NonPeriodic, Bound
+export MediumFlat
 export configurator_
 export extrude
 export compactHexagonal
@@ -33,6 +34,7 @@ include("./model/structProgram.jl")
 
 #Simulation Space
 include("./simulationSpace/abstractTypes.jl")
+include("./simulationSpace/medium/mediumStructures.jl")
 include("./simulationSpace/simulationFree.jl")
 include("./simulationSpace/simulationGrid.jl")
 
@@ -62,14 +64,14 @@ include("./model//random/distribution.jl")
 include("./model//random/randomAdapt.jl")
 
 #Integrators
-include("./model/integrator/euler.jl")
-include("./model/integrator/heun.jl")
-include("./model/integrator/integrators.jl")
+include("./model/agentCode/integrator/euler.jl")
+include("./model/agentCode/integrator/heun.jl")
+include("./model/agentCode/integrator/integrators.jl")
 
 #Saving
-include("./model/saving/saveRAM.jl")
-include("./model/saving/saveCSV.jl")
-include("./model/saving/saving.jl")
+include("./model/agentCode/saving/saveRAM.jl")
+include("./model/agentCode/saving/saveCSV.jl")
+include("./model/agentCode/saving/saving.jl")
 
 #Auxiliar function
 include("./auxiliar/checkDeclared.jl")

@@ -26,8 +26,9 @@ function Base.getproperty(a::Community,var::Symbol)
         elseif var in a.declaredSymbols_["GlobalArray"]
             pos = findfirst(a.declaredSymbols_["GlobalArray"].==var) 
             return a.globalArray_[pos]
-        elseif var == :agentId
-            return 1:a.N
+        elseif var in a.declaredSymbols_["Medium"]
+            pos = findfirst(a.declaredSymbols_["Medium"].==var) 
+            return @views a.medium_[:,pos]
         else
             error("Parameter ", var, " not fount in the community.")
         end
@@ -67,6 +68,20 @@ function Base.setproperty!(a::Community,var::Symbol,v::Array{<:Number})
     elseif var in a.declaredSymbols_["GlobalArray"]
         pos = findfirst(a.declaredSymbols_["GlobalArray"].==var) 
         a.globalArray_[pos] = v
+    elseif var in a.declaredSymbols_["Medium"]
+        if size(v) != size(a.var)[1:end-1]
+            error("Trying to assign array with shape ", shape(v), ". It should be of size ", size(a.var)[1:end-1])
+        end
+        pos = findfirst(a.declaredSymbols_["Identity"].==var) 
+        vec = a.medium_
+        if a.dims == 1
+            vec[:,pos] = v
+        elseif a.dims == 2
+            vec[:,:,pos] = v
+        elseif a.dims == 3
+            vec[:,:,:,pos] = v
+        end
+        setfield!(a,:medium_,vec)
     else
         error("Parameter ", var, " not fount in the community.")
     end

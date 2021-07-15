@@ -46,8 +46,6 @@ function returnBound_(b::Periodic,p::Program_)
     return code
 end
 
-
-
 struct Bound<:NonPeriodicFlat 
     s::Symbol
     min::Real

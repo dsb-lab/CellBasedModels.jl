@@ -38,7 +38,7 @@ DIVISIONSYMBOLSDICT = Dict(["_1"=>"[ic1_,VAR]","_1"=>"[nnic2_,VAR]"])
 
 ENDSYMBOLS = ["_i","_j"]
 
-MEDIUMSYMBOL = ["∂t_"]
+MEDIUMSYMBOL = "∂t_"
 MEDIUMSYMBOLS = ["∂t_","∇","∇x","∇y","∇z","Δ","Δx","Δy","Δz","δr"]
 
 #Adaptation functions

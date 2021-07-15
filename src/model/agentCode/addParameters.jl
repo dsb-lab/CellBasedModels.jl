@@ -100,7 +100,7 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
         if !isempty(p.update["Medium"]) && !isempty([ v for v in keys(p.update["Medium"]) if v in abm.declaredSymbols["Medium"] ])
             append!(p.declareVar.args, 
                 (quote
-                    mediumVCopy = zeros(Float64,$(size(com.medium_)[1:end-1]),$(length(p.update["Medium"])))
+                    mediumVCopy = zeros(Float64,com.mediumGrid_...,$(length(p.update["Medium"])))
                 end).args
             )
     

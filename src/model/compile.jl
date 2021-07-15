@@ -3,7 +3,7 @@
 
 Function that takes an Agent and a simulation space and constructs the function in charge of the evolutions of the model.
 """
-function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=SimulationFree();platform="cpu", integrator::String = "Euler", save::String = "RAM", debug = false, user_=true)
+function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=SimulationFree(abmOriginal); platform="cpu", integrator::String = "Euler", save::String = "RAM", debug = false, user_=true)
 
     abm = deepcopy(abmOriginal)
     
