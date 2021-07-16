@@ -101,26 +101,25 @@ mutable struct Community
     identity_::Array{Int,2}
     global_::Array{Float64,1}
     globalArray_::Array{Array{Float64},1}
-    medium_::Union{Array{Float64,1},Array{Float64,2},Array{Float64,3}}
-    mediumGrid_::Vector{Int}
+    medium_::Union{Array{Float64,2},Array{Float64,3},Array{Float64,4}}
 end
 
-function Community(abm::Model; N::Int=1, t::AbstractFloat=0., mediumGrid::Vector{Int}=[0])
+function Community(abm::Model; N::Int=1, t::AbstractFloat=0.)
 
-    dims = abm.dims
+    dims = abm.agent.dims
     loc = zeros(Float64,N,length(abm.agent.declaredSymbols["Local"]))
     ids = ones(Int,N,length(abm.agent.declaredSymbols["Identity"]))
     ids[:,1] .= 1:N
     glob = zeros(Float64,length(abm.agent.declaredSymbols["Global"]))
     globArray = []
-    medium = zeros(mediumGrid...)
+    medium = zeros([i.N for i in abm.space.medium]...,length(abm.agent.declaredSymbols["Medium"]))
     for i in abm.agent.declaredSymbols["GlobalArray"]
         push!(globArray,[])
     end
 
     declaredSymbols = abm.agent.declaredSymbols
 
-    return Community(dims,t,N,declaredSymbols,loc,ids,glob,globArray,medium,mediumGrid)
+    return Community(dims,t,N,declaredSymbols,loc,ids,glob,globArray,medium)
 end
 
 function Base.show(io::IO,com::Community)

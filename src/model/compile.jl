@@ -3,7 +3,7 @@
 
 Function that takes an Agent and a simulation space and constructs the function in charge of the evolutions of the model.
 """
-function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=SimulationFree(abmOriginal); platform="cpu", integrator::String = "Euler", save::String = "RAM", debug = false, user_=true)
+function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=SimulationFree(abmOriginal); platform="cpu", integrator::String = "Euler", integratorMedium::String = "FTCS", save::String = "RAM", debug = false, user_=true)
 
     abm = deepcopy(abmOriginal)
     
@@ -25,7 +25,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=S
     addUpdateLocal_!(p,abm,space,platform)
     addUpdateLocalInteraction_!(p,abm,space,platform)
     addCheckBounds_!(p,abm,space,platform)
-    addUpdateMedium_!(p,abm,space,platform)
+    addIntegratorMedium_![integratorMedium](p,abm,space,platform)
     addUpdate_!(p,abm,space,platform)
     #Events
     addEventDivision_!(p,abm,space,platform)

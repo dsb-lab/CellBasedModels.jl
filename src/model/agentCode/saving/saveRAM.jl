@@ -1,4 +1,4 @@
-function addSavingRAM_!(p::Program_,abm::Agent,Space::SimulationSpace,platform::String)
+function addSavingRAM_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
     
     #List of nonempty arrays
     l = []
@@ -18,7 +18,7 @@ function addSavingRAM_!(p::Program_,abm::Agent,Space::SimulationSpace,platform::
     if length(abm.declaredSymbols["Global"])>0
         push!(l,:(Core.Array(globalV)))
     else
-        push!(l,:(Base.Array{AbstractFloat,1}[]))
+        push!(l,:(Core.Array{AbstractFloat,1}[]))
     end
 
     if length(abm.declaredSymbols["GlobalArray"])>1
@@ -36,11 +36,40 @@ function addSavingRAM_!(p::Program_,abm::Agent,Space::SimulationSpace,platform::
         push!(l,:(Core.Array{AbstractFloat,1}[]))
     end
 
+    if length(abm.declaredSymbols["Medium"])>1
+        g = []
+        if abm.dims >= 1
+            if space.medium[1].minBoundaryType == "Periodic"
+                push!(g,:(2:Nx_-1))
+            else
+                push!(g,:(1:Nx_))
+            end
+        end
+        if abm.dims >= 2
+            if space.medium[2].minBoundaryType == "Periodic"
+                push!(g,:(2:Ny_-1))
+            else
+                push!(g,:(1:Ny_))
+            end
+        end
+        if abm.dims >= 3
+            if space.medium[3].minBoundaryType == "Periodic"
+                push!(g,:(2:Nz_-1))
+            else
+                push!(g,:(1:Nz_))
+            end
+        end
+
+        push!(l,:(Core.Array(mediumV)[$(g...),:]))
+    else
+        push!(l,:(Core.Array{AbstractFloat,1}[]))
+    end
+
     push!(p.declareVar.args,:(commRAM_ = CommunityInTime()))
 
     push!(p.execInit.args,
         :(begin
-            ob = Community(t,N,com.declaredSymbols_,$(l...))
+            ob = Community($(abm.dims),t,N,com.declaredSymbols_,$(l...))
             push!(commRAM_,ob)
         end)
     )
@@ -48,7 +77,7 @@ function addSavingRAM_!(p::Program_,abm::Agent,Space::SimulationSpace,platform::
         :(begin
             if t >= tSave
                 tSave += dtSave
-                ob = Community(t+dt,N,com.declaredSymbols_,$(l...))
+                ob = Community($(abm.dims),t+dt,N,com.declaredSymbols_,$(l...))
                 push!(commRAM_,ob)
             end
         end)

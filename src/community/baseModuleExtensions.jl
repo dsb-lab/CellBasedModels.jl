@@ -28,7 +28,13 @@ function Base.getproperty(a::Community,var::Symbol)
             return a.globalArray_[pos]
         elseif var in a.declaredSymbols_["Medium"]
             pos = findfirst(a.declaredSymbols_["Medium"].==var) 
-            return @views a.medium_[:,pos]
+            if a.dims == 1
+                return @views a.medium_[:,pos]
+            elseif a.dims == 2
+                return @views a.medium_[:,:,pos]
+            elseif a.dims == 3
+                return @views a.medium_[:,:,:,pos]
+            end
         else
             error("Parameter ", var, " not fount in the community.")
         end

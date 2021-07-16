@@ -4,7 +4,7 @@ using Test
 using Distributions
 using CUDA
 using DataFrames
-using MacroTools
+import MacroTools: prettify
 
 if CUDA.has_cuda()
     testplatforms = ["cpu","gpu"]

@@ -90,22 +90,54 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
     end
 
     if length(abm.declaredSymbols["Medium"])>0
-        append!(p.declareVar.args, 
-            (quote
-                mediumV = Array(Float64.(com.medium_))
-            end).args
-        )
+        if abm.dims >= 1
+            if space.medium[1].minBoundaryType == "Periodic"
+                push!(p.declareVar.args, :(Nx_ = size(com.medium_)[1]+2))
+                push!(p.declareVar.args, :(mediumV = cat(zeros(1,size(com.medium_)[2:end]...),com.medium_,zeros(1,size(com.medium_)[2:end]...),dims=1)))
+            else
+                push!(p.declareVar.args, :(Nx_ = size(com.medium_)[1]))
+                push!(p.declareVar.args, :(mediumV = copy(com.medium_)))
+            end
 
-        push!(p.args,:globalV)
-        if !isempty(p.update["Medium"]) && !isempty([ v for v in keys(p.update["Medium"]) if v in abm.declaredSymbols["Medium"] ])
-            append!(p.declareVar.args, 
-                (quote
-                    mediumVCopy = zeros(Float64,com.mediumGrid_...,$(length(p.update["Medium"])))
-                end).args
-            )
-    
-            push!(p.args,:globalVCopy)
-        end    
+            push!(p.declareVar.args, :(dxₘ_ = ($(space.box[1].max)-$(space.box[1].min))/$(space.medium[1].N)))
+
+            push!(p.args,:Nx_)
+            push!(p.args,:dxₘ_)
+        end
+        if abm.dims >= 2
+            if space.medium[1].minBoundaryType == "Periodic"
+                push!(p.declareVar.args, :(Ny_ = size(com.medium_)[2]+2))
+                push!(p.declareVar.args, :(mediumV = cat(zeros(Nx_,1,size(com.medium_)[3:end]...),mediumV,zeros(Nx_,1,size(com.medium_)[3:end]...),dims=2)))
+            else
+                push!(p.declareVar.args, :(Ny_ = size(com.medium_)[2]))
+            end
+
+            push!(p.declareVar.args, :(dyₘ_ = ($(space.box[2].max)-$(space.box[2].min))/$(space.medium[2].N)))
+
+            push!(p.args,:Ny_)
+            push!(p.args,:dyₘ_)
+        end
+        if abm.dims >= 3
+            if space.medium[1].minBoundaryType == "Periodic"
+                push!(p.declareVar.args, :(Nz_ = size(com.medium_)[3]+2))
+                push!(p.declareVar.args, :(mediumV = cat(zeros(Nx_,Ny_,1,size(com.medium_)[4:end]...),mediumV,zeros(Nx_,Ny_,1,size(com.medium_)[4:end]...),dims=3)))
+            else
+                push!(p.declareVar.args, :(Nz_ = size(com.medium_)[3]))
+            end
+
+            push!(p.declareVar.args, :(dzₘ_ = ($(space.box[3].max)-$(space.box[3].min))/$(space.medium[3].N)))
+
+            push!(p.args,:Nz_)
+            push!(p.args,:dzₘ_)
+        end
+        push!(p.declareVar.args, :(mediumV = Array(mediumV)))
+
+        push!(p.args,:mediumV)
+
+        if "UpdateMedium" in keys(abm.declaredUpdates)
+            push!(p.declareVar.args, :(mediumVCopy = copy(mediumV)))
+            push!(p.args,:mediumVCopy)
+        end
     end
 
     return nothing
@@ -160,6 +192,10 @@ function addUpdate_!(p::Program_,abm::Agent,space::SimulationSpace,platform::Str
                             $(upb)
                         end
                     end))
+            elseif i == "Medium"
+                if "UpdateMedium" in keys(abm.declaredUpdates)
+                    push!(gen.args,:(mediumV.=mediumVCopy))
+                end
             end
 
         end

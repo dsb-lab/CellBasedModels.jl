@@ -17,7 +17,7 @@ export Model, compile
 export Community, CommunityInTime, saveCSV, loadCommunityFromCSV, loadCommunityInTimeFromCSV
 export SimulationFree, SimulationGrid
 export SimulationSpace, FlatBoundary, Periodic, NonPeriodic, Bound
-export MediumFlat
+export MediumFlat, δMedium_
 export configurator_
 export extrude
 export compactHexagonal
@@ -48,7 +48,6 @@ include("./model/agentCode/eventDivision.jl")
 include("./model/agentCode/updateGlobal.jl")
 include("./model/agentCode/updateLocal.jl")
 include("./model/agentCode/updateLocalInteraction.jl")
-include("./model/agentCode/updateMedium.jl")
 include("./model/compile.jl")
 
 #Community
@@ -67,6 +66,12 @@ include("./model//random/randomAdapt.jl")
 include("./model/agentCode/integrator/euler.jl")
 include("./model/agentCode/integrator/heun.jl")
 include("./model/agentCode/integrator/integrators.jl")
+
+#Integrators Medium
+include("./model/agentCode/integratorMedium/ftcs.jl")
+include("./model/agentCode/integratorMedium/lax.jl")
+include("./model/agentCode/integratorMedium/leapfrog.jl")
+include("./model/agentCode/integratorMedium/integratorsMedium.jl")
 
 #Saving
 include("./model/agentCode/saving/saveRAM.jl")
