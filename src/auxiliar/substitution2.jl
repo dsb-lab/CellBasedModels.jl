@@ -1,123 +1,210 @@
-function substitution(p::Program, code::Expr;op=nothing,pre=nothing,post=nothing,arg=nothing,sym=nothing, #Type of symbol between operator, pre/post script and arguments
-    only=nothing,                                       #Subset of parameters to modify
-    addName=nothing, expl=nothing,                      #Add something to the vectorized name of fully substitute by something
-    ic=[:ic1_,:ic2_,:ic3_],                             #Change loop symbols
-    dims=nothing, operator=nothing,                     #Operators modifying the behaviour of cells
-    opF = nothing                                       #Form of the new operator
+function substitution(code::Expr,p::Program_;op=nothing,arg=false,pre=nothing,post=nothing,sym=nothing, #Type of symbol between operator, pre/post script and arguments
+    nargs = nothing, addArgs = nothing,                       #Args for the functions that depend on arguments
+    only=["Local","Global","Identity","GlobalArray","Medium"],           #Subset of parameters to modify
+    addName=nothing, expl=nothing,                            #Add something to the vectorized name of fully substitute by something
+    ic=[:ic1_,:ic2_,:ic3_], index=nothing, factor=1,          #Change loop symbols and additional indexes
+    dims=nothing,                                             #Operators modifying the behaviour of cells
+    opF = nothing                                             #Form of the new index
     )
 
     if dims === nothing
-        dims = p.abm.dims
+        dims = p.agent.dims
     end
 
-    if pre !== nothing || post !== nothing
-
-        for (i,v) in enumerate(p.abm.declaredSymbols["Local"])
-
-            if pre !== nothing
-                v = Meta.parse(string(pre,v))
-            else post !== nothing
-                v = Meta.parse(string(v,post))
+    if op !== nothing
+        if nargs === nothing
+            code = postwalk(x->@capture(x, opAux_(argAux_)) && opAux == op ? 
+            substitution(argAux,p;arg = true, nargs=nargs, only=only, addName=addName, expl=expl, ic=ic, index=index, factor=factor, dims=dims, opF=opF)
+            : x, code)
+        else
+            code = postwalk(x->@capture(x, opAux_(argAux__)) && opAux == op ? 
+            if length(argAux) != nargs
+                error("Operator ", op, " should be declared with just ", nargs, " arguments. ", length(argAux), " where passed.")
+            else
+                :($opAux($(argAux...),$(addArgs)))
             end
-
-            if expl !== nothing
-                name = expl
-            elseif addName !== nothing
-                name = Meta.parse(string(localV,addName))
+            : x, code)
+        end
+    elseif arg
+        add = :()
+        for i in 1:length(index)
+            code = substitution(p,argAux;arg = argAux, only=only, addName=addName, expl=expl, ic=ic, index=index[i], dims=dims)
+            if factor[i] != 1
+                add = :($add+$(factor[i])*code)
             end
-
-            if operator !== nothing
-                ic_ = :($(ic[1])+$operator) 
-            end
-
-            code = postwalk(x->@capture(x, vAux_) && vAux == v ? :($name[$ic_,$i]) : x, code)
-
         end
 
-        for (i,v) in enumerate(p.abm.declaredSymbols["Identity"])
+        code = postwalk(x->@capture(x, vAux_) && vAux == X ? :(add) : x, opF)
+    else
 
-            if pre !== nothing
-                v = Meta.parse(string(pre,v))
-            else post !== nothing
-                v = Meta.parse(string(v,post))
+        if "Local" in only
+            for (i,v) in enumerate(p.agent.declaredSymbols["Local"])
+
+                if pre !== nothing
+                    v = Meta.parse(string(pre,v))
+                elseif post !== nothing
+                    v = Meta.parse(string(v,post))
+                end
+
+                if expl !== nothing
+                    name = expl
+                elseif addName !== nothing
+                    name = Meta.parse(string(:localV,addName))
+                else
+                    name = :localV
+                end
+
+                if index !== nothing
+                    ic_ = :($(ic[1])+$index) 
+                else
+                    ic_ = ic[1]
+                end
+
+                if opF !== nothing
+                    subs = postwalk(x->@capture(x, vAux_) && vAux == X ? :($name[$ic_,$i]) : x, opF)
+                else
+                    subs = :($name[$ic_,$i])
+                end
+
+                code = postwalk(x->@capture(x, vAux_) && vAux == v ? subs : x, code)
+
             end
+        end
 
-            if expl !== nothing
-                name = expl
-            elseif addName !== nothing
-                name = Meta.parse(string(identityV,addName))
+        if "Identity" in only
+            for (i,v) in enumerate(p.agent.declaredSymbols["Identity"])
+
+                if pre !== nothing
+                    v = Meta.parse(string(pre,v))
+                elseif post !== nothing
+                    v = Meta.parse(string(v,post))
+                end
+
+                if expl !== nothing
+                    name = expl
+                elseif addName !== nothing
+                    name = Meta.parse(string(:identityV,addName))
+                else
+                    name = :identityV
+                end
+
+                if index !== nothing
+                    ic_ = :($(ic[1])+$index) 
+                else
+                    ic_ = ic[1]
+                end
+
+                if opF !== nothing
+                    subs = postwalk(x->@capture(x, vAux_) && vAux == X ? :($name[$ic_,$i]) : x, opF)
+                else
+                    subs = :($name[$ic_,$i])
+                end
+
+                code = postwalk(x->@capture(x, vAux_) && vAux == v ? subs : x, code)
             end
-
-            if operator !== nothing
-                ic_ = :($(ic[1])+$operator) 
-            end
-
-            code = postwalk(x->@capture(x, vAux_) && vAux == v ? :($name[$ic_,$i]) : x, code)
         end
         
-        for (i,v) in enumerate(p.abm.declaredSymbols["Global"])
+        if "Global" in only
+            for (i,v) in enumerate(p.agent.declaredSymbols["Global"])
 
-            if pre !== nothing
-                v = Meta.parse(string(pre,v))
-            else post !== nothing
-                v = Meta.parse(string(v,post))
+                if pre !== nothing
+                    v = Meta.parse(string(pre,v))
+                elseif post !== nothing
+                    v = Meta.parse(string(v,post))
+                end
+
+                if expl !== nothing
+                    name = expl
+                elseif addName !== nothing
+                    name = Meta.parse(string(:globalV,addName))
+                else
+                    name = :globalV
+                end
+
+                if opF !== nothing
+                    subs = postwalk(x->@capture(x, vAux_) && vAux == X ? :($name[$i]) : x, opF)
+                else
+                    subs = :($name[$i])
+                end
+
+                code = postwalk(x->@capture(x, vAux_) && vAux == v ? subs : x, code)
             end
-
-            if expl !== nothing
-                name = expl
-            elseif addName !== nothing
-                name = Meta.parse(string(globalV,addName))
-            end
-
-            code = postwalk(x->@capture(x, $vAux_) && vAux == v ? :($name[$i]) : x, code)
         end
 
-        for (i,v) in enumerate(p.abm.declaredSymbols["GlobalArray"])
+        if "GlobalArray" in only
+            for (i,v) in enumerate(p.agent.declaredSymbols["GlobalArray"])
 
-            if pre !== nothing
-                v = Meta.parse(string(pre,v))
-            else post !== nothing
-                v = Meta.parse(string(v,post))
+                if pre !== nothing
+                    v2 = Meta.parse(string(pre,v))
+                elseif post !== nothing
+                    v2 = Meta.parse(string(v,post))
+                else
+                    v2 = v
+                end
+
+                if expl !== nothing
+                    name = expl
+                elseif addName !== nothing
+                    name = Meta.parse(string(v,addName))
+                else
+                    name = v
+                end
+
+                code = postwalk(x->@capture(x, vAux_) && vAux == v2 ? name : x, code)
             end
-
-            if expl !== nothing
-                name = expl
-            elseif addName !== nothing
-                name = Meta.parse(string(v,addName))
-            end
-
-            code = postwalk(x->@capture(x, $vAux_) && vAux == v ? name : x, code)
         end
 
-        for (i,v) in enumerate(p.abm.declaredSymbols["Medium"])
+        if "Medium" in only
+            for (i,v) in enumerate(p.agent.declaredSymbols["Medium"])
 
-            if pre !== nothing
-                v = Meta.parse(string(pre,v))
-            else post !== nothing
-                v = Meta.parse(string(v,post))
-            end
+                if pre !== nothing
+                    v = Meta.parse(string(pre,v))
+                elseif post !== nothing
+                    v = Meta.parse(string(v,post))
+                end
 
-            if expl !== nothing
-                name = expl
-            elseif addName !== nothing
-                name = Meta.parse(string(mediumV,addName))
-            end
+                if expl !== nothing
+                    name = expl
+                elseif addName !== nothing
+                    name = Meta.parse(string(:mediumV,addName))
+                else
+                    name = :mediumV
+                end
 
-            if operator !== nothing
-                ic1_ = :($(ic[1])+$(operator[1])) 
-                ic2_ = :($(ic[2])+$(operator[2])) 
-                ic3_ = :($(ic[3])+$(operator[3])) 
-            end
+                if index !== nothing
+                    ic1_ = :($(ic[1])+$(index[1])) 
+                    ic2_ = :($(ic[2])+$(index[2])) 
+                    ic3_ = :($(ic[3])+$(index[3])) 
+                else
+                    ic1_ = ic[1]
+                    ic2_ = ic[2]
+                    ic3_ = ic[3]
+                end
 
-            if dims == 1
-                code = postwalk(x->@capture(x, $vAux_)  && vAux == v  ? :($name[$ic1_,$i]) : x, code)
-            elseif dims == 2
-                code = postwalk(x->@capture(x, $vAux_) && vAux == v  ? :($name[$ic1_,$ic2_,$i]) : x, code)
-            elseif dims == 3
-                code = postwalk(x->@capture(x, $vAux_) && vAux == v  ? :($name[$ic1_,$ic2_,$ic3_,$i]) : x, code)
+                if opF !== nothing
+                    if dims == 1
+                        subs = postwalk(x->@capture(x, vAux_) && vAux == X ? :($name[$ic1_,$i]) : x, opF)
+                    elseif dims == 2
+                        subs = postwalk(x->@capture(x, vAux_) && vAux == X ? :($name[$ic1_,$ic2_,$i]) : x, opF)
+                    elseif dims == 3
+                        subs = postwalk(x->@capture(x, vAux_) && vAux == X ? :($name[$ic1_,$ic2_,$ic3_,$i]) : x, opF)
+                    end
+                else
+                    if dims == 1
+                        subs = :($name[$ic1_,$i])
+                    elseif dims == 2
+                        subs = :($name[$ic1_,$ic2_,$i])
+                    elseif dims == 3
+                        subs = :($name[$ic1_,$ic2_,$ic3_,$i])
+                    end
+                end
+
+                code = postwalk(x->@capture(x, vAux_)  && vAux == v  ? subs : x, code)
+
             end
         end
 
     end
 
+    return code
 end

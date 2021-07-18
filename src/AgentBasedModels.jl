@@ -24,6 +24,7 @@ export compactHexagonal
 
 #Constants
 include("./constants/constants.jl")
+include("./constants/abstractTypes.jl")
 
 #Agent
 include("./agent/agentStructure.jl")
@@ -59,8 +60,8 @@ include("./community/IO/save.jl")
 include("./community/IO/load.jl")
 
 #Random
-include("./model//random/distribution.jl")
-include("./model//random/randomAdapt.jl")
+include("./model/random/distribution.jl")
+include("./model/random/randomAdapt.jl")
 
 #Integrators
 include("./model/agentCode/integrator/euler.jl")
@@ -88,6 +89,7 @@ include("./auxiliar/wrapping.jl")
 include("./auxiliar/emptyquote.jl")
 include("./auxiliar/symbols.jl")
 include("./auxiliar/updates.jl")
+include("./auxiliar/substitution2.jl")
 
 #Cuda specific functions
 include("./cuda/cudaAdapt.jl")

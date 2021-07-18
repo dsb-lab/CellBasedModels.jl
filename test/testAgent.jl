@@ -26,11 +26,11 @@
     )
 
     m = @agent(
-        0,
+        1,
 
-        l::Local,
         g::Global,
         ga::GlobalArray,
+        m::Medium,
 
         Equation = d_v = 34*dt ,
         UpdateLocal = l += 1,
@@ -61,12 +61,12 @@
     )
 
     m = @agent(
-        0,
+        2,
 
         [id]::Identity,
-        [l,l2]::Local,
         [g,g2]::Global,
         [ga,ga2]::GlobalArray,
+        [m1,m2]::Medium,
 
         Equation = d_v = 34*dt ,
         UpdateLocal = l += 1,
