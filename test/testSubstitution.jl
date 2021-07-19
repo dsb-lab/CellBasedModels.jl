@@ -37,4 +37,11 @@
     @test substitution(:(m1_new,m1_new),p,post="_new",addName="Copy") == :(mediumVCopy[ic1_,1],mediumVCopy[ic1_,1])  
     @test substitution(:(m2_new,m2_new),p,post="_new",addName="Copy") == :(mediumVCopy[ic1_,2],mediumVCopy[ic1_,2])  
 
+    @test substitution(:(∇(x)),p, op=:∇,index=[[-1,0,0],[0,0,0],[+1,0,0]],factor=[1,1,1],opF=:(X/2)) ==
+        :(((localV[ic1_ + -1, 1] + localV[ic1_, 1]) + localV[ic1_ + 1, 1]) / 2)
+
+    @test substitution(:(∇(x)),p, op=:∇,nargs=1) == :(∇(x))
+    @test substitution(:(∇(x)),p, op=:∇,nargs=1,addArgs=[:dt]) == :(∇(x,dt))
+    @test substitution(:(∇(x)),p, op=:∇,nargs=1,opF=:g) == :(g(x))
+
 end

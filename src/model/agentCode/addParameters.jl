@@ -156,7 +156,7 @@ function addUpdate_!(p::Program_,abm::Agent,space::SimulationSpace,platform::Str
         if !(i in ["UpdateLocalInteraction","UpdateInteraction","EventDivision"]) && !emptyquote_(abm.declaredUpdates[i])
             create = true
         end
-    end 
+    end
 
     if create
         gen = quote end #General update

@@ -1,4 +1,4 @@
-function substitution(code::Expr,p::Program_;op=nothing,arg=false,pre=nothing,post=nothing,sym=nothing, #Type of symbol between operator, pre/post script and arguments
+function substitution(code::Union{Expr,Symbol},p::Program_;op=nothing,arg=false,pre=nothing,post=nothing,sym=nothing, #Type of symbol between operator, pre/post script and arguments
     nargs = nothing, addArgs = nothing,                       #Args for the functions that depend on arguments
     only=["Local","Global","Identity","GlobalArray","Medium"],           #Subset of parameters to modify
     addName=nothing, expl=nothing,                            #Add something to the vectorized name of fully substitute by something
@@ -12,29 +12,49 @@ function substitution(code::Expr,p::Program_;op=nothing,arg=false,pre=nothing,po
     end
 
     if op !== nothing
+
         if nargs === nothing
             code = postwalk(x->@capture(x, opAux_(argAux_)) && opAux == op ? 
-            substitution(argAux,p;arg = true, nargs=nargs, only=only, addName=addName, expl=expl, ic=ic, index=index, factor=factor, dims=dims, opF=opF)
+                substitution(argAux, p;arg = true, nargs=nargs, only=only, addName=addName, expl=expl, ic=ic, index=index, factor=factor, dims=dims, opF=opF)
             : x, code)
         else
             code = postwalk(x->@capture(x, opAux_(argAux__)) && opAux == op ? 
             if length(argAux) != nargs
                 error("Operator ", op, " should be declared with just ", nargs, " arguments. ", length(argAux), " where passed.")
             else
-                :($opAux($(argAux...),$(addArgs)))
+                if opF !== nothing
+                    opAux = opF
+                end
+                if addArgs !== nothing
+                    :($opAux($(argAux...),$(addArgs...)))
+                else
+                    :($opAux($(argAux...)))
+                end
             end
             : x, code)
         end
+
     elseif arg
-        add = :()
-        for i in 1:length(index)
-            code = substitution(p,argAux;arg = argAux, only=only, addName=addName, expl=expl, ic=ic, index=index[i], dims=dims)
+
+        add = substitution(code, p, only=only, addName=addName, expl=expl, ic=ic, index=index[1], dims=dims)
+        if factor[1] != 1
+            add = :($(factor[i])*$add)
+        end
+        for i in 2:length(index)
+            add2 = substitution(code, p, only=only, addName=addName, expl=expl, ic=ic, index=index[i], dims=dims)
             if factor[i] != 1
-                add = :($add+$(factor[i])*code)
+                add = :($add+$(factor[i])*$add2)
+            else
+                add = :($add+$add2)
             end
         end
 
-        code = postwalk(x->@capture(x, vAux_) && vAux == X ? :(add) : x, opF)
+        if opF !== nothing
+            code = postwalk(x->@capture(x, vAux_) && vAux == :X ? add : x, opF)
+        else
+            code = add
+        end
+
     else
 
         if "Local" in only
@@ -55,7 +75,11 @@ function substitution(code::Expr,p::Program_;op=nothing,arg=false,pre=nothing,po
                 end
 
                 if index !== nothing
-                    ic_ = :($(ic[1])+$index) 
+                    if index[1] != 0
+                        ic_ = :($(ic[1])+$(index[1])) 
+                    else
+                        ic_ = :($(ic[1]))
+                    end
                 else
                     ic_ = ic[1]
                 end
@@ -89,7 +113,11 @@ function substitution(code::Expr,p::Program_;op=nothing,arg=false,pre=nothing,po
                 end
 
                 if index !== nothing
-                    ic_ = :($(ic[1])+$index) 
+                    if index[1] != 0
+                        ic_ = :($(ic[1])+$(index[1])) 
+                    else
+                        ic_ = :($(ic[1]))
+                    end
                 else
                     ic_ = ic[1]
                 end
@@ -172,9 +200,21 @@ function substitution(code::Expr,p::Program_;op=nothing,arg=false,pre=nothing,po
                 end
 
                 if index !== nothing
-                    ic1_ = :($(ic[1])+$(index[1])) 
-                    ic2_ = :($(ic[2])+$(index[2])) 
-                    ic3_ = :($(ic[3])+$(index[3])) 
+                    if index[1] != 0
+                        ic1_ = :($(ic[1])+$(index[1])) 
+                    else
+                        ic1_ = :($(ic[1]))
+                    end
+                    if index[2] != 0
+                        ic2_ = :($(ic[2])+$(index[2])) 
+                    else
+                        ic2_ = :($(ic[2]))
+                    end
+                    if index[3] != 0
+                        ic3_ = :($(ic[3])+$(index[3])) 
+                    else
+                        ic3_ = :($(ic[3]))
+                    end
                 else
                     ic1_ = ic[1]
                     ic2_ = ic[2]
