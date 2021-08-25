@@ -125,13 +125,22 @@ function addIntegratorMediumLeapfrog_!(p::Program_,abm::Agent,space::SimulationS
 
         f2 = wrapInFunction_(:mediumBoundaryStep_!,code)
 
-        fWrap = wrapInFunction_(:mediumStep_!, 
-                                :(begin 
-                                    @platformAdapt mediumInnerStep_!(ARGS_)
-                                    @platformAdapt mediumBoundaryStep_!(ARGS_)
-                                    mediumVOld .= mediumV
-                                end)
-                                )
+        if "UpdateMediumInteraction" in keys(p.agent.declaredUpdates)
+            fWrap = wrapInFunction_(:mediumStep_!, 
+                                    :(begin 
+                                        @platformAdapt mediumInnerStep_!(ARGS_)
+                                        @platformAdapt mediumBoundaryStep_!(ARGS_)
+                                        @platformAdapt mediumInteractionStep_!(ARGS_)
+                                    end)
+                                    )
+        else
+            fWrap = wrapInFunction_(:mediumStep_!, 
+                                    :(begin 
+                                        @platformAdapt mediumInnerStep_!(ARGS_)
+                                        @platformAdapt mediumBoundaryStep_!(ARGS_)
+                                    end)
+                                    )
+        end
 
         # println(prettify(code))
 
