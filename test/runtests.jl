@@ -5,6 +5,7 @@ using Distributions
 using CUDA
 using DataFrames
 import MacroTools: prettify
+using PyPlot
 
 if CUDA.has_cuda()
     testplatforms = ["cpu","gpu"]
@@ -25,6 +26,6 @@ end
 # include("testSimulationSpace.jl")
 # include("testBound.jl")
 # include("testSave.jl")
-# include("testMedium.jl")
+include("testMedium.jl")
 # include("testConstructors.jl")
 
