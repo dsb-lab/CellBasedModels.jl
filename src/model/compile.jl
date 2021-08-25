@@ -7,7 +7,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=S
 
     abm = deepcopy(abmOriginal)
     
-    p = Program_()
+    p = Program_(abm,space)
 
     #Update
     updates_!(p,abm,space)

@@ -18,7 +18,7 @@ struct SimulationGrid <: SimulationSpace
 
 end
 
-function SimulationGrid(abm::Agent; box::Array{<:Any,1}, radius::Union{<:Real,Array{<:Real,1}}, medium::Array{<:Medium,1}=Array{Medium,1}())
+function SimulationGrid(abm::Agent, box::Array{<:Any,1}, radius::Union{<:Real,Array{<:Real,1}}; medium::Array{<:Medium,1}=Array{Medium,1}())
 
     #Check dimensionality
     if length(box) == 0
@@ -28,7 +28,7 @@ function SimulationGrid(abm::Agent; box::Array{<:Any,1}, radius::Union{<:Real,Ar
     end
 
     #Check medium has the same dimensions
-    if abm.dims != length(medium)
+    if abm.dims != length(medium) && length(abm.declaredSymbols["Medium"]) > 0
         error("Medium has to be specified with the same dimensions as the model. For that, it is necessary to also define a box.")
     end
 

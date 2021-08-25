@@ -18,7 +18,8 @@
         h::GlobalArray,
         id::Identity
     )
-    p = AgentBasedModels.Program_(); s = SimulationFree()
+    s = SimulationFree(m);
+    p = AgentBasedModels.Program_(m,s);
     AgentBasedModels.updates_!(p,m,s)
     @test AgentBasedModels.vectorize_(m,:(l = 1), p) == :(localV[ic1_,1]=1)
     @test AgentBasedModels.vectorize_(m,:(l_i = 1), p) == :(localV[ic1_,1]=1)
@@ -177,8 +178,8 @@
                 ga1[1,2] += 1
             end
         )
-
-        p = AgentBasedModels.Program_(); s= SimulationFree()
+        s= SimulationFree(abm)
+        p = AgentBasedModels.Program_(abm,s); 
 
         AgentBasedModels.updates_!(p,abm,s)
 

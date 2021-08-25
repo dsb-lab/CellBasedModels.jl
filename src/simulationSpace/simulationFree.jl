@@ -16,7 +16,7 @@ end
 function SimulationFree(abm::Agent; box::Array{<:Any,1}=Array{FlatBoundary,1}(), medium::Array{<:Medium,1}=Array{Medium,1}())
 
     #Check dimensionality
-    if length(box) != abm.dims && isempty(abm.declaredSymbols["Medium"])
+    if length(box) != abm.dims && !isempty(abm.declaredSymbols["Medium"])
         error("Box has to be the same length as dimensions.")
     end
     #Make consistent box format adding Open to tuples
@@ -43,7 +43,7 @@ function SimulationFree(abm::Agent; box::Array{<:Any,1}=Array{FlatBoundary,1}(),
     end
 
     #Check medium has the same dimensions
-    if abm.dims != length(medium)
+    if abm.dims != length(medium) && length(abm.declaredSymbols["Medium"]) > 0
         error("Medium has to be specified with the same dimensions as the model. For that, it is necessary to also define a box.")
     end
 

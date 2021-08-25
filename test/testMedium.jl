@@ -1,65 +1,65 @@
 @testset "Medium" begin
 
-    # #Test we can call the variable and the function
-    # @test begin m = @agent(1, u::Medium); m.declaredSymbols["Medium"] == [:u] end
-    # @test begin m = @agent(1, [u,v]::Medium); m.declaredSymbols["Medium"] == [:u,:v] end
-    # @test begin m = @agent(1, UpdateMedium = ∂t_u = Δ(u) + δx(0.)*δy(0.)*1.); "UpdateMedium" in keys(m.declaredUpdates) end
+    #Test we can call the variable and the function
+    @test begin m = @agent(1, u::Medium); m.declaredSymbols["Medium"] == [:u] end
+    @test begin m = @agent(1, [u,v]::Medium); m.declaredSymbols["Medium"] == [:u,:v] end
+    @test begin m = @agent(1, UpdateMedium = ∂t_u = Δ(u) + δx(0.)*δy(0.)*1.); "UpdateMedium" in keys(m.declaredUpdates) end
 
-    # # Declaration of Mediums
-    # for j in ["Newmann",
-    #     "Dirichlet",
-    #     "Periodic",
-    #     "Newmann-Newmann",
-    #     "Dirichlet-Dirichlet",
-    #     "Periodic-Periodic",
-    #     "Newmann-Dirichlet",
-    #     "Dirichlet-Newmann"]
+    # Declaration of Mediums
+    for j in ["Newmann",
+        "Dirichlet",
+        "Periodic",
+        "Newmann-Newmann",
+        "Dirichlet-Dirichlet",
+        "Periodic-Periodic",
+        "Newmann-Dirichlet",
+        "Dirichlet-Newmann"]
 
-    #     @test_nowarn MediumFlat(j,10)
-    # end
+        @test_nowarn MediumFlat(j,10)
+    end
 
-    # for j in ["Newmann-Periodic",
-    #     "Dirichlet-Periodic",
-    #     "Periodic-Dirichlet",
-    #     "Periodic-Newmann"]
+    for j in ["Newmann-Periodic",
+        "Dirichlet-Periodic",
+        "Periodic-Dirichlet",
+        "Periodic-Newmann"]
 
-    #     @test_throws ErrorException MediumFlat(j,10)
-    # end
+        @test_throws ErrorException MediumFlat(j,10)
+    end
 
-    # @test_throws ErrorException MediumFlat("k",10)
+    @test_throws ErrorException MediumFlat("k",10)
 
-    # # Declaration of MediumFlat in spaces
-    # for i in 1:3
+    # Declaration of MediumFlat in spaces
+    for i in 1:3
 
-    #     if i == 1
-    #         m = @agent(1, u::Medium)
-    #     elseif i == 2
-    #         m = @agent(2, u::Medium)
-    #     else
-    #         m = @agent(3, u::Medium)
-    #     end
+        if i == 1
+            m = @agent(1, u::Medium)
+        elseif i == 2
+            m = @agent(2, u::Medium)
+        else
+            m = @agent(3, u::Medium)
+        end
 
-    #     box = [(:x,-10.,10.),(:y,-10.,10.),(:z,-10.,10.)][1:i]
-    #     medium = [MediumFlat("Newmann",10) for k in 1:i]
+        box = [(:x,-10.,10.),(:y,-10.,10.),(:z,-10.,10.)][1:i]
+        medium = [MediumFlat("Newmann",10) for k in 1:i]
             
-    #     @test_nowarn SimulationFree(m,box=box,medium=medium)
-    #     @test_nowarn SimulationGrid(m,box=box,radius=1.,medium=medium)
-    # end
+        @test_nowarn SimulationFree(m,box=box,medium=medium)
+        @test_nowarn SimulationGrid(m,box=box,radius=1.,medium=medium)
+    end
 
-    # m = @agent(3, u::Medium)
-    # @test_throws ErrorException SimulationFree(m,box=[(:x,0,1)],medium=[MediumFlat("Dirichlet",10)])
-    # @test_throws ErrorException SimulationFree(m,box=[(:x,0,1)],medium=[MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10)])
+    m = @agent(3, u::Medium)
+    @test_throws ErrorException SimulationFree(m,box=[(:x,0,1)],medium=[MediumFlat("Dirichlet",10)])
+    @test_throws ErrorException SimulationFree(m,box=[(:x,0,1)],medium=[MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10)])
 
-    # # Compilation
-    # for i in testplatforms
-    #     @test_nowarn begin
-    #         m = @agent(3, u::Medium)
-    #         s = SimulationFree(m,
-    #                         box=[(:x,-10.,10.),(:y,-10.,10.),(:z,-10.,10.)],
-    #                         medium=[MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10)])
-    #         compile(m,s,platform=i)
-    #     end
-    # end
+    # Compilation
+    for i in testplatforms
+        @test_nowarn begin
+            m = @agent(3, u::Medium)
+            s = SimulationFree(m,
+                            box=[(:x,-10.,10.),(:y,-10.,10.),(:z,-10.,10.)],
+                            medium=[MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10)])
+            compile(m,s,platform=i)
+        end
+    end
 
     # # Community construction
     # @test_nowarn begin
@@ -189,24 +189,24 @@
     #     end
     # end
 
-    for i in testplatforms[1:1]
-        m = @agent(1, [u,v]::Medium, UpdateMedium = ∂t_u = -1*xₘ*∇x(u) + Δx(u))
-        s = SimulationFree(m,
-                        box=[(:x,-20.,20.)],
-                        medium=[MediumFlat("Periodic",100)])
-        mc = compile(m,s,platform=i)
-        com = Community(mc,N=10)
-        com.u .= pdf.(Normal(0,0.5),range(-20,20,length=100))
-        println(mc.program)
-        @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
-        @test begin 
-            comt = mc.evolve(com,dt=0.1,tMax=1000,dtSave=100)
+    # for i in testplatforms[1:1]
+    #     m = @agent(1, [u,v]::Medium, UpdateMedium = ∂t_u = -1*xₘ*∇x(u) + Δx(u))
+    #     s = SimulationFree(m,
+    #                     box=[(:x,-20.,20.)],
+    #                     medium=[MediumFlat("Periodic",100)])
+    #     mc = compile(m,s,platform=i)
+    #     com = Community(mc,N=10)
+    #     com.u .= pdf.(Normal(0,0.5),range(-20,20,length=100))
+    #     println(mc.program)
+    #     @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+    #     @test begin 
+    #         comt = mc.evolve(com,dt=0.1,tMax=1000,dtSave=100)
 
-            PyPlot.plot(comt[1].u)
-            PyPlot.plot(comt[10].u)
-            PyPlot.plot(comt[100].u)
-            sum(comt[end].u .≈ pdf.(Normal(0,0.5),range(-20,20,length=100))) == 1
-        end
-    end
+    #         PyPlot.plot(comt[1].u)
+    #         PyPlot.plot(comt[10].u)
+    #         PyPlot.plot(comt[100].u)
+    #         sum(comt[end].u .≈ pdf.(Normal(0,0.5),range(-20,20,length=100))) == 1
+    #     end
+    # end
 
 end

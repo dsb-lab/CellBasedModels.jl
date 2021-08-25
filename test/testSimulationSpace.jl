@@ -3,7 +3,7 @@
     @test hasmethod(AgentBasedModels.arguments_!,(AgentBasedModels.Program_,Agent,SimulationFree,String))
     @test hasmethod(AgentBasedModels.loop_,(AgentBasedModels.Program_,Agent,SimulationFree,Expr,String))
 
-    @test AgentBasedModels.arguments_!(AgentBasedModels.Program_(),@agent(3),SimulationFree(),"gpu") == Nothing
+    @test AgentBasedModels.arguments_!(AgentBasedModels.Program_(@agent(3),SimulationFree(@agent(3))),@agent(3),SimulationFree(@agent(3)),"gpu") == Nothing
     
     @test_nowarn begin
         
@@ -20,7 +20,7 @@
             end
         )
         
-        s = SimulationFree()
+        s = SimulationFree(m)
 
         m = compile(m,s)
     end
@@ -47,7 +47,7 @@
             end
         end
     )
-    s = SimulationFree()
+    s = SimulationFree(m)
     m = compile(m,s,debug=false)
 
     @test begin
@@ -90,7 +90,6 @@ end
 
 @testset "SimulationSpace Grid" begin
 
-    @test hasmethod(SimulationGrid,(Agent, Array{<:Any,1}, Union{<:Real,Array{<:Real,1}}))
     @test hasmethod(AgentBasedModels.arguments_!,(AgentBasedModels.Program_, Agent, SimulationGrid, String))
     @test hasmethod(AgentBasedModels.loop_,(AgentBasedModels.Program_, Agent, SimulationGrid, Expr, String))
 
@@ -261,7 +260,7 @@ end
         xx == [94,92,93,84,82,83,89,87,88,44,42,43,34,32,33,39,37,38,69,67,68,59,57,58,64,62,63]
     end
 
-    @test_nowarn AgentBasedModels.arguments_!(AgentBasedModels.Program_(),m,nn,"cpu")
+    @test_nowarn AgentBasedModels.arguments_!(AgentBasedModels.Program_(m,nn),m,nn,"cpu")
 
     for platform in testplatforms
 

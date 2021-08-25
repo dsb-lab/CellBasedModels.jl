@@ -18,8 +18,8 @@
                 z += sz
             end
         )
-        space = SimulationFree(
-            [
+        space = SimulationFree(m,
+            box=[
                 Bound(:x,-1,1,
                     stop=[:s],stopMin=[:sMin],stopMax=[:sMax],
                     bounce=[:b],bounceMin=[:bMin],bounceMax=[:bMax],
@@ -88,8 +88,8 @@
                 z += sz
             end
         )
-        space = SimulationFree(
-            [
+        space = SimulationFree(m,
+            box=[
                 Periodic(:x,-1,1,additional=[:x1]),
                 Periodic(:y,-1,1,additional=[:y1]),
                 Periodic(:z,-1,1,additional=[:z1])
@@ -142,8 +142,8 @@
                 d_z = sz*dt
             end
         )
-        space = SimulationFree(
-            [
+        space = SimulationFree(m,
+            box=[
                 Bound(:x,-1,1,
                     stop=[:s],stopMin=[:sMin],stopMax=[:sMax],
                     bounce=[:b],bounceMin=[:bMin],bounceMax=[:bMax],
@@ -213,8 +213,8 @@
                 d_z = sz*dt
             end
         )
-        space = SimulationFree(
-            [
+        space = SimulationFree(m,
+            box=[
                 Periodic(:x,-1,1,additional=[:x1]),
                 Periodic(:y,-1,1,additional=[:y1]),
                 Periodic(:z,-1,1,additional=[:z1])

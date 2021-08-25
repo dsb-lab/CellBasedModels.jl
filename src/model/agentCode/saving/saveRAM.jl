@@ -6,7 +6,7 @@ function addSavingRAM_!(p::Program_,abm::Agent,space::SimulationSpace,platform::
     if length(abm.declaredSymbols["Local"])>0
         push!(l,:(Core.Array(localV)[1:N,:]))
     else
-        push!(l,:(Core.Array{AbstractFloat,2}(undef,0,2)))
+        push!(l,:(Core.Array{Float64,2}(undef,0,2)))
     end
 
     if length(abm.declaredSymbols["Identity"])>0
@@ -18,7 +18,7 @@ function addSavingRAM_!(p::Program_,abm::Agent,space::SimulationSpace,platform::
     if length(abm.declaredSymbols["Global"])>0
         push!(l,:(Core.Array(globalV)))
     else
-        push!(l,:(Core.Array{AbstractFloat,1}[]))
+        push!(l,:(Core.Array{Float64,1}()))
     end
 
     if length(abm.declaredSymbols["GlobalArray"])>1
@@ -33,7 +33,7 @@ function addSavingRAM_!(p::Program_,abm::Agent,space::SimulationSpace,platform::
         list = string(list,")]")
         push!(l,Meta.parse(string("Core.Array(",list,")")))
     else
-        push!(l,:(Core.Array{AbstractFloat,1}[]))
+        push!(l,:(Core.Array{Core.Array{Float64},1}()))
     end
 
     if length(abm.declaredSymbols["Medium"])>1
@@ -62,7 +62,7 @@ function addSavingRAM_!(p::Program_,abm::Agent,space::SimulationSpace,platform::
 
         push!(l,:(Core.Array(mediumV)[$(g...),:]))
     else
-        push!(l,:(Core.Array{AbstractFloat,1}[]))
+        push!(l,:(Core.Array{Float64,1}()))
     end
 
     push!(p.declareVar.args,:(commRAM_ = CommunityInTime()))

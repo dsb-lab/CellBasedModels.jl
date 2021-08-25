@@ -6,11 +6,11 @@ Basic structure keeping the parameters of all the agents in the current simulati
  - **t**::AbstractFloat Time of the community
  - **N**::Int Number of particles in the community
  - **declaredSymb**::Dict{String,Array{Symbol}} Dictionary storing the names of all the parameters declared in model according to the respective fields where they have been declared.
- - **var**::Array{AbstractFloat,2} 2D Array with all the agents in rows and all the corresponding values of the variables in columns.
- - **inter**::Array{AbstractFloat,2} 2D Array with all the agents in rows and all the corresponding values of the interaction parameters in columns.
- - **loc**::Array{AbstractFloat,2} 2D Array with all the agents in rows and all the corresponding values of the local parameters in columns.
- - **locInter**::Array{AbstractFloat,2} 2D Array with all the agents in rows and all the corresponding values of the local interaction parameters in columns.
- - **glob**::Array{AbstractFloat,1} 1D Array with all the corresponding values of the global parameters in rows.
+ - **var**::Array{<:AbstractFloat,2} 2D Array with all the agents in rows and all the corresponding values of the variables in columns.
+ - **inter**::Array{<:AbstractFloat,2} 2D Array with all the agents in rows and all the corresponding values of the interaction parameters in columns.
+ - **loc**::Array{<:AbstractFloat,2} 2D Array with all the agents in rows and all the corresponding values of the local parameters in columns.
+ - **locInter**::Array{<:AbstractFloat,2} 2D Array with all the agents in rows and all the corresponding values of the local interaction parameters in columns.
+ - **glob**::Array{<:AbstractFloat,1} 1D Array with all the corresponding values of the global parameters in rows.
  - **globArray**::Array{Array{AbstractFloat},1} 1D Array with all the corresponding global arrays in rows.
  - **ids**::Array{Int,2} 2D Array with all the agents in rows and all the corresponding values of the identities in columns
 
@@ -61,7 +61,7 @@ Example
  1-element Array{Symbol,1}:
  :x
  julia> community[:x]
- 2-element Array{AbstractFloat,1}:
+ 2-element Array{<:AbstractFloat,1}:
   0.0
   0.0
 ```
@@ -97,11 +97,11 @@ mutable struct Community
     t::AbstractFloat
     N::Int
     declaredSymbols_::Dict{String,Array{Symbol}}
-    local_::Array{Float64,2}
+    local_::Array{<:AbstractFloat,2}
     identity_::Array{Int,2}
-    global_::Array{Float64,1}
+    global_::Array{<:AbstractFloat,1}
     globalArray_::Array{Array{Float64},1}
-    medium_::Union{Array{Float64,2},Array{Float64,3},Array{Float64,4}}
+    medium_::Union{Array{<:AbstractFloat,1},Array{<:AbstractFloat,2},Array{<:AbstractFloat,3},Array{<:AbstractFloat,4}}
 end
 
 function Community(abm::Model; N::Int=1, t::AbstractFloat=0.)
@@ -112,7 +112,7 @@ function Community(abm::Model; N::Int=1, t::AbstractFloat=0.)
     ids[:,1] .= 1:N
     glob = zeros(Float64,length(abm.agent.declaredSymbols["Global"]))
     globArray = []
-    medium = zeros([i.N for i in abm.space.medium]...,length(abm.agent.declaredSymbols["Medium"]))
+    medium = zeros(Float64,[i.N for i in abm.space.medium]...,length(abm.agent.declaredSymbols["Medium"]))
     for i in abm.agent.declaredSymbols["GlobalArray"]
         push!(globArray,[])
     end

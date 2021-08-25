@@ -52,7 +52,7 @@
                 end
             )
         model = compile(m,save="RAM",debug=false,platform=platform)
-        #println(model.program)
+        # println(model.program)
         com = Community(model)
         com.l = zeros(2,2)
         comt = model.evolve(com,dt=0.1,tMax=10.05,dtSave=0.2)
@@ -72,7 +72,7 @@
                 end
             )
         model = compile(m,save="CSV",debug=false,platform=platform)
-        #println(model.program)
+        # println(model.program)
         com = Community(model)
         com.l = zeros(2,2)
         model.evolve(com, dt=0.1, tMax=10.05, dtSave=0.2, saveFile="testCSV")
