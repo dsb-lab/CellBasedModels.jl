@@ -190,4 +190,6 @@
         if p.update["Variables"] != Dict(:l1=>1) error() end
     end    
 
+    @test extract(:(f(x)*1+4),:f) = (:x)
+
 end

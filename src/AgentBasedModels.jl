@@ -73,6 +73,7 @@ include("./model/agentCode/integratorMedium/ftcs.jl")
 include("./model/agentCode/integratorMedium/lax.jl")
 include("./model/agentCode/integratorMedium/leapfrog.jl")
 include("./model/agentCode/integratorMedium/integratorsMedium.jl")
+include("./model/agentCode/updateMediumInteraction.jl")
 
 #Saving
 include("./model/agentCode/saving/saveRAM.jl")
@@ -90,6 +91,7 @@ include("./auxiliar/emptyquote.jl")
 include("./auxiliar/symbols.jl")
 include("./auxiliar/updates.jl")
 include("./auxiliar/substitution2.jl")
+include("./auxiliar/extract.jl")
 
 #Cuda specific functions
 include("./cuda/cudaAdapt.jl")

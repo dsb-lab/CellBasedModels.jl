@@ -25,6 +25,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=S
     addUpdateLocal_!(p,abm,space,platform)
     addUpdateLocalInteraction_!(p,abm,space,platform)
     addCheckBounds_!(p,abm,space,platform)
+    addUpdateMediumInteraction_!(p,abm,space,platform)
     addIntegratorMedium_![integratorMedium](p,abm,space,platform)
     addUpdate_!(p,abm,space,platform)
     #Events

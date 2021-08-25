@@ -5,7 +5,6 @@ using Distributions
 using CUDA
 using DataFrames
 import MacroTools: prettify
-using PyPlot
 
 if CUDA.has_cuda()
     testplatforms = ["cpu","gpu"]

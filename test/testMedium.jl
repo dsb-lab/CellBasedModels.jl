@@ -190,7 +190,7 @@
     # end
 
     # for i in testplatforms #Check diffussion is conservative Periodic
-    
+
     #     m = @agent(1, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u))
     #     s = SimulationFree(m,
     #                     box=[(:x,-20.,20.)],
@@ -250,21 +250,51 @@
 
     # end
 
-    for i in testplatforms[1:1] #Check steady state with source
+    # for i in testplatforms #Check steady state with source
 
-        m = @agent(1, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u) + δx(0.))
+    #     m = @agent(1, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u) + δx(0.))
+    #     s = SimulationFree(m,
+    #                     box=[(:x,-20.,20.)],
+    #                     medium=[MediumFlat("Dirichlet",100)])
+    #     mc = compile(m,s,platform=i)
+    #     com = Community(mc,N=10)
+    #     com.u .= 0
+    #     # println(mc.program)
+    #     @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+    #     @test begin 
+    #         comt = mc.evolve(com,dt=0.01,tMax=4000,dtSave=200)
+
+    #         all(abs.(comt[end].u .- comt[10].u) .< 0.001)
+    #     end
+
+    # end
+
+    for i in testplatforms #Check steady state with source
+
+        m = @agent(1,
+                p::Local, 
+                [u,v]::Medium, 
+                UpdateMedium = begin
+                    ∂t_u = Δx(u)
+                    ∂t_v = Δx(v) + δx(0.)
+                end,
+                UpdateMediumInteraction = u += p*dt
+                )
         s = SimulationFree(m,
                         box=[(:x,-20.,20.)],
                         medium=[MediumFlat("Dirichlet",100)])
         mc = compile(m,s,platform=i)
-        com = Community(mc,N=10)
-        com.u .= 0
+        com = Community(mc,N=1)
+        com.u .= 0.
+        com.v .= 0.
+        com.x .= 0.
+        com.p .= 1.
         # println(mc.program)
         @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
         @test begin 
             comt = mc.evolve(com,dt=0.01,tMax=4000,dtSave=200)
 
-            all(abs.(comt[end].u .- comt[10].u) .< 0.001)
+            all(abs.(comt[end].u .- comt[end].v) .< 0.1)
         end
 
     end
