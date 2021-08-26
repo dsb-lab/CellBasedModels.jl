@@ -99,6 +99,25 @@ Has to be declared as:
             ... code including the update rules ...
         end
 
+ - **UpdateMedium**
+Type for declaring the equations of motion that regulate the medium.
+Has to be declared as:
+        
+    UpdateMedium = 
+        begin
+                ... code including the update rules ...
+            end
+
+ - **UpdateMediumInteraction**
+Type for declaring the interaction between the agents and the medium. 
+The agents are always modelled as delta sources of interaction with the medium located at their coordinates (x,y,z). 
+Has to be declared as:
+        
+UpdateMediumInteraction = 
+    begin
+            ... code including the update rules ...
+        end
+
 # Custom made blocks of code
 
 Any function which returns a piece of code with the structue as the above declared is valid for declaration. This allows repetitive algorithms to be reused and allow a fluent customization.

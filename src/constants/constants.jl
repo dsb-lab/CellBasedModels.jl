@@ -12,6 +12,7 @@ VALID_UPDATES = [
     :UpdateLocalInteraction,
     :UpdateInteraction,
     :UpdateMedium,
+    :UpdateMediumInteraction,
     :Equation,
     :EventDivision,
     :EventDeath
@@ -20,12 +21,13 @@ VALID_UPDATES = [
 UPDATINGOPERATORS = [:+= ,:-=,:*=,:/=,:\=,:÷=,:%=,:^=,:&=,:|=,:⊻=,:>>>=,:>>=,:<<=]
 
 RESERVEDSYMBOLS = [:x,:y,:z,:t,:N,:dt,:dW,:nMax,
+                    :idMediumX,:idMediumY,:idMediumZ,
                     :ic1_,:ic2_,:nnic2_,:pos_,
                     :localV,:identityV,:globalV,:mediumV,
                     :localVCopy,:identityVCopy,:globalVCopy,:mediumVCopy,
                     :ALGORITHM_,:ARGS_,:AUX1_,:AUX2_,
                     :index_,:stride_,:lockadd_,
-                    :∇,:∇x,:∇y,:∇z,:Δ,:Δx,:Δy,:Δz,:δx,:δy,:δz,:xₘ,:yₘ,:zₘ];
+                    :∇,:∇x,:∇y,:∇z,:Δ,:Δx,:Δy,:Δz,:δx,:δy,:δz,:xₘ,:yₘ,:zₘ,:∑ₐ,:∑ₙ];
 
 GLOBALARRAYCOPY = "_Copy"
 

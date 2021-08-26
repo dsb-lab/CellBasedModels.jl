@@ -43,7 +43,7 @@
     #     medium = [MediumFlat("Newmann",10) for k in 1:i]
             
     #     @test_nowarn SimulationFree(m,box=box,medium=medium)
-    #     @test_nowarn SimulationGrid(m,box=box,radius=1.,medium=medium)
+    #     @test_nowarn SimulationGrid(m,box,1.,medium=medium)
     # end
 
     # m = @agent(3, u::Medium)
@@ -142,7 +142,7 @@
     #     end
     # end
 
-    # for i in testplatforms
+    # for i in testplatforms #Test single deltas working
     #     m = nothing
     #     for j in 1:3
     #         if j == 1
@@ -172,7 +172,7 @@
     #     end
     # end
 
-    # for i in testplatforms
+    # for i in testplatforms #Test joint deltas working
     #     m = @agent(3, [u,v]::Medium, UpdateMedium = ∂t_u = δx(0.)*δy(0.)*δz(0.)*1)
     #     s = SimulationFree(m,
     #                     box=[(:x,-1.,1.),(:y,-1.,1.),(:z,-1.,1.)],
@@ -189,24 +189,176 @@
     #     end
     # end
 
-    for i in testplatforms[1:1]
-        m = @agent(1, [u,v]::Medium, UpdateMedium = ∂t_u = -1*xₘ*∇x(u) + Δx(u))
+    for i in testplatforms[2:2] #Check diffussion is conservative Periodic
+
+        #1D
+        m = @agent(1, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u))
         s = SimulationFree(m,
                         box=[(:x,-20.,20.)],
                         medium=[MediumFlat("Periodic",100)])
         mc = compile(m,s,platform=i)
         com = Community(mc,N=10)
         com.u .= pdf.(Normal(0,0.5),range(-20,20,length=100))
-        println(mc.program)
+        # println(mc.program)
         @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
         @test begin 
-            comt = mc.evolve(com,dt=0.1,tMax=1000,dtSave=100)
+            comt = mc.evolve(com,dt=0.01,tMax=1000,dtSave=100)
 
-            PyPlot.plot(comt[1].u)
-            PyPlot.plot(comt[10].u)
-            PyPlot.plot(comt[100].u)
-            sum(comt[end].u .≈ pdf.(Normal(0,0.5),range(-20,20,length=100))) == 1
+            sum(comt[end].u) .≈ sum(comt[1].u)
         end
+        @test begin 
+            comt = mc.evolve(com,dt=0.01,tMax=1000,dtSave=100)
+
+            maximum(comt[end].u) .≈ minimum(comt[end].u)
+        end
+
+        #2D
+        m = @agent(2, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u) + Δy(u)) 
+        s = SimulationFree(m,
+                        box=[(:x,-20.,20.),(:y,-20.,20.)],
+                        medium=[MediumFlat("Periodic",100),MediumFlat("Periodic",100)])
+        mc = compile(m,s,platform=i)
+        com = Community(mc,N=10)
+        com.u .= 1
+        # println(mc.program)
+        @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+        @test begin 
+            comt = mc.evolve(com,dt=0.01,tMax=10,dtSave=1)
+            (sum(comt[end].u) .- sum(comt[1].u))/10000 < 0.01
+        end
+
+        #3D
+        m = @agent(3, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u) + Δy(u) + Δz(u)) 
+        s = SimulationFree(m,
+                        box=[(:x,-20.,20.),(:y,-20.,20.),(:z,-20.,20.)],
+                        medium=[MediumFlat("Periodic",100),MediumFlat("Periodic",100),MediumFlat("Periodic",100)])
+        mc = compile(m,s,platform=i)
+        com = Community(mc,N=10)
+        com.u .= 1
+        # println(mc.program)
+        @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+        @test begin 
+            comt = mc.evolve(com,dt=0.01,tMax=10,dtSave=1)
+
+            (sum(comt[end].u) .- sum(comt[1].u))/1000000 < 0.01
+        end
+
+    end
+
+    # for i in testplatforms #Check diffussion disappears Dirichlet
+
+    #     m = @agent(1, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u))
+    #     s = SimulationFree(m,
+    #                     box=[(:x,-20.,20.)],
+    #                     medium=[MediumFlat("Dirichlet",100)])
+    #     mc = compile(m,s,platform=i)
+    #     com = Community(mc,N=10)
+    #     com.u .= pdf.(Normal(0,0.5),range(-20,20,length=100))
+    #     # println(mc.program)
+    #     @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+    #     @test begin 
+    #         comt = mc.evolve(com,dt=0.01,tMax=2000,dtSave=100)
+
+    #         sum(comt[end].u) < 0.001
+    #     end
+
+    # end
+
+    # for i in testplatforms #Check diffussion conservative when Newmann
+
+    #     m = @agent(1, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u))
+    #     s = SimulationFree(m,
+    #                     box=[(:x,-20.,20.)],
+    #                     medium=[MediumFlat("Newmann",100)])
+    #     mc = compile(m,s,platform=i)
+    #     com = Community(mc,N=10)
+    #     com.u .= pdf.(Normal(0,0.5),range(-20,20,length=100))
+    #     # println(mc.program)
+    #     @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+    #     @test begin 
+    #         comt = mc.evolve(com,dt=0.01,tMax=2000,dtSave=100)
+
+    #         sum(comt[end].u)-sum(comt[1].u) < 0.1
+    #     end
+
+    # end
+
+    # for i in testplatforms #Check steady state with source
+
+    #     m = @agent(1, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u) + δx(0.))
+    #     s = SimulationFree(m,
+    #                     box=[(:x,-20.,20.)],
+    #                     medium=[MediumFlat("Dirichlet",100)])
+    #     mc = compile(m,s,platform=i)
+    #     com = Community(mc,N=10)
+    #     com.u .= 0
+    #     # println(mc.program)
+    #     @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+    #     @test begin 
+    #         comt = mc.evolve(com,dt=0.01,tMax=4000,dtSave=200)
+
+    #         all(abs.(comt[end].u .- comt[10].u) .< 0.001)
+    #     end
+
+    # end
+
+    # for i in testplatforms #Check coumpling agents with medium
+
+    #     m = @agent(1,
+    #             p::Local, 
+    #             [u,v]::Medium, 
+    #             UpdateMedium = begin
+    #                 ∂t_u = Δx(u)
+    #                 ∂t_v = Δx(v) + δx(0.)
+    #             end,
+    #             UpdateMediumInteraction = u += p*dt
+    #             )
+    #     s = SimulationFree(m,
+    #                     box=[(:x,-20.,20.)],
+    #                     medium=[MediumFlat("Dirichlet",100)])
+    #     mc = compile(m,s,platform=i)
+    #     com = Community(mc,N=1)
+    #     com.u .= 0.
+    #     com.v .= 0.
+    #     com.x .= 0.
+    #     com.p .= 1.
+    #     # println(mc.program)
+    #     @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+    #     @test begin 
+    #         comt = mc.evolve(com,dt=0.01,tMax=4000,dtSave=200)
+
+    #         all(abs.(comt[end].u .- comt[end].v) .< 0.1)
+    #     end
+
+    # end
+
+    for i in testplatforms #Check agents reading from medium
+
+        m = @agent(1,
+                p::Local, 
+                u::Medium, 
+                k::Global,
+
+                Equation = begin
+                    d_p = (u-k*p)*dt 
+                end
+                )
+        s = SimulationFree(m,
+                        box=[(:x,0.,100.)],
+                        medium=[MediumFlat("Dirichlet",100)])
+        mc = compile(m,s,platform=i)
+        com = Community(mc,N=100)
+        com.x .= [Float64(i) for i in 0:1:99]
+        com.u .= [Float64(i) for i in 0:99]
+        com.k = 1.
+        com.p .= 0.
+        # println(mc.program)
+        @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+        @test begin 
+            comt = mc.evolve(com,dt=0.01,tMax=4000,dtSave=200)
+            all(comt[end].p .<= [Float64(i) for i in 0:1:99])
+        end
+
     end
 
 end

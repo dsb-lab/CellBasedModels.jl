@@ -23,14 +23,20 @@ function addIntegratorMediumFTCS_!(p::Program_,abm::Agent,space::SimulationSpace
         f = postwalk(x->@capture(x,s_(v_)) ? :($(adaptOperatorsMediumFTCS_(v,s,abm,space,p))) : x, f) # Adapt
         f = postwalk(x->@capture(x,s_) ? adaptSymbolsMediumFTCS_(s,abm,space,p) : x, f) # Adapt
                         
-        f = vectorize_(abm,f,p)
+        f = vectorizeMedium_(abm,f,p)
 
         f = simpleGridLoopWrapInFunction_(platform,:mediumInnerStep_!, f, abm.dims)
 
         #Remove count over boundaries
-        f = postwalk(x->@capture(x,1:Nx_) && Nx == :Nx_ ? :(2:Nx_-1) : x, f)
-        f = postwalk(x->@capture(x,1:Ny_) && Ny == :Ny_ ? :(2:Ny_-1) : x, f)
-        f = postwalk(x->@capture(x,1:Nz_) && Nz == :Nz_ ? :(2:Nz_-1) : x, f)
+        if platform == "cpu"
+            f = postwalk(x->@capture(x,1:Nx_) && Nx == :Nx_ ? :(2:Nx_-1) : x, f)
+            f = postwalk(x->@capture(x,1:Ny_) && Ny == :Ny_ ? :(2:Ny_-1) : x, f)
+            f = postwalk(x->@capture(x,1:Nz_) && Nz == :Nz_ ? :(2:Nz_-1) : x, f)
+        elseif platform == "gpu"
+            f = postwalk(x->@capture(x,indexX_:strideX_:Nx_) && Nx == :Nx_ ? :(indexX_+1:strideX_:Nx_-1) : x, f)
+            f = postwalk(x->@capture(x,indexY_:strideY_:Ny_) && Ny == :Ny_ ? :(indexY_+1:strideY_:Ny_-1) : x, f)
+            f = postwalk(x->@capture(x,indexZ_:strideZ_:Nz_) && Nz == :Nz_ ? :(indexZ_+1:strideZ_:Nz_-1) : x, f)
+        end
 
             #Make function to compute the boundaries
         code = quote end
@@ -62,6 +68,7 @@ function addIntegratorMediumFTCS_!(p::Program_,abm::Agent,space::SimulationSpace
                 vAss = postwalk(x->@capture(x, t_) && t == ic ? 2 : x, v)
 
                 push!(subcode.args, :($vUp=$vAss))
+
             end
 
             if space.medium[i].minBoundaryType == "Newmann"
@@ -110,13 +117,22 @@ function addIntegratorMediumFTCS_!(p::Program_,abm::Agent,space::SimulationSpace
 
         f2 = wrapInFunction_(:mediumBoundaryStep_!,code)
 
-        fWrap = wrapInFunction_(:mediumStep_!, 
-                                :(begin 
-                                    @platformAdapt mediumInnerStep_!(ARGS_)
-                                    @platformAdapt mediumBoundaryStep_!(ARGS_)
-                                end)
-                                )
-
+        if "UpdateMediumInteraction" in keys(p.agent.declaredUpdates)
+            fWrap = wrapInFunction_(:mediumStep_!, 
+                                    :(begin 
+                                        @platformAdapt mediumInnerStep_!(ARGS_)
+                                        @platformAdapt mediumBoundaryStep_!(ARGS_)
+                                        @platformAdapt mediumInteractionStep_!(ARGS_)
+                                    end)
+                                    )
+        else
+            fWrap = wrapInFunction_(:mediumStep_!, 
+                                    :(begin 
+                                        @platformAdapt mediumInnerStep_!(ARGS_)
+                                        @platformAdapt mediumBoundaryStep_!(ARGS_)
+                                    end)
+                                    )
+        end
         # println(prettify(code))
 
         push!(p.declareF.args,f,f2,fWrap)
@@ -320,21 +336,6 @@ function adaptOperatorsMediumFTCS_(f,op,abm,space,p)
 
     return f
 
-end
-
-function vectorizeMedium_(abm,f,p)
-
-    for (i,j) in enumerate(abm.declaredSymbols["Medium"])
-        if abm.dims == 1
-            f = postwalk(x->@capture(x,s_) && s == j ? :(mediumV[ic1_,$i]) : x,f)
-        elseif abm.dims == 2
-            f = postwalk(x->@capture(x,s_) && s == j ? :(mediumV[ic1_,ic2_,$i]) : x,f)
-        elseif abm.dims == 3
-            f = postwalk(x->@capture(x,s_) && s == j ? :(mediumV[ic1_,ic2_,ic3_,$i]) : x,f)
-        end
-    end
-
-    return f
 end
 
 δMedium_(i1,i2) = if i1==i2 1. else 0. end
