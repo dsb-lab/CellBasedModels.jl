@@ -1,6 +1,6 @@
 # [Embryogenesis example: Saiz et al 2021](@id saiz)
 
-It can be also seen in the corresponding [Jupyter notebook](https://github.com/dsb-lab/AgentBasedModels.jl/blob/master/examples/Saiz%202020.ipynb)
+It can be also seen in the corresponding [Jupyter notebook](https://github.com/dsb-lab/AgentBasedModels.jl/blob/master/examples/Saiz_2020.ipynb)
 
 ## Model
 
