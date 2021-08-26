@@ -33,10 +33,11 @@ function Base.getproperty(a::Community,var::Symbol)
             elseif a.dims == 2
                 return @views a.medium_[:,:,pos]
             elseif a.dims == 3
+                println(size(a.medium_))
                 return @views a.medium_[:,:,:,pos]
             end
         else
-            error("Parameter ", var, " not fount in the community.")
+            error("Parameter ", var, " not found in the community.")
         end
     end
 end

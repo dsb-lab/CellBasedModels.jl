@@ -26,9 +26,9 @@ or from the Pkg REPL
 
 ## Examples
 
-|Embryogenesys|
-|:---:|
-|[![Embryogenesis](./assets/Saiz.gif)](@ref saiz)|
+|Embryogenesys|Medium|
+|:---:|:---:|
+|[![Embryogenesis](./assets/Saiz.gif)](@ref saiz)|[![Medium](./assets/example_medium_video.gif)](@ref medium)|
 
 ## Limitations
 

@@ -1,5 +1,7 @@
 # [Embryogenesis example: Saiz et al 2021](@id saiz)
 
+It can be also seen in the corresponding [Jupyter notebook](https://github.com/dsb-lab/AgentBasedModels.jl/blob/master/examples/Saiz%202020.ipynb)
+
 ## Model
 
 The model from Saiz et al has three parts in the model

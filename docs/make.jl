@@ -9,6 +9,7 @@ pages = [
     "Usage.md",
     "Examples"=>[
         "Saiz.md",
+        "Medium.md",
     ],
     "API.md",
     "APIdevelopers.md"

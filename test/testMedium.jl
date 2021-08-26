@@ -61,7 +61,7 @@
     #     end
     # end
 
-    # # Community construction
+    # #Community construction
     # @test_nowarn begin
     #     m = @agent(3, u::Medium)
     #     s = SimulationFree(m,
@@ -72,7 +72,7 @@
     #     Community(mc,N=10)
     # end
 
-    # # Medium access in Community
+    # #Medium access in Community
     # @test_nowarn begin
     #     m = @agent(3, [u,v]::Medium)
     #     s = SimulationFree(m,
@@ -85,8 +85,19 @@
     #     b = com.u #Read
     #     com.v .= 1 #Assign scalar
     #     com.v .= zeros(10,10,10) #Assign vector
-    #     com.v[1,2,3] = 1 #Assign single value
+    #     com.v[1,2,3] = 1; #Assign single value
     # end
+
+    # m = @agent(3, u::Medium)
+    # s = SimulationFree(m,
+    #                 box=[(:x,-10.,10.),(:y,-10.,10.),(:z,-10.,10.)],
+    #                 medium=[MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10)])
+    # mc = compile(m,s)
+    # com = Community(mc,N=10)
+    # com.u .= 0
+    # comt = mc.evolve(com,dt=0.1,tMax=1)
+    # @test all(comt[end].u .== zeros(10,10,10))
+
 
     # # Evolve Community Save Working
     # for i in testplatforms
@@ -189,61 +200,61 @@
     #     end
     # end
 
-    for i in testplatforms #Check diffussion is conservative Periodic
+    # for i in testplatforms #Check diffussion is conservative Periodic
 
-        #1D
-        m = @agent(1, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u))
-        s = SimulationFree(m,
-                        box=[(:x,-20.,20.)],
-                        medium=[MediumFlat("Periodic",100)])
-        mc = compile(m,s,platform=i)
-        com = Community(mc,N=10)
-        com.u .= pdf.(Normal(0,0.5),range(-20,20,length=100))
-        # println(mc.program)
-        @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
-        @test begin 
-            comt = mc.evolve(com,dt=0.01,tMax=1000,dtSave=100)
+    #     #1D
+    #     m = @agent(1, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u))
+    #     s = SimulationFree(m,
+    #                     box=[(:x,-20.,20.)],
+    #                     medium=[MediumFlat("Periodic",100)])
+    #     mc = compile(m,s,platform=i)
+    #     com = Community(mc,N=10)
+    #     com.u .= pdf.(Normal(0,0.5),range(-20,20,length=100))
+    #     # println(mc.program)
+    #     @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+    #     @test begin 
+    #         comt = mc.evolve(com,dt=0.01,tMax=1000,dtSave=100)
 
-            sum(comt[end].u) .≈ sum(comt[1].u)
-        end
-        @test begin 
-            comt = mc.evolve(com,dt=0.01,tMax=1000,dtSave=100)
+    #         sum(comt[end].u) .≈ sum(comt[1].u)
+    #     end
+    #     @test begin 
+    #         comt = mc.evolve(com,dt=0.01,tMax=1000,dtSave=100)
 
-            maximum(comt[end].u) .≈ minimum(comt[end].u)
-        end
+    #         maximum(comt[end].u) .≈ minimum(comt[end].u)
+    #     end
 
-        #2D
-        m = @agent(2, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u) + Δy(u)) 
-        s = SimulationFree(m,
-                        box=[(:x,-20.,20.),(:y,-20.,20.)],
-                        medium=[MediumFlat("Periodic",100),MediumFlat("Periodic",100)])
-        mc = compile(m,s,platform=i)
-        com = Community(mc,N=10)
-        com.u .= 1
-        # println(mc.program)
-        @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
-        @test begin 
-            comt = mc.evolve(com,dt=0.01,tMax=10,dtSave=1)
-            (sum(comt[end].u) .- sum(comt[1].u))/10000 < 0.01
-        end
+    #     #2D
+    #     m = @agent(2, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u) + Δy(u)) 
+    #     s = SimulationFree(m,
+    #                     box=[(:x,-20.,20.),(:y,-20.,20.)],
+    #                     medium=[MediumFlat("Periodic",100),MediumFlat("Periodic",100)])
+    #     mc = compile(m,s,platform=i)
+    #     com = Community(mc,N=10)
+    #     com.u .= 1
+    #     # println(mc.program)
+    #     @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+    #     @test begin 
+    #         comt = mc.evolve(com,dt=0.01,tMax=10,dtSave=1)
+    #         (sum(comt[end].u) .- sum(comt[1].u))/10000 < 0.01
+    #     end
 
-        #3D
-        m = @agent(3, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u) + Δy(u) + Δz(u)) 
-        s = SimulationFree(m,
-                        box=[(:x,-20.,20.),(:y,-20.,20.),(:z,-20.,20.)],
-                        medium=[MediumFlat("Periodic",100),MediumFlat("Periodic",100),MediumFlat("Periodic",100)])
-        mc = compile(m,s,platform=i)
-        com = Community(mc,N=10)
-        com.u .= 1
-        # println(mc.program)
-        @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
-        @test begin 
-            comt = mc.evolve(com,dt=0.01,tMax=10,dtSave=1)
+    #     #3D
+    #     m = @agent(3, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u) + Δy(u) + Δz(u)) 
+    #     s = SimulationFree(m,
+    #                     box=[(:x,-20.,20.),(:y,-20.,20.),(:z,-20.,20.)],
+    #                     medium=[MediumFlat("Periodic",100),MediumFlat("Periodic",100),MediumFlat("Periodic",100)])
+    #     mc = compile(m,s,platform=i)
+    #     com = Community(mc,N=10)
+    #     com.u .= 1
+    #     # println(mc.program)
+    #     @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+    #     @test begin 
+    #         comt = mc.evolve(com,dt=0.01,tMax=10,dtSave=1)
 
-            (sum(comt[end].u) .- sum(comt[1].u))/1000000 < 0.01
-        end
+    #         (sum(comt[end].u) .- sum(comt[1].u))/1000000 < 0.01
+    #     end
 
-    end
+    # end
 
     # for i in testplatforms #Check diffussion disappears Dirichlet
 
@@ -332,33 +343,33 @@
 
     # end
 
-    for i in testplatforms #Check agents reading from medium
+    # for i in testplatforms #Check agents reading from medium
 
-        m = @agent(1,
-                p::Local, 
-                u::Medium, 
-                k::Global,
+    #     m = @agent(1,
+    #             p::Local, 
+    #             u::Medium, 
+    #             k::Global,
 
-                Equation = begin
-                    d_p = (u-k*p)*dt 
-                end
-                )
-        s = SimulationFree(m,
-                        box=[(:x,0.,100.)],
-                        medium=[MediumFlat("Dirichlet",100)])
-        mc = compile(m,s,platform=i)
-        com = Community(mc,N=100)
-        com.x .= [Float64(i) for i in 0:1:99]
-        com.u .= [Float64(i) for i in 0:99]
-        com.k = 1.
-        com.p .= 0.
-        # println(mc.program)
-        @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
-        @test begin 
-            comt = mc.evolve(com,dt=0.01,tMax=4000,dtSave=200)
-            all(comt[end].p .<= [Float64(i) for i in 0:1:99])
-        end
+    #             Equation = begin
+    #                 d_p = (u-k*p)*dt 
+    #             end
+    #             )
+    #     s = SimulationFree(m,
+    #                     box=[(:x,0.,100.)],
+    #                     medium=[MediumFlat("Dirichlet",100)])
+    #     mc = compile(m,s,platform=i)
+    #     com = Community(mc,N=100)
+    #     com.x .= [Float64(i) for i in 0:1:99]
+    #     com.u .= [Float64(i) for i in 0:99]
+    #     com.k = 1.
+    #     com.p .= 0.
+    #     # println(mc.program)
+    #     @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+    #     @test begin 
+    #         comt = mc.evolve(com,dt=0.01,tMax=4000,dtSave=200)
+    #         all(comt[end].p .<= [Float64(i) for i in 0:1:99])
+    #     end
 
-    end
+    # end
 
 end

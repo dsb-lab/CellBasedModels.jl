@@ -21,7 +21,7 @@ function addSavingRAM_!(p::Program_,abm::Agent,space::SimulationSpace,platform::
         push!(l,:(Core.Array{Float64,1}()))
     end
 
-    if length(abm.declaredSymbols["GlobalArray"])>1
+    if length(abm.declaredSymbols["GlobalArray"])>0
         list = string("[copy(",abm.declaredSymbols["GlobalArray"][1],")")
         for i in abm.declaredSymbols["GlobalArray"][2:end]
             list = string(list,",copy(",i,")")
@@ -36,7 +36,7 @@ function addSavingRAM_!(p::Program_,abm::Agent,space::SimulationSpace,platform::
         push!(l,:(Core.Array{Core.Array{Float64},1}()))
     end
 
-    if length(abm.declaredSymbols["Medium"])>1
+    if length(abm.declaredSymbols["Medium"]) > 0
         g = []
         if abm.dims >= 1
             if space.medium[1].minBoundaryType == "Periodic"
