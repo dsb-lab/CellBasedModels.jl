@@ -25,22 +25,23 @@ In addition to specify the dimensions, there are three types of pieces of code t
 
 For now, the following methods are included:
 
-|Type|Methods|Special symbols|
-|:---|:---|:---|
-|[**Parameters**](@ref parameters)|Local||
-||Identity||
-||Global||
-||GlobalArray||
-||Medium||
-|[**Updates**](@ref updates)|[UpdateLocal](@ref updateLocal)||
-||[UpdateGlobal](@ref updateGlobal)||
-||[Equation](@ref equation)|`d_`,`dt`,`dW`|
-||[UpdateLocalInteraction](@ref updateLocalInteraction)|`_i`,`_j`|
-||[UpdateInteraction](@ref updateInteraction)|`_i`,`_j`|
-||[UpdateMedium](@ref updateInteraction)|`∂t_`,`∇_`,`∇x_`,`∇y_`,`∇z_`,`Δ_`,`Δx_`,`Δy_`,`Δz_`,`δ_`|
-|[**Events**](@ref events)|[EventDeath](@ref eventDeath)||
-||[EventDeath](@ref eventDeath)||
-||[EventDivision](@ref eventDivision)|`_1`,`_2`|
+|Type|Methods|Special symbols|Operators|
+|:---|:---|:---|:---|
+|[**Parameters**](@ref parameters)|Local|||
+||Identity|||
+||Global|||
+||GlobalArray|||
+||Medium|||
+|[**Updates**](@ref updates)|[UpdateLocal](@ref updateLocal)|||
+||[UpdateGlobal](@ref updateGlobal)|||
+||[Equation](@ref equation)|`dt`,`dW`|`d_`|
+||[UpdateLocalInteraction](@ref updateLocalInteraction)||`_i`,`_j`|
+||[UpdateInteraction](@ref updateInteraction)||`_i`,`_j`|
+||[UpdateMedium](@ref updateMedium)||`∂t_`,`∇x`,`∇y`,`∇z`,`Δx`,`Δy`,`Δz`,`δ`|
+||[UpdateMediumInteraction](@ref updateMediumInteraction)|||
+|[**Events**](@ref events)||||
+||[EventDeath](@ref eventDeath)|||
+||[EventDivision](@ref eventDivision)||`_1`,`_2`|
 
 ### [Parameter declaration](@id parameters)
 
@@ -50,9 +51,9 @@ With this special characters, we define all the parameters that a model may have
  - **Identity**: These parameters are discrete parameters that are assigned to a each agent.
  - **Global**: Parameters that are shared by all the agents.
  - **GlobalArray**: Parameters in terms of array formats that are shared by all agents.
- - **Medium**: Parameters that form part of a continuous medium the agents are interacting with.
+ - **Medium**: Parameters that form part of a continuous medium the agents are emdedded in.
 
-The parameters can be declared individually of collect them in an array declaration.
+The parameters can be declared individually or collect them in an array declaration.
 
 ```julia
 m = @agent(dims,
@@ -75,7 +76,7 @@ m = @agent(dims,
 or equivalently,
 
 ```julia
-m = @agent(agentName,
+m = @agent(dims,
     [local1,local2]::Local,
 
     [id1,id2]::Identity,
@@ -109,7 +110,7 @@ m = @agent(agentName,
 All the declared parameters of the model and of each agent may change in time. For that, we use Update rules. All update rules are defined as:
 
 ```julia
-m = @agent(agentName,
+m = @agent(dims,
 
     Update_type = SOMERULE
 
@@ -118,7 +119,7 @@ m = @agent(agentName,
 if is a very simple rule that can be put in a line, or
 
 ```julia
-m = @agent(agentName,
+m = @agent(dims,
 
     Update_type = begin
         SOMERULES
@@ -131,7 +132,7 @@ Includes updates that will be performed at every time step on each agent indepen
 
 Example.
 ```julia
-m = @agent(agentName,
+m = @agent(dims,
     local1::Local,
 
     UpdateLocal = begin
@@ -147,7 +148,7 @@ Includes updates that will be performed at every time step on each agent indepen
 
  Example.
 ```julia
-m = @agent(agentName,
+m = @agent(dims,
     glob1::Global,
     globA1::GlobalArray,
 
@@ -167,8 +168,7 @@ $$dx = -xdt + \sqrt{D_x}dW$$
 $$dy = -ydt + \sqrt{D_y}dW$$
 
 ```julia
-m = @agent(agentName,
-    [x,y]::Local,
+m = @agent(dims,
     [Dx,Dy]::Global,
 
     Equation = begin
@@ -184,8 +184,7 @@ Define the rules for interacting agents one in each integration step. In these r
  Example, consider that an agent flips between an stressed or an unstressed state depending on the number of neighbours that it has around. We will define such a rule as,
 
 ```julia
-m = @agent(agentName,
-    x::Local,
+m = @agent(dims,
     n::Identity, #Keep the number of neighbours
     stressed::Identity #0 not stressed, 1 stressed 
 
@@ -217,8 +216,8 @@ $$\dot{x}_i = g + l_i + \sum_jf(x_i,x_j)$$
 where $x$ is a variable, $g$ a global parameter, $l$ is a local parameter, and $sum_j f(x_i,x_j)$ is a sum over the pairwise forces between particles. The sum contracts the index $j$, so the contribution of interactions are effectively defined by a local parameter $int_i=\sum_jf(x_i,x_j)$. The update of the local parameter $int_i$ will be defined as an interaction term.
 
 ```julia
-m = @agent(agentName,
-    [x,l,int]::Local,
+m = @agent(dims,
+    [l,int]::Local,
     [g]::Global,
 
     Equation = begin
@@ -227,6 +226,61 @@ m = @agent(agentName,
 
     UpdateInteraction = begin
         int_i += f(x_i,x_j)
+    end
+)
+```
+
+#### [**UpdateMedium**](@id updateMedium)
+Define the dynamics of the medium components. The medium dynamics are described with partial differential equations of reaction-drift-diffussion models.
+the agents read the parameters of the medium at their point coordinates as if they where puntual particles in their coordinates.
+The medium can also interact with the agents, with the agents throwing stuff into the medium with the declaration of [UpdateMediumInteraction rules](@ref updateMediumInteraction)
+
+    Consider the example that we want a one dimensional model of a medium that is diffusive of a compunent `u`, 
+    has a puntual source of input in the medium and general degradation everywhere. The agents move diffussively 
+    too but its diffussion is faster or slower according to the concentration of `u`.
+
+```julia
+m = @agent(1,
+    u::Medium,
+    [α,k]::Global,
+
+    Equation = d_x = u*dW
+
+    UpdateMedium = begin
+        ∂_u = Δx(u) + α*δx(0.) - k*u
+    end
+)
+```
+
+!!! warning "Stability of solutions"
+    This package is not a package for solving partial differential equations. PDEs are a hole world and it is impossible to make a bulletproof integrator to solve any partial differential equation. We restrict the use to reaction-drift-diffussion models, that are the most reasonable situation for an agent based model in a medium. Even in this case, a stable solution is not waranteed as the integrators so far implemented are not unconditionally stable. You can see a table of integrators implemented and their recomended use in [here](@ref MediumIntegrators).
+
+
+#### [**UpdateMediumInteraction**](@id updateMediumInteraction)
+Define the interaction dynamics from the agents to the medium. The agents behave as punctual particles centered at their main coordinates `(x,y,z)`. 
+The effect of the interaction would effectivaly look as an additional term in the PDE summing over the agents:
+
+$$
+\partial_u(x) = \sum_{i\in Agents} \delta(x) f(\text{Agent i Parameters})
+$$
+
+    Consider the example that we want a one dimensional model of a medium that is diffusive of a compunent `u`, 
+    the agents act as puntual source of input in the medium and general degradation everywhere. The agents move diffussively.
+
+```julia
+m = @agent(1,
+    u::Medium,
+    α::Local,
+    k::Global,
+
+    Equation = d_x = u*dW
+
+    UpdateMedium = begin
+        ∂_u = Δx(u) - k*u
+    end
+
+    UpdateMediumInteraction = begin
+        ∂_u += α
     end
 )
 ```
@@ -242,7 +296,7 @@ Define the rule in order to remove an agent from the model. The rule should be a
  Example: Consider agents that have a finite lifespan, after which they are removed from the system.
 
 ```julia
-m = @agent(agentName,
+m = @agent(dims,
     tDeath::Local,
 
     EventDeath = t > tDeath #When time is over time of death, remove the cell
@@ -260,7 +314,7 @@ Define a rule in order to divide an agent in two. In order to differentiate the 
 ```
 
  ```julia
-m = @agent(agentName,
+m = @agent(dims,
     [x,y]::Local, #Position sphere
     r::Local,     #Radius sphere
     tDiv::Local,  #Time division
@@ -369,7 +423,7 @@ with the community created we just have to assign the initial conditions to each
 Example,
 
 ```
-m = @agent(agentName,
+m = @agent(dims,
     [l1,l2]::Local,
     g::Global,
     id::Identity,

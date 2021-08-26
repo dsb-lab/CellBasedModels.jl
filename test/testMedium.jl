@@ -269,7 +269,7 @@
 
     # end
 
-    for i in testplatforms #Check steady state with source
+    for i in testplatforms #Check coumpling agents with medium
 
         m = @agent(1,
                 p::Local, 
