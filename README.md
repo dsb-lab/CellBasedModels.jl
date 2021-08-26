@@ -12,6 +12,7 @@ The following methods can be implemented in the model:
  - Division events
  - Death events
  - Boundary conditions
+ - Interaction with an embeded medium
 
 ## Installation
 

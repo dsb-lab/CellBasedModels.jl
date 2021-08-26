@@ -189,7 +189,7 @@
     #     end
     # end
 
-    for i in testplatforms[2:2] #Check diffussion is conservative Periodic
+    for i in testplatforms #Check diffussion is conservative Periodic
 
         #1D
         m = @agent(1, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u))
