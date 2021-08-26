@@ -3,5 +3,3 @@ build
 *.ipynb
 .*
 examples/.*
-!examples/Medium.ipynb
-!examples/Saiz_2020.ipynb
