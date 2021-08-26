@@ -35,7 +35,7 @@ function addIntegratorMediumLax_!(p::Program_,abm::Agent,space::SimulationSpace,
         f = postwalk(x->@capture(x,s_(v_)) ? :($(adaptOperatorsMediumLax_(v,s,abm,space,p))) : x, f) # Adapt
         f = postwalk(x->@capture(x,s_) ? adaptSymbolsMediumLax_(s,abm,space,p) : x, f) # Adapt
                         
-        f = vectorize_(abm,f,p)
+        f = vectorizeMedium_(abm,f,p)
 
         f = simpleGridLoopWrapInFunction_(platform,:mediumInnerStep_!, f, abm.dims)
 
@@ -348,21 +348,6 @@ function adaptOperatorsMediumLax_(f,op,abm,space,p)
 
     return f
 
-end
-
-function vectorizeMedium_(abm,f,p)
-
-    for (i,j) in enumerate(abm.declaredSymbols["Medium"])
-        if abm.dims == 1
-            f = postwalk(x->@capture(x,s_) && s == j ? :(mediumV[ic1_,$i]) : x,f)
-        elseif abm.dims == 2
-            f = postwalk(x->@capture(x,s_) && s == j ? :(mediumV[ic1_,ic2_,$i]) : x,f)
-        elseif abm.dims == 3
-            f = postwalk(x->@capture(x,s_) && s == j ? :(mediumV[ic1_,ic2_,ic3_,$i]) : x,f)
-        end
-    end
-
-    return f
 end
 
 δMedium_(i1,i2) = if i1==i2 1. else 0. end

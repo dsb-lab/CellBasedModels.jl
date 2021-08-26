@@ -138,6 +138,39 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
             push!(p.declareVar.args, :(mediumVCopy = copy(mediumV)))
             push!(p.args,:mediumVCopy)
         end
+
+        #Add identifiers of medium position
+        push!(p.declareVar.args,
+            :(idMediumV = zeros(Int,N,$(p.agent.dims)))
+        )            
+        push!(p.args,:idMediumV)
+
+        if p.agent.dims == 1
+            code = simpleFirstLoopWrapInFunction_(platform,:idMediumCompute!,
+                quote 
+                    idMediumV[ic1_,1] = floor(Int,(localV[ic1_,1]-$(p.space.box[1].min))/($(p.space.box[1].max)-$(p.space.box[1].min))*Nx_)+1
+                end 
+            )
+        elseif p.agent.dims == 2
+            code = simpleFirstLoopWrapInFunction_(platform,:idMediumCompute!,
+                quote 
+                    idMediumV[ic1_,1] = floor(Int,(localV[ic1_,1]-$(p.space.box[1].min))/($(p.space.box[1].max)-$(p.space.box[1].min))*Nx_)+1
+                    idMediumV[ic1_,2] = floor(Int,(localV[ic1_,2]-$(p.space.box[2].min))/($(p.space.box[2].max)-$(p.space.box[2].min))*Ny_)+1
+                end 
+            )
+        elseif p.agent.dims == 3
+            code = simpleFirstLoopWrapInFunction_(platform,:idMediumCompute!,
+                quote 
+                    idMediumV[ic1_,1] = floor(Int,(localV[ic1_,1]-$(p.space.box[1].min))/($(p.space.box[1].max)-$(p.space.box[1].min))*Nx_)+1
+                    idMediumV[ic1_,2] = floor(Int,(localV[ic1_,2]-$(p.space.box[2].min))/($(p.space.box[2].max)-$(p.space.box[2].min))*Ny_)+1
+                    idMediumV[ic1_,3] = floor(Int,(localV[ic1_,3]-$(p.space.box[3].min))/($(p.space.box[3].max)-$(p.space.box[3].min))*Nz_)+1
+                end 
+            )
+        end
+        push!(p.declareF.args, code)
+        push!(p.execInit.args, :(@platformAdapt idMediumCompute!(ARGS)))
+        push!(p.execInloop.args, :(@platformAdapt idMediumCompute!(ARGS)))
+
     end
 
     return nothing
