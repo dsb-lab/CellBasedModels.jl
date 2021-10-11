@@ -13,7 +13,6 @@
     @test_nowarn @agent(
         0,
         
-        id::Identity,
         l::Local,
         g::Global,
         ga::GlobalArray,
@@ -48,7 +47,7 @@
     @test_nowarn @agent(
         0,
 
-        [id,id2]::Identity,
+        [id2]::Identity,
         [l,l2]::Local,
         [g,g2]::Global,
         [ga,ga2]::GlobalArray,
@@ -63,7 +62,7 @@
     m = @agent(
         2,
 
-        [id]::Identity,
+        [id2]::Identity,
         [g,g2]::Global,
         [ga,ga2]::GlobalArray,
         [m1,m2]::Medium,
@@ -73,7 +72,6 @@
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
         UpdateLocalInteraction = i += 1,
-
     )
     for i in keys(m.declaredSymbols)
         @test length(m.declaredSymbols[i]) == 2

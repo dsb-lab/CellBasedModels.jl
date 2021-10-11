@@ -14,7 +14,7 @@ mutable struct Agent
     
     function Agent()
         new(0,
-            Dict{String,Array{Symbol}}("Local"=>Symbol[],"Identity"=>Symbol[:agentId],
+            Dict{String,Array{Symbol}}("Local"=>Symbol[],"Identity"=>Symbol[],
                                         "Global"=>Symbol[],"GlobalArray"=>Symbol[],"Medium"=>Symbol[]),
             Dict{String,Expr}(),
             needCompilation)
