@@ -95,7 +95,7 @@ m = @agent(dims,
      - **dt::Global**: Step of the time integration.
      - **dW::Local**: Step of the Stochastic Term.
      - **N::Global**: Number of particles in the model at the present time.
-     - **idAgent::Identity**: Identification number of each agent.
+     - **id::Identity**: Identification number of each agent.
 
     Although this variables can be accessed freely by the programer, it is only advised to use them as **read only** parameters and not modify them for the correct evolution of the program. The program will inerently use and modify them when evolving the system.
 

@@ -157,6 +157,7 @@ macro agent(dims, varargs...)
     else
         error("Dims has to be an integer between 0 and 3.")
     end
+    push!(m.declaredSymbols["Identity"],:id)
 
     #Add all contributions
     for ii in varargs

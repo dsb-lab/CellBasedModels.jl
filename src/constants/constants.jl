@@ -20,7 +20,7 @@ VALID_UPDATES = [
 
 UPDATINGOPERATORS = [:+= ,:-=,:*=,:/=,:\=,:÷=,:%=,:^=,:&=,:|=,:⊻=,:>>>=,:>>=,:<<=]
 
-RESERVEDSYMBOLS = [:x,:y,:z,:t,:N,:dt,:dW,:nMax,
+RESERVEDSYMBOLS = [:x,:y,:z,:id,:t,:N,:dt,:dW,:nMax,
                     :idMediumX,:idMediumY,:idMediumZ,
                     :ic1_,:ic2_,:nnic2_,:pos_,
                     :localV,:identityV,:globalV,:mediumV,
