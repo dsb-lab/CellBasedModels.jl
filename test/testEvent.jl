@@ -56,7 +56,7 @@ using Base: LogicalIndex
             if comt[end].N != n*comt[end].t+1 error() end
             if !prod(comt[end].loc .== 67.) error() end
             if !prod(comt[end].id1 .== 4) error() end
-            if maximum(x->isnan(x) ? -Inf : x, comt.agentId) != 2*length(comt)-1 error() end
+            if maximum(x->isnan(x) ? -Inf : x, comt.id) != 2*length(comt)-1 error() end
 
         end
 
@@ -139,7 +139,7 @@ using Base: LogicalIndex
             if !Bool(prod(comt.N[1:101] .== Array(100:-1:0))) error() end
             if !Bool(prod(comt.N[101:end] .== 0)) error() end
             for i in 1:100
-                if !Bool(prod(comt[i].agentId .== comt[i].x)) error() end
+                if !Bool(prod(comt[i].id .== comt[i].x)) error() end
             end
 
         end

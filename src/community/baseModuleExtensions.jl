@@ -151,13 +151,13 @@ function Base.getproperty(a::CommunityInTime,var::Symbol)
 
         else
 
-            nMax = maximum(a.com[end].agentId)
+            nMax = maximum(a.com[end].id)
             #Create array
             out = fill(NaN,length(a),nMax)
             #Fill array
             for i in 1:length(a)
-                a.com[i].agentId
-                out[i,a[i].agentId] .= getproperty(a.com[i],var)
+                a.com[i].id
+                out[i,a[i].id] .= getproperty(a.com[i],var)
             end
             
             return out
