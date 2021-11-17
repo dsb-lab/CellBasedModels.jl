@@ -10,6 +10,9 @@ function cudaAdapt_(code::Expr)
     for i in l
         code = subs_(code,i,Meta.parse(string("CUDA.","$i")))
     end
+    #Subs power
+    code = postwalk(x->@capture(x, a_^b_) && typeof(b) != Int ? :(Float32($a)^$b) : x, code)
+
     #Subs vectors
     for i in [:zeros,:ones]
         code = subs_(code,i,Meta.parse(string("CUDA.","$i")))
