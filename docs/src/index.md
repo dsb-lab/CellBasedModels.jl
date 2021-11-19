@@ -28,7 +28,7 @@ or from the Pkg REPL
 
 |Embryogenesys|Medium|
 |:---:|:---:|
-|[![Embryogenesis](./assets/Saiz.gif)](@ref saiz)|[![Medium](./assets/example_medium_video.gif)](@ref medium)|
+|[![Embryogenesis](./assets/Saiz.gif)](https://github.com/dsb-lab/AgentBasedModels.jl/blob/master/examples/Saiz_2020.ipynb)|[![Medium](./assets/example_medium_video.gif)](https://github.com/dsb-lab/AgentBasedModels.jl/blob/master/examples/Medium.ipynb)|
 
 ## Limitations
 
