@@ -5,6 +5,18 @@ Simulation space for N-body simulations with local interactions.
 The algorithm implemented uses a fixed radial neighbours search as proposed by 
 [Rama C. Hoetzlein](https://on-demand.gputechconf.com/gtc/2014/presentations/S4117-fast-fixed-radius-nearest-neighbor-gpu.pdf)
 both for CPU and GPU. For now, the last step of the proposed algorithm, sorting, is ignored but the idea may be to implement for the GPU case soon if it really makes a difference.
+
+# Constructors
+
+    SimulationGrid(abm::Agent; box::Array{<:Any,1}, radius::Union{<:Real,Array{<:Real,1}}, medium::Array{<:Medium,1}=Array{Medium,1}())
+
+### Arguments
+ - **abm::Agent** Agent to put in the simulation space.
+
+### Keyword arguments
+ - **box::Array{<:Any,1}** Box where to put the agents. It has to be an array with objects FlatBoundary defining the behaviour of each boundary.
+ - **radius::Union{<:Real,Array{<:Real,1}}** Radius of interaction of the agents. It can be a real value if isotropic interaction of a vector of the same dimensions as the agent with the radius in each direction.
+ - **medium::Array{<:Medium,1}** (Default Array{Medium,1}()) Characteristics of the boundary behaviour of the medium, if it exists.
 """
 struct SimulationGrid <: SimulationSpace
 
@@ -18,7 +30,7 @@ struct SimulationGrid <: SimulationSpace
 
 end
 
-function SimulationGrid(abm::Agent, box::Array{<:Any,1}, radius::Union{<:Real,Array{<:Real,1}}; medium::Array{<:Medium,1}=Array{Medium,1}())
+function SimulationGrid(abm::Agent; box::Array{<:Any,1}, radius::Union{<:Real,Array{<:Real,1}}, medium::Array{<:Medium,1}=Array{Medium,1}())
 
     #Check dimensionality
     if length(box) == 0

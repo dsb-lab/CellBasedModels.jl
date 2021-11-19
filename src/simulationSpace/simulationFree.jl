@@ -1,10 +1,18 @@
 """
-    struct SimulationFree <: SimulationSpace
-
 Simulation space for N-body simulations with all-with-all interactions.
 The method implemented so far uses a brute force approach and only parallelizes over the number of agents, 
 hence having a minimum cost of computation of ``O(N)`` at best.
-In the future we will implement parallelization over the second loop to further reduce the computational cost in favourable systems.
+
+# Constructors
+
+    function SimulationFree(abm::Agent; box::Array{<:Any,1}=Array{FlatBoundary,1}(), medium::Array{<:Medium,1}=Array{Medium,1}())
+
+### Arguments
+ - **abm::Agent** Agent to put in the simulation space.
+
+### Keyword arguments
+ - **box::Array{<:Any,1}** (Default Array{FlatBoundary,1}()) Box where to put the agents. It has to be an array with objects FlatBoundary defining the behaviour of each boundary.
+ - **medium::Array{<:Medium,1}** (Default Array{Medium,1}()) Characteristics of the boundary behaviour of the medium, if it exists.
 """
 struct SimulationFree <: SimulationSpace
 

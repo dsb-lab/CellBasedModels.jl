@@ -162,7 +162,7 @@ m = @agent(dims,
 #### [**Equation**](@id equation)
 Specific local update rule for the definition of ODE ans SDE systems of equations governing the dynamics of the agents. Equations accept both ODE and SDE systems of equations. Each equation is defined by using the special symbols `d_` in front the the differential variable, `dt` for deterministic component and `dW` for the stochastic term.
 
- Example: Consider a 2D [Ornstein–Uhlenbeck process](https://en.wikipedia.org/wiki/Ornstein%E2%80%93Uhlenbeck_process) with asymmetric difussivity. The system of equations would look like:
+Example: Consider a 2D [Ornstein–Uhlenbeck process](https://en.wikipedia.org/wiki/Ornstein%E2%80%93Uhlenbeck_process) with asymmetric difussivity. The system of equations would look like:
 
 $$dx = -xdt + \sqrt{D_x}dW$$
 $$dy = -ydt + \sqrt{D_y}dW$$
@@ -181,7 +181,7 @@ m = @agent(dims,
 #### [**UpdateLocalInteraction**](@id updateLocalInteraction)
 Define the rules for interacting agents one in each integration step. In these rules, local and identity parameters of two agents will be used. To differentiate the parameters of which agent we are using, we use the notation `_i` to indicate the agent we are updating the rules and `_j` for the other agents interacting with the agent being updated. This notation resembles the notation of a contracting index $x_i=\sum_jx_{ij}$.
 
- Example, consider that an agent flips between an stressed or an unstressed state depending on the number of neighbours that it has around. We will define such a rule as,
+Example, consider that an agent flips between an stressed or an unstressed state depending on the number of neighbours that it has around. We will define such a rule as,
 
 ```julia
 m = @agent(dims,
@@ -235,9 +235,9 @@ Define the dynamics of the medium components. The medium dynamics are described 
 the agents read the parameters of the medium at their point coordinates as if they where puntual particles in their coordinates.
 The medium can also interact with the agents, with the agents throwing stuff into the medium with the declaration of [UpdateMediumInteraction rules](@ref updateMediumInteraction)
 
-    Consider the example that we want a one dimensional model of a medium that is diffusive of a compunent `u`, 
-    has a puntual source of input in the medium and general degradation everywhere. The agents move diffussively 
-    too but its diffussion is faster or slower according to the concentration of `u`.
+Consider the example that we want a one dimensional model of a medium that is diffusive of a compunent `u`, 
+has a puntual source of input in the medium and general degradation everywhere. The agents move diffussively 
+too but its diffussion is faster or slower according to the concentration of `u`.
 
 ```julia
 m = @agent(1,
@@ -264,8 +264,8 @@ $$
 \partial_u(x) = \sum_{i\in Agents} \delta(x) f(\text{Agent i Parameters})
 $$
 
-    Consider the example that we want a one dimensional model of a medium that is diffusive of a compunent `u`, 
-    the agents act as puntual source of input in the medium and general degradation everywhere. The agents move diffussively.
+Consider the example that we want a one dimensional model of a medium that is diffusive of a compunent `u`, 
+the agents act as puntual source of input in the medium and general degradation everywhere. The agents move diffussively.
 
 ```julia
 m = @agent(1,
@@ -293,7 +293,7 @@ Events are rules that change the total number of agents in a simulation.
 
 Define the rule in order to remove an agent from the model. The rule should be and boolean rule.
 
- Example: Consider agents that have a finite lifespan, after which they are removed from the system.
+Example: Consider agents that have a finite lifespan, after which they are removed from the system.
 
 ```julia
 m = @agent(dims,
@@ -307,7 +307,7 @@ m = @agent(dims,
 
 Define a rule in order to divide an agent in two. In order to differentiate the different agent daughters properties, use the markers `_1` and `_2`.
 
- Example: Consider that an agent has a orientation in the polar plane. When dividing it in two, the daughters choose a random direction of orientation and divide.
+Example: Consider that an agent has a orientation in the polar plane. When dividing it in two, the daughters choose a random direction of orientation and divide.
 
 ```@raw html
 <img src="./assets/Division Random Sphere.png" width="75%" class="center"/>
@@ -344,8 +344,8 @@ For the moment, there is two possible simulation spaces possible.
 
 | Simulation Spaces | Good for simulations | Required parameters | Optional parameters |
 |---|:---:|:---:|---|
-| SimulationFree | Unbounded simulations , Small bounded simulations, All-to-all interactions | None | Array with bounds (1D-3D) |
-| SimulationGrid | Bounded simulations, Large bounded simulations, Local interactions | Array with bounds (1D-3D), Distance of interaction | None |
+| [SimulationFree](@ref Simulation_Free) | Unbounded simulations , Small bounded simulations, All-to-all interactions | None | Array with bounds (1D-3D) |
+| [SimulationGrid](@ref Simulation_Free) | Bounded simulations, Large bounded simulations, Local interactions | Array with bounds (1D-3D), Distance of interaction | None |
 
 See [Small Example](@ref simulationSpaceExample) for an illustrative example of how to define complex simulation spaces.
 
@@ -376,10 +376,9 @@ Consider the artificial example of simulating a 2D pipe in which non-interacting
 The code would look like,
 
 ```julia
-m = @agent(
-    partilcesInAPippe,
+m = @agent(2,
 
-    [x,y,x1,y1]::Local,   #Particle position and second positions
+    [xx1,y1]::Local,   #Particle position and second positions
     [vx,vy]::Local, #Particle velocity
     driftx::Global, #Drift of the particles in the x direction
     diffussion::Global, #Drift of the particles in the x direction
@@ -394,8 +393,8 @@ m = @agent(
 
 #Define the space, not necessary to define a Grid sinceparticles do not interact
 space = SpaceFree(m,
-        [
-        Periodic(:x,0,10,addition=[x1]),
+        box = [
+        Periodic(:x,0,10,addition=[:x1]),
         Bound(:y,0,1,bounceMin=[:y],reflectMin[:vy],stopMax=[:y]
         ]
 )
