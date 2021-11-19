@@ -92,24 +92,7 @@ end
 
     @test hasmethod(AgentBasedModels.arguments_!,(AgentBasedModels.Program_, Agent, SimulationGrid, String))
     @test hasmethod(AgentBasedModels.loop_,(AgentBasedModels.Program_, Agent, SimulationGrid, Expr, String))
-
-    m = @agent 3 [w]::Local;
-    @test_throws ErrorException SimulationGrid(m,[(:x,2.,1.)],1)
-    @test_throws ErrorException SimulationGrid(m,[(:g,1.,2.)],1)
-    @test_throws ErrorException SimulationGrid(m,[(:x,1.,2.),(:x,1.,2.)],1)
-    @test_throws ErrorException SimulationGrid(m,[(:x,1.,2.),(:y,1.,2.),(:z,1.,2.),(:w,1.,2.)],1)
-    @test_throws ErrorException SimulationGrid(m,[(:x,1.,2.),(:y,1.,2.),(:z,1.,2.),(:w,1.,2.)],[1,2])
-
-    @test_nowarn SimulationGrid(m,[(:x,0.,1.),(:y,0.,2.),(:z,0.,3.)],1)
-    @test_nowarn SimulationGrid(m,[(:x,0.,1.),(:y,0.,2.),(:z,0.,3.)],[1.,2.,3.])
-    @test_nowarn SimulationGrid(m,[Bound(:x,0.,1.),Periodic(:y,0.,2.),Bound(:z,0.,3.)],5.)
-
-    nn = SimulationGrid(m,[(:x,0.,1.),(:y,0.,2.),(:z,0.,3.)],1.)
-    @test nn.dim == 3
-    @test nn.n == 3*4*5
-    @test nn.axisSize == [3,4,5]
-    @test nn.cumSize == [1,3,12] 
-
+    
     @test begin
         xx = []
         for x in -2.:1.:2.
@@ -260,6 +243,9 @@ end
         xx == [94,92,93,84,82,83,89,87,88,44,42,43,34,32,33,39,37,38,69,67,68,59,57,58,64,62,63]
     end
 
+    m = @agent 3 [w]::Local;
+    nn = SimulationGrid();
+
     @test_nowarn AgentBasedModels.arguments_!(AgentBasedModels.Program_(m,nn),m,nn,"cpu")
 
     for platform in testplatforms
@@ -285,7 +271,7 @@ end
             end,
         )
 
-        s = SimulationGrid(m,[(:l1,-10,10)],[5.])
+        s = SimulationGrid()
         mo = compile(m,s,platform=platform,debug=false)
         #println(mo.program)
         @test begin

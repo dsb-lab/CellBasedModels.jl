@@ -1,40 +1,40 @@
 """
-    function compile(abm,space=SimulationFree();platform="cpu", integrator = "euler", save = "RAM", debug = false, user_=true)
+    function compile(abm=SimulationFree();platform="cpu", neighbours="full", integrator = "euler", save = "RAM", debug = false, user_=true)
 
-Function that takes an Agent and a simulation space and constructs the function in charge of the evolutions of the model.
+Function that takes an Agent and a simulation and constructs the function in charge of the evolutions of the model.
 """
-function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=SimulationFree(abmOriginal); platform="cpu", integrator::String = "Euler", integratorMedium::String = "FTCS", save::String = "RAM", debug = false, user_=true)
+function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", neighbours="full", integrator::String = "Euler", integratorMedium::String = "FTCS", save::String = "RAM", debug = false, user_=true)
 
     abm = deepcopy(abmOriginal)
     
-    p = Program_(abm,space)
+    p = Program_(abm)
 
     #Update
-    updates_!(p,abm,space)
+    updates_!(p,abm)
 
     #Neighbours declare
-    arguments_!(p,abm,space,platform)
+    arguments_!(p,abm,platform)
     
     #Declare all the agent properties related functions, arguments, code...
-    addCleanInteraction_!(p,abm,space,platform)
-    addCleanLocalInteraction_!(p,abm,space,platform)
-    addParameters_!(p,abm,space,platform)
-    addCopyInitialisation_!(p,abm,space,platform)
-    addIntegrator_![integrator](p,abm,space,platform)
-    addUpdateGlobal_!(p,abm,space,platform)
-    addUpdateLocal_!(p,abm,space,platform)
-    addUpdateLocalInteraction_!(p,abm,space,platform)
-    addCheckBounds_!(p,abm,space,platform)
-    addUpdateMediumInteraction_!(p,abm,space,platform)
-    addIntegratorMedium_![integratorMedium](p,abm,space,platform)
-    addUpdate_!(p,abm,space,platform)
+    addCleanInteraction_!(p,abm,platform)
+    addCleanLocalInteraction_!(p,abm,platform)
+    addParameters_!(p,abm,platform)
+    addCopyInitialisation_!(p,abm,platform)
+    addIntegrator_![integrator](p,abm,platform)
+    addUpdateGlobal_!(p,abm,platform)
+    addUpdateLocal_!(p,abm,platform)
+    addUpdateLocalInteraction_!(p,abm,platform)
+    addCheckBounds_!(p,abm,platform)
+    addUpdateMediumInteraction_!(p,abm,platform)
+    addIntegratorMedium_![integratorMedium](p,abm,platform)
+    addUpdate_!(p,abm,platform)
     #Events
-    addEventDivision_!(p,abm,space,platform)
-    addEventDeath_!(p,abm,space,platform)
+    addEventDivision_!(p,abm,platform)
+    addEventDeath_!(p,abm,platform)
 
 
     #Saving
-    addSaving_![save](p,abm,space,platform)
+    addSaving_![save](p,abm,platform)
 
     if platform == "gpu"
         gpuConf = :()
@@ -42,7 +42,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=S
 
     program = quote
         function (com::Community; dt::Real, tMax::Real, t::Real=com.t, N::Integer=com.N, nMax::Integer=com.N, 
-                dtSave::Real=dt,tSave::Real=0,saveFile::String="")
+                dtSave::Real=dt,tSave::Real=0,saveFile::String="",box::Array{<:Real}=Array{Real,1}([]),r::Union{<:Real,Array{<:Real,1}}=Array{Real,1}([]))
             #Promoting to the correct type
             dt = Float64(dt)
             tMax = Float64(tMax)
@@ -85,9 +85,9 @@ function compile(abmOriginal::Union{Agent,Array{Agent}},space::SimulationSpace=S
     end
 
     if user_ == true
-        model = Model(abm,space,program,Main.eval(program))
+        model = Model(abm,program,Main.eval(program))
     else
-        model = Model(abm,space,program,AgentBasedModels.eval(program))
+        model = Model(abm,program,AgentBasedModels.eval(program))
     end
 
     return model

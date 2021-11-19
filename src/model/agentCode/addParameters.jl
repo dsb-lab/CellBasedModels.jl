@@ -99,7 +99,7 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
                 push!(p.declareVar.args, :(mediumV = copy(com.medium_)))
             end
 
-            push!(p.declareVar.args, :(dxₘ_ = ($(space.box[1].max)-$(space.box[1].min))/$(space.medium[1].N)))
+            push!(p.declareVar.args, :(dxₘ_ = (box[1,2]-box[1,1])/$(space.medium[1].N)))
 
             push!(p.args,:Nx_)
             push!(p.args,:dxₘ_)
@@ -112,7 +112,7 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
                 push!(p.declareVar.args, :(Ny_ = size(com.medium_)[2]))
             end
 
-            push!(p.declareVar.args, :(dyₘ_ = ($(space.box[2].max)-$(space.box[2].min))/$(space.medium[2].N)))
+            push!(p.declareVar.args, :(dyₘ_ = (box[2,2]-box[2,1])/$(space.medium[2].N)))
 
             push!(p.args,:Ny_)
             push!(p.args,:dyₘ_)
@@ -125,7 +125,7 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
                 push!(p.declareVar.args, :(Nz_ = size(com.medium_)[3]))
             end
 
-            push!(p.declareVar.args, :(dzₘ_ = ($(space.box[3].max)-$(space.box[3].min))/$(space.medium[3].N)))
+            push!(p.declareVar.args, :(dzₘ_ = (box[3,2]-box[3,1])/$(space.medium[3].N)))
 
             push!(p.args,:Nz_)
             push!(p.args,:dzₘ_)
@@ -148,22 +148,22 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
         if p.agent.dims == 1
             code = simpleFirstLoopWrapInFunction_(platform,:idMediumCompute!,
                 quote 
-                    idMediumV[ic1_,1] = floor(Int,(localV[ic1_,1]-$(p.space.box[1].min))/($(p.space.box[1].max)-$(p.space.box[1].min))*Nx_)+1
+                    idMediumV[ic1_,1] = floor(Int,(localV[ic1_,1]-box[1,1])/(box[1,2]-box[1,1])*Nx_)+1
                 end 
             )
         elseif p.agent.dims == 2
             code = simpleFirstLoopWrapInFunction_(platform,:idMediumCompute!,
                 quote 
-                    idMediumV[ic1_,1] = floor(Int,(localV[ic1_,1]-$(p.space.box[1].min))/($(p.space.box[1].max)-$(p.space.box[1].min))*Nx_)+1
-                    idMediumV[ic1_,2] = floor(Int,(localV[ic1_,2]-$(p.space.box[2].min))/($(p.space.box[2].max)-$(p.space.box[2].min))*Ny_)+1
+                    idMediumV[ic1_,1] = floor(Int,(localV[ic1_,1]-box[1,1])/(box[1,2]-box[1,1])*Nx_)+1
+                    idMediumV[ic1_,2] = floor(Int,(localV[ic1_,2]-box[2,1])/(box[2,2]-box[2,1])*Ny_)+1
                 end 
             )
         elseif p.agent.dims == 3
             code = simpleFirstLoopWrapInFunction_(platform,:idMediumCompute!,
                 quote 
-                    idMediumV[ic1_,1] = floor(Int,(localV[ic1_,1]-$(p.space.box[1].min))/($(p.space.box[1].max)-$(p.space.box[1].min))*Nx_)+1
-                    idMediumV[ic1_,2] = floor(Int,(localV[ic1_,2]-$(p.space.box[2].min))/($(p.space.box[2].max)-$(p.space.box[2].min))*Ny_)+1
-                    idMediumV[ic1_,3] = floor(Int,(localV[ic1_,3]-$(p.space.box[3].min))/($(p.space.box[3].max)-$(p.space.box[3].min))*Nz_)+1
+                    idMediumV[ic1_,1] = floor(Int,(localV[ic1_,1]-box[1,1])/(box[1,2]-box[1,1])*Nx_)+1
+                    idMediumV[ic1_,2] = floor(Int,(localV[ic1_,2]-box[2,1])/(box[2,2]-box[2,1])*Ny_)+1
+                    idMediumV[ic1_,3] = floor(Int,(localV[ic1_,3]-box[3,1])/(box[3,2]-box[3,1])*Nz_)+1
                 end 
             )
         end
