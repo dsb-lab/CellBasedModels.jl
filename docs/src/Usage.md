@@ -344,8 +344,8 @@ For the moment, there is two possible simulation spaces possible.
 
 | Simulation Spaces | Good for simulations | Required parameters | Optional parameters |
 |---|:---:|:---:|---|
-| [SimulationFree](@ref Simulation_Free) | Unbounded simulations , Small bounded simulations, All-to-all interactions | None | Array with bounds (1D-3D) |
-| [SimulationGrid](@ref Simulation_Free) | Bounded simulations, Large bounded simulations, Local interactions | Array with bounds (1D-3D), Distance of interaction | None |
+| [SimulationFree](@ref Simulation) | Unbounded simulations , Small bounded simulations, All-to-all interactions | None | Array with bounds (1D-3D) |
+| [SimulationGrid](@ref Simulation) | Bounded simulations, Large bounded simulations, Local interactions | Array with bounds (1D-3D), Distance of interaction | None |
 
 See [Small Example](@ref simulationSpaceExample) for an illustrative example of how to define complex simulation spaces.
 

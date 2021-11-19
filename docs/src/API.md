@@ -14,17 +14,13 @@ Agent
 add
 ```
 
-## Simulation Spaces
+## Simulation Spaces (@id Simulation)
 
 Methods involved in the creation of spaces of simulation.
 
-(@id Simulation_Free)
+
 ```@docs
 SimulationFree
-```
-
-(@id Simulation_Grid)
-```@docs
 SimulationGrid
 ```
 
