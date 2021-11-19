@@ -14,6 +14,12 @@ Boundary defining periodic boundary conditions.
 
 ### Keyword arguments
  - **additional::Array{Symbol,1}** (Default Array{Symbol,1}()) Additional symbols to be updated when the symbol `s` crosses the boundary.
+
+# Example: An elongated particle with two degrees of freedom `x` and `x1` moving in periodic conditions.
+
+```
+bound = Periodic(:x,0,10,additional=[:x1])
+```
 """
 struct Periodic<:FlatBoundary 
     s::Symbol
@@ -93,6 +99,17 @@ All the behaviours can be specified for the minimum, the maximum or both boundar
  - **reflect::Array{Symbol,1}** (Default Array{Symbol,1}())
  - **reflectMin::Array{Symbol,1}** (Default Array{Symbol,1}())
  - **reflectMax::Array{Symbol,1}** (Default Array{Symbol,1}())
+
+Example: A particle with some velocity that bounces when touches a border and changes direction.
+
+```
+boundX = Bound(:x,0,10,
+            bounce=[:x],
+            reflect=[:vx])
+boundY = Bound(:y,0,10,
+            bounce=[:y],
+            reflect=[:vy])
+```
 """
 struct Bound<:NonPeriodicFlat 
     s::Symbol
