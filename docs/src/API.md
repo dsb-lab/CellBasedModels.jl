@@ -28,6 +28,13 @@ SimulationFree
 SimulationGrid
 ```
 
+### Boundaries
+
+```@docs
+Bound
+Periodic
+```
+
 ## Model
 
 ```@docs

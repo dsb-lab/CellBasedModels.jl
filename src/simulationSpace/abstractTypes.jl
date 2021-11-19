@@ -1,4 +1,20 @@
 #Boundary types
+
+"""
+Boundary defining periodic boundary conditions.
+
+# Constructors
+
+    function Periodic(s::Symbol,min::Real,max::Real;additional::Array{Symbol,1}=Array{Symbol,1}())
+
+### Arguments
+ - **s::Symbol** Symbol of the variable to be used for the periodic variable.
+ - **min::Real** Minimum of the boundary.
+ - **max::Real** Maximum of the boundary.
+
+### Keyword arguments
+ - **additional::Array{Symbol,1}** (Default Array{Symbol,1}()) Additional symbols to be updated when the symbol `s` crosses the boundary.
+"""
 struct Periodic<:FlatBoundary 
     s::Symbol
     min::Real
@@ -39,6 +55,45 @@ function returnBound_(b::Periodic,p::Program_)
     return code
 end
 
+"""
+Default boundary defining a non-periodic, bounded space. The parameters specified in keyword arguments can have three behaviours:
+
+ - **stop**: If the symbol `s` crosses the boundary, the specified parameter will be set to zero.
+ - **bounce**: If the symbol `s` crosses the boundary, the specified parameter will be set to the position with respect to the boundary as it have bounced back.
+ - **reflect**: If the symbol `s` crosses the boundary, the specified parameter will change sign.
+
+All the behaviours can be specified for the minimum, the maximum or both boundaries.
+
+# Constructors
+
+    function Bound(s::Symbol,min::Real,max::Real;
+        stop::Array{Symbol,1}=Array{Symbol,1}(),
+        stopMin::Array{Symbol,1}=Array{Symbol,1}(),
+        stopMax::Array{Symbol,1}=Array{Symbol,1}(),
+        bounce::Array{Symbol,1}=Array{Symbol,1}(),
+        bounceMin::Array{Symbol,1}=Array{Symbol,1}(),
+        bounceMax::Array{Symbol,1}=Array{Symbol,1}(),
+        reflect::Array{Symbol,1}=Array{Symbol,1}(),
+        reflectMin::Array{Symbol,1}=Array{Symbol,1}(),
+        reflectMax::Array{Symbol,1}=Array{Symbol,1}()
+        )
+
+### Arguments
+ - **s::Symbol** Symbol of the variable to be used for the periodic variable.
+ - **min::Real** Minimum of the boundary.
+ - **max::Real** Maximum of the boundary.
+
+### Keyword arguments
+ - **stop::Array{Symbol,1}** (Default Array{Symbol,1}())) 
+ - **stopMin::Array{Symbol,1}** (Default Array{Symbol,1}())
+ - **stopMax::Array{Symbol,1}** (Default Array{Symbol,1}())
+ - **bounce::Array{Symbol,1}** (Default Array{Symbol,1}())
+ - **bounceMin::Array{Symbol,1}** (Default Array{Symbol,1}())
+ - **bounceMax::Array{Symbol,1}** (Default Array{Symbol,1}())
+ - **reflect::Array{Symbol,1}** (Default Array{Symbol,1}())
+ - **reflectMin::Array{Symbol,1}** (Default Array{Symbol,1}())
+ - **reflectMax::Array{Symbol,1}** (Default Array{Symbol,1}())
+"""
 struct Bound<:NonPeriodicFlat 
     s::Symbol
     min::Real

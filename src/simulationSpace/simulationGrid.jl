@@ -1,6 +1,4 @@
 """
-    struct SimulationFree <: SimulationSpace
-
 Simulation space for N-body simulations with local interactions.
 The algorithm implemented uses a fixed radial neighbours search as proposed by 
 [Rama C. Hoetzlein](https://on-demand.gputechconf.com/gtc/2014/presentations/S4117-fast-fixed-radius-nearest-neighbor-gpu.pdf)
