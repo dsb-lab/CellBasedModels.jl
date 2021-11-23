@@ -22,7 +22,7 @@
         
         s = SimulationFree(m)
 
-        m = compile(m,s)
+        m = compile(m)
     end
 
     m = @agent(
@@ -48,7 +48,7 @@
         end
     )
     s = SimulationFree(m)
-    m = compile(m,s,debug=false)
+    m = compile(m,debug=false)
 
     @test begin
         com = Community(m,N=4)

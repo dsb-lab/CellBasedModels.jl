@@ -1,6 +1,6 @@
-function addSavingCSV_!(p::Program_,abm::Agent,Space::SimulationSpace,platform::String)
+function addSavingCSV_!(p::Program_,platform::String)
     
-    addSavingRAM_!(p,abm,Space,platform)
+    addSavingRAM_!(p,platform)
 
     push!(p.declareVar.args,:(saveCounter=1))
 

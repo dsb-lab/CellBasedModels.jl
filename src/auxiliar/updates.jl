@@ -1,13 +1,13 @@
 """
-    function updates_!(p,abm)
+    function updates_!(p)
 
 Function that checks the variables in the model that are modified at each step in order to make appropiate copy vectors and add them to program.
 """
-function updates_!(p::Program_,abm::Agent,space::SimulationSpace)
+function updates_!(p::Program_)
     syms = []
-    for i in keys(abm.declaredUpdates)
-        if !(emptyquote_(abm.declaredUpdates[i])) && !(i in ["UpdateInteraction","UpdateLocalInteraction"])
-            s = symbols_(abm,abm.declaredUpdates[i])
+    for i in keys(p.agent.declaredUpdates)
+        if !(emptyquote_(p.agent.declaredUpdates[i])) && !(i in ["UpdateInteraction","UpdateLocalInteraction"])
+            s = symbols_(p.agent,p.agent.declaredUpdates[i])
             append!(syms,s[Bool.(s[:,"updated"] .+ s[:,"assigned"]),"Symbol"])
         end
     end
@@ -15,11 +15,11 @@ function updates_!(p::Program_,abm::Agent,space::SimulationSpace)
     unique!(syms)
 
     ## Assign updates of variable types
-    for t in keys(abm.declaredSymbols)
+    for t in keys(p.agent.declaredSymbols)
         dict = Dict{Symbol,Int}()
         counter = 1
         for i in syms
-            if i in abm.declaredSymbols[t]
+            if i in p.agent.declaredSymbols[t]
                 dict[i] = counter
                 counter += 1
             end
@@ -30,9 +30,9 @@ function updates_!(p::Program_,abm::Agent,space::SimulationSpace)
     ## Check equations and their update variables
     dict = Dict{Symbol,Int}()
     counter = 1
-    if "Equation" in keys(abm.declaredUpdates)
-        s = symbols_(abm,abm.declaredUpdates["Equation"]).Symbol
-        for i in abm.declaredSymbols["Local"]
+    if "Equation" in keys(p.agent.declaredUpdates)
+        s = symbols_(p.agent,p.agent.declaredUpdates["Equation"]).Symbol
+        for i in p.agent.declaredSymbols["Local"]
             ss = Meta.parse(string(EQUATIONSYMBOL,i))
             if ss in s
                 dict[i] = counter
@@ -52,10 +52,10 @@ function updates_!(p::Program_,abm::Agent,space::SimulationSpace)
     ## Check division and their update variables
     dict = Dict{Symbol,Int}()
     counter = 1
-    if "EventDivision" in keys(abm.declaredUpdates)
-        s = symbols_(abm,abm.declaredUpdates["EventDivision"]).Symbol
+    if "EventDivision" in keys(p.agent.declaredUpdates)
+        s = symbols_(p.agent,p.agent.declaredUpdates["EventDivision"]).Symbol
         for place in ["Local","Identity"]
-            for i in abm.declaredSymbols[place]
+            for i in p.agent.declaredSymbols[place]
                 for j in DIVISIONSYMBOLS
                     ss = Meta.parse(string(i,j))
                     if ss in s && !(i in keys(dict))
@@ -75,13 +75,15 @@ function updates_!(p::Program_,abm::Agent,space::SimulationSpace)
     end
     p.update["EventDivision"] = dict
 
-    ## Check space and bound updates
-    for i in space.box
-        if i.s in keys(p.update["Local"])
-            for j in keys(i.addSymbols)
-                for k in i.addSymbols[j]
-                    if !(k in keys(p.update["Local"]))
-                        p.update["Local"][k] = maximum(values(p.update["Local"])) + 1
+    ## Check space and bound updates if there is a medium
+    if !isempty(p.agent.declaredSymbols["Medium"])
+        for (i,s) in enumerate([:x,:y,:z][1:p.agent.dims])
+            if s in keys(p.update["Local"])
+                for j in keys(p.agent.boundary.boundaries[i].addSymbols)
+                    for k in i.addSymbols[j]
+                        if !(k in keys(p.update["Local"]))
+                            p.update["Local"][k] = maximum(values(p.update["Local"])) + 1
+                        end
                     end
                 end
             end
@@ -91,9 +93,9 @@ function updates_!(p::Program_,abm::Agent,space::SimulationSpace)
     ## Check equations and their update variables
     dict = Dict{Symbol,Int}()
     counter = 1
-    if "UpdateMedium" in keys(abm.declaredUpdates)
-        s = symbols_(abm,abm.declaredUpdates["UpdateMedium"]).Symbol
-        for i in abm.declaredSymbols["Medium"]
+    if "UpdateMedium" in keys(p.agent.declaredUpdates)
+        s = symbols_(p.agent,p.agent.declaredUpdates["UpdateMedium"]).Symbol
+        for i in p.agent.declaredSymbols["Medium"]
             ss = Meta.parse(string(MEDIUMSYMBOL,i))
             if ss in s
                 dict[i] = counter

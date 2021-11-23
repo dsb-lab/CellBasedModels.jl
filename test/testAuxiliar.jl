@@ -15,43 +15,40 @@
         0,
         l::Local,
         g::Global,
-        h::GlobalArray,
-        id::Identity
+        h::GlobalArray
     )
-    s = SimulationFree(m);
-    p = AgentBasedModels.Program_(m,s);
-    AgentBasedModels.updates_!(p,m,s)
+    p = AgentBasedModels.Program_(m);
+    AgentBasedModels.updates_!(p)
     @test AgentBasedModels.vectorize_(m,:(l = 1), p) == :(localV[ic1_,1]=1)
     @test AgentBasedModels.vectorize_(m,:(l_i = 1), p) == :(localV[ic1_,1]=1)
     @test AgentBasedModels.vectorize_(m,:(l_j = 1), p) == :(localV[nnic2_,1]=1)
     @test AgentBasedModels.vectorize_(m,:(g = 1), p) == :(globalV[1]=1)
     @test AgentBasedModels.vectorize_(m,:(h[1,2] = 1), p) == :(h[1,2]=1)
-    @test AgentBasedModels.vectorize_(m,:(id = 1), p) == :(identityV[ic1_,2]=1)
-    @test AgentBasedModels.vectorize_(m,:(id_i = 1), p) == :(identityV[ic1_,2]=1)
-    @test AgentBasedModels.vectorize_(m,:(id_j = 1), p) == :(identityV[nnic2_,2]=1)
+    @test AgentBasedModels.vectorize_(m,:(id = 1), p) == :(identityV[ic1_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(id_i = 1), p) == :(identityV[ic1_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(id_j = 1), p) == :(identityV[nnic2_,1]=1)
 
     @test AgentBasedModels.vectorize_(m,:(l = l), p) == :(localV[ic1_,1]=localV[ic1_,1])
     @test AgentBasedModels.vectorize_(m,:(l_i = l_i), p) == :(localV[ic1_,1]=localV[ic1_,1])
     @test AgentBasedModels.vectorize_(m,:(l_j = l_j), p) == :(localV[nnic2_,1]=localV[nnic2_,1])
     @test AgentBasedModels.vectorize_(m,:(g = g), p) == :(globalV[1]=globalV[1])
     @test AgentBasedModels.vectorize_(m,:(h[1,2] = h[1,2]), p) == :(h[1,2]=h[1,2])
-    @test AgentBasedModels.vectorize_(m,:(id = id), p) == :(identityV[ic1_,2]=identityV[ic1_,2])
-    @test AgentBasedModels.vectorize_(m,:(id_i = id_i), p) == :(identityV[ic1_,2]=identityV[ic1_,2])
-    @test AgentBasedModels.vectorize_(m,:(id_j = id_j), p) == :(identityV[nnic2_,2]=identityV[nnic2_,2])
+    @test AgentBasedModels.vectorize_(m,:(id = id), p) == :(identityV[ic1_,1]=identityV[ic1_,1])
+    @test AgentBasedModels.vectorize_(m,:(id_i = id_i), p) == :(identityV[ic1_,1]=identityV[ic1_,1])
+    @test AgentBasedModels.vectorize_(m,:(id_j = id_j), p) == :(identityV[nnic2_,1]=identityV[nnic2_,1])
     
     @test begin
         m = @agent(
             0,
             l::Local,
             g::Global,
-            h::GlobalArray,
-            id::Identity
+            h::GlobalArray
         )
             
         prod([i in [:t,:N,:loc_,:glob_,:id_,:h] for i in AgentBasedModels.agentArguments_(m)])
     end
 
-    @test AgentBasedModels.cudaAdapt_(:(sin(e^2^x))) == :(CUDA.sin(e^2^x))
+    @test AgentBasedModels.cudaAdapt_(:(sin(e^2^x))) == :(CUDA.sin(Float32(e)^Float32(2)^x))
     @test AgentBasedModels.cudaAdapt_(:(zeros(e^2))) == :(CUDA.zeros(e^2))
     
     @test begin
@@ -178,10 +175,9 @@
                 ga1[1,2] += 1
             end
         )
-        s= SimulationFree(abm)
-        p = AgentBasedModels.Program_(abm,s); 
+        p = AgentBasedModels.Program_(abm); 
 
-        AgentBasedModels.updates_!(p,abm,s)
+        AgentBasedModels.updates_!(p)
 
         if p.update["Identity"] != Dict(:id1=>1) error() end
         if p.update["Global"] != Dict(:g1=>1) error() end

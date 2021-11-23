@@ -5,7 +5,6 @@
         m = @agent(
             0,
             
-            id::Identity,
             [v,l,i]::Local,
             g::Global,
             ga::GlobalArray,
@@ -121,7 +120,7 @@
     end
 
     @test_throws ErrorException begin
-        m = @agent(0,id::Identity) 
+        m = @agent(0) 
         m = compile(m)
         com = Community(m,N=10)
 
@@ -129,7 +128,7 @@
     end
 
     @test_throws MethodError begin
-        m = @agent(0,id::Identity) 
+        m = @agent(0) 
         m = compile(m)
         com = Community(m,N=10)
 
@@ -137,7 +136,7 @@
     end
 
     @test_throws ErrorException begin
-        m = @agent(0,id::Local) 
+        m = @agent(0) 
         m = compile(m)
         com = Community(m,N=10)
 
@@ -145,7 +144,7 @@
     end
 
     @test_throws MethodError begin
-        m = @agent(0,id::Local) 
+        m = @agent(0) 
         m = compile(m)
         com = Community(m,N=10)
 

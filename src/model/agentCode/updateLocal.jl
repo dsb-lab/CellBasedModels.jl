@@ -1,9 +1,9 @@
 """
-    function addUpdateLocal_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+    function addUpdateLocal_!(p::Program_,platform::String)
 
 Generate the functions related with Local Updates.
 """
-function addUpdateLocal_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+function addUpdateLocal_!(p::Program_,platform::String)
 
     if "UpdateLocal" in keys(p.agent.declaredUpdates)
 

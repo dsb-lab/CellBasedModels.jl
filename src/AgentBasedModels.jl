@@ -12,11 +12,8 @@ using CSV
 import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, flatten, unblock
 #using WriteVTK
 
-export Agent, @agent, add
 export Model, compile
 export Community, CommunityInTime, saveCSV, loadCommunityFromCSV, loadCommunityInTimeFromCSV
-export SimulationFree, SimulationGrid
-export SimulationSpace, FlatBoundary, Periodic, NonPeriodic, Bound
 export MediumFlat, δMedium_
 export configurator_
 export extrude
@@ -27,17 +24,12 @@ include("./constants/constants.jl")
 include("./constants/abstractTypes.jl")
 
 #Agent
+include("./agent/boundary/boundaryAbstract.jl")
+include("./agent/boundary/boundaryFlatStructures.jl")
 include("./agent/agentStructure.jl")
 include("./agent/constructAgent.jl")
-
-#Model
-include("./model/structProgram.jl")
-
-#Simulation Space
-include("./simulationSpace/abstractTypes.jl")
-include("./simulationSpace/medium/mediumStructures.jl")
-include("./simulationSpace/simulationFree.jl")
-include("./simulationSpace/simulationGrid.jl")
+include("./model/structProgram.jl") #Structure
+include("./agent/boundary/boundaryFlatFunctions.jl")
 
 #Model
 include("./model/model.jl")
@@ -62,6 +54,11 @@ include("./community/IO/load.jl")
 #Random
 include("./model/random/distribution.jl")
 include("./model/random/randomAdapt.jl")
+
+#Neighbors
+include("./model/agentCode/neighbors/neighborsFull.jl")
+include("./model/agentCode/neighbors/neighborsGrid.jl")
+include("./model/agentCode/neighbors/neighbors.jl")
 
 #Integrators
 include("./model/agentCode/integrator/euler.jl")

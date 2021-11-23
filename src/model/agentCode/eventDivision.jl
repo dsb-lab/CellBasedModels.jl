@@ -1,19 +1,19 @@
 """
-    function addEventDivision_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+    function addEventDivision_!(p::Program_,platform::String)
 
 Generate the functions for division events.
 """
-function addEventDivision_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+function addEventDivision_!(p::Program_,platform::String)
 
-    if "EventDivision" in keys(abm.declaredUpdates)
+    if "EventDivision" in keys(p.agent.declaredUpdates)
 
-        code = abm.declaredUpdates["EventDivision"]
+        code = p.agent.declaredUpdates["EventDivision"]
 
         if !@capture(code,if v_ g__ end)
             error("Erroneos structure of division events. Should be if something update end")
         end
 
-        code = vectorize_(abm,code,p)
+        code = vectorize_(p.agent,code,p)
         subcode = postwalk(x->@capture(x,if v_ g__ end) ? quote $(g...) end : x, code)
         subcode = unblock(subcode)
         condition = postwalk(x->@capture(x,if v_ g__ end) ? v : x, code)
@@ -30,7 +30,7 @@ function addEventDivision_!(p::Program_,abm::Agent,space::SimulationSpace,platfo
         for k in ["Local","Identity"]
             vec = Meta.parse(string(lowercase(k),"V"))
             vecCopy = Meta.parse(string(lowercase(k),"VCopy"))
-            for (i,j) in enumerate(abm.declaredSymbols[k])
+            for (i,j) in enumerate(p.agent.declaredSymbols[k])
                 if j in keys(p.update["EventDivision"])
                     ii = p.update[k][j]
                     #Parse content
@@ -44,7 +44,7 @@ function addEventDivision_!(p::Program_,abm::Agent,space::SimulationSpace,platfo
         for k in ["Local","Identity"]  #Add other updates of non changed variables
             vec = Meta.parse(string(lowercase(k),"V"))
             vecCopy = Meta.parse(string(lowercase(k),"VCopy"))  
-            for (i,j) in enumerate(abm.declaredSymbols[k])
+            for (i,j) in enumerate(p.agent.declaredSymbols[k])
                 #Add update if doesn't exist
                 if !(j in keys(p.update["EventDivision"])) && j != :agentId
                     push!(subcode.args,:($vec[ic1New_,$i] = $vec[ic1_,$i]))
@@ -53,7 +53,7 @@ function addEventDivision_!(p::Program_,abm::Agent,space::SimulationSpace,platfo
                     push!(subcode.args,:($vec[ic1_,$i] = $vecCopy[ic1_,$ii]))
                     push!(subcode.args,:($vec[ic1New_,$i] = $vecCopy[ic1New_,$ii]))                
                 else
-                    ii = findfirst(abm.declaredSymbols["Identity"] .== j)
+                    ii = findfirst(p.agent.declaredSymbols["Identity"] .== j)
                     push!(subcode.args,:($vec[ic1_,$ii] = idNew_))
                     push!(subcode.args,:($vec[ic1New_,$ii] = idNew_ + 1))                                    
                 end

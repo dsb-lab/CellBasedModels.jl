@@ -3,38 +3,41 @@
 
 Function that takes an Agent and a simulation and constructs the function in charge of the evolutions of the model.
 """
-function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", neighbours="full", integrator::String = "Euler", integratorMedium::String = "FTCS", save::String = "RAM", debug = false, user_=true)
+function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integrator::String = "Euler", integratorMedium::String = "FTCS", neighbors::String="full", save::String = "RAM", debug = false, user_=true)
 
     abm = deepcopy(abmOriginal)
     
     p = Program_(abm)
+    p.integrator = integrator
+    p.integratorMedium = integratorMedium
+    p.neighbors = neighbors
 
     #Update
-    updates_!(p,abm)
+    updates_!(p)
 
     #Neighbours declare
-    arguments_!(p,abm,platform)
+    arguments_![neighbors](p,platform)
     
     #Declare all the agent properties related functions, arguments, code...
-    addCleanInteraction_!(p,abm,platform)
-    addCleanLocalInteraction_!(p,abm,platform)
-    addParameters_!(p,abm,platform)
-    addCopyInitialisation_!(p,abm,platform)
-    addIntegrator_![integrator](p,abm,platform)
-    addUpdateGlobal_!(p,abm,platform)
-    addUpdateLocal_!(p,abm,platform)
-    addUpdateLocalInteraction_!(p,abm,platform)
-    addCheckBounds_!(p,abm,platform)
-    addUpdateMediumInteraction_!(p,abm,platform)
-    addIntegratorMedium_![integratorMedium](p,abm,platform)
-    addUpdate_!(p,abm,platform)
+    addCleanInteraction_!(p,platform)
+    addCleanLocalInteraction_!(p,platform)
+    addParameters_!(p,platform)
+    addCopyInitialisation_!(p,platform)
+    addIntegrator_![integrator](p,platform)
+    addUpdateGlobal_!(p,platform)
+    addUpdateLocal_!(p,platform)
+    addUpdateLocalInteraction_!(p,platform)
+    # addCheckBounds_!(p,platform)
+    addUpdateMediumInteraction_!(p,platform)
+    addIntegratorMedium_![integratorMedium](p,platform)
+    addUpdate_!(p,platform)
     #Events
-    addEventDivision_!(p,abm,platform)
-    addEventDeath_!(p,abm,platform)
+    addEventDivision_!(p,platform)
+    addEventDeath_!(p,platform)
 
 
     #Saving
-    addSaving_![save](p,abm,platform)
+    addSaving_![save](p,platform)
 
     if platform == "gpu"
         gpuConf = :()

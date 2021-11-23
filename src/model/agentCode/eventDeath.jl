@@ -1,13 +1,13 @@
 """
-function addEventDeath_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+function addEventDeath_!(p::Program_,platform::String)
 
 Generate the functions for division events.
 """
-function addEventDeath_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+function addEventDeath_!(p::Program_,platform::String)
 
-if "EventDeath" in keys(abm.declaredUpdates)
+if "EventDeath" in keys(p.agent.declaredUpdates)
 
-    condition = abm.declaredUpdates["EventDeath"].args[end]
+    condition = p.agent.declaredUpdates["EventDeath"].args[end]
 
     #Create function to check dead elements
     if platform == "cpu"
@@ -26,7 +26,7 @@ if "EventDeath" in keys(abm.declaredUpdates)
         end
     end
 
-    code = vectorize_(abm,code,p)
+    code = vectorize_(p.agent,code,p)
 
     f1 = simpleFirstLoopWrapInFunction_(platform,:checkDyingAgents_!,code)
 
@@ -35,22 +35,22 @@ if "EventDeath" in keys(abm.declaredUpdates)
         oldPos_ = keepList_[ic1_]
         newPos_ = removeList_[ic1_]
     end
-    if !isempty(abm.declaredSymbols["Local"])
+    if !isempty(p.agent.declaredSymbols["Local"])
         push!(code.args,
             :(begin 
                 if oldPos_ > 0
-                    for ic2_ in 1:$(length(abm.declaredSymbols["Local"]))
+                    for ic2_ in 1:$(length(p.agent.declaredSymbols["Local"]))
                         localV[newPos_, ic2_] = localV[oldPos_, ic2_] 
                     end
                 end
             end)
         )
     end
-    if !isempty(abm.declaredSymbols["Identity"])
+    if !isempty(p.agent.declaredSymbols["Identity"])
         push!(code.args,
             :(begin 
                 if oldPos_ > 0
-                    for ic2_ in 1:$(length(abm.declaredSymbols["Identity"]))
+                    for ic2_ in 1:$(length(p.agent.declaredSymbols["Identity"]))
                         identityV[newPos_, ic2_] = identityV[oldPos_, ic2_] 
                     end
                 end

@@ -1,17 +1,17 @@
 """
-    function addCleanInteraction_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+    function addCleanInteraction_!(p::Program_,platform::String)
 
 Generate the functions related with Cleaning Interaction Updates.
 """
-function addCleanLocalInteraction_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+function addCleanLocalInteraction_!(p::Program_,platform::String)
 
-    if "UpdateLocalInteraction" in keys(abm.declaredUpdates) || "UpdateInteraction" in keys(abm.declaredUpdates)
+    if "UpdateLocalInteraction" in keys(p.agent.declaredUpdates) || "UpdateInteraction" in keys(p.agent.declaredUpdates)
 
         #Construct cleanup function
         s = []
         for i in ["UpdateLocalInteraction"]
-            if i in keys(abm.declaredUpdates)
-                syms = symbols_(abm,abm.declaredUpdates[i])
+            if i in keys(p.agent.declaredUpdates)
+                syms = symbols_(p.agent,p.agent.declaredUpdates[i])
                 syms = syms[Bool.((syms[:,"placeDeclaration"] .== :Model) .* syms[:,"updated"]),"Symbol"]
                 append!(s,syms)
             end
@@ -19,7 +19,7 @@ function addCleanLocalInteraction_!(p::Program_,abm::Agent,space::SimulationSpac
         unique!(s)
         up = quote end
         for i in s
-            pos = findfirst(abm.declaredSymbols["Local"] .== i)
+            pos = findfirst(p.agent.declaredSymbols["Local"] .== i)
             push!(up.args,:(localV[ic1_,$pos]=0))
         end
         fclean = simpleFirstLoopWrapInFunction_(platform,:cleanLocalInteraction_!,up)
@@ -30,17 +30,17 @@ function addCleanLocalInteraction_!(p::Program_,abm::Agent,space::SimulationSpac
 end
 
 """
-    function addUpdateLocalInteraction_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+    function addUpdateLocalInteraction_!(p::Program_,platform::String)
 
 Generate the functions related with Local Interaction Updates.
 """
-function addUpdateLocalInteraction_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+function addUpdateLocalInteraction_!(p::Program_,platform::String)
 
-    if "UpdateLocalInteraction" in keys(abm.declaredUpdates)
+    if "UpdateLocalInteraction" in keys(p.agent.declaredUpdates)
 
         #Construct update computation function
-        fcompute = loop_(p,abm,space,abm.declaredUpdates["UpdateLocalInteraction"],platform)
-        fcompute = vectorize_(abm,fcompute,p)
+        fcompute = loop_[p.neighbors](p,p.agent.declaredUpdates["UpdateLocalInteraction"],platform)
+        fcompute = vectorize_(p.agent,fcompute,p)
         fcompute = wrapInFunction_(:locInterCompute_!,fcompute)
         push!(p.declareF.args,fcompute)
 

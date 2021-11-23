@@ -1,25 +1,25 @@
 """
-    function addUpdateLocal_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+    function addUpdateLocal_!(p::Program_,platform::String)
 
 Generate the functions related with Global Updates.
 """
-function addUpdateGlobal_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+function addUpdateGlobal_!(p::Program_,platform::String)
 
-    if "UpdateGlobal" in keys(abm.declaredUpdates)
+    if "UpdateGlobal" in keys(p.agent.declaredUpdates)
 
         #Check updated
-        up = symbols_(abm,abm.declaredUpdates["UpdateGlobal"])
+        up = symbols_(p.agent,p.agent.declaredUpdates["UpdateGlobal"])
         up = up[Bool.((up[:,"placeDeclaration"].==:Model) .* Bool.((up[:,"assigned"].==true) .+ (up[:,"updated"].==true))),:]
 
         #Construct functions
         f = simpleFirstLoopWrapInFunction_(platform,:globStep_!,
                         :(begin        
                             if ic1_ == 1
-                                $(abm.declaredUpdates["UpdateGlobal"])
+                                $(p.agent.declaredUpdates["UpdateGlobal"])
                             end
                         end)
                         )
-        f = vectorize_(abm,f,p)
+        f = vectorize_(p.agent,f,p)
 
         push!(p.declareF.args,
             f)

@@ -1,9 +1,9 @@
 """
-    function addUpdateMediumInteraction_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+    function addUpdateMediumInteraction_!(p::Program_,platform::String)
 
 Generate the functions related with Agent Medium Interaction.
 """
-function addUpdateMediumInteraction_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+function addUpdateMediumInteraction_!(p::Program_,platform::String)
 
     if "UpdateMediumInteraction" in keys(p.agent.declaredUpdates)
         
@@ -21,7 +21,7 @@ function addUpdateMediumInteraction_!(p::Program_,abm::Agent,space::SimulationSp
 
         #Construct functions
         f = simpleFirstLoopWrapInFunction_(platform,:mediumInteractionStep_!,code)
-        f = vectorize_(abm,f,p)
+        f = vectorize_(p.agent,f,p)
 
         push!(p.declareF.args,
             f)

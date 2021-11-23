@@ -1,9 +1,9 @@
 """
-    function addCheckBounds_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+    function addCheckBounds_!(p::Program_,platform::String)
 
 Generate the functions related with boundary checking.
 """
-function addCheckBounds_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+function addCheckBounds_!(p::Program_,platform::String)
 
     if !isempty([i for i in keys(p.update["Local"])])
         ##Add bound code if bound symbols update

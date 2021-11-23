@@ -2,12 +2,12 @@
 
     @test_nowarn begin
         m = @agent(
-            0,
+            1,
             
-            id::Identity,
             l::Local,
             g::Global,
             ga::GlobalArray,
+            m::Medium,
             
             Equation = d_v = 34*dt ,
             UpdateLocal = l += 1,
@@ -16,7 +16,9 @@
                 ga[3,2] += 3
             end,
             UpdateInteraction = l += 1,
-            UpdateLocalInteraction = l += 1
+            UpdateLocalInteraction = l += 1,
+
+            Boundary = BoundaryFlat(1)
         )
         compile(m, platform="cpu",debug=false)
     end

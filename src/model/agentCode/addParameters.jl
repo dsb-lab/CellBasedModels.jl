@@ -1,16 +1,16 @@
 """
-    function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+    function addParameters_!(p::Program_,platform::String)
 
 Generate the variables of the model and declare them.
 """
-function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+function addParameters_!(p::Program_,platform::String)
     
     #Parameter declare###########################################################################
 
-    if length(abm.declaredSymbols["Local"])>0
+    if length(p.agent.declaredSymbols["Local"])>0
         append!(p.declareVar.args, 
             (quote
-                localV = Array(Float64.([com.local_;Base.zeros(nMax-N,$(length(abm.declaredSymbols["Local"])))]))
+                localV = Array(Float64.([com.local_;Base.zeros(nMax-N,$(length(p.agent.declaredSymbols["Local"])))]))
             end).args
         )
 
@@ -27,10 +27,10 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
         end
     end
 
-    if length(abm.declaredSymbols["Identity"])>0
+    if length(p.agent.declaredSymbols["Identity"])>0
         append!(p.declareVar.args, 
             (quote
-                identityV = Array([Int.(com.identity_);Base.zeros(Int,nMax-N,$(length(abm.declaredSymbols["Identity"])))])
+                identityV = Array([Int.(com.identity_);Base.zeros(Int,nMax-N,$(length(p.agent.declaredSymbols["Identity"])))])
             end).args 
         ) 
 
@@ -47,7 +47,7 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
         end
     end
 
-    if length(abm.declaredSymbols["Global"])>0
+    if length(p.agent.declaredSymbols["Global"])>0
         append!(p.declareVar.args, 
             (quote
                 globalV = Array(Float64.(com.global_))
@@ -55,7 +55,7 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
         )
 
         push!(p.args,:globalV)
-        if !isempty(p.update["Global"]) && !isempty([ v for v in keys(p.update["Global"]) if v in abm.declaredSymbols["Global"] ])
+        if !isempty(p.update["Global"]) && !isempty([ v for v in keys(p.update["Global"]) if v in p.agent.declaredSymbols["Global"] ])
             append!(p.declareVar.args, 
                 (quote
                     globalVCopy = zeros(Float64,$(length(p.update["Global"])))
@@ -66,8 +66,8 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
         end    
     end
     
-    if length(abm.declaredSymbols["GlobalArray"])>0
-        for (j,i) in enumerate(abm.declaredSymbols["GlobalArray"])
+    if length(p.agent.declaredSymbols["GlobalArray"])>0
+        for (j,i) in enumerate(p.agent.declaredSymbols["GlobalArray"])
             append!(p.declareVar.args, 
             (quote
                 $(Meta.parse(string(i))) = Array(copy(com.globalArray_[$j]))
@@ -89,43 +89,30 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
         end
     end
 
-    if length(abm.declaredSymbols["Medium"])>0
-        if abm.dims >= 1
-            if space.medium[1].minBoundaryType == "Periodic"
-                push!(p.declareVar.args, :(Nx_ = size(com.medium_)[1]+2))
-                push!(p.declareVar.args, :(mediumV = cat(zeros(1,size(com.medium_)[2:end]...),com.medium_,zeros(1,size(com.medium_)[2:end]...),dims=1)))
-            else
-                push!(p.declareVar.args, :(Nx_ = size(com.medium_)[1]))
-                push!(p.declareVar.args, :(mediumV = copy(com.medium_)))
-            end
+    if length(p.agent.declaredSymbols["Medium"])>0
+        if p.agent.dims >= 1
+            push!(p.declareVar.args, :(Nx_ = com.mediumN[1]))
+            push!(p.declareVar.args, :(mediumV = copy(com.medium_)))
 
-            push!(p.declareVar.args, :(dxₘ_ = (box[1,2]-box[1,1])/$(space.medium[1].N)))
+            push!(p.declareVar.args, :(dxₘ_ = (box[1,2]-box[1,1])/Nx_))
 
             push!(p.args,:Nx_)
             push!(p.args,:dxₘ_)
         end
-        if abm.dims >= 2
-            if space.medium[1].minBoundaryType == "Periodic"
-                push!(p.declareVar.args, :(Ny_ = size(com.medium_)[2]+2))
-                push!(p.declareVar.args, :(mediumV = cat(zeros(Nx_,1,size(com.medium_)[3:end]...),mediumV,zeros(Nx_,1,size(com.medium_)[3:end]...),dims=2)))
-            else
-                push!(p.declareVar.args, :(Ny_ = size(com.medium_)[2]))
-            end
+        if p.agent.dims >= 2
+            push!(p.declareVar.args, :(Ny_ = com.mediumN[2]))
+            push!(p.declareVar.args, :(mediumV = cat(zeros(Nx_,1,size(com.medium_)[3:end]...),mediumV,zeros(Nx_,1,size(com.medium_)[3:end]...),dims=2)))
 
-            push!(p.declareVar.args, :(dyₘ_ = (box[2,2]-box[2,1])/$(space.medium[2].N)))
+            push!(p.declareVar.args, :(dyₘ_ = (box[2,2]-box[2,1])/Ny_))
 
             push!(p.args,:Ny_)
             push!(p.args,:dyₘ_)
         end
-        if abm.dims >= 3
-            if space.medium[1].minBoundaryType == "Periodic"
-                push!(p.declareVar.args, :(Nz_ = size(com.medium_)[3]+2))
-                push!(p.declareVar.args, :(mediumV = cat(zeros(Nx_,Ny_,1,size(com.medium_)[4:end]...),mediumV,zeros(Nx_,Ny_,1,size(com.medium_)[4:end]...),dims=3)))
-            else
-                push!(p.declareVar.args, :(Nz_ = size(com.medium_)[3]))
-            end
+        if p.agent.dims >= 3
+            push!(p.declareVar.args, :(Nz_ = com.mediumN[3]))
+            push!(p.declareVar.args, :(mediumV = cat(zeros(Nx_,Ny_,1,size(com.medium_)[4:end]...),mediumV,zeros(Nx_,Ny_,1,size(com.medium_)[4:end]...),dims=3)))
 
-            push!(p.declareVar.args, :(dzₘ_ = (box[3,2]-box[3,1])/$(space.medium[3].N)))
+            push!(p.declareVar.args, :(dzₘ_ = (box[3,2]-box[3,1])/Nz_))
 
             push!(p.args,:Nz_)
             push!(p.args,:dzₘ_)
@@ -134,7 +121,7 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
 
         push!(p.args,:mediumV)
 
-        if "UpdateMedium" in keys(abm.declaredUpdates)
+        if "UpdateMedium" in keys(p.agent.declaredUpdates)
             push!(p.declareVar.args, :(mediumVCopy = copy(mediumV)))
             push!(p.args,:mediumVCopy)
         end
@@ -177,16 +164,16 @@ function addParameters_!(p::Program_,abm::Agent,space::SimulationSpace,platform:
 end
 
 """
-    function addUpdate_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+    function addUpdate_!(p::Program_,platform::String)
 
 Generate the functions to update all the modified values.
 """
-function addUpdate_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+function addUpdate_!(p::Program_,platform::String)
 
     create = false
 
-    for i in keys(abm.declaredUpdates)
-        if !(i in ["UpdateLocalInteraction","UpdateInteraction","EventDivision"]) && !emptyquote_(abm.declaredUpdates[i])
+    for i in keys(p.agent.declaredUpdates)
+        if !(i in ["UpdateLocalInteraction","UpdateInteraction","EventDivision"]) && !emptyquote_(p.agent.declaredUpdates[i])
             create = true
         end
     end
@@ -194,7 +181,7 @@ function addUpdate_!(p::Program_,abm::Agent,space::SimulationSpace,platform::Str
     if create
         gen = quote end #General update
         up = quote end
-        for i in keys(abm.declaredSymbols)
+        for i in keys(p.agent.declaredSymbols)
             if  i == "GlobalArray"
                 for j in keys(p.update[i]) 
                     n = Meta.parse(string(j,GLOBALARRAYCOPY)) 
@@ -204,7 +191,7 @@ function addUpdate_!(p::Program_,abm::Agent,space::SimulationSpace,platform::Str
                 var = Meta.parse(string(lowercase(i),"V"))
                 varCopy = Meta.parse(string(lowercase(i),"VCopy"))
                 for j in keys(p.update[i])
-                    pos = findfirst(abm.declaredSymbols[i] .== j)
+                    pos = findfirst(p.agent.declaredSymbols[i] .== j)
                     posCopy = p.update[i][j]
                     push!(up.args,:($var[ic1_,$pos]=$varCopy[ic1_,$posCopy]))
                 end
@@ -214,7 +201,7 @@ function addUpdate_!(p::Program_,abm::Agent,space::SimulationSpace,platform::Str
                 
                 upb = quote end #Assign updates of the global to the first thread
                 for j in keys(p.update[i])
-                    pos = findfirst(abm.declaredSymbols[i] .== j)
+                    pos = findfirst(p.agent.declaredSymbols[i] .== j)
                     posCopy = p.update[i][j]
                     push!(upb.args,:($var[$pos]=$varCopy[$posCopy]))
                 end
@@ -226,7 +213,7 @@ function addUpdate_!(p::Program_,abm::Agent,space::SimulationSpace,platform::Str
                         end
                     end))
             elseif i == "Medium"
-                if "UpdateMedium" in keys(abm.declaredUpdates)
+                if "UpdateMedium" in keys(p.agent.declaredUpdates)
                     push!(gen.args,:(mediumV.=mediumVCopy))
                 end
             end
@@ -255,16 +242,16 @@ function addUpdate_!(p::Program_,abm::Agent,space::SimulationSpace,platform::Str
 end
 
 """
-    function addCopyInitialisation_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+    function addCopyInitialisation_!(p::Program_,platform::String)
 
 Generate the functions to update all the modified values.
 """
-function addCopyInitialisation_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+function addCopyInitialisation_!(p::Program_,platform::String)
 
     create = false
 
-    for i in keys(abm.declaredUpdates)
-        if !(i in ["UpdateLocalInteraction","UpdateInteraction","EventDivision"]) && !emptyquote_(abm.declaredUpdates[i])
+    for i in keys(p.agent.declaredUpdates)
+        if !(i in ["UpdateLocalInteraction","UpdateInteraction","EventDivision"]) && !emptyquote_(p.agent.declaredUpdates[i])
             create = true
         end
     end 
@@ -272,7 +259,7 @@ function addCopyInitialisation_!(p::Program_,abm::Agent,space::SimulationSpace,p
     if create
         gen = quote end #General update
         up = quote end
-        for i in keys(abm.declaredSymbols)
+        for i in keys(p.agent.declaredSymbols)
             if  i == "GlobalArray"
                 for j in keys(p.update[i]) 
                     n = Meta.parse(string(j,GLOBALARRAYCOPY)) 
@@ -282,7 +269,7 @@ function addCopyInitialisation_!(p::Program_,abm::Agent,space::SimulationSpace,p
                 var = Meta.parse(string(lowercase(i),"V"))
                 varCopy = Meta.parse(string(lowercase(i),"VCopy"))
                 for j in keys(p.update[i])
-                    pos = findfirst(abm.declaredSymbols[i] .== j)
+                    pos = findfirst(p.agent.declaredSymbols[i] .== j)
                     posCopy = p.update[i][j]
                     push!(up.args,:($varCopy[ic1_,$posCopy]=$var[ic1_,$pos]))
                 end
@@ -292,7 +279,7 @@ function addCopyInitialisation_!(p::Program_,abm::Agent,space::SimulationSpace,p
                 
                 upb = quote end #Assign updates of the global to the first thread
                 for j in keys(p.update[i])
-                    pos = findfirst(abm.declaredSymbols[i] .== j)
+                    pos = findfirst(p.agent.declaredSymbols[i] .== j)
                     posCopy = p.update[i][j]
                     push!(upb.args,:($varCopy[$posCopy]=$var[$pos]))
                 end

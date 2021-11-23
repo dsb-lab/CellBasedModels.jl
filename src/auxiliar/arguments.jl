@@ -21,6 +21,9 @@ function agentArguments_(abm::Agent)
             push!(l,i)
         end
     end
-    
+    if length(abm.declaredSymbols["Medium"])>0
+        push!(l,:mediumN)
+    end
+
     return l
 end
