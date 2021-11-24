@@ -12,7 +12,7 @@ Example
 :(y+=3*x)
 ```
 """
-function subs_(exp::Expr,ob::Union{Expr,Symbol},tar::Union{Expr,Symbol,<:Number};update=false)
+function subs_(exp::Expr,ob::Union{Expr,Symbol,Type},tar::Union{Expr,Symbol,Type,<:Number};update=false)
     for (pos,a) in enumerate(exp.args)
         if a == ob && !update
             exp.args[pos] = tar

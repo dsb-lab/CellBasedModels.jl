@@ -10,7 +10,7 @@ function addParameters_!(p::Program_,platform::String)
     if length(p.agent.declaredSymbols["Local"])>0
         append!(p.declareVar.args, 
             (quote
-                localV = Array(Float64.([com.local_;Base.zeros(nMax-N,$(length(p.agent.declaredSymbols["Local"])))]))
+                localV = Array($FLOAT.([com.local_;Base.zeros(nMax-N,$(length(p.agent.declaredSymbols["Local"])))]))
             end).args
         )
 
@@ -19,7 +19,7 @@ function addParameters_!(p::Program_,platform::String)
         if !isempty(p.update["Local"])
             append!(p.declareVar.args, 
                 (quote
-                    localVCopy = zeros(Float64,size(localV)[1],$(length(keys(p.update["Local"]))))
+                    localVCopy = zeros($FLOAT,size(localV)[1],$(length(keys(p.update["Local"]))))
                 end).args
             )
     
@@ -30,7 +30,7 @@ function addParameters_!(p::Program_,platform::String)
     if length(p.agent.declaredSymbols["Identity"])>0
         append!(p.declareVar.args, 
             (quote
-                identityV = Array([Int.(com.identity_);Base.zeros(Int,nMax-N,$(length(p.agent.declaredSymbols["Identity"])))])
+                identityV = Array($INT.([com.identity_;Base.zeros(Int,nMax-N,$(length(p.agent.declaredSymbols["Identity"])))]))
             end).args 
         ) 
 
@@ -39,7 +39,7 @@ function addParameters_!(p::Program_,platform::String)
         if !isempty(p.update["Identity"])
             append!(p.declareVar.args, 
                 (quote
-                    identityVCopy = zeros(Int,size(identityV)[1],$(length(keys(p.update["Identity"]))))
+                    identityVCopy = zeros($INT,size(identityV)[1],$(length(keys(p.update["Identity"]))))
                 end).args
             )
     
@@ -50,7 +50,7 @@ function addParameters_!(p::Program_,platform::String)
     if length(p.agent.declaredSymbols["Global"])>0
         append!(p.declareVar.args, 
             (quote
-                globalV = Array(Float64.(com.global_))
+                globalV = Array($FLOAT.(com.global_))
             end).args
         )
 
@@ -58,7 +58,7 @@ function addParameters_!(p::Program_,platform::String)
         if !isempty(p.update["Global"]) && !isempty([ v for v in keys(p.update["Global"]) if v in p.agent.declaredSymbols["Global"] ])
             append!(p.declareVar.args, 
                 (quote
-                    globalVCopy = zeros(Float64,$(length(p.update["Global"])))
+                    globalVCopy = zeros($FLOAT,$(length(p.update["Global"])))
                 end).args
             )
     
@@ -135,22 +135,22 @@ function addParameters_!(p::Program_,platform::String)
         if p.agent.dims == 1
             code = simpleFirstLoopWrapInFunction_(platform,:idMediumCompute!,
                 quote 
-                    idMediumV[ic1_,1] = floor(Int,(localV[ic1_,1]-box[1,1])/(box[1,2]-box[1,1])*Nx_)+1
+                    idMediumV[ic1_,1] = floor($INT,(localV[ic1_,1]-box[1,1])/(box[1,2]-box[1,1])*Nx_)+1
                 end 
             )
         elseif p.agent.dims == 2
             code = simpleFirstLoopWrapInFunction_(platform,:idMediumCompute!,
                 quote 
-                    idMediumV[ic1_,1] = floor(Int,(localV[ic1_,1]-box[1,1])/(box[1,2]-box[1,1])*Nx_)+1
-                    idMediumV[ic1_,2] = floor(Int,(localV[ic1_,2]-box[2,1])/(box[2,2]-box[2,1])*Ny_)+1
+                    idMediumV[ic1_,1] = floor($INT,(localV[ic1_,1]-box[1,1])/(box[1,2]-box[1,1])*Nx_)+1
+                    idMediumV[ic1_,2] = floor($INT,(localV[ic1_,2]-box[2,1])/(box[2,2]-box[2,1])*Ny_)+1
                 end 
             )
         elseif p.agent.dims == 3
             code = simpleFirstLoopWrapInFunction_(platform,:idMediumCompute!,
                 quote 
-                    idMediumV[ic1_,1] = floor(Int,(localV[ic1_,1]-box[1,1])/(box[1,2]-box[1,1])*Nx_)+1
-                    idMediumV[ic1_,2] = floor(Int,(localV[ic1_,2]-box[2,1])/(box[2,2]-box[2,1])*Ny_)+1
-                    idMediumV[ic1_,3] = floor(Int,(localV[ic1_,3]-box[3,1])/(box[3,2]-box[3,1])*Nz_)+1
+                    idMediumV[ic1_,1] = floor($INT,(localV[ic1_,1]-box[1,1])/(box[1,2]-box[1,1])*Nx_)+1
+                    idMediumV[ic1_,2] = floor($INT,(localV[ic1_,2]-box[2,1])/(box[2,2]-box[2,1])*Ny_)+1
+                    idMediumV[ic1_,3] = floor($INT,(localV[ic1_,3]-box[3,1])/(box[3,2]-box[3,1])*Nz_)+1
                 end 
             )
         end

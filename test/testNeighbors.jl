@@ -243,20 +243,29 @@ end
 
     @test_nowarn AgentBasedModels.argumentsGrid_!(AgentBasedModels.Program_(m),"cpu")
 
+    mo = compile(m,neighbors="grid",debug=false)
+    @test_throws ErrorException begin #Error if box not specified
+        com = Community(mo,N=12)
+        com.x .= [-11,-7,-2,2,7,11,-11,-7,-2,2,7,11]
+        com.y .= 0
+
+        comt = mo.evolve(com,dt=0.1,tMax=1)
+    end
+
     for platform in testplatforms
 
+        #Check 1D
         m = @agent(
-            2,
+            1,
 
             [intLocal,int]::Local,
-            [i1,i2]::Identity,
 
             Equation = begin
                 d_l2 = 0.
             end,
 
             UpdateInteraction = begin
-                if abs(x_i - y_j) <= 4.5
+                if abs(x_i - x_j) <= .9
                     int += 1
                 end
             end,
@@ -268,51 +277,28 @@ end
 
         mo = compile(m,platform=platform,neighbors="grid",debug=false)
         # println(mo.program)
-        @test_throws ErrorException begin #Error if box not specified
-            com = Community(mo,N=12)
-            com.x .= [-11,-7,-2,2,7,11,-11,-7,-2,2,7,11]
-            com.y .= 0
-
-            comt = mo.evolve(com,dt=0.1,tMax=1)
-        end
-
-        @test begin
-            com = Community(mo,N=12)
-            com.x .= [-11,-7,-2,2,7,11,-11,-7,-2,2,7,11]
-            com.y .= 0
-            com.simulationBox = [-10. 10.;-1. 1.]
-            com.radiusInteraction = .1
-
-            comt = mo.evolve(com,dt=0.1,tMax=1)
-            print(comt[1].intLocal)
-            (comt[1].intLocal == [4.,6.,6.,6.,6.,4.,4.,6.,6.,6.,6.,4.]) && (comt[1].int == [4.,4.,4.,4.,4.,4.,4.,4.,4.,4.,4.,4.])
-        end        
-
-        mo = compile(m,s,neighbors="grid",platform=platform)
-        # println(mo.program)
         @test begin
             com = Community(mo,N=4)
-            com.x .= [-7,-2,2,7]
-            com.y .= 0
-            com.simulationBox = [-10. 10.;-1. 1.]
-            com.radiusInteraction = 5.
+            com.x .= [-1.5,-.5,.5,1.5]
+            com.simulationBox = [-1. 1.]
+            com.radiusInteraction = 1.1
 
             comt = mo.evolve(com,dt=0.1,tMax=1)
-            comt[1].intLocal == [3.,3.,3.,3.]
-        end        
+            (comt[1].intLocal == [2,3,3,2]) && (comt[1].int == [1,1,1,1])
+        end   
 
+        #Check 2D
         m = @agent(
-            0,
+            2,
 
-            [l1,l2,l3,intLocal,int]::Local,
-            [i1,i2]::Identity,
+            [intLocal,int]::Local,
 
             Equation = begin
                 d_l2 = 0.
             end,
 
             UpdateInteraction = begin
-                if abs(l2_i - l2_j) <= 4.5
+                if sqrt((x_i - x_j)^2+(y_i - y_j)^2) <= 1.1
                     int += 1
                 end
             end,
@@ -322,42 +308,31 @@ end
             end,
         )
 
-        s = SimulationGrid(m,[(:l1,-20,20),(:l2,-10,10)],[5.,5.])
-        mo = compile(m,s,platform=platform)
+        mo = compile(m,platform=platform,neighbors="grid",debug=false)
         # println(mo.program)
         @test begin
-            com = Community(mo,N=12)
-            com.l2 .= [-11,-7,-2,2,7,11,-11,-7,-2,2,7,11]
-            com.l1 .= 0
+            com = Community(mo,N=16)
+            com.x .= [-1.5,-.5,.5,1.5,-1.5,-.5,.5,1.5,-1.5,-.5,.5,1.5,-1.5,-.5,.5,1.5]
+            com.y .= [-1.5,-1.5,-1.5,-1.5,-.5,-.5,-.5,-.5,.5,.5,.5,.5,1.5,1.5,1.5,1.5]
+            com.simulationBox = [-1. 1.;-1. 1.]
+            com.radiusInteraction = 1.1
 
             comt = mo.evolve(com,dt=0.1,tMax=1)
-            (comt[1].intLocal == [4.,6.,6.,6.,6.,4.,4.,6.,6.,6.,6.,4.]) && (comt[1].int == [4.,4.,4.,4.,4.,4.,4.,4.,4.,4.,4.,4.])
-        end        
+            (comt[1].intLocal == [4.,6.,6.,4.,6.,9.,9.,6.,6.,9.,9.,6.,4.,6.,6.,4.]) && (comt[1].int == [3.,4.,4.,3.,4.,5.,5.,4.,4.,5.,5.,4.,3.,4.,4.,3.])
+        end                  
 
-        s = SimulationGrid(m,[Bound(:l1,-20,20),Periodic(:l2,-10,10)],[5.,5.])
-        mo = compile(m,s,platform=platform)
-        # println(mo.program)
-        @test begin
-            com = Community(mo,N=4)
-            com.l2 .= [-7,-2,2,7]
-            com.l1 .= 0
-
-            comt = mo.evolve(com,dt=0.1,tMax=1)
-            comt[1].intLocal == [3.,3.,3.,3.]
-        end        
-
+        #Check 3D
         m = @agent(
-            0,
+            3,
 
-            [l1,l2,l3,intLocal,int]::Local,
-            [i1,i2]::Identity,
+            [intLocal,int]::Local,
 
             Equation = begin
                 d_l2 = 0.
             end,
 
             UpdateInteraction = begin
-                if abs(l3_i - l3_j) <= 4.5
+                if sqrt((x_i - x_j)^2+(y_i - y_j)^2+(z_i - z_j)^2) <= 1.1
                     int += 1
                 end
             end,
@@ -367,27 +342,170 @@ end
             end,
         )
 
-        s = SimulationGrid(m,[(:l1,-20,20),(:l2,-10,10),(:l3,-10,10)],[5.,5.,5.])
-        mo = compile(m,s,platform=platform)
+        mo = compile(m,platform=platform,neighbors="grid",debug=false)
         # println(mo.program)
         @test begin
-            com = Community(mo,N=12)
-            com.l3 .= [-11,-7,-2,2,7,11,-11,-7,-2,2,7,11]
+            com = Community(mo,N=64)
+            intLocal = zeros(64)
+            intt = zeros(64)
+            for (i,x) in enumerate([-1.5,-.5,.5,1.5])
+                for (j,y) in enumerate([-1.5,-.5,.5,1.5])
+                    for (k,z) in enumerate([-1.5,-.5,.5,1.5])
+                        com.x[i+4*(j-1)+16*(k-1)] = x 
+                        com.y[i+4*(j-1)+16*(k-1)] = y 
+                        com.z[i+4*(j-1)+16*(k-1)] = z
 
+                        intLocal[i+4*(j-1)+16*(k-1)] = 27.
+                        intt[i+4*(j-1)+16*(k-1)] = 7.
+                        if abs(x) == 1.5 || abs(y) == 1.5 || abs(z) == 1.5
+                            intLocal[i+4*(j-1)+16*(k-1)] = 18.
+                            intt[i+4*(j-1)+16*(k-1)] = 6.
+                        end
+                        if (abs(x) == 1.5 && abs(y) == 1.5) || (abs(x) == 1.5 && abs(z) == 1.5) || (abs(y) == 1.5 && abs(z) == 1.5)
+                            intLocal[i+4*(j-1)+16*(k-1)] = 12.
+                            intt[i+4*(j-1)+16*(k-1)] = 5.
+                        end
+                        if abs(x) == 1.5 && abs(y) == 1.5 && abs(z) == 1.5
+                            intLocal[i+4*(j-1)+16*(k-1)] = 8.
+                            intt[i+4*(j-1)+16*(k-1)] = 4.
+                        end
+                    end
+                end
+            end                        
+            com.simulationBox = [-1. 1.;-1. 1.;-1. 1]
+            com.radiusInteraction = 1.1
             comt = mo.evolve(com,dt=0.1,tMax=1)
-            (comt[1].intLocal == [4.,6.,6.,6.,6.,4.,4.,6.,6.,6.,6.,4.]) && (comt[1].int == [4.,4.,4.,4.,4.,4.,4.,4.,4.,4.,4.,4.])
-        end        
+            (comt[1].intLocal == intLocal) && (comt[1].int == intt)
+        end                  
 
-        s = SimulationGrid(m,[(:l1,-10,10),(:l2,-10,10),Periodic(:l3,-10,10)],[5.,5.,5.])
-        mo = compile(m,s,platform=platform)
+        #Check 1D Periodic
+        m = @agent(
+            1,
+
+            [intLocal,int]::Local,
+
+            Equation = begin
+                d_l2 = 0.
+            end,
+
+            UpdateInteraction = begin
+                if abs(x_i - x_j) <= .9
+                    int += 1
+                end
+            end,
+
+            UpdateLocalInteraction = begin
+                intLocal += 1
+            end,
+
+            Boundary = BoundaryFlat(Periodic())
+        )
+
+        mo = compile(m,platform=platform,neighbors="grid",debug=false)
         # println(mo.program)
         @test begin
             com = Community(mo,N=4)
-            com.l3 .= [-7,-2,2,7]
+            com.x .= [-1.5,-.5,.5,1.5]
+            com.simulationBox = [-1. 1.]
+            com.radiusInteraction = 1.1
 
             comt = mo.evolve(com,dt=0.1,tMax=1)
-            comt[1].intLocal == [3.,3.,3.,3.]
-        end        
+            (comt[1].intLocal == [3,3,3,3]) && (comt[1].int == [1,1,1,1])
+        end   
+
+        #Check 2D Periodic
+        m = @agent(
+            2,
+
+            [intLocal,int]::Local,
+
+            Equation = begin
+                d_l2 = 0.
+            end,
+
+            UpdateInteraction = begin
+                if sqrt((x_i - x_j)^2+(y_i - y_j)^2) <= 1.1
+                    int += 1
+                end
+            end,
+
+            UpdateLocalInteraction = begin
+                intLocal += 1
+            end,
+
+            Boundary = BoundaryFlat(Periodic())
+        )
+
+        mo = compile(m,platform=platform,neighbors="grid",debug=false)
+        # println(mo.program)
+        @test begin
+            com = Community(mo,N=16)
+            com.x .= [-1.5,-.5,.5,1.5,-1.5,-.5,.5,1.5,-1.5,-.5,.5,1.5,-1.5,-.5,.5,1.5]
+            com.y .= [-1.5,-1.5,-1.5,-1.5,-.5,-.5,-.5,-.5,.5,.5,.5,.5,1.5,1.5,1.5,1.5]
+            com.simulationBox = [-1. 1.;-1. 1.]
+            com.radiusInteraction = 1.1
+
+            comt = mo.evolve(com,dt=0.1,tMax=1)
+            (comt[1].intLocal == [4.,6.,6.,4.,6.,9.,9.,6.,6.,9.,9.,6.,4.,6.,6.,4.]) && (comt[1].int == [3.,4.,4.,3.,4.,5.,5.,4.,4.,5.,5.,4.,3.,4.,4.,3.])
+        end                  
+
+        #Check 3D Periodic
+        m = @agent(
+            3,
+
+            [intLocal,int]::Local,
+
+            Equation = begin
+                d_l2 = 0.
+            end,
+
+            UpdateInteraction = begin
+                if sqrt((x_i - x_j)^2+(y_i - y_j)^2+(z_i - z_j)^2) <= 1.1
+                    int += 1
+                end
+            end,
+
+            UpdateLocalInteraction = begin
+                intLocal += 1
+            end,
+        )
+
+        mo = compile(m,platform=platform,neighbors="grid",debug=false)
+        # println(mo.program)
+        @test begin
+            com = Community(mo,N=64)
+            intLocal = zeros(64)
+            intt = zeros(64)
+            for (i,x) in enumerate([-1.5,-.5,.5,1.5])
+                for (j,y) in enumerate([-1.5,-.5,.5,1.5])
+                    for (k,z) in enumerate([-1.5,-.5,.5,1.5])
+                        com.x[i+4*(j-1)+16*(k-1)] = x 
+                        com.y[i+4*(j-1)+16*(k-1)] = y 
+                        com.z[i+4*(j-1)+16*(k-1)] = z
+
+                        intLocal[i+4*(j-1)+16*(k-1)] = 27.
+                        intt[i+4*(j-1)+16*(k-1)] = 7.
+                        if abs(x) == 1.5 || abs(y) == 1.5 || abs(z) == 1.5
+                            intLocal[i+4*(j-1)+16*(k-1)] = 18.
+                            intt[i+4*(j-1)+16*(k-1)] = 6.
+                        end
+                        if (abs(x) == 1.5 && abs(y) == 1.5) || (abs(x) == 1.5 && abs(z) == 1.5) || (abs(y) == 1.5 && abs(z) == 1.5)
+                            intLocal[i+4*(j-1)+16*(k-1)] = 12.
+                            intt[i+4*(j-1)+16*(k-1)] = 5.
+                        end
+                        if abs(x) == 1.5 && abs(y) == 1.5 && abs(z) == 1.5
+                            intLocal[i+4*(j-1)+16*(k-1)] = 8.
+                            intt[i+4*(j-1)+16*(k-1)] = 4.
+                        end
+                    end
+                end
+            end                        
+            com.simulationBox = [-1. 1.;-1. 1.;-1. 1]
+            com.radiusInteraction = 1.1
+            comt = mo.evolve(com,dt=0.1,tMax=1)
+            (comt[1].intLocal == intLocal) && (comt[1].int == intt)
+        end                  
+
 
     end
 

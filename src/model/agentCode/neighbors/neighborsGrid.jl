@@ -13,7 +13,7 @@ function gridShape(dims::Int,box::Array{<:Real,2},radius::Union{<:Real,Array{<:R
         error("Community.radiusInteraction has to be a Real Number or an array with the dimensions of the model.")
     end
 
-    if any([box[i,2]<= box[i,1] for i in 1:size(box)[2]]) && dims > 0
+    if any([box[i,2]<= box[i,1] for i in 1:dims]) && dims > 0
         error("Community.simulationBox must have all the minimum values bigger than the maximum.")
     end
 
@@ -214,7 +214,7 @@ function gridInsertCounts1D_cpu!(N,localV,box,r,n,nnPosIdCell_,nnGridCounts_)
     lockadd_ = Threads.SpinLock()
     Threads.@threads for ic1_ = 1:N
 
-        nnPosIdCell_[ic1_] = AgentBasedModels.position2gridVectorPosition_(localV[1],box[1,1],r[1],n[1])
+        nnPosIdCell_[ic1_] = AgentBasedModels.position2gridVectorPosition_(localV[ic1_,1],box[1,1],r[1],n[1])
         lock(lockadd_)
             nnGridCounts_[nnPosIdCell_[ic1_]]+=1
         unlock(lockadd_)
@@ -230,8 +230,8 @@ function gridInsertCounts2D_cpu!(N,localV,box,r,n,nnPosIdCell_,nnGridCounts_)
     lockadd_ = Threads.SpinLock()
     Threads.@threads for ic1_ = 1:N
 
-        nnPosIdCell_[ic1_] = AgentBasedModels.position2gridVectorPosition_(localV[1],box[1,1],r[1],n[1],
-                                                                            localV[2],box[2,1],r[2],n[2])
+        nnPosIdCell_[ic1_] = AgentBasedModels.position2gridVectorPosition_(localV[ic1_,1],box[1,1],r[1],n[1],
+                                                                            localV[ic1_,2],box[2,1],r[2],n[2])
         lock(lockadd_)
             nnGridCounts_[nnPosIdCell_[ic1_]]+=1
         unlock(lockadd_)
@@ -247,9 +247,9 @@ function gridInsertCounts3D_cpu!(N,localV,box,r,n,nnPosIdCell_,nnGridCounts_)
     lockadd_ = Threads.SpinLock()
     Threads.@threads for ic1_ = 1:N
 
-        nnPosIdCell_[ic1_] = AgentBasedModels.position2gridVectorPosition_(localV[1],box[1,1],r[1],n[1],
-                                                                            localV[2],box[2,1],r[2],n[2],
-                                                                            localV[3],box[3,1],r[3],n[3])
+        nnPosIdCell_[ic1_] = AgentBasedModels.position2gridVectorPosition_(localV[ic1_,1],box[1,1],r[1],n[1],
+                                                                            localV[ic1_,2],box[2,1],r[2],n[2],
+                                                                            localV[ic1_,3],box[3,1],r[3],n[3])
         lock(lockadd_)
             nnGridCounts_[nnPosIdCell_[ic1_]]+=1
         unlock(lockadd_)
@@ -299,7 +299,6 @@ function gridComputeNN2D_cpu!(N,localV,box,r,n,nnPosIdCell_,nnGridCounts_,nnGrid
     nnGridCounts_ .= 0
     nnGridCountsAux_ .= 1
     gridInsertCounts2D_cpu!(N,localV,box,r,n,nnPosIdCell_,nnGridCounts_)
-    println(nnGridCounts_)
     nnGridCountsCum_ .= cumsum(nnGridCounts_)
     gridCountingSort_cpu!(N,nnPosIdCell_,nnGridCountsCum_,nnGridCountsAux_,nnCellIdPos_)
 
@@ -326,7 +325,7 @@ function gridInsertCounts1D_gpu!(N,localV,box,r,n,nnPosIdCell_,nnGridCounts_)
     stride_ = blockDim().x * gridDim().x
 
     for ic1_ in index_:stride_:N
-        nnPosIdCell_[ic1_] = AgentBasedModels.position2gridVectorPosition_(localV[1],box[1,1],r[1],n[1])
+        nnPosIdCell_[ic1_] = AgentBasedModels.position2gridVectorPosition_(localV[ic1_,1],box[1,1],r[1],n[1])
         CUDA.atomic_add!(CUDA.pointer(nnGridCounts_,nnPosIdCell_[ic1_]),Int32(1))
     end
 
@@ -340,8 +339,8 @@ function gridInsertCounts2D_gpu!(N,localV,box,r,n,nnPosIdCell_,nnGridCounts_)
     stride_ = blockDim().x * gridDim().x
 
     for ic1_ in index_:stride_:N
-        nnPosIdCell_[ic1_] = AgentBasedModels.position2gridVectorPosition_(localV[1],box[1,1],r[1],n[1],
-                                                                            localV[2],box[2,1],r[2],n[2])
+        nnPosIdCell_[ic1_] = AgentBasedModels.position2gridVectorPosition_(localV[ic1_,1],box[1,1],r[1],n[1],
+                                                                            localV[ic1_,2],box[2,1],r[2],n[2])
         CUDA.atomic_add!(CUDA.pointer(nnGridCounts_,nnPosIdCell_[ic1_]),Int32(1))
     end
 
@@ -355,9 +354,9 @@ function gridInsertCounts3D_gpu!(N,localV,box,r,n,nnPosIdCell_,nnGridCounts_)
     stride_ = blockDim().x * gridDim().x
 
     for ic1_ in index_:stride_:N
-        nnPosIdCell_[ic1_] = AgentBasedModels.position2gridVectorPosition_(localV[1],box[1,1],r[1],n[1],
-                                                                            localV[2],box[2,1],r[2],n[2],
-                                                                            localV[3],box[3,1],r[3],n[3])
+        nnPosIdCell_[ic1_] = AgentBasedModels.position2gridVectorPosition_(localV[ic1_,1],box[1,1],r[1],n[1],
+                                                                            localV[ic1_,2],box[2,1],r[2],n[2],
+                                                                            localV[ic1_,3],box[3,1],r[3],n[3])
         CUDA.atomic_add!(CUDA.pointer(nnGridCounts_,nnPosIdCell_[ic1_]),Int32(1))
     end
 
@@ -468,7 +467,7 @@ function argumentsGrid_!(program::Program_, platform::String)
         error("Platform should be or cpu or gpu. ", platform, " was given.")
     end
 
-    append!(program.args, [:nnPosIdCell_,:nnGridCounts_,:nnGridCountsAux_,:nnGridCountsCum_,:nnCellIdPos_])
+    append!(program.args, [:nnPosIdCell_,:nnGridCounts_,:nnGridCountsAux_,:nnGridCountsCum_,:nnCellIdPos_,:n_])
 
     aux = Meta.parse(string("AgentBasedModels.gridComputeNN",program.agent.dims,"D_",platform,"!(N,localV,simulationBox,radiusInteraction,n_,nnPosIdCell_,nnGridCounts_,nnGridCountsCum_,nnGridCountsAux_,nnCellIdPos_)"))
 
