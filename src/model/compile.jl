@@ -44,13 +44,16 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
     end
 
     program = quote
-        function (com::Community; dt::Real, tMax::Real, t::Real=com.t, N::Integer=com.N, nMax::Integer=com.N, 
-                dtSave::Real=dt,tSave::Real=0,saveFile::String="",box::Array{<:Real}=Array{Real,1}([]),r::Union{<:Real,Array{<:Real,1}}=Array{Real,1}([]))
+        function (com::Community;
+                dt::Real, tMax::Real,
+                nMax::Integer=com.N, 
+                dtSave::Real=dt,
+                tSave::Real=0, saveFile::String="")
             #Promoting to the correct type
             dt = Float64(dt)
             tMax = Float64(tMax)
-            t = Float64(t)
-            N = Int(N)
+            t = Float64(com.t)
+            N = Int(com.N)
             #Declaration of variables
             $(p.declareVar)
             #Declaration of functions

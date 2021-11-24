@@ -9,7 +9,6 @@ mutable struct Program_
     integrator::String
     integratorMedium::String
     neighbors::String
-
     declareVar::Expr
     declareF::Expr
     args::Array{Symbol,1}

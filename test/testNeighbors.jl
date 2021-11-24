@@ -1,9 +1,9 @@
-@testset "SimulationSpace Free" begin
+@testset "Neighbors Full" begin
 
-    @test hasmethod(AgentBasedModels.arguments_!,(AgentBasedModels.Program_,Agent,SimulationFree,String))
-    @test hasmethod(AgentBasedModels.loop_,(AgentBasedModels.Program_,Agent,SimulationFree,Expr,String))
+    @test hasmethod(AgentBasedModels.argumentsFull_!,(AgentBasedModels.Program_,String))
+    @test hasmethod(AgentBasedModels.loopFull_,(AgentBasedModels.Program_,Expr,String))
 
-    @test AgentBasedModels.arguments_!(AgentBasedModels.Program_(@agent(3),SimulationFree(@agent(3))),@agent(3),SimulationFree(@agent(3)),"gpu") == Nothing
+    @test AgentBasedModels.argumentsFull_!(AgentBasedModels.Program_(@agent(3)),"gpu") == Nothing
     
     @test_nowarn begin
         
@@ -19,9 +19,6 @@
                 end
             end
         )
-        
-        s = SimulationFree(m)
-
         m = compile(m)
     end
 
@@ -47,7 +44,6 @@
             end
         end
     )
-    s = SimulationFree(m)
     m = compile(m,debug=false)
 
     @test begin
@@ -88,10 +84,10 @@
 
 end
 
-@testset "SimulationSpace Grid" begin
+@testset "Neighbors Grid" begin
 
-    @test hasmethod(AgentBasedModels.arguments_!,(AgentBasedModels.Program_, Agent, SimulationGrid, String))
-    @test hasmethod(AgentBasedModels.loop_,(AgentBasedModels.Program_, Agent, SimulationGrid, Expr, String))
+    @test hasmethod(AgentBasedModels.argumentsGrid_!,(AgentBasedModels.Program_, String))
+    @test hasmethod(AgentBasedModels.loopGrid_,(AgentBasedModels.Program_, Expr, String))
     
     @test begin
         xx = []
@@ -244,16 +240,15 @@ end
     end
 
     m = @agent 3 [w]::Local;
-    nn = SimulationGrid();
 
-    @test_nowarn AgentBasedModels.arguments_!(AgentBasedModels.Program_(m,nn),m,nn,"cpu")
+    @test_nowarn AgentBasedModels.argumentsGrid_!(AgentBasedModels.Program_(m),"cpu")
 
     for platform in testplatforms
 
         m = @agent(
-            0,
+            2,
 
-            [l1,l2,l3,intLocal,int]::Local,
+            [intLocal,int]::Local,
             [i1,i2]::Identity,
 
             Equation = begin
@@ -261,7 +256,7 @@ end
             end,
 
             UpdateInteraction = begin
-                if abs(l1_i - l1_j) <= 4.5
+                if abs(x_i - y_j) <= 4.5
                     int += 1
                 end
             end,
@@ -271,25 +266,36 @@ end
             end,
         )
 
-        s = SimulationGrid()
-        mo = compile(m,s,platform=platform,debug=false)
-        #println(mo.program)
-        @test begin
+        mo = compile(m,platform=platform,neighbors="grid",debug=false)
+        # println(mo.program)
+        @test_throws ErrorException begin #Error if box not specified
             com = Community(mo,N=12)
-            com.l1 .= [-11,-7,-2,2,7,11,-11,-7,-2,2,7,11]
-            com.l2 .= 0
+            com.x .= [-11,-7,-2,2,7,11,-11,-7,-2,2,7,11]
+            com.y .= 0
 
             comt = mo.evolve(com,dt=0.1,tMax=1)
+        end
+
+        @test begin
+            com = Community(mo,N=12)
+            com.x .= [-11,-7,-2,2,7,11,-11,-7,-2,2,7,11]
+            com.y .= 0
+            com.simulationBox = [-10. 10.;-1. 1.]
+            com.radiusInteraction = .1
+
+            comt = mo.evolve(com,dt=0.1,tMax=1)
+            print(comt[1].intLocal)
             (comt[1].intLocal == [4.,6.,6.,6.,6.,4.,4.,6.,6.,6.,6.,4.]) && (comt[1].int == [4.,4.,4.,4.,4.,4.,4.,4.,4.,4.,4.,4.])
         end        
 
-        s = SimulationGrid(m,[Periodic(:l1,-10,10)],[5.])
-        mo = compile(m,s,platform=platform)
-        #println(mo.program)
+        mo = compile(m,s,neighbors="grid",platform=platform)
+        # println(mo.program)
         @test begin
             com = Community(mo,N=4)
-            com.l1 .= [-7,-2,2,7]
-            com.l2 .= 0
+            com.x .= [-7,-2,2,7]
+            com.y .= 0
+            com.simulationBox = [-10. 10.;-1. 1.]
+            com.radiusInteraction = 5.
 
             comt = mo.evolve(com,dt=0.1,tMax=1)
             comt[1].intLocal == [3.,3.,3.,3.]
@@ -318,7 +324,7 @@ end
 
         s = SimulationGrid(m,[(:l1,-20,20),(:l2,-10,10)],[5.,5.])
         mo = compile(m,s,platform=platform)
-        #println(mo.program)
+        # println(mo.program)
         @test begin
             com = Community(mo,N=12)
             com.l2 .= [-11,-7,-2,2,7,11,-11,-7,-2,2,7,11]
@@ -330,7 +336,7 @@ end
 
         s = SimulationGrid(m,[Bound(:l1,-20,20),Periodic(:l2,-10,10)],[5.,5.])
         mo = compile(m,s,platform=platform)
-        #println(mo.program)
+        # println(mo.program)
         @test begin
             com = Community(mo,N=4)
             com.l2 .= [-7,-2,2,7]
@@ -363,7 +369,7 @@ end
 
         s = SimulationGrid(m,[(:l1,-20,20),(:l2,-10,10),(:l3,-10,10)],[5.,5.,5.])
         mo = compile(m,s,platform=platform)
-        #println(mo.program)
+        # println(mo.program)
         @test begin
             com = Community(mo,N=12)
             com.l3 .= [-11,-7,-2,2,7,11,-11,-7,-2,2,7,11]
@@ -374,7 +380,7 @@ end
 
         s = SimulationGrid(m,[(:l1,-10,10),(:l2,-10,10),Periodic(:l3,-10,10)],[5.,5.,5.])
         mo = compile(m,s,platform=platform)
-        #println(mo.program)
+        # println(mo.program)
         @test begin
             com = Community(mo,N=4)
             com.l3 .= [-7,-2,2,7]

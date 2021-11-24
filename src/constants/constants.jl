@@ -1,3 +1,8 @@
+FLOAT = Float64
+INT = Int
+FLOATCUDA = Float32
+INTCUDA = Int32
+
 VALID_TYPES = [
     :Identity,
     :Local,
@@ -18,6 +23,8 @@ VALID_UPDATES = [
     :EventDeath
 ]
 
+PREDECLAREDPARAMETERS = Dict("Local"=>[:x,:y,:z],"Identity"=>:id,"Integration"=>[:dt,:dW],"Community"=>[:N],"Evolve"=>[:nMax])
+
 UPDATINGOPERATORS = [:+= ,:-=,:*=,:/=,:\=,:÷=,:%=,:^=,:&=,:|=,:⊻=,:>>>=,:>>=,:<<=]
 
 RESERVEDSYMBOLS = [:x,:y,:z,:id,:t,:N,:dt,:dW,:nMax,
@@ -25,6 +32,7 @@ RESERVEDSYMBOLS = [:x,:y,:z,:id,:t,:N,:dt,:dW,:nMax,
                     :ic1_,:ic2_,:nnic2_,:pos_,
                     :localV,:identityV,:globalV,:mediumV,
                     :localVCopy,:identityVCopy,:globalVCopy,:mediumVCopy,
+                    :simulationBox,:radiusInteraction,:n_,
                     :ALGORITHM_,:ARGS_,:AUX1_,:AUX2_,
                     :index_,:stride_,:lockadd_,
                     :∇,:∇x,:∇y,:∇z,:Δ,:Δx,:Δy,:Δz,:δx,:δy,:δz,:xₘ,:yₘ,:zₘ,:∑ₐ,:∑ₙ];

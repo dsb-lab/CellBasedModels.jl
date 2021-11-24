@@ -98,6 +98,8 @@ mutable struct Community
     t::AbstractFloat
     N::Int
     mediumN::Array{Int,1}
+    simulationBox::Array{<:AbstractFloat,2}
+    radiusInteraction::Union{Real,Array{<:AbstractFloat,1}}
     declaredSymbols_::Dict{String,Array{Symbol}}
     local_::Array{<:AbstractFloat,2}
     identity_::Array{Int,2}
@@ -109,26 +111,28 @@ end
 function Community(abm::Model; N::Int=1, t::AbstractFloat=0., mediumN::Array{Int,1}=Array{Int,1}([]))
 
     if !isempty(abm.agent.declaredSymbols["Medium"])
-        if length(mediumN) != abm.dims
-            error("mediumN has to be an array with the same dimensions as Model.")
+        if length(mediumN) != abm.agent.dims
+            error("mediumN has to be an array with the same length as Model dimensions specifing the number of points in the grid.")
         end
     end
 
     dims = abm.agent.dims
     mediumN = mediumN .+ 2
-    loc = zeros(Float64,N,length(abm.agent.declaredSymbols["Local"]))
-    ids = ones(Int,N,length(abm.agent.declaredSymbols["Identity"]))
+    simulationBox = zeros(FLOAT,dims,2)
+    radiusInteraction = 0.
+    loc = zeros(FLOAT,N,length(abm.agent.declaredSymbols["Local"]))
+    ids = ones(INT,N,length(abm.agent.declaredSymbols["Identity"]))
     ids[:,1] .= 1:N
-    glob = zeros(Float64,length(abm.agent.declaredSymbols["Global"]))
+    glob = zeros(FLOAT,length(abm.agent.declaredSymbols["Global"]))
     globArray = []
-    medium = zeros(Float64,mediumN...,length(abm.agent.declaredSymbols["Medium"]))
+    medium = zeros(FLOAT,mediumN...,length(abm.agent.declaredSymbols["Medium"]))
     for i in abm.agent.declaredSymbols["GlobalArray"]
         push!(globArray,[])
     end
 
     declaredSymbols = abm.agent.declaredSymbols
 
-    return Community(dims,t,N,mediumN,declaredSymbols,loc,ids,glob,globArray,medium)
+    return Community(dims,t,N,mediumN,simulationBox,radiusInteraction,declaredSymbols,loc,ids,glob,globArray,medium)
 end
 
 function Base.show(io::IO,com::Community)

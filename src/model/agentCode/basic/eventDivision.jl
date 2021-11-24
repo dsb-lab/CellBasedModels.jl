@@ -46,9 +46,9 @@ function addEventDivision_!(p::Program_,platform::String)
             vecCopy = Meta.parse(string(lowercase(k),"VCopy"))  
             for (i,j) in enumerate(p.agent.declaredSymbols[k])
                 #Add update if doesn't exist
-                if !(j in keys(p.update["EventDivision"])) && j != :agentId
+                if !(j in keys(p.update["EventDivision"])) && j != PREDECLAREDPARAMETERS["Identity"]
                     push!(subcode.args,:($vec[ic1New_,$i] = $vec[ic1_,$i]))
-                elseif j != :agentId
+                elseif j != PREDECLAREDPARAMETERS["Identity"]
                     ii = p.update[k][j]
                     push!(subcode.args,:($vec[ic1_,$i] = $vecCopy[ic1_,$ii]))
                     push!(subcode.args,:($vec[ic1New_,$i] = $vecCopy[ic1New_,$ii]))                

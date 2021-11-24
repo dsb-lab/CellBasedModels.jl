@@ -68,7 +68,7 @@ function addSavingRAM_!(p::Program_,platform::String)
 
     push!(p.execInit.args,
         :(begin
-            ob = Community($(p.agent.dims),t,N,com.mediumN,com.declaredSymbols_,$(l...))
+            ob = Community($(p.agent.dims),t,N,com.mediumN,com.simulationBox,com.radiusInteraction,com.declaredSymbols_,$(l...))
             push!(commRAM_,ob)
         end)
     )
@@ -76,7 +76,7 @@ function addSavingRAM_!(p::Program_,platform::String)
         :(begin
             if t >= tSave
                 tSave += dtSave
-                ob = Community($(p.agent.dims),t+dt,N,com.mediumN,com.declaredSymbols_,$(l...))
+                ob = Community($(p.agent.dims),t+dt,N,com.mediumN,com.simulationBox,com.radiusInteraction,com.declaredSymbols_,$(l...))
                 push!(commRAM_,ob)
             end
         end)
