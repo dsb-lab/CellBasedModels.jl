@@ -27,6 +27,5 @@ testplatforms = ["gpu"]
 # include("testNeighbors.jl")
 # include("testBound.jl")
 # include("testSave.jl")
-include("testConstructors.jl")
-# include("testMedium.jl")
+include("testMedium.jl")
 
