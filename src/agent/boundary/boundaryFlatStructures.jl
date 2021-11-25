@@ -1,4 +1,4 @@
-export BoundaryFlat, Periodic, Bounded
+export BoundaryFlat, Periodic, Bounded, Free
 
 """
 Boundary defining a line, rectangle or box.
@@ -18,6 +18,7 @@ struct BoundaryFlat<:Boundary
 
     dims::Int
     boundaries::Array{BoundaryFlatSubtypes,1}
+    addSymbols::Array{Symbol}
 
 end
 
@@ -26,11 +27,15 @@ function BoundaryFlat(n::Int=0,boundX::BoundaryFlatSubtypes=Free(),
                         boundZ::BoundaryFlatSubtypes=Free())
 
     bound = Array{BoundaryFlatSubtypes,1}([])
+    symbols = Array{Symbol,1}([])
     for i in [boundX,boundY,boundZ][1:n]
         push!(bound,i)
+        for j in keys(i.addSymbols)
+            append!(symbols,i.addSymbols[j])
+        end
     end
 
-    return BoundaryFlat(n,bound)
+    return BoundaryFlat(n,bound,symbols)
 end
 
 """
@@ -41,7 +46,8 @@ Boundary defining periodic boundary conditions.
     function Free(;medium::BoundaryMedium=Dirichlet())
 
 ### Keyword arguments
- - **medium::BoundaryMedium** Boundary method of the medium. (Default Dirichlet()) 
+- **additional::Array{Symbol,1}** (Default Array{Symbol,1}()) Additional symbols to be updated when the symbol `s` crosses the boundary. (Empty)
+- **medium::BoundaryMedium** Boundary method of the medium. (Default Dirichlet()) 
 
 # Example: A free particle moving in the hole space.
 
@@ -50,11 +56,12 @@ bound = Free()
 ```
 """
 struct Free<:BoundaryFlatSubtypes
+    addSymbols::Dict{String,Array{Symbol,1}}
     medium::BoundaryMedium
 end
 
 function Free(;medium::BoundaryMedium=Dirichlet())
-    return Free(medium)
+    return Free(Dict{String,Array{Symbol,1}}(),medium)
 end
 
 """
@@ -132,6 +139,7 @@ boundY = Bounded(:y,0,10,
 """
 struct Bounded<:BoundaryFlatSubtypes 
     addSymbols::Dict{String,Array{Symbol,1}}
+    medium::BoundaryMedium
 end
 
 function Bounded(;

@@ -27,7 +27,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
     addUpdateGlobal_!(p,platform)
     addUpdateLocal_!(p,platform)
     addUpdateLocalInteraction_!(p,platform)
-    # addCheckBounds_!(p,platform)
+    addCheckBounds_!(p,platform)
     addUpdateMediumInteraction_!(p,platform)
     addIntegratorMedium_![integratorMedium](p,platform)
     addUpdate_!(p,platform)
@@ -50,10 +50,10 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
                 dtSave::Real=dt,
                 tSave::Real=0, saveFile::String="")
             #Promoting to the correct type
-            dt = Float64(dt)
-            tMax = Float64(tMax)
-            t = Float64(com.t)
-            N = Int(com.N)
+            dt = $FLOAT(dt)
+            tMax = $FLOAT(tMax)
+            t = $FLOAT(com.t)
+            N = $INT(com.N)
             #Declaration of variables
             $(p.declareVar)
             #Declaration of functions

@@ -38,7 +38,7 @@
 
             @test all(abs.(comt.x[1:end,1] .- exp.(-comt.t)) .< 0.02)
             @test all(comt.y[1:end,1] .≈ 2 )
-            @test all(comt.z[1:end,1] .≈ comt.t)
+            @test all(abs.(comt.z[1:end,1] .- comt.t) .< 0.005)
 
             #SDE
             m = @agent(

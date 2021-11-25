@@ -112,7 +112,7 @@ macro agent(dims, varargs...)
 
     if !boundaryDeclared && !isempty(m.declaredSymbols["Medium"])
         error("If medium variables are declared, a boundary must be explicitely declared.")
-    else
+    elseif !boundaryDeclared
         m.boundary = BoundaryFlat(dims)
     end
         

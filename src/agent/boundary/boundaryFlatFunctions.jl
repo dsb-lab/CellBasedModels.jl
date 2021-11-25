@@ -11,6 +11,18 @@ boundBounceMax(x,max) = max - (x-max)
 
 boundReflect(x) = -x
 
+function checkInitiallyInBoundBoundaryFlat(simulationBox,localV,boundaries)
+    for (i,b) in enumerate(boundaries)
+        if b in [Periodic,Bounded]
+            if any(localV[:,i] .<= simulationBox[i,1]) || any(localV[:,1] .> simulationBox[i,2])
+                error("Particles have to be initialised inside the simulation boundary min<X=<max for flat boundaries that are not of type Free.",
+                    " Some particles of axis ", i ," with declared boundary ", b ," have been initialised outside it."
+                )
+            end
+        end
+    end
+end
+
 ###################################################
 #Return code boundaries
 ###################################################
@@ -26,25 +38,22 @@ function returnBound_(s::Symbol,pos::Int,b::Periodic,p::Program_)
 
     posS = p.update["Local"][s]
 
-    max = (pos-1)*3+2
-    min = (pos-1)*3+1
-    up = quote localVCopy[ic1_,$posS] += boundsParameters[$max]-boundsParameters[$min] end
+    up = quote localVCopy[ic1_,$posS] += simulationBox[$pos,2]-simulationBox[$pos,1] end
     for i in b.addSymbols["add"]
         posm = p.update["Local"][i]
-        push!(up.args,:(localVCopy[ic1_,$posm] += boundsParameters[$max]-boundsParameters[$min]))
+        push!(up.args,:(localVCopy[ic1_,$posm] += simulationBox[$pos,2]-simulationBox[$pos,1]))
     end
 
-    down = quote localVCopy[ic1_,$posS] -= boundsParameters[$max]-boundsParameters[$min] end
+    down = quote localVCopy[ic1_,$posS] -= simulationBox[$pos,2]-simulationBox[$pos,1] end
     for i in b.addSymbols["add"]
         posm = p.update["Local"][i]
-        push!(down.args,:(localVCopy[ic1_,$posm] -= boundsParameters[$max]-boundsParameters[$min]))
+        push!(down.args,:(localVCopy[ic1_,$posm] -= simulationBox[$pos,2]-simulationBox[$pos,1]))
     end
-
 
     code = quote
-                if localVCopy[ic1_,$posm] < boundsParameters[$min]
+                if localVCopy[ic1_,$pos] < simulationBox[$pos,1]
                     $up
-                elseif localVCopy[ic1_,$posm] >= boundsParameters[$max]
+                elseif localVCopy[ic1_,$pos] >= simulationBox[$pos,2]
                     $down
                 end
            end
@@ -70,19 +79,19 @@ function returnBound_(s::Symbol,pos::Int,b::Bounded,p::Program_)
     min = quote end
     for i in b.addSymbols["stop"]
         posm = p.update["Local"][i]
-        push!(min.args,:(localVCopy[ic1_,$posm] = boundStopMin(localVCopy[ic1_,$posm],boundsParameters[$min])))
+        push!(min.args,:(localVCopy[ic1_,$posm] = boundStopMin(localVCopy[ic1_,$posm],simulationBox[$pos,1])))
     end
     for i in b.addSymbols["stopMin"]
         posm = p.update["Local"][i]
-        push!(min.args,:(localVCopy[ic1_,$posm] = boundStopMin(localVCopy[ic1_,$posm],boundsParameters[$min])))
+        push!(min.args,:(localVCopy[ic1_,$posm] = boundStopMin(localVCopy[ic1_,$posm],simulationBox[$pos,1])))
     end
     for i in b.addSymbols["bounce"]
         posm = p.update["Local"][i]
-        push!(min.args,:(localVCopy[ic1_,$posm] = boundBounceMin(localVCopy[ic1_,$posm],boundsParameters[$min])))
+        push!(min.args,:(localVCopy[ic1_,$posm] = boundBounceMin(localVCopy[ic1_,$posm],simulationBox[$pos,1])))
     end
     for i in b.addSymbols["bounceMin"]
         posm = p.update["Local"][i]
-        push!(min.args,:(localVCopy[ic1_,$posm] = boundBounceMin(localVCopy[ic1_,$posm],boundsParameters[$min])))
+        push!(min.args,:(localVCopy[ic1_,$posm] = boundBounceMin(localVCopy[ic1_,$posm],simulationBox[$pos,1])))
     end
     for i in b.addSymbols["reflect"]
         posm = p.update["Local"][i]
@@ -96,19 +105,19 @@ function returnBound_(s::Symbol,pos::Int,b::Bounded,p::Program_)
     max = quote end
     for i in b.addSymbols["stop"]
         posm = p.update["Local"][i]
-        push!(max.args,:(localVCopy[ic1_,$posm] = boundStopMax(localVCopy[ic1_,$posm],boundsParameters[$max])))
+        push!(max.args,:(localVCopy[ic1_,$posm] = boundStopMax(localVCopy[ic1_,$posm],simulationBox[$pos,2])))
     end
     for i in b.addSymbols["stopMax"]
         posm = p.update["Local"][i]
-        push!(max.args,:(localVCopy[ic1_,$posm] = boundStopMax(localVCopy[ic1_,$posm],boundsParameters[$max])))
+        push!(max.args,:(localVCopy[ic1_,$posm] = boundStopMax(localVCopy[ic1_,$posm],simulationBox[$pos,2])))
     end
     for i in b.addSymbols["bounce"]
         posm = p.update["Local"][i]
-        push!(max.args,:(localVCopy[ic1_,$posm] = boundBounceMax(localVCopy[ic1_,$posm],boundsParameters[$max])))
+        push!(max.args,:(localVCopy[ic1_,$posm] = boundBounceMax(localVCopy[ic1_,$posm],simulationBox[$pos,2])))
     end
     for i in b.addSymbols["bounceMax"]
         posm = p.update["Local"][i]
-        push!(max.args,:(localVCopy[ic1_,$posm] = boundBounceMax(localVCopy[ic1_,$posm],boundsParameters[$max])))
+        push!(max.args,:(localVCopy[ic1_,$posm] = boundBounceMax(localVCopy[ic1_,$posm],simulationBox[$pos,2])))
     end
     for i in b.addSymbols["reflect"]
         posm = p.update["Local"][i]
@@ -119,14 +128,14 @@ function returnBound_(s::Symbol,pos::Int,b::Bounded,p::Program_)
         push!(max.args,:(localVCopy[ic1_,$posm] = boundReflect(localVCopy[ic1_,$posm])))
     end
 
-    posm = p.update["Local"][b.s]
+    posm = p.update["Local"][s]
 
     if !emptyquote_(min) && !emptyquote_(max)
 
         code = quote 
-            if localVCopy[ic1_,$posm] < boundsParameters[$min] 
+            if localVCopy[ic1_,$posm] < simulationBox[$pos,1] 
                 $min
-            elseif localVCopy[ic1_,$posm] >= boundsParameters[$max] 
+            elseif localVCopy[ic1_,$posm] >= simulationBox[$pos,2] 
                 $max
             end
        end        
@@ -134,7 +143,7 @@ function returnBound_(s::Symbol,pos::Int,b::Bounded,p::Program_)
        return code
     elseif !emptyquote_(min)
         code = quote 
-            if localVCopy[ic1_,$posm] < boundsParameters[$min] 
+            if localVCopy[ic1_,$posm] < simulationBox[$pos,1] 
                 $min
             end
        end        
@@ -142,7 +151,7 @@ function returnBound_(s::Symbol,pos::Int,b::Bounded,p::Program_)
         return code
     elseif !emptyquote_(max)
         code = quote 
-            if localVCopy[ic1_,$posm] >= boundsParameters[$max] 
+            if localVCopy[ic1_,$posm] >= simulationBox[$pos,2] 
                 $max
             end
        end        

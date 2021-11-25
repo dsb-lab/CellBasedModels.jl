@@ -1,65 +1,10 @@
 @testset "Medium" begin
 
-    # #Test we can call the variable and the function
-    # @test begin m = @agent(1, u::Medium); m.declaredSymbols["Medium"] == [:u] end
-    # @test begin m = @agent(1, [u,v]::Medium); m.declaredSymbols["Medium"] == [:u,:v] end
-    # @test begin m = @agent(1, UpdateMedium = ∂t_u = Δ(u) + δx(0.)*δy(0.)*1.); "UpdateMedium" in keys(m.declaredUpdates) end
-
-    # # Declaration of Mediums
-    # for j in ["Newmann",
-    #     "Dirichlet",
-    #     "Periodic",
-    #     "Newmann-Newmann",
-    #     "Dirichlet-Dirichlet",
-    #     "Periodic-Periodic",
-    #     "Newmann-Dirichlet",
-    #     "Dirichlet-Newmann"]
-
-    #     @test_nowarn MediumFlat(j,10)
-    # end
-
-    # for j in ["Newmann-Periodic",
-    #     "Dirichlet-Periodic",
-    #     "Periodic-Dirichlet",
-    #     "Periodic-Newmann"]
-
-    #     @test_throws ErrorException MediumFlat(j,10)
-    # end
-
-    # @test_throws ErrorException MediumFlat("k",10)
-
-    # # Declaration of MediumFlat in spaces
-    # for i in 1:3
-
-    #     if i == 1
-    #         m = @agent(1, u::Medium)
-    #     elseif i == 2
-    #         m = @agent(2, u::Medium)
-    #     else
-    #         m = @agent(3, u::Medium)
-    #     end
-
-    #     box = [(:x,-10.,10.),(:y,-10.,10.),(:z,-10.,10.)][1:i]
-    #     medium = [MediumFlat("Newmann",10) for k in 1:i]
-            
-    #     @test_nowarn SimulationFree(m,box=box,medium=medium)
-    #     @test_nowarn SimulationGrid(m,box,1.,medium=medium)
-    # end
-
-    # m = @agent(3, u::Medium)
-    # @test_throws ErrorException SimulationFree(m,box=[(:x,0,1)],medium=[MediumFlat("Dirichlet",10)])
-    # @test_throws ErrorException SimulationFree(m,box=[(:x,0,1)],medium=[MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10)])
-
-    # # Compilation
-    # for i in testplatforms
-    #     @test_nowarn begin
-    #         m = @agent(3, u::Medium)
-    #         s = SimulationFree(m,
-    #                         box=[(:x,-10.,10.),(:y,-10.,10.),(:z,-10.,10.)],
-    #                         medium=[MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10)])
-    #         compile(m,s,platform=i)
-    #     end
-    # end
+    #Test we can call the variable and the function
+    @test_throws ErrorException try @eval @agent(1, u::Medium) catch err; throw(err.error) end
+    @test begin m = @agent(1, u::Medium, Boundary = BoundaryFlat(1)); m.declaredSymbols["Medium"] == [:u] end
+    @test begin m = @agent(1, [u,v]::Medium, Boundary = BoundaryFlat(1)); m.declaredSymbols["Medium"] == [:u,:v] end
+    @test begin m = @agent(1, UpdateMedium = ∂t_u = Δ(u) + δx(0.)*δy(0.)*1.); "UpdateMedium" in keys(m.declaredUpdates) end
 
     # #Community construction
     # @test_nowarn begin

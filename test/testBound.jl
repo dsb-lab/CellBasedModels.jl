@@ -16,28 +16,21 @@
                 x += sx
                 y += sy
                 z += sz
-            end
+            end,
+
+            Boundary = BoundaryFlat(3,
+                Bounded(stop=[:s],stopMin=[:sMin],stopMax=[:sMax],
+                    bounce=[:b],bounceMin=[:bMin],bounceMax=[:bMax],
+                    reflect=[:r],reflectMin=[:rMin],reflectMax=[:rMax]),
+                Bounded(stop=[:s],stopMin=[:sMin],stopMax=[:sMax],
+                    bounce=[:b],bounceMin=[:bMin],bounceMax=[:bMax],
+                    reflect=[:r],reflectMin=[:rMin],reflectMax=[:rMax]),
+                Bounded(stop=[:s],stopMin=[:sMin],stopMax=[:sMax],
+                    bounce=[:b],bounceMin=[:bMin],bounceMax=[:bMax],
+                    reflect=[:r],reflectMin=[:rMin],reflectMax=[:rMax])
+                )                
         )
-        space = SimulationFree(m,
-            box=[
-                Bound(:x,-1,1,
-                    stop=[:s],stopMin=[:sMin],stopMax=[:sMax],
-                    bounce=[:b],bounceMin=[:bMin],bounceMax=[:bMax],
-                    reflect=[:r],reflectMin=[:rMin],reflectMax=[:rMax]
-                ),
-                Bound(:y,-1,1,
-                    stop=[:s],stopMin=[:sMin],stopMax=[:sMax],
-                    bounce=[:b],bounceMin=[:bMin],bounceMax=[:bMax],
-                    reflect=[:r],reflectMin=[:rMin],reflectMax=[:rMax]
-                ),
-                Bound(:z,-1,1,
-                    stop=[:s],stopMin=[:sMin],stopMax=[:sMax],
-                    bounce=[:b],bounceMin=[:bMin],bounceMax=[:bMax],
-                    reflect=[:r],reflectMin=[:rMin],reflectMax=[:rMax]
-                )
-            ]
-        )
-        model = compile(m,space,platform=platform)
+        model = compile(m,platform=platform)
         #println(prettify(model.program))
         com = Community(model,N=6)
         com.x .= [-.9,.9,0,0,0,0]
@@ -59,6 +52,8 @@
         com.r .= 1
         com.rMin .= 1
         com.rMax .= 1        
+
+        com.simulationBox .= [-1. 1.;-1. 1.;-1. 1.]
 
         comt = model.evolve(com,dt=1,tMax=1.1)
 
@@ -86,16 +81,15 @@
                 x += sx
                 y += sy
                 z += sz
-            end
+            end,
+
+            Boundary = BoundaryFlat(3,
+                Periodic(additional=[:x1]),
+                Periodic(additional=[:y1]),
+                Periodic(additional=[:z1])
+            )
         )
-        space = SimulationFree(m,
-            box=[
-                Periodic(:x,-1,1,additional=[:x1]),
-                Periodic(:y,-1,1,additional=[:y1]),
-                Periodic(:z,-1,1,additional=[:z1])
-            ]
-        )
-        model = compile(m,space,platform=platform)
+        model = compile(m,platform=platform)
         #println(prettify(model.program))
 
         com = Community(model,N=6)
@@ -111,6 +105,8 @@
         com.y1 .= [0,0,-.9,.9,0,0]
         com.z1 .= [0,0,0,0,-.9,.9]
 
+        com.simulationBox .= [-1. 1;-1 1;-1 1]
+
         comt = model.evolve(com,dt=1,tMax=1.1)
 
         @test all(abs.(comt[end].x .- [.9,-.9,0,0,0,0]) .< 0.0001)
@@ -120,8 +116,6 @@
         @test all(abs.(comt[end].x1 .- [1.1,-1.1,0,0,0,0]) .< 0.0001)
         @test all(abs.(comt[end].y1 .- [0,0,1.1,-1.1,0,0]) .< 0.0001)
         @test all(abs.(comt[end].z1 .- [0,0,0,0,1.1,-1.1]) .< 0.0001)
-
-
 
 
 
@@ -140,28 +134,27 @@
                 d_x = sx*dt
                 d_y = sy*dt
                 d_z = sz*dt
-            end
-        )
-        space = SimulationFree(m,
-            box=[
-                Bound(:x,-1,1,
-                    stop=[:s],stopMin=[:sMin],stopMax=[:sMax],
-                    bounce=[:b],bounceMin=[:bMin],bounceMax=[:bMax],
-                    reflect=[:r],reflectMin=[:rMin],reflectMax=[:rMax]
-                ),
-                Bound(:y,-1,1,
-                    stop=[:s],stopMin=[:sMin],stopMax=[:sMax],
-                    bounce=[:b],bounceMin=[:bMin],bounceMax=[:bMax],
-                    reflect=[:r],reflectMin=[:rMin],reflectMax=[:rMax]
-                ),
-                Bound(:z,-1,1,
-                    stop=[:s],stopMin=[:sMin],stopMax=[:sMax],
-                    bounce=[:b],bounceMin=[:bMin],bounceMax=[:bMax],
-                    reflect=[:r],reflectMin=[:rMin],reflectMax=[:rMax]
-                )
-            ]
-        )
-        model = compile(m,space,platform=platform)
+            end,
+
+            Boundary = BoundaryFlat(3,
+                            Bounded(
+                                stop=[:s],stopMin=[:sMin],stopMax=[:sMax],
+                                bounce=[:b],bounceMin=[:bMin],bounceMax=[:bMax],
+                                reflect=[:r],reflectMin=[:rMin],reflectMax=[:rMax]
+                            ),
+                            Bounded(
+                                stop=[:s],stopMin=[:sMin],stopMax=[:sMax],
+                                bounce=[:b],bounceMin=[:bMin],bounceMax=[:bMax],
+                                reflect=[:r],reflectMin=[:rMin],reflectMax=[:rMax]
+                            ),
+                            Bounded(
+                                stop=[:s],stopMin=[:sMin],stopMax=[:sMax],
+                                bounce=[:b],bounceMin=[:bMin],bounceMax=[:bMax],
+                                reflect=[:r],reflectMin=[:rMin],reflectMax=[:rMax]
+                            )
+                        )
+            )
+        model = compile(m,platform=platform)
         #println(prettify(model.program))
 
         com = Community(model,N=6)
@@ -183,7 +176,9 @@
 
         com.r .= 1
         com.rMin .= 1
-        com.rMax .= 1        
+        com.rMax .= 1       
+        
+        com.simulationBox .= [-1 1;-1 1;-1 1]
 
         comt = model.evolve(com,dt=1,tMax=1.1)
 
@@ -211,16 +206,15 @@
                 d_x = sx*dt
                 d_y = sy*dt
                 d_z = sz*dt
-            end
+            end,
+
+            Boundary = BoundaryFlat(3,
+                Periodic(additional=[:x1]),
+                Periodic(additional=[:y1]),
+                Periodic(additional=[:z1])
+            )
         )
-        space = SimulationFree(m,
-            box=[
-                Periodic(:x,-1,1,additional=[:x1]),
-                Periodic(:y,-1,1,additional=[:y1]),
-                Periodic(:z,-1,1,additional=[:z1])
-            ]
-        )
-        model = compile(m,space,platform=platform)
+        model = compile(m,platform=platform)
         #println(prettify(model.program))
 
         com = Community(model,N=6)
@@ -235,6 +229,8 @@
         com.x1 .= [-.9,.9,0,0,0,0]
         com.y1 .= [0,0,-.9,.9,0,0]
         com.z1 .= [0,0,0,0,-.9,.9]
+
+        com.simulationBox .= [-1 1;-1 1;-1 1]
 
         comt = model.evolve(com,dt=1,tMax=1.1)
 

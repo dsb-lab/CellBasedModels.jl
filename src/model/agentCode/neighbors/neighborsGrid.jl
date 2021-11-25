@@ -127,8 +127,6 @@ function gridVectorPositionNeighbour_(p,neighbour,nX,periodicX,nY,periodicY)
         end
     end
 
-    #println(posX," ",posY)
-
     if abort
         return -1
     else
@@ -452,7 +450,6 @@ function argumentsGrid_!(program::Program_, platform::String)
         nnGridCountsAux_ = zeros($INT,prod(n_))
         nnGridCountsCum_ = zeros($INT,prod(n_))
         nnCellIdPos_ = zeros($INT,nMax)
-        simulationBox = Array(com.simulationBox)
         if typeof(com.radiusInteraction) <: Real
             radiusInteraction = com.radiusInteraction.*ones($INT,$(program.agent.dims))
         else
@@ -483,7 +480,7 @@ function loopGrid_(program::Program_, code::Expr, platform::String)
 
     #Compute the cell id for each agent in grid and linearized format for any box possible box dimensions.
     if program.agent.dims == 1
-        periodicX = typeof(program.agent.boundary.boundaries[1]) <: Periodic
+        periodicX = typeof(program.agent.boundary.boundaries[1]) == Periodic
         loop=:(begin 
             for iAux1_ in 1:3
                 pos_ = AgentBasedModels.gridVectorPositionNeighbour_(nnPosIdCell_[ic1_],iAux1_,n_[1],$periodicX)
@@ -498,8 +495,8 @@ function loopGrid_(program::Program_, code::Expr, platform::String)
             end
         end)
     elseif program.agent.dims == 2
-        periodicX = typeof(program.agent.boundary.boundaries[1]) <: Periodic
-        periodicY = typeof(program.agent.boundary.boundaries[2]) <: Periodic
+        periodicX = typeof(program.agent.boundary.boundaries[1]) == Periodic
+        periodicY = typeof(program.agent.boundary.boundaries[2]) == Periodic
         loop=:(begin 
             for iAux1_ in 1:9
                 pos_ = AgentBasedModels.gridVectorPositionNeighbour_(nnPosIdCell_[ic1_],iAux1_,n_[1],$periodicX,n_[2],$periodicY)
@@ -514,9 +511,9 @@ function loopGrid_(program::Program_, code::Expr, platform::String)
             end
         end)
     elseif program.agent.dims == 3
-        periodicX = typeof(program.agent.boundary.boundaries[1]) <: Periodic
-        periodicY = typeof(program.agent.boundary.boundaries[2]) <: Periodic
-        periodicZ = typeof(program.agent.boundary.boundaries[3]) <: Periodic
+        periodicX = typeof(program.agent.boundary.boundaries[1]) == Periodic
+        periodicY = typeof(program.agent.boundary.boundaries[2]) == Periodic
+        periodicZ = typeof(program.agent.boundary.boundaries[3]) == Periodic
         loop=:(begin 
             for iAux1_ in 1:27
                 pos_ = AgentBasedModels.gridVectorPositionNeighbour_(nnPosIdCell_[ic1_],iAux1_,n_[1],$periodicX,n_[2],$periodicY,n_[3],$periodicZ)

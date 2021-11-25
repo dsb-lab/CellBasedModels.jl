@@ -75,22 +75,14 @@ function updates_!(p::Program_)
     end
     p.update["EventDivision"] = dict
 
-    ## Check space and bound updates if there is a medium
-    if !isempty(p.agent.declaredSymbols["Medium"])
-        for (i,s) in enumerate([:x,:y,:z][1:p.agent.dims])
-            if s in keys(p.update["Local"])
-                for j in keys(p.agent.boundary.boundaries[i].addSymbols)
-                    for k in i.addSymbols[j]
-                        if !(k in keys(p.update["Local"]))
-                            p.update["Local"][k] = maximum(values(p.update["Local"])) + 1
-                        end
-                    end
-                end
-            end
+    ## Check bound updates
+    for j in p.agent.boundary.addSymbols
+        if !(j in keys(p.update["Local"]))
+            p.update["Local"][j] = maximum(values(p.update["Local"])) + 1
         end
     end
 
-    ## Check equations and their update variables
+    ## Check medium equations and their update variables
     dict = Dict{Symbol,Int}()
     counter = 1
     if "UpdateMedium" in keys(p.agent.declaredUpdates)

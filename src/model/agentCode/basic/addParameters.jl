@@ -7,6 +7,12 @@ function addParameters_!(p::Program_,platform::String)
     
     #Parameter declare###########################################################################
 
+    append!(p.declareVar.args, 
+        (quote
+            simulationBox = Array(com.simulationBox)
+        end).args
+    )
+
     if length(p.agent.declaredSymbols["Local"])>0
         append!(p.declareVar.args, 
             (quote

@@ -80,8 +80,8 @@ function addEventDivision_!(p::Program_,platform::String)
                     end)
                 )
         elseif platform == "gpu"
-            push!(p.declareVar.args,:(NV = N .*CUDA.ones(Int,1)))
-            push!(p.declareVar.args,:(agentIdMax = N .*CUDA.ones(Int,1)))
+            push!(p.declareVar.args,:(NV = N .*CUDA.ones($INT,1)))
+            push!(p.declareVar.args,:(agentIdMax = N .*CUDA.ones($INT,1)))
 
             push!(p.execInloop.args,
                     :(begin

@@ -11,7 +11,7 @@ function cudaAdapt_(code::Expr)
         code = subs_(code,i,Meta.parse(string("CUDA.","$i")))
     end
     #Subs power
-    code = postwalk(x->@capture(x, a_^b_) && typeof(b) != Int ? :($FLOATCUDA($a)^$b) : x, code)
+    code = postwalk(x->@capture(x, a_^b_) && typeof(b) != Int ? :(Float32($a)^$b) : x, code)
 
     #Subs vectors
     for i in [:zeros,:ones]
