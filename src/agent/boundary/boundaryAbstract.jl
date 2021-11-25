@@ -1,5 +1,3 @@
-export PeriodicMedium, Dirichlet, Dirichlet_Dirichlet, Dirichlet_Newmann, Newmann, Newmann_Newmann, Newmann_Dirichlet
-
 abstract type Boundary end
 abstract type BoundaryMedium end
 

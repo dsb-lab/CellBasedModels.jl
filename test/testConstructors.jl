@@ -1,6 +1,12 @@
 @testset "constructors" begin
 
-    sphere(v) = sqrt(sum(v.^2)) < 10
-    @test randomSphereFilling(sphere,1,[0,0,0])
+    m = @agent 3
+    mo = compile(m)
+    f(x) = sqrt(sum(x.^2)) < 10
+
+    @test_nowarn initialiseCommunityCompactHexagonal(mo,[-10 10;-10 10;-10 10],.5)
+    @test_nowarn initialiseCommunityCompactHexagonal(mo,[-10 10;-10 10;-10 10],.5,fExtrude = f)
+    @test_nowarn initialiseCommunityCompactCubic(mo,[-10 10;-10 10;-10 10],.5)
+    @test_nowarn initialiseCommunityCompactCubic(mo,[-10 10;-10 10;-10 10],.5,fExtrude = f)
 
 end

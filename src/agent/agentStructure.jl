@@ -1,5 +1,3 @@
-export Agent
-
 """
     mutable struct Agent
 

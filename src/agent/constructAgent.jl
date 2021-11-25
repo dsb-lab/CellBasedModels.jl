@@ -1,5 +1,3 @@
-export @agent
-
 """
     macro @agent(dims, varargs...) 
 

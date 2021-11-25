@@ -12,17 +12,15 @@ using CSV
 import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, flatten, unblock
 #using WriteVTK
 
-export Model, compile
-export Community, CommunityInTime, saveCSV, loadCommunityFromCSV, loadCommunityInTimeFromCSV
 export MediumFlat, δMedium_
 export configurator_
-export extrude
-export compactHexagonal
 
 #Constants
 include("./constants/constants.jl")
 
 #Agent
+export @agent, Agent
+export PeriodicMedium, Dirichlet, Dirichlet_Dirichlet, Dirichlet_Newmann, Newmann, Newmann_Newmann, Newmann_Dirichlet
 include("./agent/boundary/boundaryAbstract.jl")
 include("./agent/boundary/boundaryFlatStructures.jl")
 include("./agent/agentStructure.jl")
@@ -31,6 +29,7 @@ include("./model/structProgram.jl") #Structure
 include("./agent/boundary/boundaryFlatFunctions.jl")
 
 #Model
+export Model, compile
 include("./model/model.jl")
 include("./model/agentCode/basic/addParameters.jl")
 include("./model/agentCode/basic/checkBounds.jl")
@@ -43,10 +42,14 @@ include("./model/agentCode/basic/updateLocalInteraction.jl")
 include("./model/compile.jl")
 
 #Community
+export Community, CommunityInTime, saveCSV, loadCommunityFromCSV, loadCommunityInTimeFromCSV
+export initialiseCommunityCompactHexagonal, initialiseCommunityCompactCubic
 include("./community/community.jl")
 include("./community/baseModuleExtensions.jl")
-include("./community/constructors/latices/hexagonal.jl")
+include("./community/constructors/latices/compactHexagonal.jl")
+include("./community/constructors/latices/cubic.jl")
 include("./community/constructors/extrude.jl")
+include("./community/constructors/initialisers.jl")
 include("./community/IO/save.jl")
 include("./community/IO/load.jl")
 
