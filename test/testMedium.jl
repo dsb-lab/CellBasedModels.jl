@@ -6,43 +6,34 @@
     @test begin m = @agent(1, [u,v]::Medium, Boundary = BoundaryFlat(1)); m.declaredSymbols["Medium"] == [:u,:v] end
     @test begin m = @agent(1, UpdateMedium = ∂t_u = Δ(u) + δx(0.)*δy(0.)*1.); "UpdateMedium" in keys(m.declaredUpdates) end
 
-    # #Community construction
-    # @test_nowarn begin
-    #     m = @agent(3, u::Medium)
-    #     s = SimulationFree(m,
-    #                     box=[(:x,-10.,10.),(:y,-10.,10.),(:z,-10.,10.)],
-    #                     medium=[MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10)])
-    #     mc = compile(m,s)
+    #Medium access in Community
+    m = @agent(3, 
+        [u,v]::Medium,
+        Boundary = BoundaryFlat(3,Bounded(),Bounded(),Bounded())            
+        )
+    mc = compile(m)
+    # println(mc.program)
+    com = Community(mc,N=10,mediumN=[10,10,10])
 
-    #     Community(mc,N=10)
-    # end
+    #Check call and boundary
+    @test_nowarn b = com.u #Read
+    @test_nowarn com.v .= 1 #Assign scalar
+    @test_nowarn com.v .= zeros(12,12,12) #Assign vector
+    @test_nowarn com.v[1,2,3] = 1; #Assign single value
 
-    # #Medium access in Community
-    # @test_nowarn begin
-    #     m = @agent(3, [u,v]::Medium)
-    #     s = SimulationFree(m,
-    #                     box=[(:x,-10.,10.),(:y,-10.,10.),(:z,-10.,10.)],
-    #                     medium=[MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10)])
-    #     mc = compile(m,s)
+    @test_nowarn begin 
+        com.u .= 0
+        com.simulationBox .= [-10 10;-10 10;-10 10]
+        comt = mc.evolve(com,dt=0.1,tMax=1)
+        all(comt[end].u .== zeros(12,12,12))
+    end
 
-    #     com = Community(mc,N=10)
-
-    #     b = com.u #Read
-    #     com.v .= 1 #Assign scalar
-    #     com.v .= zeros(10,10,10) #Assign vector
-    #     com.v[1,2,3] = 1; #Assign single value
-    # end
-
-    # m = @agent(3, u::Medium)
-    # s = SimulationFree(m,
-    #                 box=[(:x,-10.,10.),(:y,-10.,10.),(:z,-10.,10.)],
-    #                 medium=[MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10),MediumFlat("Dirichlet",10)])
-    # mc = compile(m,s)
-    # com = Community(mc,N=10)
-    # com.u .= 0
-    # comt = mc.evolve(com,dt=0.1,tMax=1)
-    # @test all(comt[end].u .== zeros(10,10,10))
-
+    #Newmann boundary
+    m = @agent(3,
+        [u,v]::Medium,
+        Boundary = BoundaryFlat(3,Bounded(),Bounded(),Bounded())            
+        )
+    mc = compile(m)
 
     # # Evolve Community Save Working
     # for i in testplatforms

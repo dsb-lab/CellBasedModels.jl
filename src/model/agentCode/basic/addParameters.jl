@@ -98,32 +98,26 @@ function addParameters_!(p::Program_,platform::String)
     if length(p.agent.declaredSymbols["Medium"])>0
         if p.agent.dims >= 1
             push!(p.declareVar.args, :(Nx_ = com.mediumN[1]))
-            push!(p.declareVar.args, :(mediumV = copy(com.medium_)))
-
-            push!(p.declareVar.args, :(dxₘ_ = (box[1,2]-box[1,1])/Nx_))
+            push!(p.declareVar.args, :(dxₘ_ = (simulationBox[1,2]-simulationBox[1,1])/Nx_))
 
             push!(p.args,:Nx_)
             push!(p.args,:dxₘ_)
         end
         if p.agent.dims >= 2
             push!(p.declareVar.args, :(Ny_ = com.mediumN[2]))
-            push!(p.declareVar.args, :(mediumV = cat(zeros(Nx_,1,size(com.medium_)[3:end]...),mediumV,zeros(Nx_,1,size(com.medium_)[3:end]...),dims=2)))
-
-            push!(p.declareVar.args, :(dyₘ_ = (box[2,2]-box[2,1])/Ny_))
+            push!(p.declareVar.args, :(dyₘ_ = (simulationBox[2,2]-simulationBox[2,1])/Ny_))
 
             push!(p.args,:Ny_)
             push!(p.args,:dyₘ_)
         end
         if p.agent.dims >= 3
             push!(p.declareVar.args, :(Nz_ = com.mediumN[3]))
-            push!(p.declareVar.args, :(mediumV = cat(zeros(Nx_,Ny_,1,size(com.medium_)[4:end]...),mediumV,zeros(Nx_,Ny_,1,size(com.medium_)[4:end]...),dims=3)))
-
-            push!(p.declareVar.args, :(dzₘ_ = (box[3,2]-box[3,1])/Nz_))
+            push!(p.declareVar.args, :(dzₘ_ = (simulationBox[3,2]-simulationBox[3,1])/Nz_))
 
             push!(p.args,:Nz_)
             push!(p.args,:dzₘ_)
         end
-        push!(p.declareVar.args, :(mediumV = Array(mediumV)))
+        push!(p.declareVar.args, :(mediumV = Array(com.medium_)))
 
         push!(p.args,:mediumV)
 
@@ -131,38 +125,6 @@ function addParameters_!(p::Program_,platform::String)
             push!(p.declareVar.args, :(mediumVCopy = copy(mediumV)))
             push!(p.args,:mediumVCopy)
         end
-
-        #Add identifiers of medium position
-        push!(p.declareVar.args,
-            :(idMediumV = zeros(Int,N,$(p.agent.dims)))
-        )            
-        push!(p.args,:idMediumV)
-
-        if p.agent.dims == 1
-            code = simpleFirstLoopWrapInFunction_(platform,:idMediumCompute!,
-                quote 
-                    idMediumV[ic1_,1] = floor($INT,(localV[ic1_,1]-box[1,1])/(box[1,2]-box[1,1])*Nx_)+1
-                end 
-            )
-        elseif p.agent.dims == 2
-            code = simpleFirstLoopWrapInFunction_(platform,:idMediumCompute!,
-                quote 
-                    idMediumV[ic1_,1] = floor($INT,(localV[ic1_,1]-box[1,1])/(box[1,2]-box[1,1])*Nx_)+1
-                    idMediumV[ic1_,2] = floor($INT,(localV[ic1_,2]-box[2,1])/(box[2,2]-box[2,1])*Ny_)+1
-                end 
-            )
-        elseif p.agent.dims == 3
-            code = simpleFirstLoopWrapInFunction_(platform,:idMediumCompute!,
-                quote 
-                    idMediumV[ic1_,1] = floor($INT,(localV[ic1_,1]-box[1,1])/(box[1,2]-box[1,1])*Nx_)+1
-                    idMediumV[ic1_,2] = floor($INT,(localV[ic1_,2]-box[2,1])/(box[2,2]-box[2,1])*Ny_)+1
-                    idMediumV[ic1_,3] = floor($INT,(localV[ic1_,3]-box[3,1])/(box[3,2]-box[3,1])*Nz_)+1
-                end 
-            )
-        end
-        push!(p.declareF.args, code)
-        push!(p.execInit.args, :(@platformAdapt idMediumCompute!(ARGS)))
-        push!(p.execInloop.args, :(@platformAdapt idMediumCompute!(ARGS)))
 
     end
 
