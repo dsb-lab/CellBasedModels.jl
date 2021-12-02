@@ -169,9 +169,118 @@ function returnBound_(b::BoundaryFlat,p::Program_)
     code = quote end
 
     for (i,bound) in enumerate(b.boundaries)
-        s = [:x,:y,:z][i]
+        s = [:xₘ,:yₘ,:zₘ][i]
         append!(code.args,returnBound_(s,i,bound,p).args)
     end
 
     return code
 end
+
+#######################################################################################
+#Return computation over boundaries
+#######################################################################################
+function boundariesFunctionDefinition(b::BoundaryFlat,p::Program_, platform::String)
+
+    #Make function to compute the boundaries
+    code = quote end
+
+    lUpdate = length(p.agent.declaredSymbols["Medium"])
+    for i in 1:p.agent.dims #Adapt boundary updates depending on the boundary type
+        ic = Meta.parse(string("ic",i,"_"))
+        nm = Meta.parse(string("N",["x","y","z"][i],"_"))
+        subcode = quote end
+
+        if p.agent.dims == 1
+            v = :(mediumVCopy[ic1_,ic4_])
+        elseif p.agent.dims == 2
+            v = :(mediumVCopy[ic1_,ic2_,ic4_])
+        elseif p.agent.dims == 3
+            v = :(mediumVCopy[ic1_,ic2_,ic3_,ic4_])
+        end
+
+        if b.boundaries[i].medium == PeriodicBoundaryCondition
+
+            #Lower boundary
+            vUp = postwalk(x->@capture(x, t_) && t == ic ? 1 : x, v)
+            vAss = postwalk(x->@capture(x, t_) && t == ic ? :($nm-1) : x, v)
+
+            push!(subcode.args, :($vUp=$vAss))
+
+            #Upper boundary
+            vUp = postwalk(x->@capture(x, t_) && t == ic ? :($nm) : x, v)
+            vAss = postwalk(x->@capture(x, t_) && t == ic ? 2 : x, v)
+
+            push!(subcode.args, :($vUp=$vAss))
+
+        end
+
+        xMin = [:(simulationBox[1,1]) :(ic2_*(simulationBox[2,2]-simulationBox[2,1])/Ny_+simulationBox[2,1]) :(ic3_*(simulationBox[3,2]-simulationBox[3,1])/Nz_+simulationBox[3,1]);
+        :(ic1_*(simulationBox[1,2]-simulationBox[1,1])/Nx_+simulationBox[1,1]) :(simulationBox[2,1]) :(ic3_*(simulationBox[3,2]-simulationBox[3,1])/Nz_+simulationBox[3,1]);
+        :(ic1_*(simulationBox[1,2]-simulationBox[1,1])/Nx_+simulationBox[1,1]) :(ic2_*(simulationBox[2,2]-simulationBox[2,1])/Ny_+simulationBox[2,1]) :(simulationBox[3,1])]
+
+        xMax = [:(simulationBox[1,2]) :(ic2_*(simulationBox[2,2]-simulationBox[2,1])/Ny_+simulationBox[2,1]) :(ic3_*(simulationBox[3,2]-simulationBox[3,1])/Nz_+simulationBox[3,1]);
+        :(ic1_*(simulationBox[1,2]-simulationBox[1,1])/Nx_+simulationBox[1,1]) :(simulationBox[2,2]) :(ic3_*(simulationBox[3,2]-simulationBox[3,1])/Nz_+simulationBox[3,1]);
+        :(ic1_*(simulationBox[1,2]-simulationBox[1,1])/Nx_+simulationBox[1,1]) :(ic2_*(simulationBox[2,2]-simulationBox[2,1])/Ny_+simulationBox[2,1]) :(simulationBox[3,2])]
+
+        if typeof(b.boundaries[i].medium) in [NewmannBoundaryCondition,NewmannBoundaryCondition_DirichletBoundaryCondition]
+
+            #Lower boundary
+            vUp = postwalk(x->@capture(x, t_) && t == ic ? 1 : x, v)
+            vAss = postwalk(x->@capture(x, t_) && t == ic ? :(2) : x, v)
+
+            push!(subcode.args, :($vUp=$vAss))
+
+        end            
+
+        if typeof(b.boundaries[i].medium) in [NewmannBoundaryCondition,DirichletBoundaryCondition_NewmannBoundaryCondition]
+
+            #Upper boundary
+            vUp = postwalk(x->@capture(x, t_) && t == ic ? nm : x, v)
+            vAss = postwalk(x->@capture(x, t_) && t == ic ? :($nm-1) : x, v)
+
+            push!(subcode.args, :($vUp=$vAss))
+
+        end   
+
+        if typeof(b.boundaries[i].medium) in [DirichletBoundaryCondition,DirichletBoundaryCondition_NewmannBoundaryCondition]
+
+            #Lower boundary
+            vUp = postwalk(x->@capture(x, t_) && t == ic ? 1 : x, v)
+
+            x = xMin[i,1:p.agent.dims]
+            push!(subcode.args, :($vUp=$(b.boundaries[i].medium.fMin)($(x...),t)))
+
+        end            
+
+        if typeof(b.boundaries[i].medium) in [DirichletBoundaryCondition,NewmannBoundaryCondition_DirichletBoundaryCondition]
+
+            #Upper boundary
+            vUp = postwalk(x->@capture(x, t_) && t == ic ? nm : x, v)
+            
+            x = xMax[i,1:p.agent.dims]
+            update = :($vUp=$(b.boundaries[i].medium.fMax)($(x...),t))
+
+            push!(subcode.args, update)
+
+        end
+
+        if !(typeof(b.boundaries[i].medium) in [PeriodicBoundaryCondition,DirichletBoundaryCondition,NewmannBoundaryCondition_DirichletBoundaryCondition,DirichletBoundaryCondition_NewmannBoundaryCondition])
+            error("Boundary has to be a bounded boundary but some was set to a non-valid type: ", [typeof(i) for i in b.boundaries])
+        end
+
+        subcode = :(for ic4_ in 1:$lUpdate
+                        $subcode
+                    end
+                )
+
+        subcode = simpleGridLoop_(platform,subcode,p.agent.dims-1, indexes = [1,2,3][findall([1,2,3].!=i)])
+
+        push!(code.args,subcode) 
+
+    end
+
+    f = wrapInFunction_(:mediumBoundaryStep_!,code)
+
+    push!(p.declareF.args,f)
+end
+    

@@ -1,3 +1,7 @@
+fBoundary1D(x,t) = x > 0 ? 1 : 0
+fBoundary2D_x(x,y,t) = x > 0 ? 1 : 0
+fBoundary2D_y(x,y,t) = y > 0 ? 1 : 0
+
 @testset "Medium" begin
 
     #Test we can call the variable and the function
@@ -18,22 +22,160 @@
     #Check call and boundary
     @test_nowarn b = com.u #Read
     @test_nowarn com.v .= 1 #Assign scalar
-    @test_nowarn com.v .= zeros(12,12,12) #Assign vector
+    @test_nowarn com.v .= zeros(10,10,10) #Assign vector
     @test_nowarn com.v[1,2,3] = 1; #Assign single value
 
-    @test_nowarn begin 
+    @test begin 
         com.u .= 0
         com.simulationBox .= [-10 10;-10 10;-10 10]
         comt = mc.evolve(com,dt=0.1,tMax=1)
-        all(comt[end].u .== zeros(12,12,12))
+    
+        all(comt[end].u .== zeros(10,10,10))
     end
 
-    #Newmann boundary
-    m = @agent(3,
-        [u,v]::Medium,
-        Boundary = BoundaryFlat(3,Bounded(),Bounded(),Bounded())            
-        )
-    mc = compile(m)
+    for platform in testplatforms
+
+        #Dirichlet boundary
+
+        # ## Default
+
+        # ###Dim 1
+        # m = @agent(1,
+        #     [u,v]::Medium,
+
+        #     UpdateMedium = ∂t_u = Δx(u),
+
+        #     Boundary = BoundaryFlat(1,
+        #                     Bounded(medium=Dirichlet()),
+        #                     )
+        #     )
+        # mc = compile(m,platform=platform)
+        # # println(mc.program)
+
+        # @test begin #Test symmetric decay and loose of concentration
+        #     com = Community(mc,N=10,mediumN=[10])
+        #     com.u .= 1
+        #     com.simulationBox .= [-10 10]
+        #     comt = mc.evolve(com,dt=0.1,tMax=1000)
+        #     all(comt[end].u .< 10E-8) && all(abs.(comt[100].u - reverse(comt[100].u)) .< 10E-8)
+        # end
+
+        # ###Dim 2
+        # m = @agent(2,
+        #     [u,v]::Medium,
+
+        #     UpdateMedium = ∂t_u = Δx(u),
+
+        #     Boundary = BoundaryFlat(2,
+        #                     Bounded(medium=Dirichlet()),
+        #                     Bounded(medium=Dirichlet()),
+        #                     )
+        #     )
+        # mc = compile(m,platform=platform)
+        # # println(mc.program)
+
+        # @test begin #Test symmetric decay and loose of concentration
+        #     com = Community(mc,N=10,mediumN=[10,15])
+        #     com.u .= 1
+        #     com.simulationBox .= [-10 10;-20 20]
+        #     comt = mc.evolve(com,dt=0.1,tMax=1000)
+        #     all(comt[end].u .< 10E-8) && all(abs.(comt[100].u - reverse(comt[100].u)) .< 10E-8)
+        # end
+
+        # ###Dim 3
+        # m = @agent(3,
+        #     [u,v]::Medium,
+
+        #     UpdateMedium = ∂t_u = Δx(u),
+
+        #     Boundary = BoundaryFlat(3,
+        #                     Bounded(medium=Dirichlet()),
+        #                     Bounded(medium=Dirichlet()),
+        #                     Bounded(medium=Dirichlet()),
+        #                     )
+        #     )
+        # mc = compile(m,platform=platform)
+        # # println(mc.program)
+
+        # @test begin #Test symmetric decay and loose of concentration
+        #     com = Community(mc,N=10,mediumN=[5,10,15])
+        #     com.u .= 1
+        #     com.simulationBox .= [-10 10;-20 20;-30 30]
+        #     comt = mc.evolve(com,dt=0.1,tMax=1000)
+        #     all(comt[end].u .< 10E-8) && all(abs.(comt[100].u - reverse(comt[100].u)) .< 10E-8)
+        # end
+
+        ## With a user defined function
+
+        ###Dim 1
+        m = @agent(1,
+            [u,v]::Medium,
+
+            UpdateMedium = ∂t_u = Δx(u),
+
+            Boundary = BoundaryFlat(1,
+                            Bounded(medium=DirichletBoundaryCondition(fBoundary1D)),
+                            )
+            )
+        mc = compile(m,platform=platform)
+        # println(mc.program)
+
+        @test begin #Test symmetric decay and loose of concentration
+            com = Community(mc,N=10,mediumN=[10])
+            com.u .= 1
+            com.simulationBox .= [-10 10]
+            comt = mc.evolve(com,dt=0.1,tMax=1000)
+            all(abs.(comt[end].u .- range(0.1,.9, length=10)) .< 10E-3)
+        end
+
+        ###Dim 2
+        m = @agent(2,
+            [u,v]::Medium,
+
+            UpdateMedium = ∂t_u = Δx(u),
+
+            Boundary = BoundaryFlat(2,
+                            Bounded(medium=DirichletBoundaryCondition(fBoundary2D_x)),
+                            Bounded(medium=DirichletBoundaryCondition(fBoundary2D_y)),
+                            )
+            )
+        mc = compile(m,platform=platform)
+        # println(mc.program)
+
+        @test begin #Test symmetric decay and loose of concentration
+            com = Community(mc,N=10,mediumN=[5,5])
+            com.u .= 1
+            com.simulationBox .= [-10 10;-20 20]
+            comt = mc.evolve(com,dt=0.1,tMax=1000)
+            m = range(0.1,.9, length=5)*reshape(range(0.1,.9, length=5),1,5)
+            println(comt[end].u)
+            all(abs.(comt[end].u .- m) .< 10E-3)
+        end
+
+        # ###Dim 3
+        # m = @agent(3,
+        #     [u,v]::Medium,
+
+        #     UpdateMedium = ∂t_u = Δx(u),
+
+        #     Boundary = BoundaryFlat(3,
+        #                     Bounded(medium=Dirichlet(fBoundary)),
+        #                     Bounded(medium=Dirichlet(fBoundary)),
+        #                     Bounded(medium=Dirichlet(fBoundary)),
+        #                     )
+        #     )
+        # mc = compile(m,platform=platform)
+        # # println(mc.program)
+
+        # @test begin #Test symmetric decay and loose of concentration
+        #     com = Community(mc,N=10,mediumN=[5,10,15])
+        #     com.u .= 1
+        #     com.simulationBox .= [-10 10;-20 20;-30 30]
+        #     comt = mc.evolve(com,dt=0.1,tMax=1000)
+        #     all(comt[end].u .< 10E-8) && all(abs.(comt[100].u - reverse(comt[100].u)) .< 10E-8)
+        # end
+
+    end
 
     # # Evolve Community Save Working
     # for i in testplatforms

@@ -90,7 +90,7 @@ macro agent(dims, varargs...)
                     if boundaryDeclared
                         error("Boundary can only be declared once.")
                     end
-                    boundary = eval(i.args[2])
+                    boundary = Main.eval(i.args[2])
                     if !(typeof(boundary)<:Boundary)
                         error("Boundary has to be declared with a type boundary.")
                     elseif dims != boundary.dims

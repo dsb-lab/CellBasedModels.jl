@@ -13,7 +13,7 @@ else
     println("CUDA was not found, only checking cpu.")
 end
 
-testplatforms = ["gpu"]
+testplatforms = ["cpu"]
 
 # include("testAgent.jl")
 # include("testSubstitution.jl")

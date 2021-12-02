@@ -21,6 +21,6 @@ mutable struct Program_
 end
 
 function Program_(abm::Agent)
-    return Program_(abm,"Euler","FTCS","full",quote end,quote end,Array{Symbol,1}([:t,:N,:dt]),
+    return Program_(abm,"Euler","FTCS","full",quote end,quote end,Array{Symbol,1}(BASICARGS),
                     quote end,quote end,quote end,quote end,Dict{String,Dict{Symbol,Int}}())
 end

@@ -20,7 +20,8 @@ include("./constants/constants.jl")
 
 #Agent
 export @agent, Agent
-export PeriodicMedium, Dirichlet, Dirichlet_Dirichlet, Dirichlet_Newmann, Newmann, Newmann_Newmann, Newmann_Dirichlet
+export BoundaryFlat, Periodic, Bounded, Free
+export PeriodicBoundaryCondition, DirichletBoundaryCondition, DirichletBoundaryCondition_NewmannBoundaryCondition, NewmannBoundaryCondition, NewmannBoundaryCondition_DirichletBoundaryCondition
 include("./agent/boundary/boundaryAbstract.jl")
 include("./agent/boundary/boundaryFlatStructures.jl")
 include("./agent/agentStructure.jl")

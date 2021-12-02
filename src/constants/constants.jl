@@ -23,6 +23,8 @@ VALID_UPDATES = [
     :EventDeath
 ]
 
+BASICARGS=[:t,:N,:dt,:simulationBox]
+
 PREDECLAREDPARAMETERS = Dict("Local"=>[:x,:y,:z],"Identity"=>:id,"Integration"=>[:dt,:dW],"Community"=>[:N],"Evolve"=>[:nMax])
 
 UPDATINGOPERATORS = [:+= ,:-=,:*=,:/=,:\=,:÷=,:%=,:^=,:&=,:|=,:⊻=,:>>>=,:>>=,:<<=]

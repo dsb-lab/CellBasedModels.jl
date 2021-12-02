@@ -37,85 +37,12 @@ function addIntegratorMediumFTCS_!(p::Program_,platform::String)
             f = postwalk(x->@capture(x,indexY_:strideY_:Ny_) && Ny == :Ny_ ? :(indexY_+1:strideY_:Ny_-1) : x, f)
             f = postwalk(x->@capture(x,indexZ_:strideZ_:Nz_) && Nz == :Nz_ ? :(indexZ_+1:strideZ_:Nz_-1) : x, f)
         end
+        push!(p.declareF.args, ## Add it to code
+                f 
+            )        
 
-            #Make function to compute the boundaries
-        code = quote end
-
-        lUpdate = length(p.agent.declaredSymbols["Medium"])
-        for i in 1:p.agent.dims #Adapt boundary updates depending on the boudary type
-            ic = Meta.parse(string("ic",i,"_"))
-            nm = Meta.parse(string("N",["x","y","z"][i],"_"))
-            subcode = quote end
-
-            if p.agent.dims == 1
-                v = :(mediumVCopy[ic1_,ic4_])
-            elseif p.agent.dims == 2
-                v = :(mediumVCopy[ic1_,ic2_,ic4_])
-            elseif p.agent.dims == 3
-                v = :(mediumVCopy[ic1_,ic2_,ic3_,ic4_])
-            end
-
-            if space.medium[i].minBoundaryType == "Periodic"
-
-                #Lower boundary
-                vUp = postwalk(x->@capture(x, t_) && t == ic ? 1 : x, v)
-                vAss = postwalk(x->@capture(x, t_) && t == ic ? :($nm-1) : x, v)
-
-                push!(subcode.args, :($vUp=$vAss))
-
-                #Upper boundary
-                vUp = postwalk(x->@capture(x, t_) && t == ic ? :($nm) : x, v)
-                vAss = postwalk(x->@capture(x, t_) && t == ic ? 2 : x, v)
-
-                push!(subcode.args, :($vUp=$vAss))
-
-            end
-
-            if space.medium[i].minBoundaryType == "Newmann"
-
-                #Lower boundary
-                vUp = postwalk(x->@capture(x, t_) && t == ic ? 1 : x, v)
-                vAss = postwalk(x->@capture(x, t_) && t == ic ? :(2) : x, v)
-
-                push!(subcode.args, :($vUp=$vAss))
-            end            
-
-            if space.medium[i].maxBoundaryType == "Newmann"
-
-                #Lower boundary
-                vUp = postwalk(x->@capture(x, t_) && t == ic ? nm : x, v)
-                vAss = postwalk(x->@capture(x, t_) && t == ic ? :($nm-1) : x, v)
-
-                push!(subcode.args, :($vUp=$vAss))
-            end            
-
-            if space.medium[i].minBoundaryType == "Dirichlet"
-
-                #Lower boundary
-                vUp = postwalk(x->@capture(x, t_) && t == ic ? 1 : x, v)
-
-                push!(subcode.args, :($vUp=0.))
-            end            
-
-            if space.medium[i].maxBoundaryType == "Dirichlet"
-
-                #Lower boundary
-                vUp = postwalk(x->@capture(x, t_) && t == ic ? nm : x, v)
-
-                push!(subcode.args, :($vUp=0.))
-            end     
-
-            subcode = :(for ic4_ in 1:$lUpdate
-                            $subcode
-                        end
-                    )
-
-            subcode = simpleGridLoop_(platform,subcode,p.agent.dims-1, indexes = [1,2,3][findall([1,2,3].!=i)])
-
-            push!(code.args,subcode)
-        end
-
-        f2 = wrapInFunction_(:mediumBoundaryStep_!,code)
+        #Add boundary computation
+        boundariesFunctionDefinition(p.agent.boundary, p, platform)
 
         if "UpdateMediumInteraction" in keys(p.agent.declaredUpdates)
             fWrap = wrapInFunction_(:mediumStep_!, 
@@ -133,9 +60,10 @@ function addIntegratorMediumFTCS_!(p::Program_,platform::String)
                                     end)
                                     )
         end
+        push!(p.declareF.args, ## Add it to code
+            fWrap 
+            )        
         # println(prettify(code))
-
-        push!(p.declareF.args,f,f2,fWrap)
 
         push!(p.execInloop.args,
                 :(mediumStep_!(ARGS_)) 

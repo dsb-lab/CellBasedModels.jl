@@ -117,7 +117,7 @@ function Community(abm::Model; N::Int=1, t::AbstractFloat=0., mediumN::Array{Int
     end
 
     dims = abm.agent.dims
-    mediumN = mediumN .+ 2
+    mediumN = mediumN
     simulationBox = zeros(FLOAT,dims,2)
     radiusInteraction = 0.
     loc = zeros(FLOAT,N,length(abm.agent.declaredSymbols["Local"]))

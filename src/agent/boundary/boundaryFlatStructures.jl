@@ -1,5 +1,3 @@
-export BoundaryFlat, Periodic, Bounded, Free
-
 """
 Boundary defining a line, rectangle or box.
 
@@ -33,6 +31,16 @@ function BoundaryFlat(n::Int=0,boundX::BoundaryFlatSubtypes=Free(),
         for j in keys(i.addSymbols)
             append!(symbols,i.addSymbols[j])
         end
+
+        if :fMin in fieldnames(typeof(i))
+            if n == 1 && !(hasmethod(i.fMin,(FLOAT,FLOAT)))
+                error("Function ",i.fMin," must take two arguments (x,t). No function with such signature has been declared.")
+            elseif n == 2 && !(hasmethod(i.fMin,(FLOAT,FLOAT,FLOAT)))
+                error("Function ",i.fMin," must take three arguments (x,y,t). No function with such signature has been declared.")
+            elseif n == 3 && !(hasmethod(i.fMin,(FLOAT,FLOAT,FLOAT,FLOAT)))
+                error("Function ",i.fMin," must take four arguments (x,y,z,t). No function with such signature has been declared.")
+            end                
+        end
     end
 
     return BoundaryFlat(n,bound,symbols)
@@ -43,11 +51,11 @@ Boundary defining periodic boundary conditions.
 
 # Constructors
 
-    function Free(;medium::BoundaryMedium=Dirichlet())
+    function Free(;medium::BoundaryMedium=DirichletBoundaryCondition())
 
 ### Keyword arguments
 - **additional::Array{Symbol,1}** (Default Array{Symbol,1}()) Additional symbols to be updated when the symbol `s` crosses the boundary. (Empty)
-- **medium::BoundaryMedium** Boundary method of the medium. (Default Dirichlet()) 
+- **medium::BoundaryMedium** Boundary method of the medium. (Default DirichletBoundaryCondition()) 
 
 # Example: A free particle moving in the hole space.
 
@@ -60,7 +68,7 @@ struct Free<:BoundaryFlatSubtypes
     medium::BoundaryMedium
 end
 
-function Free(;medium::BoundaryMedium=Dirichlet())
+function Free(;medium::BoundaryMedium=DirichletBoundaryCondition())
     return Free(Dict{String,Array{Symbol,1}}(),medium)
 end
 
@@ -73,7 +81,7 @@ Boundary defining periodic boundary conditions.
 
 ### Keyword arguments
  - **additional::Array{Symbol,1}** (Default Array{Symbol,1}()) Additional symbols to be updated when the symbol `s` crosses the boundary.
- - **medium::BoundaryMedium** Boundary method of the medium. (Default Dirichlet()) 
+ - **medium::BoundaryMedium** Boundary method of the medium. (Default PeriodicBoundaryCondition()) 
 
 # Example: An elongated particle with two degrees of freedom `x` and `x1` moving in periodic conditions.
 
@@ -86,7 +94,7 @@ struct Periodic<:BoundaryFlatSubtypes
     medium::BoundaryMedium
 end 
 
-function Periodic(;additional::Array{Symbol,1}=Array{Symbol,1}(),medium::BoundaryMedium=PeriodicMedium())
+function Periodic(;additional::Array{Symbol,1}=Array{Symbol,1}(),medium::BoundaryMedium=PeriodicBoundaryCondition())
     return Periodic(Dict("add"=>additional),medium)
 end
 
@@ -111,7 +119,7 @@ All the behaviours can be specified for the minimum, the maximum or both boundar
         reflect::Array{Symbol,1}=Array{Symbol,1}(),
         reflectMin::Array{Symbol,1}=Array{Symbol,1}(),
         reflectMax::Array{Symbol,1}=Array{Symbol,1}(),
-        medium::BoundaryMedium=Dirichlet()
+        medium::BoundaryMedium=DirichletBoundaryCondition()
         )
 
 ### Keyword arguments
@@ -124,7 +132,7 @@ All the behaviours can be specified for the minimum, the maximum or both boundar
  - **reflect::Array{Symbol,1}** (Default Array{Symbol,1}())
  - **reflectMin::Array{Symbol,1}** (Default Array{Symbol,1}())
  - **reflectMax::Array{Symbol,1}** (Default Array{Symbol,1}())
- - **medium::BoundaryMedium** Boundary method of the medium. (Default Dirichlet()) 
+ - **medium::BoundaryMedium** Boundary method of the medium. (Default DirichletBoundaryCondition()) 
 
 Example: A particle with some velocity that bounces when touches a border and changes direction.
 
@@ -152,7 +160,7 @@ function Bounded(;
                 reflect::Array{Symbol,1}=Array{Symbol,1}(),
                 reflectMin::Array{Symbol,1}=Array{Symbol,1}(),
                 reflectMax::Array{Symbol,1}=Array{Symbol,1}(),
-                medium::BoundaryMedium=Dirichlet())
+                medium::BoundaryMedium=DirichletBoundaryCondition())
 
         d = Dict{String,Array{Symbol,1}}()
 
