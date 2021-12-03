@@ -99,7 +99,7 @@ function adaptOperatorsMediumFTCS_(f,op,p)
 
     if op == :δx
 
-        if space.medium[1].minBoundaryType == "Periodic"
+        if space.medium[1].minBoundaryType == PeriodicBoundaryCondition
             f = :(δMedium_(round(Int,($f-$(space.box[1].min))/dxₘ_)+1,ic1_))
         else
             f = :(δMedium_(round(Int,($f-$(space.box[1].min))/dxₘ_),ic1_))
@@ -111,7 +111,7 @@ function adaptOperatorsMediumFTCS_(f,op,p)
             error("Operator δy cannot be used in Agent with dimension 1.")
         end
 
-        if space.medium[2].minBoundaryType == "Periodic"
+        if space.medium[2].minBoundaryType == PeriodicBoundaryCondition
             f = :(δMedium_(round(Int,($f-$(space.box[2].min))/dyₘ_)+1,ic2_))
         else
             f = :(δMedium_(round(Int,($f-$(space.box[2].min))/dyₘ_),ic2_))
@@ -123,7 +123,7 @@ function adaptOperatorsMediumFTCS_(f,op,p)
             error("Operator δz cannot be used in Agent with dimension 1 or 2.")
         end
 
-        if space.medium[3].minBoundaryType == "Periodic"
+        if space.medium[3].minBoundaryType == PeriodicBoundaryCondition
             f = :(δMedium_(round(Int,($f-$(space.box[3].min))/dzₘ_)+1,ic3_))
         else
             f = :(δMedium_(round(Int,($f-$(space.box[3].min))/dzₘ_),ic3_))
@@ -188,7 +188,7 @@ function adaptOperatorsMediumFTCS_(f,op,p)
         if p.agent.dims == 1
             error("Operator Δz cannot exist in Agent with dimension 1.")
         elseif p.agent.dims == 2
-            error("Operator Δy cannot exist in Agent with dimension 2.")
+            error("Operator Δz cannot exist in Agent with dimension 2.")
         elseif p.agent.dims == 3
             addz = postwalk(x->@capture(x,s_[ic1_,ic2_,ic3_,j_]) && s == :mediumV ? :(mediumV[ic1_,ic2_,ic3_+1,$j]) : x,f)
             subsz = postwalk(x->@capture(x,s_[ic1_,ic2_,ic3_,j_]) && s == :mediumV ? :(mediumV[ic1_,ic2_,ic3_-1,$j]) : x,f)

@@ -192,10 +192,13 @@ function boundariesFunctionDefinition(b::BoundaryFlat,p::Program_, platform::Str
 
         if p.agent.dims == 1
             v = :(mediumVCopy[ic1_,ic4_])
+            v2 = :(mediumV[ic1_,ic4_])
         elseif p.agent.dims == 2
             v = :(mediumVCopy[ic1_,ic2_,ic4_])
+            v2 = :(mediumV[ic1_,ic2_,ic4_])
         elseif p.agent.dims == 3
             v = :(mediumVCopy[ic1_,ic2_,ic3_,ic4_])
+            v2 = :(mediumV[ic1_,ic2_,ic3_,ic4_])
         end
 
         if b.boundaries[i].medium == PeriodicBoundaryCondition
@@ -226,9 +229,10 @@ function boundariesFunctionDefinition(b::BoundaryFlat,p::Program_, platform::Str
 
             #Lower boundary
             vUp = postwalk(x->@capture(x, t_) && t == ic ? 1 : x, v)
-            vAss = postwalk(x->@capture(x, t_) && t == ic ? :(2) : x, v)
+            vUp2 = postwalk(x->@capture(x, t_) && t == ic ? 2 : x, v2) #Original medium variable
 
-            push!(subcode.args, :($vUp=$vAss))
+            x = xMin[i,1:p.agent.dims]
+            push!(subcode.args, :($vUp=$(b.boundaries[i].medium.fMin)($(x...),t)*$vUp2+$vUp2))
 
         end            
 
@@ -236,9 +240,10 @@ function boundariesFunctionDefinition(b::BoundaryFlat,p::Program_, platform::Str
 
             #Upper boundary
             vUp = postwalk(x->@capture(x, t_) && t == ic ? nm : x, v)
-            vAss = postwalk(x->@capture(x, t_) && t == ic ? :($nm-1) : x, v)
+            vUp2 = postwalk(x->@capture(x, t_) && t == ic ? :($nm-1) : x, v2) #Original medium variable
 
-            push!(subcode.args, :($vUp=$vAss))
+            x = xMin[i,1:p.agent.dims]
+            push!(subcode.args, :($vUp=$(b.boundaries[i].medium.fMax)($(x...),t)*$vUp2+$vUp2))
 
         end   
 
@@ -264,7 +269,7 @@ function boundariesFunctionDefinition(b::BoundaryFlat,p::Program_, platform::Str
 
         end
 
-        if !(typeof(b.boundaries[i].medium) in [PeriodicBoundaryCondition,DirichletBoundaryCondition,NewmannBoundaryCondition_DirichletBoundaryCondition,DirichletBoundaryCondition_NewmannBoundaryCondition])
+        if !(typeof(b.boundaries[i]) in [Bounded,Periodic])
             error("Boundary has to be a bounded boundary but some was set to a non-valid type: ", [typeof(i) for i in b.boundaries])
         end
 
