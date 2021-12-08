@@ -99,11 +99,7 @@ function adaptOperatorsMediumFTCS_(f,op,p)
 
     if op == :δx
 
-        if space.medium[1].minBoundaryType == PeriodicBoundaryCondition
-            f = :(δMedium_(round(Int,($f-$(space.box[1].min))/dxₘ_)+1,ic1_))
-        else
-            f = :(δMedium_(round(Int,($f-$(space.box[1].min))/dxₘ_),ic1_))
-        end
+        f = :(δMedium_(round(Int,($f-simulationBox[1,1])/dxₘ_)+1,ic1_))
 
     elseif op == :δy
 
@@ -111,11 +107,7 @@ function adaptOperatorsMediumFTCS_(f,op,p)
             error("Operator δy cannot be used in Agent with dimension 1.")
         end
 
-        if space.medium[2].minBoundaryType == PeriodicBoundaryCondition
-            f = :(δMedium_(round(Int,($f-$(space.box[2].min))/dyₘ_)+1,ic2_))
-        else
-            f = :(δMedium_(round(Int,($f-$(space.box[2].min))/dyₘ_),ic2_))
-        end
+        f = :(δMedium_(round(Int,($f-simulationBox[2,1])/dyₘ_)+1,ic2_))
 
     elseif op == :δz
 
@@ -123,11 +115,7 @@ function adaptOperatorsMediumFTCS_(f,op,p)
             error("Operator δz cannot be used in Agent with dimension 1 or 2.")
         end
 
-        if space.medium[3].minBoundaryType == PeriodicBoundaryCondition
-            f = :(δMedium_(round(Int,($f-$(space.box[3].min))/dzₘ_)+1,ic3_))
-        else
-            f = :(δMedium_(round(Int,($f-$(space.box[3].min))/dzₘ_),ic3_))
-        end
+        f = :(δMedium_(round(Int,($f-simulationBox[3,1])/dzₘ_)+1,ic3_))
 
     elseif op == :Δ
         if p.agent.dims == 1

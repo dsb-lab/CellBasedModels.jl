@@ -137,9 +137,9 @@
         if com.ga1 != 4. *ones(2,2) error() end
         if com.ga2 != 5. *ones(2,2) error() end
         if com.ga3 != 6. *ones(2,2) error() end
-        if com.m1 != 1. *ones(4,4) error() end
-        if com.m2 != 2. *ones(4,4) error() end
-        if com.m3 != 3. *ones(4,4) error() end
+        if com.m1 != 1. *ones(2,2) error() end
+        if com.m2 != 2. *ones(2,2) error() end
+        if com.m3 != 3. *ones(2,2) error() end
     end
 
     @test_throws ErrorException begin
@@ -185,11 +185,11 @@
     #initialisers
     m = @agent 3
     mo = compile(m)
-    f(x) = sqrt(sum(x.^2)) < 10
+    fCom(x) = sqrt(sum(x.^2)) < 10
 
     @test_nowarn initialiseCommunityCompactHexagonal(mo,[-10 10;-10 10;-10 10],.5)
-    @test_nowarn initialiseCommunityCompactHexagonal(mo,[-10 10;-10 10;-10 10],.5,fExtrude = f)
+    @test_nowarn initialiseCommunityCompactHexagonal(mo,[-10 10;-10 10;-10 10],.5,fExtrude = fCom)
     @test_nowarn initialiseCommunityCompactCubic(mo,[-10 10;-10 10;-10 10],.5)
-    @test_nowarn initialiseCommunityCompactCubic(mo,[-10 10;-10 10;-10 10],.5,fExtrude = f)
+    @test_nowarn initialiseCommunityCompactCubic(mo,[-10 10;-10 10;-10 10],.5,fExtrude = fCom)
 
 end

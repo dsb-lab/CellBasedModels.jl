@@ -78,7 +78,7 @@ function returnBound_(s::Symbol,pos::Int,b::Bounded,p::Program_)
 
     min = quote end
     for i in b.addSymbols["stop"]
-        posm = p.update["Local"][i]
+        posm = p.update["Local"][i] 
         push!(min.args,:(localVCopy[ic1_,$posm] = boundStopMin(localVCopy[ic1_,$posm],simulationBox[$pos,1])))
     end
     for i in b.addSymbols["stopMin"]
@@ -169,7 +169,7 @@ function returnBound_(b::BoundaryFlat,p::Program_)
     code = quote end
 
     for (i,bound) in enumerate(b.boundaries)
-        s = [:xₘ,:yₘ,:zₘ][i]
+        s = POSITIONSYMBOLS[i]
         append!(code.args,returnBound_(s,i,bound,p).args)
     end
 

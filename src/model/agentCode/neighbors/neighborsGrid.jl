@@ -476,7 +476,7 @@ end
 
 function loopGrid_(program::Program_, code::Expr, platform::String)
 
-    code = vectorize_(program.agent, code, program)
+    code = vectorize_(program.agent, code, program, interaction=true)
 
     #Compute the cell id for each agent in grid and linearized format for any box possible box dimensions.
     if program.agent.dims == 1

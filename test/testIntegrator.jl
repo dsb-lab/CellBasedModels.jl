@@ -1,6 +1,6 @@
 @testset "integrators" begin
 
-    for integrator in keys(AgentBasedModels.addIntegrator_!)
+    for integrator in ["Euler"]#keys(AgentBasedModels.addIntegrator_!)
         for platform in testplatforms
 
             #Declare
@@ -10,9 +10,9 @@
                     
                     Equation = 
                     begin
-                        d_x = x*dt 
-                        d_y = 0*dt 
-                        d_z = 1*dt
+                        d(x) = x*dt 
+                        d(y) = 0*dt 
+                        d(z) = 1*dt
                     end
                 )
                 m = compile(m, integrator=integrator, platform=platform, debug=false)
@@ -24,8 +24,8 @@
                 
                 Equation = 
                 begin
-                    d_x = -x*dt 
-                    d_z = 1*dt
+                    d(x) = -x*dt 
+                    d(z) = 1*dt
                 end
             )
             m = compile(m, integrator=integrator, platform=platform, debug=false)
@@ -46,8 +46,8 @@
                 
                 Equation = 
                 begin
-                    d_x = -0*dt + dW
-                    d_y = -0*dt + dW
+                    d(x) = -0*dt + dW
+                    d(y) = -0*dt + dW
                 end
             )
             m = compile(m, integrator=integrator, platform=platform, debug=false)

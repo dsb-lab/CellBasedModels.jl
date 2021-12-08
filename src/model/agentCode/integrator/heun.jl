@@ -33,7 +33,7 @@ function addIntegratorHeun_!(p::Program_, platform::String)
         if "UpdateInteraction" in keys(p.agent.declaredUpdates)
 
             k1 = loop_[p.neighbors](p,p.agent.declaredUpdates["UpdateInteraction"],platform)
-            k1 = vectorize_(p.agent,k1,p)
+            k1 = vectorize_(p.agent,k1,p,interaction=true)
             k1 = wrapInFunction_(:interactionStep1_,k1)
             push!(p.declareF.args,k1)
 
@@ -53,8 +53,7 @@ function addIntegratorHeun_!(p::Program_, platform::String)
             if j in keys(p.update["Variables"])
                 ii = p.update["Local"][j]
                 ki = p.update["Variables"][j]
-                s = Meta.parse(string(EQUATIONSYMBOL,j))
-                codeK1 = postwalk(x -> @capture(x,$s) ? :(K₁_[ic1_,$ki]) : x, codeK1)
+                codeK1 = postwalk(x -> @capture(x,g_(s_)) && g == DIFFSYMBOL && s == j ? :(K₁_[ic1_,$ki]) : x, codeK1)
                 #Saves intermediate step vᵢₙₜ in final pos localVCopy
                 push!(codeK1.args,:(localVCopy[ic1_,$ii] = localV[ic1_,$i] + K₁_[ic1_,$ki]))
             end
@@ -78,7 +77,7 @@ function addIntegratorHeun_!(p::Program_, platform::String)
             for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
                 codeK1 = postwalk(x -> @capture(x,$j) ? :(localVCopy[ic1_,$ii]) : x, k3)
             end
-            k3 = vectorize_(p.agent,k3,p)
+            k3 = vectorize_(p.agent,k3,p,interaction=true)
             k3 = wrapInFunction_(:interactionStep2_,k3)
             push!(p.declareF.args,k3)
 
@@ -93,10 +92,9 @@ function addIntegratorHeun_!(p::Program_, platform::String)
             if j in keys(p.update["Variables"])
                 ii = p.update["Local"][j]
                 ki = p.update["Variables"][j]
-                s = Meta.parse(string(EQUATIONSYMBOL,j))
-                codeK2 = postwalk(x -> @capture(x,$j) ? :(($j+K₁_[ic1_,$ki])) : x, codeK2)
+                codeK2 = postwalk(x -> @capture(x,g_(s_)) && g == DIFFSYMBOL && s == j ? :(($j+K₁_[ic1_,$ki])) : x, codeK2)
                 codeK2 = postwalk(x -> @capture(x,t) ? :(t+dt) : x, codeK2)
-                codeK2 = postwalk(x -> @capture(x,$s) ? :(localVCopy[ic1_,$ii]) : x, codeK2) #Directly add to final point, saves an additional declaration
+                codeK2 = postwalk(x -> @capture(x,g_(s_)) && g == DIFFSYMBOL && s == j ? :(localVCopy[ic1_,$ii]) : x, codeK2) #Directly add to final point, saves an additional declaration
 
                 #Add old pos, K2 (stored in final pos for now) and K1 to final pos
                 push!(codeK2.args,:(localVCopy[ic1_,$ii] = localV[ic1_,$i] + (localVCopy[ic1_,$ii] + K₁_[ic1_,$ki])/2))

@@ -193,7 +193,13 @@ function addEventRemoveAgent_(code::Expr,p::Program_,platform::String)
         
         if inexpr(code,:removeAgent) #Check correct declaration
             error("removeAgent declared with wrong number of parameters. It has to be declared as removeAgent())")
-        end            
+        end     
+        
+        #Add the keep list initialization at the beginning
+        codeinit = quote keepList_[ic1_] = ic1_ end
+        push!(codeinit.args,code.args...)
+        code = codeinit
+
     end    
 
     #Add to code the removing algorithm
@@ -214,6 +220,7 @@ function addEventRemoveAgent_(code::Expr,p::Program_,platform::String)
                 @platformAdapt AgentBasedModels.removeDeadAgents_cpu!($(a...))
                 N -= remV_[]
                 remV_[] = 0
+                keepList_ .= 0
             end
         end
     elseif platform == "gpu"
@@ -223,6 +230,7 @@ function addEventRemoveAgent_(code::Expr,p::Program_,platform::String)
                 @platformAdapt AgentBasedModels.removeDeadAgents_gpu!($(a...))
                 N -= Core.Array(remV_)[1]
                 remV_ .= 0
+                keepList_ .= 0
             end
         end        
     end

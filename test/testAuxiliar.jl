@@ -20,22 +20,22 @@
     p = AgentBasedModels.Program_(m);
     AgentBasedModels.updates_!(p)
     @test AgentBasedModels.vectorize_(m,:(l = 1), p) == :(localV[ic1_,1]=1)
-    @test AgentBasedModels.vectorize_(m,:(l_i = 1), p) == :(localV[ic1_,1]=1)
-    @test AgentBasedModels.vectorize_(m,:(l_j = 1), p) == :(localV[nnic2_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(l.i = 1), p) == :(localV[ic1_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(l.j = 1), p) == :(localV[nnic2_,1]=1)
     @test AgentBasedModels.vectorize_(m,:(g = 1), p) == :(globalV[1]=1)
     @test AgentBasedModels.vectorize_(m,:(h[1,2] = 1), p) == :(h[1,2]=1)
     @test AgentBasedModels.vectorize_(m,:(id = 1), p) == :(identityV[ic1_,1]=1)
-    @test AgentBasedModels.vectorize_(m,:(id_i = 1), p) == :(identityV[ic1_,1]=1)
-    @test AgentBasedModels.vectorize_(m,:(id_j = 1), p) == :(identityV[nnic2_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(id.i = 1), p) == :(identityV[ic1_,1]=1)
+    @test AgentBasedModels.vectorize_(m,:(id.j = 1), p) == :(identityV[nnic2_,1]=1)
 
     @test AgentBasedModels.vectorize_(m,:(l = l), p) == :(localV[ic1_,1]=localV[ic1_,1])
-    @test AgentBasedModels.vectorize_(m,:(l_i = l_i), p) == :(localV[ic1_,1]=localV[ic1_,1])
-    @test AgentBasedModels.vectorize_(m,:(l_j = l_j), p) == :(localV[nnic2_,1]=localV[nnic2_,1])
+    @test AgentBasedModels.vectorize_(m,:(l.i = l.i), p) == :(localV[ic1_,1]=localV[ic1_,1])
+    @test AgentBasedModels.vectorize_(m,:(l.j = l.j), p) == :(localV[nnic2_,1]=localV[nnic2_,1])
     @test AgentBasedModels.vectorize_(m,:(g = g), p) == :(globalV[1]=globalV[1])
     @test AgentBasedModels.vectorize_(m,:(h[1,2] = h[1,2]), p) == :(h[1,2]=h[1,2])
     @test AgentBasedModels.vectorize_(m,:(id = id), p) == :(identityV[ic1_,1]=identityV[ic1_,1])
-    @test AgentBasedModels.vectorize_(m,:(id_i = id_i), p) == :(identityV[ic1_,1]=identityV[ic1_,1])
-    @test AgentBasedModels.vectorize_(m,:(id_j = id_j), p) == :(identityV[nnic2_,1]=identityV[nnic2_,1])
+    @test AgentBasedModels.vectorize_(m,:(id.i = id.i), p) == :(identityV[ic1_,1]=identityV[ic1_,1])
+    @test AgentBasedModels.vectorize_(m,:(id.j = id.j), p) == :(identityV[nnic2_,1]=identityV[nnic2_,1])
     
     @test begin
         m = @agent(
@@ -119,38 +119,10 @@
         end
     end
 
-    @test begin
-
-        m = DataFrame(Symbol=Symbol[], updated=Bool[], assigned=Bool[], referenced=Bool[], called=Bool[], placeDeclaration=Symbol[], type=Symbol[])
-        push!(m,(:l,false,true,false,false,:Model,:Local))
-        push!(m,(:g,true,false,true,false,:Model,:GlobalArray))
-        push!(m,(:h,true,false,false,false,:Model,:Localj))
-        push!(m,(:+,false,false,false,true,:Math,:None))
-        push!(m,(:l,false,false,false,false,:Model,:Locali))
-        push!(m,(:g,false,false,false,false,:Model,:GlobalArray))
-        push!(m,(:u,false,false,false,true,:NotDefined,:None))
-
-        #println(m)
-
-        abm = @agent 0 [l,h]::Local g::GlobalArray
-
-        m2 = AgentBasedModels.symbols_(abm,
-            quote
-                l = 5
-                g[1,2] -= 7
-                h_j += l_i+g+u(1)
-            end
-        )
-        
-        #println(m2)
-
-        m == m2
-    end
-
     @test_nowarn begin
         
         abm = @agent(
-            0,
+            1,
 
             [l1,l2]::Local,
             [g1,g2]::Global,
@@ -166,12 +138,13 @@
 
             Equation =
             begin
-                d_l1 = a*dt + b*dW
+                d(x) = a*dt + b*dW
             end,
 
             UpdateGlobal = 
             begin
                 g1 += 1
+                g2 = 0
                 ga1[1,2] += 1
             end
         )
@@ -180,10 +153,10 @@
         AgentBasedModels.updates_!(p)
 
         if p.update["Identity"] != Dict(:id1=>1) error() end
-        if p.update["Global"] != Dict(:g1=>1) error() end
+        if p.update["Global"] != Dict(:g1=>1,:g2=>2) error() end
         if p.update["GlobalArray"] != Dict(:ga1=>1) error() end
-        if p.update["Local"] != Dict(:l2=>2,:l1=>1) error() end
-        if p.update["Variables"] != Dict(:l1=>1) error() end
+        if p.update["Local"] != Dict(:l2=>3,:l1=>2,:x=>1) error() end
+        if p.update["Variables"] != Dict(:x=>1) error() end
     end    
 
     @test AgentBasedModels.extract(:(f(x)*1+4),:f) == (:x)

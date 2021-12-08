@@ -20,7 +20,6 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
     
     #Declare all the agent properties related functions, arguments, code...
     addCleanInteraction_!(p,platform)
-    addCleanLocalInteraction_!(p,platform)
     addParameters_!(p,platform)
     addCopyInitialisation_!(p,platform)
     addIntegrator_![integrator](p,platform)
@@ -31,8 +30,6 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
     addUpdateMediumInteraction_!(p,platform)
     addIntegratorMedium_![integratorMedium](p,platform)
     addUpdate_!(p,platform)
-    #Events
-    # addEventDivision_!(p,platform)
 
     #Saving
     addSaving_![save](p,platform)
@@ -89,11 +86,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
         println(prettify(programugly))
     end
 
-    if user_ == true
-        model = Model(abm,program,Main.eval(program))
-    else
-        model = Model(abm,program,AgentBasedModels.eval(program))
-    end
+    model = Model(abm,program,Main.eval(program))
 
     return model
 end

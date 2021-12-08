@@ -278,8 +278,40 @@ fBoundary3D(x,y,z,t) = 1
         m = @agent(1, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u) + δx(0.), Boundary = BoundaryFlat(1,Bounded()))
         mc = compile(m,platform=platform)
         # println(mc.program)
-        com = Community(mc,N=10)
+        com = Community(mc,N=10,mediumN=[30])
         com.u .= 0
+        com.simulationBox .= [-10 10]
+        @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+        @test begin 
+            comt = mc.evolve(com,dt=0.01,tMax=4000,dtSave=200)
+
+            all(abs.(comt[end].u .- comt[10].u) .< 0.001)
+        end
+
+        ##2 dim
+        m = @agent(2, [u,v]::Medium, UpdateMedium = ∂t_u = Δx(u) + Δy(u) + δx(0.) + δy(0.), Boundary = BoundaryFlat(2,Bounded(),Bounded()))
+        mc = compile(m,platform=platform)
+        # println(mc.program)
+        com = Community(mc,N=10,mediumN=[30,30])
+        com.u .= 0
+        com.simulationBox .= [-10 10; -10 10]
+        @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+        @test begin 
+            comt = mc.evolve(com,dt=0.01,tMax=4000,dtSave=200)
+
+            all(abs.(comt[end].u .- transpose(comt[10].u)) .< 0.001)
+        end
+
+        ##3 dim
+        m = @agent(3, 
+                    [u,v]::Medium, 
+                    UpdateMedium = ∂t_u = Δx(u) + Δy(u) + Δz(u) + δx(0.) + δy(0.) + δz(0.),
+                    Boundary = BoundaryFlat(3,Bounded(),Bounded(),Bounded()))
+        mc = compile(m,platform=platform)
+        # println(mc.program)
+        com = Community(mc,N=10,mediumN=[5,5,5])
+        com.u .= 0
+        com.simulationBox .= [-10 10; -10 10; -10 10]
         @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
         @test begin 
             comt = mc.evolve(com,dt=0.01,tMax=4000,dtSave=200)

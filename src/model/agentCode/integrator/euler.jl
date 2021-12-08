@@ -22,7 +22,7 @@ function addIntegratorEuler_!(p::Program_, platform::String)
         if "UpdateInteraction" in keys(p.agent.declaredUpdates)
 
             k1 = loop_[p.neighbors](p,p.agent.declaredUpdates["UpdateInteraction"],platform)
-            k1 = vectorize_(p.agent,k1,p)
+            k1 = vectorize_(p.agent,k1,p,interaction=true)
             k1 = wrapInFunction_(:interactionCompute_!,k1)
             push!(p.declareF.args,k1)
 
@@ -30,8 +30,7 @@ function addIntegratorEuler_!(p::Program_, platform::String)
 
         #Create integration step function
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
-            s = Meta.parse(string(EQUATIONSYMBOL,j))
-            code = postwalk(x -> @capture(x,ss_=v__) && ss == s ? :($j = $j + $(v...)) : x, code)
+            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :($j = $j + $(v...)) : x, code)
             code = postwalk(x -> @capture(x,dW) ? :(Normal(0.,sqrt(dt))) : x, code)
         end
         code = vectorize_(p.agent,code,p)

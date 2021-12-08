@@ -19,8 +19,9 @@ VALID_UPDATES = [
     :UpdateMedium,
     :UpdateMediumInteraction,
     :Equation,
-    :EventDivision
 ]
+
+POSITIONSYMBOLS = [:x,:y,:z]
 
 BASICARGS=[:t,:N,:dt,:simulationBox]
 
@@ -40,18 +41,13 @@ RESERVEDSYMBOLS = [:x,:y,:z,:id,:t,:N,:dt,:dW,:nMax,
 
 GLOBALARRAYCOPY = "_Copy"
 
-EQUATIONSYMBOL = "d_"
+DIFFSYMBOL = :d
 
-INTERACTIONSYMBOLS = ["_i","_j"]
-INTERACTIONSYMBOLSDICT = Dict(["_i"=>"[ic1_,VAR]","_j"=>"[nnic2_,VAR]"])
+INTERACTIONSYMBOLS = [:i,:j]
+INTERACTIONSYMBOLSDICT = Dict([:i=>"[ic1_,VAR]",:j=>"[nnic2_,VAR]"])
 
-DIVISIONSYMBOLS = ["_1","_2"]
-DIVISIONSYMBOLSDICT = Dict(["_1"=>"[ic1_,VAR]","_1"=>"[nnic2_,VAR]"])
-
-ENDSYMBOLS = ["_i","_j"]
-
-MEDIUMSYMBOL = "∂t_"
-MEDIUMSYMBOLS = ["∂t_","∇","∇x","∇y","∇z","Δ","Δx","Δy","Δz","δr"]
+DIFFMEDIUMSYMBOL = :∂t
+MEDIUMSYMBOLS = [:∂t,:∇,:∇x,:∇y,:∇z,:Δ,:Δx,:Δy,:Δz,:δr]
 
 #Adaptation functions
 GPUINFUNCTION = 

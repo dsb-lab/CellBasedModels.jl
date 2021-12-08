@@ -1,97 +1,112 @@
+function addAgentCode(g,p,platform;rem=false)
+
+    if platform == "cpu"
+        code = quote
+                ic1New_ = N+Threads.atomic_add!(NV,$INT(1)) + 1
+                idNew_ = Threads.atomic_add!(agentIdMax,$INT(1)) + 1
+                id = idNew_
+            end
+    else
+        code = quote
+            ic1New_ = N+CUDA.atomic_add!(CUDA.pointer(NV,1),$INTCUDA(1)) + 1
+            idNew_ = CUDA.atomic_add!(CUDA.pointer(agentIdMax,1),$INTCUDA(1)) + 1
+
+            id = idNew_
+            end
+    end
+    
+    if rem #In case of removal, add new people to the list
+        push!(code.args,:(keepList_[ic1New_] = ic1New_))
+    end
+
+    args = []
+    for i in g
+        if i.head == :kw
+            if !(i.args[1] in p.agent.declaredSymbols["Local"] || i.args[1] in p.agent.declaredSymbols["Identity"])
+                error(i.args[1], "is not a Local or Identity parameter of the agent.")
+            end
+        else
+            error(i, " is not a valid assignation of code when declaring addAgent. A Valid one should be of the form parameterOfAgent = value")
+        end
+
+        if i.args[1] in args
+           error(i.args[1]," has been declared more than once.") 
+        end
+
+        if i.args[1] == :id
+            error("id should not be declared when calling addAgent, it is assigned automatically.")
+        end
+        push!(code.args,:($(i.args[1])=$(i.args[2])))
+        push!(args,i.args[1])
+    end
+
+    for i in p.agent.declaredSymbols["Local"]
+        if !(i in args)
+            error(i, " has not been assigned in new agent of addAgent.")
+        end
+    end
+
+    for i in p.agent.declaredSymbols["Identity"]
+        if !(i in args)  && (i != :id)
+            error(i, " has not been assigned in new agent declared by addAgent in UpdateLocal.")
+        end
+    end
+
+    code = vectorize_(p.agent,code,p)
+
+    for i in keys(p.update["Local"])
+        pos = findfirst(i .== p.agent.declaredSymbols["Local"])
+        posNew = p.update["Local"][i]
+
+        push!(code.args,:(localV[ic1New_,$pos]=localVCopy[ic1New_,$posNew]))
+    end
+
+    for i in keys(p.update["Identity"])
+        pos = findfirst(i .== p.agent.declaredSymbols["Identity"])
+        posNew = p.update["Identity"][i]
+
+        push!(code.args,:(identityV[ic1New_,$pos]=identityVCopy[ic1New_,$posNew]))
+    end
+
+    code = postwalk(x->@capture(x,g0_[g1_,g2_] = g3_) && g1 == :ic1_ ? :($g0[ic1New_,$g2] = $g3) : x , code)
+
+    return code
+end
+
 """
-    function addEventDivision_!(p::Program_,platform::String)
+    function addEventAddAgent_(code::Expr,p::Program_,platform::String)
 
 Generate the functions for division events.
 """
-function addEventDivision_!(p::Program_,platform::String)
+function addEventAddAgent_(code::Expr,p::Program_,platform::String)
 
-    if "EventDivision" in keys(p.agent.declaredUpdates)
-
-        code = p.agent.declaredUpdates["EventDivision"]
-
-        if !@capture(code,if v_ g__ end)
-            error("Erroneos structure of division events. Should be if something update end")
+    if inexpr(code,:addAgent)
+        
+        if inexpr(code,:removeAgent) #In case of removal, add new people to the list
+            code = postwalk(x->@capture(x,addAgent(g__)) ? addAgentCode(g,p,platform,rem=true) : x , code)
+        else
+            code = postwalk(x->@capture(x,addAgent(g__)) ? addAgentCode(g,p,platform) : x , code)
         end
 
-        code = vectorize_(p.agent,code,p)
-        subcode = postwalk(x->@capture(x,if v_ g__ end) ? quote $(g...) end : x, code)
-        subcode = unblock(subcode)
-        condition = postwalk(x->@capture(x,if v_ g__ end) ? v : x, code)
-        condition = unblock(condition)
-
-        #Add atomic_add
         if platform == "cpu"
-            pushfirst!(subcode.args, :(ic1New_ = Threads.atomic_add!(NV,Int(1)) + 1))
-            pushfirst!(subcode.args, :(idNew_ = Threads.atomic_add!(agentIdMax,Int(2)) + 1))
-        elseif platform == "gpu"
-            pushfirst!(subcode.args, :(ic1New_ = CUDA.atomic_add!(CUDA.pointer(NV,1),Int32(1)) + 1))
-            pushfirst!(subcode.args, :(idNew_ = CUDA.atomic_add!(CUDA.pointer(agentIdMax,1),Int32(2)) + 1))
-        end
-        for k in ["Local","Identity"]
-            vec = Meta.parse(string(lowercase(k),"V"))
-            vecCopy = Meta.parse(string(lowercase(k),"VCopy"))
-            for (i,j) in enumerate(p.agent.declaredSymbols[k])
-                if j in keys(p.update["EventDivision"])
-                    ii = p.update[k][j]
-                    #Parse content
-                    s = Meta.parse(string(j,"_1"))
-                    subcode = postwalk(x -> @capture(x,g_=v__) && g == s ? :($vecCopy[ic1_,$ii] = $(v...)) : x, subcode)
-                    s = Meta.parse(string(j,"_2"))
-                    subcode = postwalk(x -> @capture(x,g_=v__) && g == s ? :($vecCopy[ic1New_,$ii] = $(v...)) : x, subcode)
-                end
-            end          
-        end
-        for k in ["Local","Identity"]  #Add other updates of non changed variables
-            vec = Meta.parse(string(lowercase(k),"V"))
-            vecCopy = Meta.parse(string(lowercase(k),"VCopy"))  
-            for (i,j) in enumerate(p.agent.declaredSymbols[k])
-                #Add update if doesn't exist
-                if !(j in keys(p.update["EventDivision"])) && j != PREDECLAREDPARAMETERS["Identity"]
-                    push!(subcode.args,:($vec[ic1New_,$i] = $vec[ic1_,$i]))
-                elseif j != PREDECLAREDPARAMETERS["Identity"]
-                    ii = p.update[k][j]
-                    push!(subcode.args,:($vec[ic1_,$i] = $vecCopy[ic1_,$ii]))
-                    push!(subcode.args,:($vec[ic1New_,$i] = $vecCopy[ic1New_,$ii]))                
-                else
-                    ii = findfirst(p.agent.declaredSymbols["Identity"] .== j)
-                    push!(subcode.args,:($vec[ic1_,$ii] = idNew_))
-                    push!(subcode.args,:($vec[ic1New_,$ii] = idNew_ + 1))                                    
-                end
-            end        
-        end
-        code = quote
-            if $condition
-                $subcode
-            end
-        end
 
-        code = simpleFirstLoopWrapInFunction_(platform,:division_!,code)
-
-        push!(p.declareF.args,code)
-        push!(p.args,:(NV))
-        if platform == "cpu"
-            push!(p.declareVar.args,:(NV = Threads.Atomic{Int}(N)))
+            push!(p.declareVar.args,:(NV = Threads.Atomic{Int}(0)))
             push!(p.declareVar.args,:(agentIdMax = Threads.Atomic{Int}(N)))
 
-            push!(p.execInloop.args,
-                    :(begin
-                        @platformAdapt division_!(ARGS_)
-                        N = NV[]
-                    end)
-                )
+            push!(p.execInloop.args,:(N += NV[]; NV[] = 0))
+
         elseif platform == "gpu"
-            push!(p.declareVar.args,:(NV = N .*CUDA.ones($INT,1)))
+
+            push!(p.declareVar.args,:(NV = CUDA.zeros($INT,1)))
             push!(p.declareVar.args,:(agentIdMax = N .*CUDA.ones($INT,1)))
 
-            push!(p.execInloop.args,
-                    :(begin
-                        @platformAdapt division_!(ARGS_)
-                        N = Core.Array(NV)[1]
-                    end)
-                )
+            push!(p.execInloop.args,:(N += Core.Array(NV)[1]; NV .= 0))
+
         end
+
+        push!(p.args,:(NV),:(agentIdMax))
 
     end
 
-    return nothing
+    return code
 end

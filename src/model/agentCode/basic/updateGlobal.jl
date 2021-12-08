@@ -7,10 +7,6 @@ function addUpdateGlobal_!(p::Program_,platform::String)
 
     if "UpdateGlobal" in keys(p.agent.declaredUpdates)
 
-        #Check updated
-        up = symbols_(p.agent,p.agent.declaredUpdates["UpdateGlobal"])
-        up = up[Bool.((up[:,"placeDeclaration"].==:Model) .* Bool.((up[:,"assigned"].==true) .+ (up[:,"updated"].==true))),:]
-
         #Construct functions
         f = simpleFirstLoopWrapInFunction_(platform,:globStep_!,
                         :(begin        

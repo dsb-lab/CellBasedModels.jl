@@ -5,7 +5,7 @@ end
 
 function loopFull_(program::Program_, code::Expr, platform::String)
 
-    code = vectorize_(program.agent, code, program)
+    code = vectorize_(program.agent, code, program,interaction=true)
     loop = :(
         for ic2_ in 1:N
             $code

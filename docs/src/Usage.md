@@ -34,14 +34,11 @@ For now, the following methods are included:
 ||Medium|||
 |[**Updates**](@ref updates)|[UpdateLocal](@ref updateLocal)|||
 ||[UpdateGlobal](@ref updateGlobal)|||
-||[Equation](@ref equation)|`dt`,`dW`|`d_`|
-||[UpdateLocalInteraction](@ref updateLocalInteraction)||`_i`,`_j`|
-||[UpdateInteraction](@ref updateInteraction)||`_i`,`_j`|
-||[UpdateMedium](@ref updateMedium)||`∂t_`,`∇x`,`∇y`,`∇z`,`Δx`,`Δy`,`Δz`,`δ`|
+||[Equation](@ref equation)|`dt`,`dW`|`d`|
+||[UpdateLocalInteraction](@ref updateLocalInteraction)||`.i`,`.j`|
+||[UpdateInteraction](@ref updateInteraction)||`.i`,`.j`|
+||[UpdateMedium](@ref updateMedium)||`∂t`,`∇x`,`∇y`,`∇z`,`Δx`,`Δy`,`Δz`,`δx`,`δy`,`δz`|
 ||[UpdateMediumInteraction](@ref updateMediumInteraction)|||
-|[**Events**](@ref events)||||
-||[EventDeath](@ref eventDeath)|||
-||[EventDivision](@ref eventDivision)||`_1`,`_2`|
 
 ### [Parameter declaration](@id parameters)
 
