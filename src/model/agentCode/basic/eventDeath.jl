@@ -1,116 +1,233 @@
+function removeAgent_cpu!(pos,keepList_,removeList_,remV_)
+    keepList_[pos] = 0
+    removeList_Pos_ = Threads.atomic_add!(remV_,1) + 1
+    removeList_[removeList_Pos_] = pos
+end
+
+function removeAgent_gpu!(pos,keepList_,removeList_,remV_)
+    keepList_[pos] = 0
+    removeList_Pos_ = CUDA.atomic_add!(pointer(remV_,1),Int(1)) + 1
+    removeList_[removeList_Pos_] = pos
+end
+
+function removeDeadAgents_cpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity,localVCopy,nLocalC,identityVCopy,nIdentityC)
+
+    for ic1_ in 1:remV_[]
+        oldPos_ = keepList_[ic1_]
+        newPos_ = removeList_[ic1_]
+        if oldPos_ > 0
+            for ic2_ in 1:nLocal
+                localV[newPos_, ic2_] = localV[oldPos_, ic2_] 
+            end
+            for ic2_ in 1:nIdentity
+                identityV[newPos_, ic2_] = identityV[oldPos_, ic2_] 
+            end
+            for ic2_ in 1:nLocalC
+                localVCopy[newPos_, ic2_] = localVCopy[oldPos_, ic2_] 
+            end
+            for ic2_ in 1:nIdentityC
+                identityVCopy[newPos_, ic2_] = identityVCopy[oldPos_, ic2_] 
+            end
+        end
+    end
+
+    return
+end
+
+function removeDeadAgents_cpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity,localVCopy,nLocalC)
+
+    for ic1_ in 1:remV_[]
+        oldPos_ = keepList_[ic1_]
+        newPos_ = removeList_[ic1_]
+        if oldPos_ > 0
+            for ic2_ in 1:nLocal
+                localV[newPos_, ic2_] = localV[oldPos_, ic2_] 
+            end
+            for ic2_ in 1:nIdentity
+                identityV[newPos_, ic2_] = identityV[oldPos_, ic2_] 
+            end
+            for ic2_ in 1:nLocalC
+                localVCopy[newPos_, ic2_] = localVCopy[oldPos_, ic2_] 
+            end
+        end
+    end
+
+    return
+end
+
+function removeDeadAgents_cpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity,identityVCopy::Array{<:Int,2},nIdentityC)
+
+    for ic1_ in 1:remV_[]
+        oldPos_ = keepList_[ic1_]
+        newPos_ = removeList_[ic1_]
+        if oldPos_ > 0
+            for ic2_ in 1:nLocal
+                localV[newPos_, ic2_] = localV[oldPos_, ic2_] 
+            end
+            for ic2_ in 1:nIdentity
+                identityV[newPos_, ic2_] = identityV[oldPos_, ic2_] 
+            end
+            for ic2_ in 1:nIdentityC
+                identityVCopy[newPos_, ic2_] = identityVCopy[oldPos_, ic2_] 
+            end
+        end
+    end
+
+    return
+end
+
+function removeDeadAgents_cpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity)
+
+    for ic1_ in 1:remV_[]
+        oldPos_ = keepList_[ic1_]
+        newPos_ = removeList_[ic1_]
+        if oldPos_ > 0
+            for ic2_ in 1:nLocal
+                localV[newPos_, ic2_] = localV[oldPos_, ic2_] 
+            end
+            for ic2_ in 1:nIdentity
+                identityV[newPos_, ic2_] = identityV[oldPos_, ic2_] 
+            end
+        end
+    end
+
+    return
+end
+
+function removeDeadAgents_gpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity,localVCopy,nLocalC,identityVCopy,nIdentityC)
+
+    for ic1_ in 1:remV_[0]
+        oldPos_ = keepList_[ic1_]
+        newPos_ = removeList_[ic1_]
+        if oldPos_ > 0
+            for ic2_ in 1:nLocal
+                localV[newPos_, ic2_] = localV[oldPos_, ic2_] 
+            end
+            for ic2_ in 1:nIdentity
+                identityV[newPos_, ic2_] = identityV[oldPos_, ic2_] 
+            end
+            for ic2_ in 1:nLocalC
+                localVCopy[newPos_, ic2_] = localVCopy[oldPos_, ic2_] 
+            end
+            for ic2_ in 1:nIdentityC
+                identityVCopy[newPos_, ic2_] = identityVCopy[oldPos_, ic2_] 
+            end
+        end
+    end
+
+    return
+end
+
+function removeDeadAgents_gpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity,localVCopy,nLocalC)
+
+    for ic1_ in 1:remV_[0]
+        oldPos_ = keepList_[ic1_]
+        newPos_ = removeList_[ic1_]
+        if oldPos_ > 0
+            for ic2_ in 1:nLocal
+                localV[newPos_, ic2_] = localV[oldPos_, ic2_] 
+            end
+            for ic2_ in 1:nIdentity
+                identityV[newPos_, ic2_] = identityV[oldPos_, ic2_] 
+            end
+            for ic2_ in 1:nLocalC
+                localVCopy[newPos_, ic2_] = localVCopy[oldPos_, ic2_] 
+            end
+        end
+    end
+
+    return
+end
+
+function removeDeadAgents_gpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity,identityVCopy::Array{<:Int,2},nIdentityC)
+
+    for ic1_ in 1:remV_[0]
+        oldPos_ = keepList_[ic1_]
+        newPos_ = removeList_[ic1_]
+        if oldPos_ > 0
+            for ic2_ in 1:nLocal
+                localV[newPos_, ic2_] = localV[oldPos_, ic2_] 
+            end
+            for ic2_ in 1:nIdentity
+                identityV[newPos_, ic2_] = identityV[oldPos_, ic2_] 
+            end
+            for ic2_ in 1:nIdentityC
+                identityVCopy[newPos_, ic2_] = identityVCopy[oldPos_, ic2_] 
+            end
+        end
+    end
+
+    return
+end
+
+function removeDeadAgents_gpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity)
+
+    for ic1_ in 1:remV_[0]
+        oldPos_ = keepList_[ic1_]
+        newPos_ = removeList_[ic1_]
+        if oldPos_ > 0
+            for ic2_ in 1:nLocal
+                localV[newPos_, ic2_] = localV[oldPos_, ic2_] 
+            end
+            for ic2_ in 1:nIdentity
+                identityV[newPos_, ic2_] = identityV[oldPos_, ic2_] 
+            end
+        end
+    end
+
+    return
+end
+
 """
-function addEventDeath_!(p::Program_,platform::String)
+function addEventDeath_(code::Expr,p::Program_,platform::String)
 
 Generate the functions for division events.
 """
-function addEventDeath_!(p::Program_,platform::String)
+function addEventDeath_(code::Expr,p::Program_,platform::String)
 
-if "EventDeath" in keys(p.agent.declaredUpdates)
+    #Add remove event if declared
+    if inexpr(code,:removeAgent)
 
-    condition = p.agent.declaredUpdates["EventDeath"].args[end]
+        name = Meta.parse(string("removeAgent_",platform,"!"))
+        code = postwalk(x -> @capture(x,removeAgent()) ? :(AgentBasedModels.$name(ic1_,keepList_,removeList_,remV_)) : x, code)
+        
+        if inexpr(code,:removeAgent) #Check correct declaration
+            error("removeAgent declared with wrong number of parameters. It has to be declared as removeAgent())")
+        end            
+    end    
 
-    #Create function to check dead elements
-    if platform == "cpu"
-        up= :(removeList_Pos_ = Threads.atomic_add!(remV_,1) + 1)
-    elseif platform == "gpu"
-        up= :(removeList_Pos_ = CUDA.atomic_add!(pointer(remV_,1),Int(1)) + 1)
-    end
-
-    code = quote
-        if $condition
-            keepList_[ic1_] = 0
-            $up
-            removeList_[removeList_Pos_] = ic1_
-        else
-            keepList_[ic1_] = ic1_
-        end
-    end
-
-    code = vectorize_(p.agent,code,p)
-
-    f1 = simpleFirstLoopWrapInFunction_(platform,:checkDyingAgents_!,code)
-
-    #Create function to put agents in their new position
-    code = quote
-        oldPos_ = keepList_[ic1_]
-        newPos_ = removeList_[ic1_]
-    end
-    if !isempty(p.agent.declaredSymbols["Local"])
-        push!(code.args,
-            :(begin 
-                if oldPos_ > 0
-                    for ic2_ in 1:$(length(p.agent.declaredSymbols["Local"]))
-                        localV[newPos_, ic2_] = localV[oldPos_, ic2_] 
-                    end
-                end
-            end)
-        )
-    end
-    if !isempty(p.agent.declaredSymbols["Identity"])
-        push!(code.args,
-            :(begin 
-                if oldPos_ > 0
-                    for ic2_ in 1:$(length(p.agent.declaredSymbols["Identity"]))
-                        identityV[newPos_, ic2_] = identityV[oldPos_, ic2_] 
-                    end
-                end
-            end)
-        )
-    end
+    #Add to code the removing algorithm
+    a = [:remV_,:keepList_,
+            :removeList_,
+            :localV,length(p.agent.declaredSymbols["Local"]),
+            :identityV,length(p.agent.declaredSymbols["Identity"])]
     if !isempty(p.update["Local"])
-        push!(code.args,
-            :(begin 
-                if oldPos_ > 0
-                    for ic2_ in 1:$(length(p.update["Local"]))
-                        localVCopy[newPos_, ic2_] = localVCopy[oldPos_, ic2_] 
-                    end
-                end
-            end)
-        )
+        push!(a, :localVCopy,length(p.update["Local"]))
     end
     if !isempty(p.update["Identity"])
-        push!(code.args,
-            :(begin 
-                if oldPos_ > 0
-                    for ic2_ in 1:$(length(p.update["Identity"]))
-                        identityVCopy[newPos_, ic2_] = identityVCopy[oldPos_, ic2_] 
-                    end
-                end
-            end)
-        )
+        push!(a, :identityVCopy, length(p.update["Identity"]))
     end
-
-    f2 = simpleFirstLoopWrapInFunction_(platform,:assignDeadAgentsSpaces_!,code)  
     if platform == "cpu"
-        f2 = postwalk(x->@capture(x,N) ? :(remV_[]) : x, f2)      
-    elseif platform == "gpu"
-        f2 = postwalk(x->@capture(x,N) ? :(remV_[1]) : x, f2)      
-    end
-
-
-    #Make wrap function of the algorithm
-    if platform == "cpu"
-        code = quote
-            remV_[] = 0
+        update = quote
             if N > 0
-                @platformAdapt checkDyingAgents_!(ARGS_)
                 sort!(keepList_,rev=true)
-                @platformAdapt assignDeadAgentsSpaces_!(ARGS_)
+                @platformAdapt AgentBasedModels.removeDeadAgents_cpu!($(a...))
+                N -= remV_[]
+                remV_[] = 0
             end
         end
     elseif platform == "gpu"
-        code = quote
-            remV_ .= 0
+        update = quote
             if N > 0
-                @platformAdapt checkDyingAgents_!(ARGS_)
                 sort!(keepList_,rev=true)
-                @platformAdapt assignDeadAgentsSpaces_!(ARGS_)
+                @platformAdapt AgentBasedModels.removeDeadAgents_gpu!($(a...))
+                N -= Core.Array(remV_)[1]
+                remV_ .= 0
             end
         end        
     end
+    push!(p.execInloop.args,update)
     
-    f3 = wrapInFunction_(:removeDeadAgents_!,code)   
-
     # Add to program
     if platform == "cpu"
         push!(p.declareVar.args,
@@ -132,14 +249,5 @@ if "EventDeath" in keys(p.agent.declaredUpdates)
 
     push!(p.args,:remV_,:keepList_,:removeList_)
 
-    push!(p.declareF.args,f1,f2,f3)
-
-    if platform == "cpu"
-        push!(p.execInloop.args,:(removeDeadAgents_!(ARGS_); N -= remV_[]))
-    else
-        push!(p.execInloop.args,:(removeDeadAgents_!(ARGS_); N -= Core.Array(remV_)[1]))
-    end
-end
-
-return nothing
+    return code
 end

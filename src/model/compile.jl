@@ -32,9 +32,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
     addIntegratorMedium_![integratorMedium](p,platform)
     addUpdate_!(p,platform)
     #Events
-    addEventDivision_!(p,platform)
-    addEventDeath_!(p,platform)
-
+    # addEventDivision_!(p,platform)
 
     #Saving
     addSaving_![save](p,platform)
@@ -74,14 +72,15 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
     end
 
     if platform == "cpu"
-        program = postwalk(x->@capture(x,@platformAdapt v_(ARGS__)) ? :($v(ARGS_)) : x, program)
+        program = postwalk(x->@capture(x,@platformAdapt v_(ARGS__)) ? :($v($(ARGS...))) : x, program)
     elseif platform == "gpu"
-        program = postwalk(x->@capture(x,@platformAdapt v_(ARGS__)) ? :(kernel_ = @cuda launch = false $v(ARGS_); 
+        program = postwalk(x->@capture(x,@platformAdapt v_(ARGS__)) ? :(kernel_ = @cuda launch = false $v($(ARGS...)); 
                                                                     prop_ = AgentBasedModels.configurator_(kernel_,N); 
                                                                     kernel_(ARGS_;threads=prop_[1],blocks=prop_[2])) : x, program)
         program = cudaAdapt_(program)
     end
-    program = subsArguments_(program,:ARGS_,p.args)
+    program = postwalk(x->@capture(x,v_(g_)) && g == :ARGS_ ? :($v($(p.args...))) : x, program)
+    # program = subsArguments_(program,:ARGS_,p.args)
     program = randomAdapt_(p,program,platform)
     programugly = gensym_ids(program)
     program = flatten(programugly)

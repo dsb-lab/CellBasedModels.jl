@@ -23,9 +23,9 @@ testplatforms = ["cpu"]
 # include("testCommunity.jl")
 # include("testUpdates.jl")
 # include("testIntegrator.jl")
-# include("testEvent.jl")
+include("testEvent.jl")
 # include("testNeighbors.jl")
 # include("testBound.jl")
 # include("testSave.jl")
-include("testMedium.jl")
+# include("testMedium.jl")
 

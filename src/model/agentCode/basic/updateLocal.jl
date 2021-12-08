@@ -9,6 +9,11 @@ function addUpdateLocal_!(p::Program_,platform::String)
 
         code = p.agent.declaredUpdates["UpdateLocal"]
 
+        #Add event death 
+        code = addEventDeath_(code::Expr, p::Program_, platform::String)
+
+        #Add kills
+
         #Construct functions
         f = simpleFirstLoopWrapInFunction_(platform,:locStep_!,code)
         f = vectorize_(p.agent,f,p)
