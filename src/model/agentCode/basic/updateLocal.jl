@@ -10,7 +10,8 @@ function addUpdateLocal_!(p::Program_,platform::String)
         code = p.agent.declaredUpdates["UpdateLocal"]
 
         #Add event death 
-        code = addEventDeath_(code::Expr, p::Program_, platform::String)
+        code = addEventRemoveAgent_(code::Expr, p::Program_, platform::String)
+        code = addEventAddAgent_(code::Expr, p::Program_, platform::String)
 
         #Add kills
 

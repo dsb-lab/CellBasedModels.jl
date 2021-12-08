@@ -183,7 +183,7 @@ function addEventDeath_(code::Expr,p::Program_,platform::String)
 
 Generate the functions for division events.
 """
-function addEventDeath_(code::Expr,p::Program_,platform::String)
+function addEventRemoveAgent_(code::Expr,p::Program_,platform::String)
 
     #Add remove event if declared
     if inexpr(code,:removeAgent)
