@@ -19,8 +19,7 @@ VALID_UPDATES = [
     :UpdateMedium,
     :UpdateMediumInteraction,
     :Equation,
-    :EventDivision,
-    :EventDeath
+    :EventDivision
 ]
 
 BASICARGS=[:t,:N,:dt,:simulationBox]
