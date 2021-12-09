@@ -7,9 +7,9 @@
             [g1,g2]::Global,
             [ga1,ga2]::GlobalArray,
             [id1,id2]::Identity,
-            [m1,m2]::Medium)
-    s = SimulationFree(abm,box=[(:x,0,1)],medium=[MediumFlat("Dirichlet",10)])
-    p = AgentBasedModels.Program_(abm,s)
+            [m1,m2]::Medium,
+            Boundary=BoundaryFlat(1))
+    p = AgentBasedModels.Program_(abm)
 
     @test substitution(:(x,x),p) == :(localV[ic1_, 1],localV[ic1_, 1])  
     @test substitution(:(l1,l1),p) == :(localV[ic1_, 2],localV[ic1_, 2])  

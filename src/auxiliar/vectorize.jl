@@ -1,21 +1,27 @@
+function errorInteraction(vAux)
+    error("In an Interaction module the variable ",vAux," has been declared without specifying to which agent is assigned. Please specify putting .i or .j to the variable.")
+end
+
 """
     function vectorize_(abm::Agent,code::Expr)
 
 Function to subtitute all the declared symbols of the agents in the expression into vector form.
 optional arguments base and update add some intermediate names to the vectorized variables and to updated ones.
 """
-function vectorize_(abm::Agent,code::Expr,p::Program_)
+function vectorize_(abm::Agent,code::Expr,p::Program_;interaction=false)
         
     #Vectorisation changes        
     for (i,v) in enumerate(abm.declaredSymbols["Local"])
 
         bs = :localV
 
-        code = postwalk(x->@capture(x, vAux_) && vAux == v ? :($bs[ic1_,$i]) : x, code)
-        v2 = Meta.parse(string(v,"_i"))
-        code = postwalk(x->@capture(x, vAux_) && vAux == v2 ? :($bs[ic1_,$i]) : x, code)
-        v2 = Meta.parse(string(v,"_j"))
-        code = postwalk(x->@capture(x, vAux_) && vAux == v2 ? :($bs[nnic2_,$i]) : x, code)
+        code = postwalk(x->@capture(x, vAux_.i) && vAux == v ? :($bs[ic1_,$i]) : x, code)
+        code = postwalk(x->@capture(x, vAux_.j) && vAux == v ? :($bs[nnic2_,$i]) : x, code)
+        if interaction
+            code = postwalk(x->@capture(x, vAux_) && vAux == v ? errorInteraction(vAux) : x, code)
+        else
+            code = postwalk(x->@capture(x, vAux_) && vAux == v ? :($bs[ic1_,$i]) : x, code)
+        end
 
         if "Local" in keys(p.update)
             if v in keys(p.update["Local"])
@@ -37,6 +43,9 @@ function vectorize_(abm::Agent,code::Expr,p::Program_)
                 code = postwalk(x->@capture(x, localV[g_,c_] >>>= v1__) && cc==c ? :(localVCopy[$g,$pos] >>>= $(v1...)) : x, code)
                 code = postwalk(x->@capture(x, localV[g_,c_] >>= v1__) && cc==c ? :(localVCopy[$g,$pos] >>= $(v1...)) : x, code)
                 code = postwalk(x->@capture(x, localV[g_,c_] <<= v1__) && cc==c ? :(localVCopy[$g,$pos] <<= $(v1...)) : x, code)
+
+                #Invert if wrongly updated
+                code = postwalk(x->@capture(x, localVCopy[g_,c_] = localVCopy[g2_,c2_]) ? :(localV[$g,$cc] = localVCopy[$g2,$c2]) : x, code)
             end
         end
     end
@@ -45,11 +54,13 @@ function vectorize_(abm::Agent,code::Expr,p::Program_)
 
         bs = :identityV
 
-        code = postwalk(x->@capture(x, vAux_) && vAux == v ? :($bs[ic1_,$i]) : x, code)
-        v2 = Meta.parse(string(v,"_i"))
-        code = postwalk(x->@capture(x, vAux_) && vAux == v2 ? :($bs[ic1_,$i]) : x, code)
-        v2 = Meta.parse(string(v,"_j"))
-        code = postwalk(x->@capture(x, vAux_) && vAux == v2 ? :($bs[nnic2_,$i]) : x, code)
+        code = postwalk(x->@capture(x, vAux_.i) && vAux == v ? :($bs[ic1_,$i]) : x, code)
+        code = postwalk(x->@capture(x, vAux_.j) && vAux == v ? :($bs[nnic2_,$i]) : x, code)
+        if interaction
+            code = postwalk(x->@capture(x, vAux_) && vAux == v ? errorInteraction(vAux) : x, code)
+        else
+            code = postwalk(x->@capture(x, vAux_) && vAux == v ? :($bs[ic1_,$i]) : x, code)
+        end
 
         if "Identity" in keys(p.update)
             if v in keys(p.update["Identity"])
@@ -71,6 +82,9 @@ function vectorize_(abm::Agent,code::Expr,p::Program_)
                 code = postwalk(x->@capture(x, identityV[g_,c_] >>>= v1__) && cc==c ? :(identityVCopy[$g,$pos] >>>= $(v1...)) : x, code)
                 code = postwalk(x->@capture(x, identityV[g_,c_] >>= v1__) && cc==c ? :(identityVCopy[$g,$pos] >>= $(v1...)) : x, code)
                 code = postwalk(x->@capture(x, identityV[g_,c_] <<= v1__) && cc==c ? :(identityVCopy[$g,$pos] <<= $(v1...)) : x, code)
+
+                #Invert if wrongly updated
+                code = postwalk(x->@capture(x, identityVCopy[g_,c_] = identityVCopy[g2_,c2_]) ? :(identityV[$g,$cc] = identityVCopy[$g2,$c2]) : x, code)
             end
         end
     end

@@ -1,114 +1,119 @@
 """
-    function updates_!(p,abm)
+    function updates_!(p)
 
 Function that checks the variables in the model that are modified at each step in order to make appropiate copy vectors and add them to program.
 """
-function updates_!(p::Program_,abm::Agent,space::SimulationSpace)
-    syms = []
-    for i in keys(abm.declaredUpdates)
-        if !(emptyquote_(abm.declaredUpdates[i])) && !(i in ["UpdateInteraction","UpdateLocalInteraction"])
-            s = symbols_(abm,abm.declaredUpdates[i])
-            append!(syms,s[Bool.(s[:,"updated"] .+ s[:,"assigned"]),"Symbol"])
-        end
-    end
+function updates_!(p::Program_)
 
-    unique!(syms)
-
-    ## Assign updates of variable types
-    for t in keys(abm.declaredSymbols)
+    ##Assign updates of variable types
+    for t in keys(p.agent.declaredSymbols)
         dict = Dict{Symbol,Int}()
         counter = 1
-        for i in syms
-            if i in abm.declaredSymbols[t]
+        for i in p.agent.declaredSymbols[t]
+
+            found = false
+            for up in keys(p.agent.declaredUpdates)
+                code =  postwalk(x->@capture(x, c_ = f_) && c == i ? :ARGS_ : x , p.agent.declaredUpdates[up])
+                code =  postwalk(x->@capture(x, c_ += f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_ -= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_ *= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_ /= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_ \= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_ ÷= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_ %= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_ ^= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_ &= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_ |= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_ ⊻= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_ >>>= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_ >>= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_ <<= f_) && c == i ? :ARGS_ : x , code)
+
+                if inexpr(code,:ARGS_)
+                    found = true
+                    break
+                end
+            end
+
+            #Add symbols that are assigned
+            for up in keys(p.agent.declaredUpdates)
+                code =  postwalk(x->@capture(x, c_.g_ = f_) && c == i && g in INTERACTIONSYMBOLS ? :ARGS_ : x , p.agent.declaredUpdates[up])
+
+                if inexpr(code,:ARGS_)
+                    found = true
+                    break
+                end
+            end
+            
+            for up in keys(p.agent.declaredUpdates)
+                code =  postwalk(x->@capture(x, c_[g__] = f_) && c == i ? :ARGS_ : x , p.agent.declaredUpdates[up])
+                code =  postwalk(x->@capture(x, c_[g__] += f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_[g__] -= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_[g__] *= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_[g__] /= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_[g__] \= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_[g__] ÷= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_[g__] %= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_[g__] ^= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_[g__] &= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_[g__] |= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_[g__] ⊻= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_[g__] >>>= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_[g__] >>= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_[g__] <<= f_) && c == i ? :ARGS_ : x , code)
+                
+                if inexpr(code,:ARGS_)
+                    found = true
+                    break
+                end
+            end
+
+            if "Equation" in keys(p.agent.declaredUpdates)
+                code =  postwalk(x->@capture(x, g_(c_) = f_) && c == i && g == DIFFSYMBOL ? :ARGS_ : x , p.agent.declaredUpdates["Equation"])
+                if inexpr(code,:ARGS_)
+                    found = true
+                end
+            end
+
+            if "UpdateMedium" in keys(p.agent.declaredUpdates)
+                code =  postwalk(x->@capture(x, g_(c_) = f_) && c == i && g == DIFFMEDIUMSYMBOL ? :ARGS_ : x , p.agent.declaredUpdates["UpdateMedium"])
+                if inexpr(code,:ARGS_)
+                    found = true
+                end
+            end
+
+            #Add symbols from boundaries
+            if t == "Local"
+                if i in p.agent.boundary.addSymbols
+                    found = true
+                end
+            end
+
+            if found
                 dict[i] = counter
                 counter += 1
             end
         end
         p.update[t] = dict
-    end
-    
-    ## Check equations and their update variables
+    end        
+
     dict = Dict{Symbol,Int}()
     counter = 1
-    if "Equation" in keys(abm.declaredUpdates)
-        s = symbols_(abm,abm.declaredUpdates["Equation"]).Symbol
-        for i in abm.declaredSymbols["Local"]
-            ss = Meta.parse(string(EQUATIONSYMBOL,i))
-            if ss in s
-                dict[i] = counter
-                counter += 1
-                if !(i in keys(p.update["Local"]))
-                    if isempty(p.update["Local"])
-                        p.update["Local"][i] = 1
-                    else
-                        p.update["Local"][i] = maximum(values(p.update["Local"])) + 1
-                    end
-                end
+    for i in p.agent.declaredSymbols["Local"]
+        found = false
+        if "Equation" in keys(p.agent.declaredUpdates)
+            code =  postwalk(x->@capture(x, g_(c_) = f_) && c == i && g == DIFFSYMBOL ? :ARGS_ : x , p.agent.declaredUpdates["Equation"])
+            if inexpr(code,:ARGS_)
+                found = true
             end
+        end
+
+        if found
+            dict[i] = counter
+            counter += 1
         end
     end
     p.update["Variables"] = dict
-
-    ## Check division and their update variables
-    dict = Dict{Symbol,Int}()
-    counter = 1
-    if "EventDivision" in keys(abm.declaredUpdates)
-        s = symbols_(abm,abm.declaredUpdates["EventDivision"]).Symbol
-        for place in ["Local","Identity"]
-            for i in abm.declaredSymbols[place]
-                for j in DIVISIONSYMBOLS
-                    ss = Meta.parse(string(i,j))
-                    if ss in s && !(i in keys(dict))
-                        dict[i] = counter
-                        counter += 1
-                        if !(i in keys(p.update[place]))
-                            if isempty(p.update[place])
-                                p.update[place][i] = 1
-                            else
-                                p.update[place][i] = maximum(values(p.update[place])) + 1
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    p.update["EventDivision"] = dict
-
-    ## Check space and bound updates
-    for i in space.box
-        if i.s in keys(p.update["Local"])
-            for j in keys(i.addSymbols)
-                for k in i.addSymbols[j]
-                    if !(k in keys(p.update["Local"]))
-                        p.update["Local"][k] = maximum(values(p.update["Local"])) + 1
-                    end
-                end
-            end
-        end
-    end
-
-    ## Check equations and their update variables
-    dict = Dict{Symbol,Int}()
-    counter = 1
-    if "UpdateMedium" in keys(abm.declaredUpdates)
-        s = symbols_(abm,abm.declaredUpdates["UpdateMedium"]).Symbol
-        for i in abm.declaredSymbols["Medium"]
-            ss = Meta.parse(string(MEDIUMSYMBOL,i))
-            if ss in s
-                dict[i] = counter
-                counter += 1
-                if !(i in keys(p.update["Medium"]))
-                    if isempty(p.update["Medium"])
-                        p.update["Medium"][i] = 1
-                    else
-                        p.update["Medium"][i] = maximum(values(p.update["Medium"])) + 1
-                    end
-                end
-            end
-        end
-    end
-    p.update["Medium"] = dict
-
+    
     return
 end

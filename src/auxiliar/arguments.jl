@@ -4,7 +4,7 @@
 Returns the list of vectors arguments to be declared in the model function arguments.
 """
 function agentArguments_(abm::Agent)
-    l = [:t,:N]
+    l = [:t,:N,:simulationBox]
 
     #Floats
     if length(abm.declaredSymbols["Local"])>0
@@ -21,6 +21,9 @@ function agentArguments_(abm::Agent)
             push!(l,i)
         end
     end
-    
+    if length(abm.declaredSymbols["Medium"])>0
+        push!(l,:mediumN)
+    end
+
     return l
 end

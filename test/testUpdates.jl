@@ -114,12 +114,12 @@
             
             UpdateLocalInteraction = 
             begin
-                x += 1
-                z += 2
+                x.i += 1
+                z.i += 2
             end
         )
         mo = compile(m, platform = i, debug=false)
-        #println(mo.program)
+        # println(prettify(mo.program))
 
         @test_nowarn begin
 

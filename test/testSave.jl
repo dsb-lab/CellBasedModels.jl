@@ -4,7 +4,6 @@
         m = @agent(0,
             l::Local,
             g::Global,
-            id::Identity,
             ga::GlobalArray
         )
         model = compile(m,save="RAM",debug=false)
@@ -23,7 +22,6 @@
     m = @agent(0,
         l::Local,
         g::Global,
-        id::Identity,
         ga::GlobalArray
     )
     model = compile(m,save="RAM",debug=false)

@@ -1,5 +1,5 @@
 """
-    function integratorHeun_(p, abm, space, platform)
+    function integratorHeun_(p, platform)
 
 Adapter for the Heun integration step method as described in [Stochastic Improved Euler](https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_method_(SDE)) integrator in Îto prescription.
 
@@ -23,22 +23,21 @@ The algorithm can be reduced to six kernels invocations performing the following
  - Compute interaction parameters at intermediate position vᵢₙₜ  (if there are interaction parameters)
  - Compute K₂ parameters and final position v₁
 """
-function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationSpace, platform::String)
+function addIntegratorHeun_!(p::Program_, platform::String)
     
-    if  "Equation" in keys(abm.declaredUpdates)
+    if  "Equation" in keys(p.agent.declaredUpdates)
 
-        code = abm.declaredUpdates["Equation"]
+        code = p.agent.declaredUpdates["Equation"]
 
         #Create first interaction parameter kernel if there is any interaction parameter updated
-        if "UpdateInteraction" in keys(abm.declaredUpdates)
+        if "UpdateInteraction" in keys(p.agent.declaredUpdates)
 
-            k1 = loop_(p,abm,space,abm.declaredUpdates["UpdateInteraction"],platform)
-            k1 = vectorize_(abm,k1,p)
+            k1 = loop_[p.neighbors](p,p.agent.declaredUpdates["UpdateInteraction"],platform)
+            k1 = vectorize_(p.agent,k1,p,interaction=true)
             k1 = wrapInFunction_(:interactionStep1_,k1)
             push!(p.declareF.args,k1)
 
         end
-
 
         #Create first integration step kernel
         #Make the substitution dW -> (dW-S) and count number of calls to dW
@@ -49,17 +48,16 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationSpace, pl
         m2 = [i for i in split(string(gensym("dW")),"#") if i != ""]
         m = Meta.parse(m2[2])-Meta.parse(m1[2])-1
 
-        for (i,j) in enumerate(abm.declaredSymbols["Local"])
+        for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             if j in keys(p.update["Variables"])
                 ii = p.update["Local"][j]
                 ki = p.update["Variables"][j]
-                s = Meta.parse(string(EQUATIONSYMBOL,j))
-                codeK1 = postwalk(x -> @capture(x,$s) ? :(K₁_[ic1_,$ki]) : x, codeK1)
+                codeK1 = postwalk(x -> @capture(x,g_(s_)) && g == DIFFSYMBOL && s == j ? :(K₁_[ic1_,$ki]) : x, codeK1)
                 #Saves intermediate step vᵢₙₜ in final pos localVCopy
                 push!(codeK1.args,:(localVCopy[ic1_,$ii] = localV[ic1_,$i] + K₁_[ic1_,$ki]))
             end
         end
-        codeK1 = vectorize_(abm,codeK1,p)
+        codeK1 = vectorize_(p.agent,codeK1,p)
         if inexpr(codeK1,:dW) #Add initialisation is necessary
             for i in 1:m
                 pushfirst!(codeK1.args,:(dW[ic1_,$i] = Uniform(0,1)*sqrt(dt)))
@@ -72,40 +70,37 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationSpace, pl
         push!(p.args,:K₁_ )  
 
         #Create second interaction parameter kernel using localVCopy if there is any
-        if "UpdateInteraction" in keys(abm.declaredUpdates)
+        if "UpdateInteraction" in keys(p.agent.declaredUpdates)
 
-            k3 = loop_(p,abm,space,abm.declaredUpdates["UpdateInteraction"],platform)
-            for (i,j) in enumerate(abm.declaredSymbols["Local"])
+            k3 = loop_(p,p.agent,space,p.agent.declaredUpdates["UpdateInteraction"],platform)
+            for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
                 codeK1 = postwalk(x -> @capture(x,$j) ? :(localVCopy[ic1_,$ii]) : x, k3)
             end
-            k3 = vectorize_(abm,k3,p)
+            k3 = vectorize_(p.agent,k3,p,interaction=true)
             k3 = wrapInFunction_(:interactionStep2_,k3)
             push!(p.declareF.args,k3)
 
         end
         
-        
         #Create second integration step kernel
         codeK2 = gensym_ids(postwalk(x->@capture(x,dW) ? :($(gensym("dW"))) : x, code))
         codeK2 = postwalk(x->@capture(x,v_) && (split(string(v),"_")[1] == "dW") ? :(dW[ic1_,$(Meta.parse(split(string(v),"_")[2]))]) : x, codeK2)
         codeK2 = postwalk(x->@capture(x,dW[ic1_,pos_]) ? :(dW[ic1_,$pos]+S_[ic1_,$pos]) : x, codeK2)
-        for (i,j) in enumerate(abm.declaredSymbols["Local"])
+        for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             if j in keys(p.update["Variables"])
                 ii = p.update["Local"][j]
                 ki = p.update["Variables"][j]
-                s = Meta.parse(string(EQUATIONSYMBOL,j))
-                codeK2 = postwalk(x -> @capture(x,$j) ? :(($j+K₁_[ic1_,$ki])) : x, codeK2)
+                codeK2 = postwalk(x -> @capture(x,g_(s_)) && g == DIFFSYMBOL && s == j ? :(K₁[ic1_,$ii]) : x, codeK2) #Save second point in first vector, saves an additional declaration
+                codeK2 = postwalk(x -> @capture(x,s_) && s == j ? :((localVCopy_[ic1_,$ki])) : x, codeK2)
                 codeK2 = postwalk(x -> @capture(x,t) ? :(t+dt) : x, codeK2)
-                codeK2 = postwalk(x -> @capture(x,$s) ? :(localVCopy[ic1_,$ii]) : x, codeK2) #Directly add to final point, saves an additional declaration
 
                 #Add old pos, K2 (stored in final pos for now) and K1 to final pos
-                push!(codeK2.args,:(localVCopy[ic1_,$ii] = localV[ic1_,$i] + (localVCopy[ic1_,$ii] + K₁_[ic1_,$ki])/2))
+                push!(codeK2.args,:(localVCopy[ic1_,$ii] = (localVCopy[ic1_,$ii] + localV[ic1_,$i] + K₁_[ic1_,$ki])/2))
             end
         end
-        codeK2 = vectorize_(abm,codeK2,p)
+        codeK2 = vectorize_(p.agent,codeK2,p)
         k4 = simpleFirstLoopWrapInFunction_(platform,:integrationStep2_,codeK2)
         push!(p.declareF.args,k4)
-
 
         #Create a function that puts all kernels together
         if inexpr(codeK1,:dW)
@@ -118,7 +113,7 @@ function addIntegratorHeun_!(p::Program_, abm::Agent, space::SimulationSpace, pl
 
             push!(p.args,:dW,:S_)
         end
-        if "UpdateInteraction" in keys(abm.declaredUpdates)
+        if "UpdateInteraction" in keys(p.agent.declaredUpdates)
             addInteraction1 = [:(@platformAdapt cleanInteraction_!(ARGS_);@platformAdapt interactionStep1_(ARGS_))]
             addInteraction2 = [:(@platformAdapt cleanInteraction_!(ARGS_);@platformAdapt interactionStep2_(ARGS_))]
             push!(p.execInit.args, :(@platformAdapt cleanInteraction_!(ARGS_); @platformAdapt interactionStep1_(ARGS_)))

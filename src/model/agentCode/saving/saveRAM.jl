@@ -1,66 +1,42 @@
-function addSavingRAM_!(p::Program_,abm::Agent,space::SimulationSpace,platform::String)
+function addSavingRAM_!(p::Program_,platform::String)
     
     #List of nonempty arrays
     l = []
 
-    if length(abm.declaredSymbols["Local"])>0
+    if length(p.agent.declaredSymbols["Local"])>0
         push!(l,:(Core.Array(localV)[1:N,:]))
     else
         push!(l,:(Core.Array{Float64,2}(undef,0,2)))
     end
 
-    if length(abm.declaredSymbols["Identity"])>0
+    if length(p.agent.declaredSymbols["Identity"])>0
         push!(l,:(Core.Array(identityV)[1:N,:]))
     else
         push!(l,:(Core.Array{Int,2}(undef,0,2)))
     end
 
-    if length(abm.declaredSymbols["Global"])>0
+    if length(p.agent.declaredSymbols["Global"])>0
         push!(l,:(Core.Array(globalV)))
     else
         push!(l,:(Core.Array{Float64,1}()))
     end
 
-    if length(abm.declaredSymbols["GlobalArray"])>0
-        list = string("[copy(",abm.declaredSymbols["GlobalArray"][1],")")
-        for i in abm.declaredSymbols["GlobalArray"][2:end]
-            list = string(list,",copy(",i,")")
-        end
-        list = string(list,"]")
-        push!(l,:(Core.Array($list)))
-    elseif length(abm.declaredSymbols["GlobalArray"]) > 0
-        list = string("[copy(",abm.declaredSymbols["GlobalArray"][1],"")
+    if length(p.agent.declaredSymbols["GlobalArray"]) > 0
+        list = string("[copy(",p.agent.declaredSymbols["GlobalArray"][1],"")
         list = string(list,")]")
         push!(l,Meta.parse(string("Core.Array(",list,")")))
     else
         push!(l,:(Core.Array{Core.Array{Float64},1}()))
     end
 
-    if length(abm.declaredSymbols["Medium"]) > 0
-        g = []
-        if abm.dims >= 1
-            if space.medium[1].minBoundaryType == "Periodic"
-                push!(g,:(2:Nx_-1))
-            else
-                push!(g,:(1:Nx_))
-            end
+    if length(p.agent.declaredSymbols["Medium"]) > 0
+        if p.agent.dims == 1
+            push!(l,:(Core.Array(mediumV)[2:end-1,:]))
+        elseif p.agent.dims == 2
+            push!(l,:(Core.Array(mediumV)[2:end-1,2:end-1,:]))
+        elseif p.agent.dims == 3
+            push!(l,:(Core.Array(mediumV)[2:end-1,2:end-1,2:end-1,:]))
         end
-        if abm.dims >= 2
-            if space.medium[2].minBoundaryType == "Periodic"
-                push!(g,:(2:Ny_-1))
-            else
-                push!(g,:(1:Ny_))
-            end
-        end
-        if abm.dims >= 3
-            if space.medium[3].minBoundaryType == "Periodic"
-                push!(g,:(2:Nz_-1))
-            else
-                push!(g,:(1:Nz_))
-            end
-        end
-
-        push!(l,:(Core.Array(mediumV)[$(g...),:]))
     else
         push!(l,:(Core.Array{Float64,1}()))
     end
@@ -69,7 +45,7 @@ function addSavingRAM_!(p::Program_,abm::Agent,space::SimulationSpace,platform::
 
     push!(p.execInit.args,
         :(begin
-            ob = Community($(abm.dims),t,N,com.declaredSymbols_,$(l...))
+            ob = Community($(p.agent.dims),t,N,com.mediumN,com.simulationBox,com.radiusInteraction,com.declaredSymbols_,$(l...))
             push!(commRAM_,ob)
         end)
     )
@@ -77,7 +53,7 @@ function addSavingRAM_!(p::Program_,abm::Agent,space::SimulationSpace,platform::
         :(begin
             if t >= tSave
                 tSave += dtSave
-                ob = Community($(abm.dims),t+dt,N,com.declaredSymbols_,$(l...))
+                ob = Community($(p.agent.dims),t+dt,N,com.mediumN,com.simulationBox,com.radiusInteraction,com.declaredSymbols_,$(l...))
                 push!(commRAM_,ob)
             end
         end)

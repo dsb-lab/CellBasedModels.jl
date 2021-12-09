@@ -1,9 +1,9 @@
 @testset "random" begin
 
-    abm = @agent(0); s = SimulationFree(abm)
+    abm = @agent(0);
 
     @test begin
-        m = AgentBasedModels.Program_(abm,s)
+        m = AgentBasedModels.Program_(abm)
         r = :(Normal(2,3) += Gamma(3,4))
         r = AgentBasedModels.randomAdapt_(m, r, "cpu")
 
@@ -11,7 +11,7 @@
     end
 
     @test begin
-        m = AgentBasedModels.Program_(abm,s)
+        m = AgentBasedModels.Program_(abm)
         r = :(Normal(2,3) += Uniform(3,4))
         r = AgentBasedModels.randomAdapt_(m, r, "gpu")
 
@@ -19,7 +19,7 @@
     end
 
     @test_throws ErrorException begin
-        m = AgentBasedModels.Program_(abm,s)
+        m = AgentBasedModels.Program_(abm)
         r = :(Normal(2,3) += Gamma(3,4))
         r = AgentBasedModels.randomAdapt_(m, r, "gpu")
 

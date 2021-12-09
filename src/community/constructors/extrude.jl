@@ -9,7 +9,7 @@ Remove all points that are not inside a specified volume.
 Array{Array{Any}} Extruded points.
 """
 function extrude(xyz,f::Function)
-    l = f.(xyz...)
+    l = f(xyz...)
     xyzAux = []
     for i in xyz
         push!(xyzAux,copy(i[l]))
@@ -23,17 +23,16 @@ Remove all points that are not inside a specified volume.
 
 # Arguments
  - **com** (Community) Community to extrude.
- - **s** (Array{Symbol}) Array containing the list of symbols to use as position parameters.
  - **f** (Function) Function that returns true if the position is inside the volume.
  
 # Returns
 nothing
 """
-function extrude!(com::Community,s::Array{Symbol},f::Function)
+function extrude!(com::Community,f::Function)
 
-    xyz = [copy(com[i]) for i in s]
-    l = f.(xyz...)
-    
+    x = com.loc[:,1:com.dims]
+    l = f(x)
+
     if size(com.var)[2] > 0
         com.var = com.var[l,:]
     end

@@ -18,8 +18,8 @@ function cudaAdapt_(code::Expr)
         code = subs_(code,i,Meta.parse(string("CUDA.","$i")))
     end
     code = subs_(code,:Array,Meta.parse(string("CUDA.CuArray")))
-    code = subs_(code,:Int,Meta.parse(string("Int32")))
-    code = subs_(code,:Float64,Meta.parse(string("Float32")))
+    code = subs_(code,INT,INTCUDA)
+    code = subs_(code,FLOAT,FLOATCUDA)
 
     return code
 end

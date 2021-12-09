@@ -9,15 +9,15 @@ mutable struct Agent
     
     declaredSymbols::Dict{String,Array{Symbol,1}}
     declaredUpdates::Dict{String,Expr}
-    
-    evolve::Function
-    
+    boundary::Boundary
+        
     function Agent()
         new(0,
             Dict{String,Array{Symbol}}("Local"=>Symbol[],"Identity"=>Symbol[],
                                         "Global"=>Symbol[],"GlobalArray"=>Symbol[],"Medium"=>Symbol[]),
             Dict{String,Expr}(),
-            needCompilation)
+            BoundaryFlat(0)
+            )
     end
 end
 
@@ -40,13 +40,4 @@ function Base.show(io::IO,abm::Agent)
             print(" ",clean(copy(abm.declaredUpdates[i])),"\n\n")
         end
     end
-end
-
-"""
-    function needCompilation()
-
-Function that ask for compilation before evolve can be used with the current Agent.
-"""
-function needCompilation(args...;kwargs...)
-    error("Agent not yet compiled or modified. Compile it first.")
 end

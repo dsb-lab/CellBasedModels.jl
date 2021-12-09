@@ -12,36 +12,36 @@ The unique parameter compoulsory required by the agent model is the dimensionali
 m = @agent(dims)
 ```
 
-The agent will add by default the position paremeters of the agents depending on the spatial dimensionality.
+When defining the dimensions of the agent, some parameters will be added by default. These are the position paremeters of the agents depending on the spatial dimensionality and are considered **Local parameters**.
 
 |dims=0|dims=1|dims=2|dims=3|
 ||`x`|`x`,`y`|`x`,`y`,`z`|
 
+And the `id` parameter that defines the identity of the agent and is considered an **Identity parameter**.
+
 In addition to specify the dimensions, there are three types of pieces of code that can be included in the model:
 
- - **Parameters**: All the properties of each agent and the model.
+ - **Parameters**: All the properties of the agents and the model in general.
  - **Updates**: Set of rules that change the parameters of the agent model.
- - **Events**: Set of rules that change the total number of agents in the model.
+ - **Boundary**: Rules to define the simulation space.
 
 For now, the following methods are included:
 
-|Type|Methods|Special symbols|Operators|
-|:---|:---|:---|:---|
-|[**Parameters**](@ref parameters)|Local|||
-||Identity|||
-||Global|||
-||GlobalArray|||
-||Medium|||
-|[**Updates**](@ref updates)|[UpdateLocal](@ref updateLocal)|||
-||[UpdateGlobal](@ref updateGlobal)|||
-||[Equation](@ref equation)|`dt`,`dW`|`d_`|
-||[UpdateLocalInteraction](@ref updateLocalInteraction)||`_i`,`_j`|
-||[UpdateInteraction](@ref updateInteraction)||`_i`,`_j`|
-||[UpdateMedium](@ref updateMedium)||`∂t_`,`∇x`,`∇y`,`∇z`,`Δx`,`Δy`,`Δz`,`δ`|
-||[UpdateMediumInteraction](@ref updateMediumInteraction)|||
-|[**Events**](@ref events)||||
-||[EventDeath](@ref eventDeath)|||
-||[EventDivision](@ref eventDivision)||`_1`,`_2`|
+|Type|Methods|Special symbols|Operators|Properties|
+|:---|:---|:---|:---|:---|
+|[**Parameters**](@ref parameters)|Local||||
+||Identity||||
+||Global||||
+||GlobalArray||||
+||Medium||||
+|[**Updates**](@ref updates)|[UpdateLocal](@ref updateLocal)||`addAgent`,`removeAgent`||
+||[UpdateGlobal](@ref updateGlobal)||||
+||[Equation](@ref equation)|`dt`,`dW`|`d`||
+||[UpdateLocalInteraction](@ref updateLocalInteraction)|||`.i`,`.j`|
+||[UpdateInteraction](@ref updateInteraction)|||`.i`,`.j`|
+||[UpdateMedium](@ref updateMedium)||`∂t`,`∇x`,`∇y`,`∇z`,`Δx`,`Δy`,`Δz`,`δx`,`δy`,`δz`||
+||[UpdateMediumInteraction](@ref updateMediumInteraction)||||
+|[**Boundary**](@ref boundary)|BoundaryFlat||||
 
 ### [Parameter declaration](@id parameters)
 
@@ -85,17 +85,18 @@ m = @agent(dims,
 
     [array1,array2]::GlobalArray,
 
-    [medium1,medium2]
+    [medium1,medium2]::Medium
 )
 ```
 
-!!! warning "Already Declared Parameters"
-    All the agents already include a few parameters by default that can be used:
+!!! warning "Reserved symbols"
+    All the agents already include a few parameters by default that cannot be used as parameter names as they are already incorporated in the program:
+     - **[x,y,z]::Local**: Position arguments of the agent.
+     - **id::Identity**: Identification number of each agent.
      - **t::Global**: Absolute time of the model incremented at each integration step.
      - **dt::Global**: Step of the time integration.
-     - **dW::Local**: Step of the Stochastic Term.
+     - **dW::Local**: Step of the Stochastic integration.
      - **N::Global**: Number of particles in the model at the present time.
-     - **id::Identity**: Identification number of each agent.
 
     Although this variables can be accessed freely by the programer, it is only advised to use them as **read only** parameters and not modify them for the correct evolution of the program. The program will inerently use and modify them when evolving the system.
 
@@ -128,27 +129,45 @@ m = @agent(dims,
 ```
 
 #### [**UpdateLocal**](@id updateLocal)
-Includes updates that will be performed at every time step on each agent independently.
+Includes updates that will be performed at every time step on each agent independently. In this cell you can include agents or remove them using the corresponding operators.
 
-Example.
+Example: Dividing agent
 ```julia
-m = @agent(dims,
-    local1::Local,
+m = @agent(2,
+    [local1,tSplit]::Local,
+    parent::Identity,
 
     UpdateLocal = begin
         if local1 > t #At each step, check if local1 is over the time and if so, increase the step.
             local1 += Uniform(1,2)
+            if t > tSplit #Make a division event.
+                addAgent( #Add one agent with a sifth in the x axis
+                    x = x+0.5,
+                    y = y,
+                    local1 = local1,
+                    tSplit = t + Uniform(1,2),
+                    parent = id
+                    )
+                addAgent( #Add a second agent with a sifth in the x axis
+                    x = x-0.5,
+                    y = y,
+                    local1 = local1,
+                    tSplit =  + Uniform(1,2)
+                    parent = id
+                    )
+                removeAgent() #Remove original agent
+            end
         end
     end
 )
 ```
 
 #### [**UpdateGlobal**](@id updateGlobal)
-Includes updates that will be performed at every time step on each agent independently.
+Includes updates that will be performed at every time step on the global scope. In this cells you can modify **Global** scalars and **GlobalArrays**.
 
  Example.
 ```julia
-m = @agent(dims,
+m = @agent(0,
     glob1::Global,
     globA1::GlobalArray,
 
@@ -160,7 +179,7 @@ m = @agent(dims,
 ```
 
 #### [**Equation**](@id equation)
-Specific local update rule for the definition of ODE ans SDE systems of equations governing the dynamics of the agents. Equations accept both ODE and SDE systems of equations. Each equation is defined by using the special symbols `d_` in front the the differential variable, `dt` for deterministic component and `dW` for the stochastic term.
+Specific local update rule for the definition of ODE ans SDE systems of equations governing the dynamics of the agents. Equations accept both ODE and SDE systems of equations. Each equation is defined by using the special operator `d` acting over the differential variable, `dt` for deterministic component and `dW` for the stochastic term.
 
 Example: Consider a 2D [Ornstein–Uhlenbeck process](https://en.wikipedia.org/wiki/Ornstein%E2%80%93Uhlenbeck_process) with asymmetric difussivity. The system of equations would look like:
 
@@ -168,28 +187,28 @@ $$dx = -xdt + \sqrt{D_x}dW$$
 $$dy = -ydt + \sqrt{D_y}dW$$
 
 ```julia
-m = @agent(dims,
+m = @agent(2,
     [Dx,Dy]::Global,
 
     Equation = begin
-        d_x = -x*dt + sqrt(Dx)*dW
-        d_y = -y*dt + sqrt(Dy)*dW
+        d(x) = -x*dt + sqrt(Dx)*dW
+        d(y) = -y*dt + sqrt(Dy)*dW
     end
 )
 ```
 
 #### [**UpdateLocalInteraction**](@id updateLocalInteraction)
-Define the rules for interacting agents one in each integration step. In these rules, local and identity parameters of two agents will be used. To differentiate the parameters of which agent we are using, we use the notation `_i` to indicate the agent we are updating the rules and `_j` for the other agents interacting with the agent being updated. This notation resembles the notation of a contracting index $x_i=\sum_jx_{ij}$.
+Define the rules for interacting agents one in each integration step. In these rules, local and identity parameters of two agents will be used. To differentiate the parameters of which agent we are using, we use the notation `.i` to indicate the agent we are updating the rules and `.j` for the other agents interacting with the agent being updated. This notation resembles the notation of a contracting index $x_i=\sum_jx_{ij}$.
 
 Example, consider that an agent flips between an stressed or an unstressed state depending on the number of neighbours that it has around. We will define such a rule as,
 
 ```julia
-m = @agent(dims,
+m = @agent(1,
     n::Identity, #Keep the number of neighbours
     stressed::Identity #0 not stressed, 1 stressed 
 
     UpdateLocalInteraction = begin
-        if abs(x_i - x_j) < 3. #If agent j is in some neighbourhood of i
+        if abs(x.i - x.j) < 3. #If agent j is in some neighbourhood of i
             n += 1
             if n > 5
                 stressed = 1
@@ -216,16 +235,16 @@ $$\dot{x}_i = g + l_i + \sum_jf(x_i,x_j)$$
 where $x$ is a variable, $g$ a global parameter, $l$ is a local parameter, and $sum_j f(x_i,x_j)$ is a sum over the pairwise forces between particles. The sum contracts the index $j$, so the contribution of interactions are effectively defined by a local parameter $int_i=\sum_jf(x_i,x_j)$. The update of the local parameter $int_i$ will be defined as an interaction term.
 
 ```julia
-m = @agent(dims,
+m = @agent(1,
     [l,int]::Local,
     [g]::Global,
 
     Equation = begin
-        d_x = g*dt + l*dt + int*dt
+        d(x) = g*dt + l*dt + int*dt
     end
 
     UpdateInteraction = begin
-        int_i += f(x_i,x_j)
+        int.i += f(x.i,x.j)
     end
 )
 ```
@@ -244,10 +263,10 @@ m = @agent(1,
     u::Medium,
     [α,k]::Global,
 
-    Equation = d_x = u*dW
+    Equation = d(x) = u*dW
 
     UpdateMedium = begin
-        ∂_u = Δx(u) + α*δx(0.) - k*u
+        ∂t(u) = Δx(u) + α*δx(0.) - k*u
     end
 )
 ```
@@ -273,98 +292,28 @@ m = @agent(1,
     α::Local,
     k::Global,
 
-    Equation = d_x = u*dW
+    Equation = d(x) = u*dW
 
     UpdateMedium = begin
-        ∂_u = Δx(u) - k*u
+        ∂t(u) = Δx(u) - k*u
     end
 
     UpdateMediumInteraction = begin
-        ∂_u += α
+        ∂t(u) += α
     end
 )
 ```
 
-### [Events](@id events)
+### [Boundary](@id boundary)
 
-Events are rules that change the total number of agents in a simulation.
+For some simulations, it is not necessary to define any simulation space. However, many simulations usually are defined in some bound space. For now, there is only possible to define hyperectangular spaces as medium.
 
-#### [**EventDeath**](@id eventDeath)
-
-Define the rule in order to remove an agent from the model. The rule should be and boolean rule.
-
-Example: Consider agents that have a finite lifespan, after which they are removed from the system.
-
-```julia
-m = @agent(dims,
-    tDeath::Local,
-
-    EventDeath = t > tDeath #When time is over time of death, remove the cell
-)
-```
-
-#### [**EventDivision**](@id eventDivision)
-
-Define a rule in order to divide an agent in two. In order to differentiate the different agent daughters properties, use the markers `_1` and `_2`.
-
-Example: Consider that an agent has a orientation in the polar plane. When dividing it in two, the daughters choose a random direction of orientation and divide.
-
-```@raw html
-<img src="./assets/Division Random Sphere.png" width="75%" class="center"/>
-```
-
- ```julia
-m = @agent(dims,
-    [x,y]::Local, #Position sphere
-    r::Local,     #Radius sphere
-    tDiv::Local,  #Time division
-
-    EventDivision = begin
-        if tDiv > t
-            #Usual algorithm to sample isotropically from a unit circle
-            dx = Normal(0,1); dy = Normal(0,1); dTotal = sqrt(dx^2,dy^2); #Sample from a 2D isotropic gaussian distribution
-            dx /= dTotal; dy /= dTotal; #Normalize the direction
-            #Division rules
-            x_1 += dx*r/2
-            y_1 += dy*r/2
-            x_2 -= dx*r/2
-            y_2 -= dy*r/2
-        end
-    end
-)
-```
-
-## Defining a Simulation Space
-
-For some simulations, it is not necessary to define any simulation space. However, in many others it is convenient to bound the system to a definite region of the space. The definition of a simulation space will bound the system and will have an effect on the speed of the search for neighbours, that ussually is the most computational costly part of large system simulations.
-
-### Simulation spaces
-
-For the moment, there is two possible simulation spaces possible.
-
-| Simulation Spaces | Good for simulations | Required parameters | Optional parameters |
-|---|:---:|:---:|---|
-| [SimulationFree](@ref Simulation) | Unbounded simulations , Small bounded simulations, All-to-all interactions | None | Array with bounds (1D-3D) |
-| [SimulationGrid](@ref Simulation) | Bounded simulations, Large bounded simulations, Local interactions | Array with bounds (1D-3D), Distance of interaction | None |
+|[BoundaryFlat](@ref APIBoundaries)|
 
 See [Small Example](@ref simulationSpaceExample) for an illustrative example of how to define complex simulation spaces.
 
-!!! info "A bit deeper insight in simulation space methods"
-    **SimulationFree** uses brute force and computes the interaction between all the pair of particles, hence being its computation complexity of $N^2$. This is the way to go when all the particles are interacting with each other at all times. The method is straighforward and does not require additional memory to compute anything. Because of its simplicity, it may be also more efficient than more convolute methods as the one of the simulation grid method for small scale systems even when the particles interact only locally.\
-    **SimualtionGrid** bases considers that only agents in a neighbourhood of each agent are interacting at each time. For that purpose, the algorithms assigns each agent to a grid cell in a first step, and in a second step, it only computes the pairwise interactions of each agent with the agents in surrounding grid cells (see orange and green grid regions in the image below). When the system if big and many agents are not interacting with each other, this algorithm highly reduces the complexity of the interaction computation as $~N$ at the cost of an additional step of assigning to a cell. The algorithm requires additional memory as it has to keep trtack of the agent cell positions. Because of how the algorithm works, although the algorithm works in unbounded spaces, the methods is only efficient when the simulation happens in a limited region of a space where the simulation grid is defined (see difference between inefficient and efficient grid regions), returning to $N^2$ computations outside the grid.\
-    ![SimulationGrid](./assets/SimulationGrid.png)
-
-### Boundaries
-
-When defining models with boundaries, there are two possible boundaries that we can choose from. Boundaries can be choosen independently for each dimension. The boudnaries require a symbol of the model that indicates the which variable will be used as a boundary, a minimum value and a maximum value. In addition, when an agent crosses the boundary, we may want to define he behavior of crossing that boundary as additional parameters.
-
-See [Small Example](@ref simulationSpaceExample) for an illustrative example of how to define complex simulation spaces.
-
-| Boundary | Compulsory parameters | Optional parameters | Description of optional parameters |
-|---|:---:|:---:|:---|
-|Periodic|Parameter symbol, Min value, Max value | (All arrays) additional | Additional periodic parameters that will be modified when the boundary parameter crosses the boundary |
-|Bound|Parameter symbol, Min value, Max value| (All arrays) stop, stopMin, stopMax, bounce, bounceMin, bounceMax, reflect, reflectMin, reflectMax| Modification conditions to parameters when the boundary parameter crosses theboundary |
-
+!!! warning "Requirement of a bounded in medium simulations"
+    When the agent based model has defined a medium, the model will ask you for the splicit declaration of a medium with Periodic or Bounded bounds as the simulation of a continuum medium cannot be generated over infinite volumes.
 ### [Small Example](@id simulationSpaceExample)
 
 Consider the artificial example of simulating a 2D pipe in which non-interacting elyptic particles flow in the $x$ direction, they get stuck in the upper pippe part and they bounce in the lower part, changing the direction of the velocity in the $y$ axis. The diagram of the boundaries would look like something like this:
@@ -384,19 +333,16 @@ m = @agent(2,
     diffussion::Global, #Drift of the particles in the x direction
 
     Equation = begin
-        d_x = vx*dt
-        d_y = vy*dt
-        d_x1 = vx*dt
-        d_y1 = vy*dt
-    end
-)
+        d(x) = vx*dt
+        d(y) = vy*dt
+        d(x1) = vx*dt
+        d(y1) = vy*dt
+    end,
 
-#Define the space, not necessary to define a Grid sinceparticles do not interact
-space = SpaceFree(m,
-        box = [
-        Periodic(:x,0,10,addition=[:x1]),
-        Bound(:y,0,1,bounceMin=[:y],reflectMin[:vy],stopMax=[:y]
-        ]
+    Boundary = BoundaryFlat(2, #Declare the number of dimensions
+                Periodic(addition=[:x1]) #Add x1 to the bounded in the period
+                Bounded(bounceMin=[:y],reflectMin[:vy],stopMax=[:y] #Bounce in the lower region, stop n the upper region and reflect the velocity in y when reached the border
+                )
 )
 
 ```
@@ -407,7 +353,36 @@ Once defined the model and the space, the model is ready to be compiled into the
 
 The outcome of `compile` is a compiled model with the specifications indicated that can be used for constructing initial conditions of the model (Communities) and evolving the system.
 
-## Initialising the model: construction an initial Community
+There are several properties of the compilation function you may choose from.
+### Neighbors
+
+Depending of the type of simulation we can sum over the interacting agents in different ways. Choosing the correct algorithm can highly improve the computation time. For the moment, there is two possible algorithms for computing neighbors.
+
+| Nighbour algorithms | Good for simulations | Required parameters | Optional parameters |
+|---|:---:|:---:|---|
+| [full](@ref Simulation) | Unbounded simulations , Small bounded simulations, All-to-all interactions | None | Array with bounds (1D-3D) |
+| [grid](@ref Simulation) | Bounded simulations, Large bounded simulations, Local interactions | Array with bounds (1D-3D), Distance of interaction | None |
+
+!!! info "A bit deeper insight in simulation space methods"
+    **SimulationFree** uses brute force and computes the interaction between all the pair of particles, hence being its computation complexity of $N^2$. This is the way to go when all the particles are interacting with each other at all times. The method is straighforward and does not require additional memory to compute anything. Because of its simplicity, it may be also more efficient than more convolute methods as the one of the simulation grid method for small scale systems even when the particles interact only locally.\
+    **SimualtionGrid** bases considers that only agents in a neighbourhood of each agent are interacting at each time. For that purpose, the algorithms assigns each agent to a grid cell in a first step, and in a second step, it only computes the pairwise interactions of each agent with the agents in surrounding grid cells (see orange and green grid regions in the image below). When the system if big and many agents are not interacting with each other, this algorithm highly reduces the complexity of the interaction computation as $~N$ at the cost of an additional step of assigning to a cell. The algorithm requires additional memory as it has to keep trtack of the agent cell positions. Because of how the algorithm works, although the algorithm works in unbounded spaces, the methods is only efficient when the simulation happens in a limited region of a space where the simulation grid is defined (see difference between inefficient and efficient grid regions), returning to $N^2$ computations outside the grid.\
+    ![SimulationGrid](./assets/SimulationGrid.png)
+
+### Integrator
+
+The equations of motion defined in `Equations` can be integrated with for the moment with two different explicit methods.
+
+| Integration algorithm | Approximation |
+|---|:---:|
+| `Euler` |  |
+| `Heun` |  |
+
+See [Small Example](@ref simulationSpaceExample) for an illustrative example of how to define complex simulation spaces.
+
+### Platform
+
+Choose between running the model in `cpu` or `gpu`. For small systems, the cpu can give better results, giving a increased speed of for big models in the gpu.
+## Initialising the model: construction of an initial Community
 
 With the model at hand, the only we are required is to define an initial condition for the model to be evolved. We use for that the `Community` structure. The community structure is an instantiation of an agent based model for a particular time that stores the information of all the global and local parameters of the model. 
 
@@ -417,28 +392,40 @@ For constructing a initial Community we just have to call the function and speci
 com = Community(modelCompiled,N=10)
 ```
 
-with the community created we just have to assign the initial conditions to each agent. The parameters of the agent can be called directly from the Community.
+with the community created we just have to assign the initial conditions to each agent, the constants and the medium if declared, and the simulation box. The parameters of the agent can be called directly from the Community.
 
 Example,
 
-```
-m = @agent(dims,
+```julia
+m = @agent(2,
     [l1,l2]::Local,
     g::Global,
     id::Identity,
-    gArray::GlobalArray
+    gArray::GlobalArray,
+    u::Medium
 )
 mComp = compile(m,platform="cpu",save="RAM",compile="RAM")
 
 #Community creation
-com = Community(mComp, N=10)
+com = Community(mComp, N=10, mediumN=[20,20]) #Define a medium with a grid of 20x20
 #Parameters assignment
 com.l1 .= 3.
 com.l2 .= [1,2,3,4,5,6,7,8,9,10]
 com.g = 4
 com.id .= 4
 com.gArray = zeros(2,2) 
+
+com.simulationBox = [-10 10;-10 10] #Define a square space
 ```
+
+!!! tip "predefined initializations"
+    Appart from the community, there are some initialization functions that create communities with already declared positions. Check [Community Constructors](@ref APICommunity)
+
+!!! warning "mediumN declaration"
+    When a medium is declared, it is necessary to declare the parameter `mediumN` specifying the size of the grid.
+
+!!! warning "simulationBox declaration"
+    When a bounded space is declared, it is necessary to define the community parameter `simulationBox` specifying the size of the simulation space. Moreover, the position of the agents (the parameters `x`, `y`, `z`) would have to lay inside the simulationBox space.
 
 ## Evolving the model
 

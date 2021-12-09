@@ -7,6 +7,8 @@ Check the [documentation](https://dsb-lab.github.io/AgentBasedModels.jl/dev/Usag
 """
 macro agent(dims, varargs...) 
 
+    boundaryDeclared = false
+
     m = Agent()
     m.dims = dims
 
@@ -84,6 +86,19 @@ macro agent(dims, varargs...)
                     elseif i.args[2].head == :block
                         append!(m.declaredUpdates[string(i.args[1])].args,i.args[2].args)
                     end
+                elseif i.args[1] == :(Boundary)
+                    if boundaryDeclared
+                        error("Boundary can only be declared once.")
+                    end
+                    boundary = Main.eval(i.args[2])
+                    if !(typeof(boundary)<:Boundary)
+                        error("Boundary has to be declared with a type boundary.")
+                    elseif dims != boundary.dims
+                        error("Boundary must have the same dimensions as the agent.") 
+                    else
+                        m.boundary = boundary
+                        boundaryDeclared = true
+                    end
                 else
                     error(i.args[1], " is not a valid type.")
                 end
@@ -91,6 +106,12 @@ macro agent(dims, varargs...)
                 error(i, " is not an understood rule or variable declaration. Error in ", ii)
             end 
         end
+    end
+
+    if !boundaryDeclared && !isempty(m.declaredSymbols["Medium"])
+        error("If medium variables are declared, a boundary must be explicitely declared.")
+    elseif !boundaryDeclared
+        m.boundary = BoundaryFlat(dims)
     end
         
     return m

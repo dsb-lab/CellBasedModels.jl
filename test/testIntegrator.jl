@@ -10,9 +10,9 @@
                     
                     Equation = 
                     begin
-                        d_x = x*dt 
-                        d_y = 0*dt 
-                        d_z = 1*dt
+                        d(x) = x*dt 
+                        d(y) = 0*dt 
+                        d(z) = 1*dt
                     end
                 )
                 m = compile(m, integrator=integrator, platform=platform, debug=false)
@@ -24,8 +24,8 @@
                 
                 Equation = 
                 begin
-                    d_x = -x*dt 
-                    d_z = 1*dt
+                    d(x) = -x*dt 
+                    d(z) = 1*dt
                 end
             )
             m = compile(m, integrator=integrator, platform=platform, debug=false)
@@ -38,7 +38,7 @@
 
             @test all(abs.(comt.x[1:end,1] .- exp.(-comt.t)) .< 0.02)
             @test all(comt.y[1:end,1] .≈ 2 )
-            @test all(comt.z[1:end,1] .≈ comt.t)
+            @test all(abs.(comt.z[1:end,1] .- comt.t) .< 0.005)
 
             #SDE
             m = @agent(
@@ -46,8 +46,8 @@
                 
                 Equation = 
                 begin
-                    d_x = -0*dt + dW
-                    d_y = -0*dt + dW
+                    d(x) = -0*dt + dW
+                    d(y) = -0*dt + dW
                 end
             )
             m = compile(m, integrator=integrator, platform=platform, debug=false)
