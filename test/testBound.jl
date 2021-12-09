@@ -131,9 +131,9 @@
             [r,rMin,rMax]::Local, #Hard bounds 
 
             Equation = begin
-                d_x = sx*dt
-                d_y = sy*dt
-                d_z = sz*dt
+                d(x) = sx*dt
+                d(y) = sy*dt
+                d(z) = sz*dt
             end,
 
             Boundary = BoundaryFlat(3,
@@ -203,9 +203,9 @@
 
 
             Equation = begin
-                d_x = sx*dt
-                d_y = sy*dt
-                d_z = sz*dt
+                d(x) = sx*dt
+                d(y) = sy*dt
+                d(z) = sz*dt
             end,
 
             Boundary = BoundaryFlat(3,

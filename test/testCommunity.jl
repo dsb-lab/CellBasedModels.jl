@@ -15,8 +15,8 @@
                 g += Normal(1,2) + Normal(1,2) + Uniform(1,2) 
                 ga[3,2] += 3
             end,
-            UpdateInteraction = i += 1,
-            UpdateLocalInteraction = i += 1
+            UpdateInteraction = i.i += 1,
+            UpdateLocalInteraction = i.i += 1
         )                
 
         m = compile(m)

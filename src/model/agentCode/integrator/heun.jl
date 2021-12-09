@@ -39,7 +39,6 @@ function addIntegratorHeun_!(p::Program_, platform::String)
 
         end
 
-
         #Create first integration step kernel
         #Make the substitution dW -> (dW-S) and count number of calls to dW
         m1 = [i for i in split(string(gensym("dW")),"#") if i != ""]
@@ -83,7 +82,6 @@ function addIntegratorHeun_!(p::Program_, platform::String)
 
         end
         
-        
         #Create second integration step kernel
         codeK2 = gensym_ids(postwalk(x->@capture(x,dW) ? :($(gensym("dW"))) : x, code))
         codeK2 = postwalk(x->@capture(x,v_) && (split(string(v),"_")[1] == "dW") ? :(dW[ic1_,$(Meta.parse(split(string(v),"_")[2]))]) : x, codeK2)
@@ -92,18 +90,17 @@ function addIntegratorHeun_!(p::Program_, platform::String)
             if j in keys(p.update["Variables"])
                 ii = p.update["Local"][j]
                 ki = p.update["Variables"][j]
-                codeK2 = postwalk(x -> @capture(x,g_(s_)) && g == DIFFSYMBOL && s == j ? :(($j+K₁_[ic1_,$ki])) : x, codeK2)
+                codeK2 = postwalk(x -> @capture(x,g_(s_)) && g == DIFFSYMBOL && s == j ? :(K₁[ic1_,$ii]) : x, codeK2) #Save second point in first vector, saves an additional declaration
+                codeK2 = postwalk(x -> @capture(x,s_) && s == j ? :((localVCopy_[ic1_,$ki])) : x, codeK2)
                 codeK2 = postwalk(x -> @capture(x,t) ? :(t+dt) : x, codeK2)
-                codeK2 = postwalk(x -> @capture(x,g_(s_)) && g == DIFFSYMBOL && s == j ? :(localVCopy[ic1_,$ii]) : x, codeK2) #Directly add to final point, saves an additional declaration
 
                 #Add old pos, K2 (stored in final pos for now) and K1 to final pos
-                push!(codeK2.args,:(localVCopy[ic1_,$ii] = localV[ic1_,$i] + (localVCopy[ic1_,$ii] + K₁_[ic1_,$ki])/2))
+                push!(codeK2.args,:(localVCopy[ic1_,$ii] = (localVCopy[ic1_,$ii] + localV[ic1_,$i] + K₁_[ic1_,$ki])/2))
             end
         end
         codeK2 = vectorize_(p.agent,codeK2,p)
         k4 = simpleFirstLoopWrapInFunction_(platform,:integrationStep2_,codeK2)
         push!(p.declareF.args,k4)
-
 
         #Create a function that puts all kernels together
         if inexpr(codeK1,:dW)

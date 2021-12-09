@@ -14,8 +14,8 @@
             [i1,i2]::Identity,
 
             UpdateLocalInteraction = begin
-                if sqrt((l1_j-l1_i)^2+(l2_j-l2_i)^2) < 5
-                    l1 += 1
+                if sqrt((l1.j-l1.i)^2+(l2.j-l2.i)^2) < 5
+                    l1.i += 1
                 end
             end
         )
@@ -33,14 +33,14 @@
         end,
 
         UpdateInteraction = begin
-            if sqrt((l1_j-l1_i)^2+(l2_j-l2_i)^2) < 5
-                int_i += 1
+            if sqrt((l1.j-l1.i)^2+(l2.j-l2.i)^2) < 5
+                int.i += 1
             end
         end,
 
         UpdateLocalInteraction = begin
-            if sqrt((l1_j-l1_i)^2+(l2_j-l2_i)^2) < 5
-                intLocal_i += 1
+            if sqrt((l1.j-l1.i)^2+(l2.j-l2.i)^2) < 5
+                intLocal.i += 1
             end
         end
     )
@@ -261,17 +261,17 @@ end
             [intLocal,int]::Local,
 
             Equation = begin
-                d_l2 = 0.
+                d(l2) = 0.
             end,
 
             UpdateInteraction = begin
-                if abs(x_i - x_j) <= .9
-                    int += 1
+                if abs(x.i - x.j) <= .9
+                    int.i += 1
                 end
             end,
 
             UpdateLocalInteraction = begin
-                intLocal += 1
+                intLocal.i += 1
             end,
         )
 
@@ -294,17 +294,17 @@ end
             [intLocal,int]::Local,
 
             Equation = begin
-                d_l2 = 0.
+                d(l2) = 0.
             end,
 
             UpdateInteraction = begin
-                if sqrt((x_i - x_j)^2+(y_i - y_j)^2) <= 1.1
-                    int += 1
+                if sqrt((x.i - x.j)^2+(y.i - y.j)^2) <= 1.1
+                    int.i += 1
                 end
             end,
 
             UpdateLocalInteraction = begin
-                intLocal += 1
+                intLocal.i += 1
             end,
         )
 
@@ -328,17 +328,17 @@ end
             [intLocal,int]::Local,
 
             Equation = begin
-                d_l2 = 0.
+                d(l2) = 0.
             end,
 
             UpdateInteraction = begin
-                if sqrt((x_i - x_j)^2+(y_i - y_j)^2+(z_i - z_j)^2) <= 1.1
-                    int += 1
+                if sqrt((x.i - x.j)^2+(y.i - y.j)^2+(z.i - z.j)^2) <= 1.1
+                    int.i += 1
                 end
             end,
 
             UpdateLocalInteraction = begin
-                intLocal += 1
+                intLocal.i += 1
             end,
         )
 
@@ -385,17 +385,17 @@ end
             [intLocal,int]::Local,
 
             Equation = begin
-                d_l2 = 0.
+                d(l2) = 0.
             end,
 
             UpdateInteraction = begin
-                if abs(x_i - x_j) <= .9
-                    int += 1
+                if abs(x.i - x.j) <= .9
+                    int.i += 1
                 end
             end,
 
             UpdateLocalInteraction = begin
-                intLocal += 1
+                intLocal.i += 1
             end,
 
             Boundary = BoundaryFlat(1,Periodic())
@@ -420,17 +420,17 @@ end
             [intLocal,int]::Local,
 
             Equation = begin
-                d_l2 = 0.
+                d(l2) = 0.
             end,
 
             UpdateInteraction = begin
-                if sqrt((x_i - x_j)^2+(y_i - y_j)^2) <= 1.1
-                    int += 1
+                if sqrt((x.i - x.j)^2+(y.i - y.j)^2) <= 1.1
+                    int.i += 1
                 end
             end,
 
             UpdateLocalInteraction = begin
-                intLocal += 1
+                intLocal.i += 1
             end,
 
             Boundary = BoundaryFlat(2,Periodic())
@@ -455,17 +455,17 @@ end
             [intLocal,int]::Local,
 
             Equation = begin
-                d_l2 = 0.
+                d(l2) = 0.
             end,
 
             UpdateInteraction = begin
-                if sqrt((x_i - x_j)^2+(y_i - y_j)^2) <= 1.1
-                    int += 1
+                if sqrt((x.i - x.j)^2+(y.i - y.j)^2) <= 1.1
+                    int.i += 1
                 end
             end,
 
             UpdateLocalInteraction = begin
-                intLocal += 1
+                intLocal.i += 1
             end,
 
             Boundary = BoundaryFlat(2,Free(),Periodic())
@@ -490,17 +490,17 @@ end
             [intLocal,int]::Local,
 
             Equation = begin
-                d_l2 = 0.
+                d(l2) = 0.
             end,
 
             UpdateInteraction = begin
-                if sqrt((x_i - x_j)^2+(y_i - y_j)^2) <= 1.1
-                    int += 1
+                if sqrt((x.i - x.j)^2+(y.i - y.j)^2) <= 1.1
+                    int.i += 1
                 end
             end,
 
             UpdateLocalInteraction = begin
-                intLocal += 1
+                intLocal.i += 1
             end,
 
             Boundary = BoundaryFlat(2,Periodic(),Periodic())
@@ -526,17 +526,17 @@ end
             [intLocal,int]::Local,
 
             Equation = begin
-                d_l2 = 0.
+                d(l2) = 0.
             end,
 
             UpdateInteraction = begin
-                if sqrt((x_i - x_j)^2+(y_i - y_j)^2+(z_i - z_j)^2) <= 1.1
-                    int += 1
+                if sqrt((x.i - x.j)^2+(y.i - y.j)^2+(z.i - z.j)^2) <= 1.1
+                    int.i += 1
                 end
             end,
 
             UpdateLocalInteraction = begin
-                intLocal += 1
+                intLocal.i += 1
             end,
 
             Boundary = BoundaryFlat(3,Periodic(),Free(),Free())
@@ -589,17 +589,17 @@ end
             [intLocal,int]::Local,
 
             Equation = begin
-                d_l2 = 0.
+                d(l2) = 0.
             end,
 
             UpdateInteraction = begin
-                if sqrt((x_i - x_j)^2+(y_i - y_j)^2+(z_i - z_j)^2) <= 1.1
-                    int += 1
+                if sqrt((x.i - x.j)^2+(y.i - y.j)^2+(z.i - z.j)^2) <= 1.1
+                    int.i += 1
                 end
             end,
 
             UpdateLocalInteraction = begin
-                intLocal += 1
+                intLocal.i += 1
             end,
 
             Boundary = BoundaryFlat(3,Free(),Periodic(),Free())
@@ -652,17 +652,17 @@ end
             [intLocal,int]::Local,
 
             Equation = begin
-                d_l2 = 0.
+                d(l2) = 0.
             end,
 
             UpdateInteraction = begin
-                if sqrt((x_i - x_j)^2+(y_i - y_j)^2+(z_i - z_j)^2) <= 1.1
-                    int += 1
+                if sqrt((x.i - x.j)^2+(y.i - y.j)^2+(z.i - z.j)^2) <= 1.1
+                    int.i += 1
                 end
             end,
 
             UpdateLocalInteraction = begin
-                intLocal += 1
+                intLocal.i += 1
             end,
 
             Boundary = BoundaryFlat(3,Free(),Free(),Periodic())
@@ -715,17 +715,17 @@ end
             [intLocal,int]::Local,
 
             Equation = begin
-                d_l2 = 0.
+                d(l2) = 0.
             end,
 
             UpdateInteraction = begin
-                if sqrt((x_i - x_j)^2+(y_i - y_j)^2+(z_i - z_j)^2) <= 1.1
-                    int += 1
+                if sqrt((x.i - x.j)^2+(y.i - y.j)^2+(z.i - z.j)^2) <= 1.1
+                    int.i += 1
                 end
             end,
 
             UpdateLocalInteraction = begin
-                intLocal += 1
+                intLocal.i += 1
             end,
 
             Boundary = BoundaryFlat(3,Periodic(),Periodic(),Periodic())

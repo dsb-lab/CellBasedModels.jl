@@ -6,13 +6,13 @@ end
 
 function removeAgent_gpu!(pos,keepList_,removeList_,remV_)
     keepList_[pos] = 0
-    removeList_Pos_ = CUDA.atomic_add!(pointer(remV_,1),Int(1)) + 1
+    removeList_Pos_ = CUDA.atomic_add!(CUDA.pointer(remV_,Int32(1)),Int32(1)) + 1
     removeList_[removeList_Pos_] = pos
 end
 
 function removeDeadAgents_cpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity,localVCopy,nLocalC,identityVCopy,nIdentityC)
 
-    for ic1_ in 1:remV_[]
+    Threads.@threads for ic1_ in 1:remV_[]
         oldPos_ = keepList_[ic1_]
         newPos_ = removeList_[ic1_]
         if oldPos_ > 0
@@ -36,7 +36,7 @@ end
 
 function removeDeadAgents_cpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity,localVCopy,nLocalC)
 
-    for ic1_ in 1:remV_[]
+    Threads.@threads for ic1_ in 1:remV_[]
         oldPos_ = keepList_[ic1_]
         newPos_ = removeList_[ic1_]
         if oldPos_ > 0
@@ -57,7 +57,7 @@ end
 
 function removeDeadAgents_cpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity,identityVCopy::Array{<:Int,2},nIdentityC)
 
-    for ic1_ in 1:remV_[]
+    Threads.@threads for ic1_ in 1:remV_[]
         oldPos_ = keepList_[ic1_]
         newPos_ = removeList_[ic1_]
         if oldPos_ > 0
@@ -78,7 +78,7 @@ end
 
 function removeDeadAgents_cpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity)
 
-    for ic1_ in 1:remV_[]
+    Threads.@threads for ic1_ in 1:remV_[]
         oldPos_ = keepList_[ic1_]
         newPos_ = removeList_[ic1_]
         if oldPos_ > 0
@@ -96,7 +96,10 @@ end
 
 function removeDeadAgents_gpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity,localVCopy,nLocalC,identityVCopy,nIdentityC)
 
-    for ic1_ in 1:remV_[0]
+    index_ = (threadIdx().x) + (blockIdx().x - 1) * blockDim().x
+    stride_ = blockDim().x * gridDim().x
+
+    for ic1_ in index_:stride_:remV_[1]
         oldPos_ = keepList_[ic1_]
         newPos_ = removeList_[ic1_]
         if oldPos_ > 0
@@ -115,12 +118,15 @@ function removeDeadAgents_gpu!(remV_,keepList_,removeList_,localV,nLocal,identit
         end
     end
 
-    return
+    return nothing
 end
 
-function removeDeadAgents_gpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity,localVCopy,nLocalC)
+function removeDeadAgents_gpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity,localVCopy::CuDeviceMatrix{<:AbstractFloat, 1},nLocalC)
 
-    for ic1_ in 1:remV_[0]
+    index_ = (threadIdx().x) + (blockIdx().x - 1) * blockDim().x
+    stride_ = blockDim().x * gridDim().x
+
+    for ic1_ in index_:stride_:remV_[1]
         oldPos_ = keepList_[ic1_]
         newPos_ = removeList_[ic1_]
         if oldPos_ > 0
@@ -139,9 +145,12 @@ function removeDeadAgents_gpu!(remV_,keepList_,removeList_,localV,nLocal,identit
     return
 end
 
-function removeDeadAgents_gpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity,identityVCopy::Array{<:Int,2},nIdentityC)
+function removeDeadAgents_gpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity,identityVCopy::CuDeviceMatrix{<:Int, 1},nIdentityC)
 
-    for ic1_ in 1:remV_[0]
+    index_ = (threadIdx().x) + (blockIdx().x - 1) * blockDim().x
+    stride_ = blockDim().x * gridDim().x
+
+    for ic1_ in index_:stride_:remV_[1]
         oldPos_ = keepList_[ic1_]
         newPos_ = removeList_[ic1_]
         if oldPos_ > 0
@@ -162,7 +171,10 @@ end
 
 function removeDeadAgents_gpu!(remV_,keepList_,removeList_,localV,nLocal,identityV,nIdentity)
 
-    for ic1_ in 1:remV_[0]
+    index_ = (threadIdx().x) + (blockIdx().x - 1) * blockDim().x
+    stride_ = blockDim().x * gridDim().x
+
+    for ic1_ in index_:stride_:remV_[1]
         oldPos_ = keepList_[ic1_]
         newPos_ = removeList_[ic1_]
         if oldPos_ > 0
@@ -200,62 +212,62 @@ function addEventRemoveAgent_(code::Expr,p::Program_,platform::String)
         push!(codeinit.args,code.args...)
         code = codeinit
 
-    end    
-
-    #Add to code the removing algorithm
-    a = [:remV_,:keepList_,
-            :removeList_,
-            :localV,length(p.agent.declaredSymbols["Local"]),
-            :identityV,length(p.agent.declaredSymbols["Identity"])]
-    if !isempty(p.update["Local"])
-        push!(a, :localVCopy,length(p.update["Local"]))
-    end
-    if !isempty(p.update["Identity"])
-        push!(a, :identityVCopy, length(p.update["Identity"]))
-    end
-    if platform == "cpu"
-        update = quote
-            if N > 0
-                sort!(keepList_,rev=true)
-                @platformAdapt AgentBasedModels.removeDeadAgents_cpu!($(a...))
-                N -= remV_[]
-                remV_[] = 0
-                keepList_ .= 0
-            end
+        #Add to code the removing algorithm
+        a = [:remV_,:keepList_,
+                :removeList_,
+                :localV,length(p.agent.declaredSymbols["Local"]),
+                :identityV,length(p.agent.declaredSymbols["Identity"])]
+        if !isempty(p.update["Local"])
+            push!(a, :localVCopy,length(p.update["Local"]))
         end
-    elseif platform == "gpu"
-        update = quote
-            if N > 0
-                sort!(keepList_,rev=true)
-                @platformAdapt AgentBasedModels.removeDeadAgents_gpu!($(a...))
-                N -= Core.Array(remV_)[1]
-                remV_ .= 0
-                keepList_ .= 0
+        if !isempty(p.update["Identity"])
+            push!(a, :identityVCopy, length(p.update["Identity"]))
+        end
+        if platform == "cpu"
+            update = quote
+                if N > 0
+                    sort!(keepList_,rev=true)
+                    @platformAdapt AgentBasedModels.removeDeadAgents_cpu!($(a...))
+                    N -= remV_[]
+                    remV_[] = 0
+                    keepList_ .= 0
+                end
             end
-        end        
-    end
-    push!(p.execInloop.args,update)
-    
-    # Add to program
-    if platform == "cpu"
-        push!(p.declareVar.args,
-            :(begin 
-                remV_ = Threads.Atomic{Int}()
-                keepList_ = zeros(Int,nMax)
-                removeList_ = zeros(Int,nMax)
-            end)
-        )
-    elseif platform == "gpu"
-        push!(p.declareVar.args,
-            :(begin 
-                remV_ = CUDA.zeros(Int,1)
-                keepList_ = zeros(Int,nMax)
-                removeList_ = zeros(Int,nMax)
-            end)
-        )
-    end
+        elseif platform == "gpu"
+            update = quote
+                if N > 0
+                    sort!(keepList_,rev=true)
+                    @platformAdapt AgentBasedModels.removeDeadAgents_gpu!($(a...))
+                    N -= Core.Array(remV_)[1]
+                    remV_ .= 0
+                    keepList_ .= 0
+                end
+            end        
+        end
+        push!(p.execInloop.args,update)
+        
+        # Add to program
+        if platform == "cpu"
+            push!(p.declareVar.args,
+                :(begin 
+                    remV_ = Threads.Atomic{$INT}()
+                    keepList_ = zeros($INT,nMax)
+                    removeList_ = zeros($INT,nMax)
+                end)
+            )
+        elseif platform == "gpu"
+            push!(p.declareVar.args,
+                :(begin 
+                    remV_ = CUDA.zeros($INTCUDA,1)
+                    keepList_ = zeros($INTCUDA,nMax)
+                    removeList_ = zeros($INTCUDA,nMax)
+                end)
+            )
+        end
 
-    push!(p.args,:remV_,:keepList_,:removeList_)
+        push!(p.args,:remV_,:keepList_,:removeList_)
+
+    end
 
     return code
 end

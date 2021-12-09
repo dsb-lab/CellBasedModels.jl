@@ -5,7 +5,7 @@ Function that checks the variables in the model that are modified at each step i
 """
 function updates_!(p::Program_)
 
-    ## Assign updates of variable types
+    ##Assign updates of variable types
     for t in keys(p.agent.declaredSymbols)
         dict = Dict{Symbol,Int}()
         counter = 1
@@ -35,6 +35,16 @@ function updates_!(p::Program_)
                 end
             end
 
+            #Add symbols that are assigned
+            for up in keys(p.agent.declaredUpdates)
+                code =  postwalk(x->@capture(x, c_.g_ = f_) && c == i && g in INTERACTIONSYMBOLS ? :ARGS_ : x , p.agent.declaredUpdates[up])
+
+                if inexpr(code,:ARGS_)
+                    found = true
+                    break
+                end
+            end
+            
             for up in keys(p.agent.declaredUpdates)
                 code =  postwalk(x->@capture(x, c_[g__] = f_) && c == i ? :ARGS_ : x , p.agent.declaredUpdates[up])
                 code =  postwalk(x->@capture(x, c_[g__] += f_) && c == i ? :ARGS_ : x , code)
@@ -72,14 +82,20 @@ function updates_!(p::Program_)
                 end
             end
 
+            #Add symbols from boundaries
+            if t == "Local"
+                if i in p.agent.boundary.addSymbols
+                    found = true
+                end
+            end
+
             if found
                 dict[i] = counter
                 counter += 1
             end
         end
         p.update[t] = dict
-    end
-
+    end        
 
     dict = Dict{Symbol,Int}()
     counter = 1

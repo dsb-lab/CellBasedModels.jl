@@ -1,6 +1,6 @@
 @testset "integrators" begin
 
-    for integrator in ["Euler"]#keys(AgentBasedModels.addIntegrator_!)
+    for integrator in keys(AgentBasedModels.addIntegrator_!)
         for platform in testplatforms
 
             #Declare

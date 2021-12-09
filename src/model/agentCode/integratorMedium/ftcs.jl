@@ -7,18 +7,13 @@ function addIntegratorMediumFTCS_!(p::Program_,platform::String)
 
     if "UpdateMedium" in keys(p.agent.declaredUpdates)
 
-        #Check updated
-        up = symbols_(p.agent,p.agent.declaredUpdates["UpdateMedium"])
-        up = up[Bool.((up[:,"placeDeclaration"].==:Model) .* Bool.((up[:,"assigned"].==true) .+ (up[:,"updated"].==true))),:]
-
         #Construct functions
 
             #Make function to compute everything inside the volume
 
         f = p.agent.declaredUpdates["UpdateMedium"]
         for (i,j) in enumerate(p.agent.declaredSymbols["Medium"]) # Change symbol for update
-            s = Meta.parse(string(MEDIUMSYMBOL,j))
-            f = postwalk(x -> @capture(x,ss_=v_) && ss == s ? :($j = $j + $v*dt) : x, f)
+            f = postwalk(x -> @capture(x,g_(s_)=v_) && s == j && g == DIFFMEDIUMSYMBOL ? :($j = $j + $v*dt) : x, f)
         end
         f = postwalk(x->@capture(x,s_(v_)) ? :($(adaptOperatorsMediumFTCS_(v,s,p))) : x, f) # Adapt
         f = postwalk(x->@capture(x,s_) ? adaptSymbolsMediumFTCS_(s,p) : x, f) # Adapt

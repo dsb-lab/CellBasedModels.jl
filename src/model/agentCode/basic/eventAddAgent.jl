@@ -90,15 +90,15 @@ function addEventAddAgent_(code::Expr,p::Program_,platform::String)
 
         if platform == "cpu"
 
-            push!(p.declareVar.args,:(NV = Threads.Atomic{Int}(0)))
-            push!(p.declareVar.args,:(agentIdMax = Threads.Atomic{Int}(N)))
+            push!(p.declareVar.args,:(NV = Threads.Atomic{$INT}(0)))
+            push!(p.declareVar.args,:(agentIdMax = Threads.Atomic{$INT}(N)))
 
             push!(p.execInloop.args,:(N += NV[]; NV[] = 0))
 
         elseif platform == "gpu"
 
-            push!(p.declareVar.args,:(NV = CUDA.zeros($INT,1)))
-            push!(p.declareVar.args,:(agentIdMax = N .*CUDA.ones($INT,1)))
+            push!(p.declareVar.args,:(NV = CUDA.zeros($INTCUDA,1)))
+            push!(p.declareVar.args,:(agentIdMax = N .*CUDA.ones($INTCUDA,1)))
 
             push!(p.execInloop.args,:(N += Core.Array(NV)[1]; NV .= 0))
 

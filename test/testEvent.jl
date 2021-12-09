@@ -138,7 +138,7 @@ using Base: LogicalIndex
         )
 
         m = compile(m,platform=platform)
-        # println(m.program)
+        # println(prettify(m.program))
         
         @test_nowarn begin
 
@@ -150,7 +150,6 @@ using Base: LogicalIndex
 
             comt = m.evolve(com,dt=1,tMax=105,nMax=100)
 
-            println()
             if any(comt.N .!= 1) error() end
             if any([comt.id1[i,i] for i in 1:105] .!= 4) error() end
             if any([comt.loc[i,i] for i in 1:105] .!= 67) error() end

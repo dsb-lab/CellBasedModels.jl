@@ -7,10 +7,6 @@ function addIntegratorMediumLax_!(p::Program_,platform::String)
 
     if "UpdateMedium" in keys(p.agent.declaredUpdates)
 
-        #Check updated
-        up = symbols_(p.agent,p.agent.declaredUpdates["UpdateMedium"])
-        up = up[Bool.((up[:,"placeDeclaration"].==:Model) .* Bool.((up[:,"assigned"].==true) .+ (up[:,"updated"].==true))),:]
-
         #Construct functions
 
             #Make function to compute everything inside the volume
@@ -29,8 +25,7 @@ function addIntegratorMediumLax_!(p::Program_,platform::String)
                         +mediumV[ic1_,ic2_,ic3_-1,$i] + mediumV[ic1_,ic2_,ic3_+1,$i])/6)
             end
 
-            s = Meta.parse(string(MEDIUMSYMBOL,j))
-            f = postwalk(x -> @capture(x,ss_=v_) && ss == s ? :($j = $add + $v*dt) : x, f)
+            f = postwalk(x -> @capture(x,g_(s_)=v_) && s == j && g == DIFFMEDIUMSYMBOL ? :($j = $add + $v*dt) : x, f)
         end
         f = postwalk(x->@capture(x,s_(v_)) ? :($(adaptOperatorsMediumLax_(v,s,p))) : x, f) # Adapt
         f = postwalk(x->@capture(x,s_) ? adaptSymbolsMediumLax_(s,p) : x, f) # Adapt

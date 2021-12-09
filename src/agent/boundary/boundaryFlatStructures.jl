@@ -26,7 +26,7 @@ function BoundaryFlat(n::Int=0,boundX::BoundaryFlatSubtypes=Free(),
 
     bound = Array{BoundaryFlatSubtypes,1}([])
     symbols = Array{Symbol,1}([])
-    for i in [boundX,boundY,boundZ][1:n]
+    for (pos,i) in enumerate([boundX,boundY,boundZ][1:n])
         push!(bound,i)
         for j in keys(i.addSymbols)
             append!(symbols,i.addSymbols[j])
@@ -40,6 +40,11 @@ function BoundaryFlat(n::Int=0,boundX::BoundaryFlatSubtypes=Free(),
             elseif n == 3 && !(hasmethod(i.fMin,(FLOAT,FLOAT,FLOAT,FLOAT)))
                 error("Function ",i.fMin," must take four arguments (x,y,z,t). No function with such signature has been declared.")
             end                
+        end
+
+        if typeof(boundX) != Free
+            push!(symbols,POSITIONSYMBOLS[pos])
+            unique!(symbols)
         end
     end
 

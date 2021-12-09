@@ -1,4 +1,6 @@
 """
+    cubic(box::Array{<:Real,2},r::Number)
+
 Make a lattice with cubic structure.
 
 # Arguments
@@ -6,12 +8,8 @@ Make a lattice with cubic structure.
  - **box** (Array) 3D Box to be filled with spheres of radius r. e.g. [[0,1],[1,2],[0,4]]
  - **r** (Number) Radius of the sphere
 
-# Optional keyword arguments
- - **noiseRatio** (Number) Noise ratio to add to the center of the cells. Default 0.
- - **holesRatio** (Number) Probability of holes in lattice. Default 0.
-
 # Returns
-[posX,posY,posZ] Where pos are arrays with the positions of the cells for each component.
+Community with the spheres
 """
 function cubic(box::Array{<:Real,2},r::Number)
 

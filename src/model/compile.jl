@@ -73,11 +73,11 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
     elseif platform == "gpu"
         program = postwalk(x->@capture(x,@platformAdapt v_(ARGS__)) ? :(kernel_ = @cuda launch = false $v($(ARGS...)); 
                                                                     prop_ = AgentBasedModels.configurator_(kernel_,N); 
-                                                                    kernel_(ARGS_;threads=prop_[1],blocks=prop_[2])) : x, program)
+                                                                    kernel_($(ARGS...);threads=prop_[1],blocks=prop_[2])) : x, program)
         program = cudaAdapt_(program)
     end
     program = postwalk(x->@capture(x,v_(g_)) && g == :ARGS_ ? :($v($(p.args...))) : x, program)
-    # program = subsArguments_(program,:ARGS_,p.args)
+    program = postwalk(x->@capture(x,v_(g_;h__)) && g == :ARGS_ ? :($v($(p.args...);$(h...))) : x, program)
     program = randomAdapt_(p,program,platform)
     programugly = gensym_ids(program)
     program = flatten(programugly)

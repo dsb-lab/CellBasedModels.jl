@@ -28,13 +28,14 @@ The algorithm implemented uses a fixed radial neighbours search as proposed by
 both for CPU and GPU. For now, the last step of the proposed algorithm, sorting, is ignored but the idea may be to implement for the GPU case soon if it really makes a difference.
 
 
-### Boundaries
+### [Boundaries](@id APIBoundaries)
 
 ```@docs
-Bound
+BoundaryFlat
+Free
+Bounded
 Periodic
 ```
-
 ## Model
 
 ```@docs
@@ -47,9 +48,18 @@ Model
 compile
 ```
 
-## Community
+## [Community](@id APICommunity)
 
 ```@docs
 Community
 CommunityInTime
+```
+
+### Constructors
+
+Handy functions to construct starting communities with different geometries.
+
+```@docs
+initialiseCommunityCompactCubic
+initialiseCommunityCompactHexagonal
 ```

@@ -98,33 +98,33 @@ function addParameters_!(p::Program_,platform::String)
     if length(p.agent.declaredSymbols["Medium"])>0
         if p.agent.dims >= 1
             push!(p.declareVar.args, :(Nx_ = com.mediumN[1]+2))
-            push!(p.declareVar.args, :(dxₘ_ = (simulationBox[1,2]-simulationBox[1,1])/(Nx_-2)))
+            push!(p.declareVar.args, :(dxₘ_ = (com.simulationBox[1,2]-com.simulationBox[1,1])/(Nx_-2)))
 
             push!(p.args,:Nx_)
             push!(p.args,:dxₘ_)
         end
         if p.agent.dims >= 2
             push!(p.declareVar.args, :(Ny_ = com.mediumN[2]+2))
-            push!(p.declareVar.args, :(dyₘ_ = (simulationBox[2,2]-simulationBox[2,1])/(Ny_-2)))
+            push!(p.declareVar.args, :(dyₘ_ = (com.simulationBox[2,2]-com.simulationBox[2,1])/(Ny_-2)))
 
             push!(p.args,:Ny_)
             push!(p.args,:dyₘ_)
         end
         if p.agent.dims >= 3
             push!(p.declareVar.args, :(Nz_ = com.mediumN[3]+2))
-            push!(p.declareVar.args, :(dzₘ_ = (simulationBox[3,2]-simulationBox[3,1])/(Nz_-2)))
+            push!(p.declareVar.args, :(dzₘ_ = (com.simulationBox[3,2]-com.simulationBox[3,1])/(Nz_-2)))
 
             push!(p.args,:Nz_)
             push!(p.args,:dzₘ_)
         end
         if p.agent.dims == 1
-            push!(p.declareVar.args, :(mediumV = zeros($FLOAT,size(com.medium_).+(2,0))))
+            push!(p.declareVar.args, :(mediumV = Base.zeros($FLOAT,size(com.medium_).+(2,0))))
             push!(p.declareVar.args, :(mediumV[2:end-1,:] = com.medium_))
         elseif p.agent.dims == 2
-            push!(p.declareVar.args, :(mediumV = zeros($FLOAT,size(com.medium_).+(2,2,0))))
+            push!(p.declareVar.args, :(mediumV = Base.zeros($FLOAT,size(com.medium_).+(2,2,0))))
             push!(p.declareVar.args, :(mediumV[2:end-1,2:end-1,:] = com.medium_))
         elseif p.agent.dims == 3
-            push!(p.declareVar.args, :(mediumV = zeros($FLOAT,size(com.medium_).+(2,2,2,0))))
+            push!(p.declareVar.args, :(mediumV = Base.zeros($FLOAT,size(com.medium_).+(2,2,2,0))))
             push!(p.declareVar.args, :(mediumV[2:end-1,2:end-1,2:end-1,:] = com.medium_))
         end
         push!(p.declareVar.args, :(mediumV = Array(mediumV)))
@@ -150,8 +150,9 @@ function addUpdate_!(p::Program_,platform::String)
 
     create = false
 
-    for i in keys(p.agent.declaredUpdates)
-        if !(i in ["UpdateLocalInteraction","UpdateInteraction","EventDivision"]) && !emptyquote_(p.agent.declaredUpdates[i])
+    #Check is there is something to update
+    for i in keys(p.update)
+        if !isempty(p.update[i])
             create = true
         end
     end

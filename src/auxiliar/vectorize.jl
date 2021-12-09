@@ -43,6 +43,9 @@ function vectorize_(abm::Agent,code::Expr,p::Program_;interaction=false)
                 code = postwalk(x->@capture(x, localV[g_,c_] >>>= v1__) && cc==c ? :(localVCopy[$g,$pos] >>>= $(v1...)) : x, code)
                 code = postwalk(x->@capture(x, localV[g_,c_] >>= v1__) && cc==c ? :(localVCopy[$g,$pos] >>= $(v1...)) : x, code)
                 code = postwalk(x->@capture(x, localV[g_,c_] <<= v1__) && cc==c ? :(localVCopy[$g,$pos] <<= $(v1...)) : x, code)
+
+                #Invert if wrongly updated
+                code = postwalk(x->@capture(x, localVCopy[g_,c_] = localVCopy[g2_,c2_]) ? :(localV[$g,$cc] = localVCopy[$g2,$c2]) : x, code)
             end
         end
     end
@@ -79,6 +82,9 @@ function vectorize_(abm::Agent,code::Expr,p::Program_;interaction=false)
                 code = postwalk(x->@capture(x, identityV[g_,c_] >>>= v1__) && cc==c ? :(identityVCopy[$g,$pos] >>>= $(v1...)) : x, code)
                 code = postwalk(x->@capture(x, identityV[g_,c_] >>= v1__) && cc==c ? :(identityVCopy[$g,$pos] >>= $(v1...)) : x, code)
                 code = postwalk(x->@capture(x, identityV[g_,c_] <<= v1__) && cc==c ? :(identityVCopy[$g,$pos] <<= $(v1...)) : x, code)
+
+                #Invert if wrongly updated
+                code = postwalk(x->@capture(x, identityVCopy[g_,c_] = identityVCopy[g2_,c2_]) ? :(identityV[$g,$cc] = identityVCopy[$g2,$c2]) : x, code)
             end
         end
     end
