@@ -55,10 +55,10 @@ function plotCylinders(a::GLMakie.GridPosition,
         if typeof(radius) == Symbol
             r = factor*getproperty(com,radius)[i]
         else
-            r = radius[i]
+            r = factor*radius[i]
         end
             
-        c = GeometryBasics.Cylinder(extreme1,extreme2,r)
+        c = GeometryBasics.Cylinder(extreme1,extreme2,Float64(r))
             
         if com.dims == 2 
             GLMakie.meshscatter!(ax,com.x[i:i],com.y[i:i],zeros(1),color="blue",marker=c)
