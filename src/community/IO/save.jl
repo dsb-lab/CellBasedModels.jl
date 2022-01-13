@@ -17,7 +17,7 @@ function saveCSV(com::Community, file::String)
     d[!,:t] = [com.t]
     d[!,:N] = [com.N]
     for (i,j) in enumerate(com.declaredSymbols_["Global"])
-        d[!,j] = com.global_[:,i]
+        d[!,j] = [com.global_[i]]
     end
     for (i,j) in enumerate(com.declaredSymbols_["GlobalArray"])
         dims = size(com.globalArray_[i])
@@ -40,7 +40,7 @@ end
 function saveCSV(com::CommunityInTime, file::String)
 
     for (i,j) in enumerate(com.com)
-        save(j,string(file,"_",i))
+        saveCSV(j,string(file,"_",i))
     end
 
     return

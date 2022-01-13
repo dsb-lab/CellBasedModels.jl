@@ -1,5 +1,5 @@
 """
-    function compile(abm=SimulationFree();platform="cpu", neighbours="full", integrator = "euler", save = "RAM", debug = false, user_=true)
+    function compile(abm=SimulationFree();platform="cpu", neighbors="full", integrator = "euler", save = "RAM", debug = false, user_=true)
 
 Function that takes an Agent and a simulation and constructs the function in charge of the evolutions of the model.
 """
