@@ -36,8 +36,9 @@ function loadCommunityInTimeFromCSV(abm::Model, file)
 
     com = CommunityInTime()
     while !out
-        fileName = string(file,"_",count,".csv")
-        if isfile(fileName)
+        fileName = string(file,"_",count)
+        checkName = string(file,"_",count,"_local.csv")
+        if isfile(checkName)
             push!(com,loadCommunityFromCSV(abm,fileName))
             count += 1
         else
