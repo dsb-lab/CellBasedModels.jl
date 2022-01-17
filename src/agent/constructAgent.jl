@@ -71,7 +71,7 @@ macro agent(dims, varargs...)
                 if type == :BaseModel
                     if typeof(name) == Array{Symbol,1}
                         for baseModel in name
-                            baseModel = eval(baseModel)
+                            baseModel = Base.eval(baseModel)
 
                             if m.dims != baseModel.dims
                                 error("Base model", name," has different dimensions as model that is being declared.")
@@ -85,7 +85,7 @@ macro agent(dims, varargs...)
                             end
                         end
                     else
-                        baseModel = eval(name)
+                        baseModel = Base.eval(name)
 
                         if m.dims != baseModel.dims
                             error("Base model", name," has different dimensions as model that is being declared.")
