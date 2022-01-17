@@ -77,8 +77,8 @@ macro agent(dims, varargs...)
 
                     for i in keys(declaredSymbols)
                         if i == Local
-                            checkDeclared_(m,getField(baseModel,i))
-                            append!(m.declaredSymbols[string(type)],getField(baseModel,i)[(m.dims+1):end])
+                            checkDeclared_(m,getproperty(baseModel,i))
+                            append!(m.declaredSymbols[string(type)],getproperty(baseModel,i)[(m.dims+1):end])
                         end
                     end
                 else
