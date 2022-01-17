@@ -13,7 +13,8 @@ function updates_!(p::Program_)
 
             found = false
             for up in keys(p.agent.declaredUpdates)
-                code =  postwalk(x->@capture(x, c_ = f_) && c == i ? :ARGS_ : x , p.agent.declaredUpdates[up])
+                code =  postwalk(x->@capture(x, addAgent(f__)) ? :(addAgent(NOTHING_)) : x , p.agent.declaredUpdates[up]) #remove agent updates
+                code =  postwalk(x->@capture(x, c_ = f_) && c == i ? :ARGS_ : x , code)
                 code =  postwalk(x->@capture(x, c_ += f_) && c == i ? :ARGS_ : x , code)
                 code =  postwalk(x->@capture(x, c_ -= f_) && c == i ? :ARGS_ : x , code)
                 code =  postwalk(x->@capture(x, c_ *= f_) && c == i ? :ARGS_ : x , code)
