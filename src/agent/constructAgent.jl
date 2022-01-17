@@ -70,19 +70,6 @@ macro agent(dims, varargs...)
 
                 if type == :BaseModel
                     if typeof(name) == Array{Symbol,1}
-                        baseModel = eval(name)
-
-                        if m.dims != baseModel.dims
-                            error("Base model", name," has different dimensions as model that is being declared.")
-                        end
-
-                        for i in keys(declaredSymbols)
-                            if i == Local
-                                checkDeclared_(m,getproperty(baseModel,i))
-                                append!(m.declaredSymbols[string(type)],getproperty(baseModel,i)[(m.dims+1):end])
-                            end
-                        end
-                    else
                         for baseModel in name
                             baseModel = eval(baseModel)
 
@@ -95,6 +82,19 @@ macro agent(dims, varargs...)
                                     checkDeclared_(m,getproperty(baseModel,i))
                                     append!(m.declaredSymbols[string(type)],getproperty(baseModel,i)[(m.dims+1):end])
                                 end
+                            end
+                        end
+                    else
+                        baseModel = eval(name)
+
+                        if m.dims != baseModel.dims
+                            error("Base model", name," has different dimensions as model that is being declared.")
+                        end
+
+                        for i in keys(declaredSymbols)
+                            if i == Local
+                                checkDeclared_(m,getproperty(baseModel,i))
+                                append!(m.declaredSymbols[string(type)],getproperty(baseModel,i)[(m.dims+1):end])
                             end
                         end
                     end
