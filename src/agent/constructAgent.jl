@@ -69,16 +69,33 @@ macro agent(dims, varargs...)
                 end    
 
                 if type == :BaseModel
-                    baseModel = eval(name)
+                    if typeof(name) == Array{Symbol,1}
+                        baseModel = eval(name)
 
-                    if m.dims != baseModel.dims
-                        error("Base model", name," has different dimensions as model that is being declared.")
-                    end
+                        if m.dims != baseModel.dims
+                            error("Base model", name," has different dimensions as model that is being declared.")
+                        end
 
-                    for i in keys(declaredSymbols)
-                        if i == Local
-                            checkDeclared_(m,getproperty(baseModel,i))
-                            append!(m.declaredSymbols[string(type)],getproperty(baseModel,i)[(m.dims+1):end])
+                        for i in keys(declaredSymbols)
+                            if i == Local
+                                checkDeclared_(m,getproperty(baseModel,i))
+                                append!(m.declaredSymbols[string(type)],getproperty(baseModel,i)[(m.dims+1):end])
+                            end
+                        end
+                    else
+                        for baseModel in name
+                            baseModel = eval(baseModel)
+
+                            if m.dims != baseModel.dims
+                                error("Base model", name," has different dimensions as model that is being declared.")
+                            end
+
+                            for i in keys(declaredSymbols)
+                                if i == Local
+                                    checkDeclared_(m,getproperty(baseModel,i))
+                                    append!(m.declaredSymbols[string(type)],getproperty(baseModel,i)[(m.dims+1):end])
+                                end
+                            end
                         end
                     end
                 else
