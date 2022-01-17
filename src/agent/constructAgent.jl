@@ -68,11 +68,26 @@ macro agent(dims, varargs...)
                     end
                 end    
 
-                checkDeclared_(m,name)
-                if typeof(name) == Array{Symbol,1}
-                    append!(m.declaredSymbols[string(type)],name)
+                if type == :BaseModel
+                    baseModel = eval(name)
+
+                    if m.dims != baseModel.dims
+                        error("Base model", name," has different dimensions as model that is being declared.")
+                    end
+
+                    for i in keys(declaredSymbols)
+                        if i == Local
+                            checkDeclared_(m,getField(baseModel,i))
+                            append!(m.declaredSymbols[string(type)],getField(baseModel,i)[(m.dims+1):end])
+                        end
+                    end
                 else
-                    push!(m.declaredSymbols[string(type)],name)
+                    checkDeclared_(m,name)
+                    if typeof(name) == Array{Symbol,1}
+                        append!(m.declaredSymbols[string(type)],name)
+                    else
+                        push!(m.declaredSymbols[string(type)],name)
+                    end
                 end
 
             elseif i.head == :(=)

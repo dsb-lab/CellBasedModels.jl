@@ -8,7 +8,8 @@ VALID_TYPES = [
     :Local,
     :Global,
     :GlobalArray,
-    :Medium
+    :Medium,
+    :BaseModel
 ]
 
 VALID_UPDATES = [
