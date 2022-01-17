@@ -71,33 +71,62 @@ macro agent(dims, varargs...)
                 if type == :BaseModel
                     if typeof(name) == Array{Symbol,1}
                         for baseModel in name
-                            baseModel = Base.eval(baseModel)
+                            baseModel = Main.eval(baseModel)
 
                             if m.dims != baseModel.dims
-                                error("Base model", name," has different dimensions as model that is being declared.")
+                                error("Base model", name," has different dimensions as model ",baseModel," that is being declared.")
                             end
 
-                            for i in keys(declaredSymbols)
-                                if i == Local
-                                    checkDeclared_(m,getproperty(baseModel,i))
-                                    append!(m.declaredSymbols[string(type)],getproperty(baseModel,i)[(m.dims+1):end])
+                            for i in keys(m.declaredSymbols)
+                                if i == "Local"
+                                    checkDeclared_(m,baseModel.declaredSymbols[i][(m.dims+1):end])
+                                    append!(m.declaredSymbols[i],baseModel.declaredSymbols[i][(m.dims+1):end])
+                                elseif i == "Identity"
+                                    checkDeclared_(m,baseModel.declaredSymbols[i][2:end])
+                                    append!(m.declaredSymbols[i],baseModel.declaredSymbols[i][2:end])
+                                else
+                                    checkDeclared_(m,baseModel.declaredSymbols[i])
+                                    append!(m.declaredSymbols[i],baseModel.declaredSymbols[i])
                                 end
                             end
+
+                            for i in keys(baseModel.declaredUpdates)
+                                if !(i in keys(m.declaredUpdates))
+                                    m.declaredUpdates[i] = baseModel.declaredUpdates[i]
+                                else
+                                    append!(m.declaredUpdates[i].args,baseModel.declaredUpdates[i].args)
+                                end
+                            end                            
                         end
                     else
-                        baseModel = Base.eval(name)
+                        baseModel = Main.eval(name)
 
                         if m.dims != baseModel.dims
-                            error("Base model", name," has different dimensions as model that is being declared.")
+                            error("Base model", name," has different dimensions as model ",baseModel," that is being declared.")
                         end
 
-                        for i in keys(declaredSymbols)
-                            if i == Local
-                                checkDeclared_(m,getproperty(baseModel,i))
-                                append!(m.declaredSymbols[string(type)],getproperty(baseModel,i)[(m.dims+1):end])
+                        for i in keys(m.declaredSymbols)
+                            if i == "Local"
+                                checkDeclared_(m,baseModel.declaredSymbols[i][(m.dims+1):end])
+                                append!(m.declaredSymbols[i],baseModel.declaredSymbols[i][(m.dims+1):end])
+                            elseif i == "Identity"
+                                checkDeclared_(m,baseModel.declaredSymbols[i][2:end])
+                                append!(m.declaredSymbols[i],baseModel.declaredSymbols[i][2:end])
+                            else
+                                checkDeclared_(m,baseModel.declaredSymbols[i])
+                                append!(m.declaredSymbols[i],baseModel.declaredSymbols[i])
                             end
                         end
+
+                        for i in keys(baseModel.declaredUpdates)
+                            if !(i in keys(m.declaredUpdates))
+                                m.declaredUpdates[i] = baseModel.declaredUpdates[i]
+                            else
+                                append!(m.declaredUpdates[i].args,baseModel.declaredUpdates[i].args)
+                            end
+                        end                            
                     end
+
                 else
                     checkDeclared_(m,name)
                     if typeof(name) == Array{Symbol,1}
@@ -117,6 +146,8 @@ macro agent(dims, varargs...)
                         end
                     elseif i.args[2].head == :block
                         append!(m.declaredUpdates[string(i.args[1])].args,i.args[2].args)
+                    else
+                        push!(m.declaredUpdates[string(i.args[1])].args,i.args[2])
                     end
                 elseif i.args[1] == :(Boundary)
                     if boundaryDeclared
