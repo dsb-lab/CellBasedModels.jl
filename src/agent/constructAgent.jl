@@ -92,7 +92,7 @@ macro agent(dims, varargs...)
 
                             for i in keys(baseModel.declaredUpdates)
                                 if !(i in keys(m.declaredUpdates))
-                                    m.declaredUpdates[i] = baseModel.declaredUpdates[i]
+                                    m.declaredUpdates[i] = copy(baseModel.declaredUpdates[i])
                                 else
                                     append!(m.declaredUpdates[i].args,baseModel.declaredUpdates[i].args)
                                 end
@@ -120,7 +120,7 @@ macro agent(dims, varargs...)
 
                         for i in keys(baseModel.declaredUpdates)
                             if !(i in keys(m.declaredUpdates))
-                                m.declaredUpdates[i] = baseModel.declaredUpdates[i]
+                                m.declaredUpdates[i] = copy(baseModel.declaredUpdates[i])
                             else
                                 append!(m.declaredUpdates[i].args,baseModel.declaredUpdates[i].args)
                             end
