@@ -1,5 +1,5 @@
 """
-    function plotRodBacteria(a::GridPosition,
+    function plotRods(a::GridPosition,
         com::Community,
         direction::Union{Vector{Symbol},Matrix{<:Real}},
         len::Union{Symbol,Vector{<:Real}},
@@ -11,7 +11,7 @@
 
 Function that given a grid position figure form Makie, plots rod-shaped agents over the space and returns the corresponding axis.
 """
-function plotRodBacteria(a::GLMakie.GridPosition,
+function plotRods(a::GLMakie.GridPosition,
     com::Community,
     direction::Union{Vector{Symbol},Matrix{<:Real}},
     len::Union{Symbol,Vector{<:Real}},
@@ -30,8 +30,11 @@ function plotRodBacteria(a::GLMakie.GridPosition,
     if typeof(color) == Symbol
         colorrange = [minimum(getproperty(com,color)),maximum(getproperty(com,color))]
         palette = GLMakie.Colors.colormap(colorpalette)
-    elseif typeof(color) == Vector{<:Real}
+    elseif typeof(color) <: Vector{<:Real}
         colorrange = [minimum(color),maximum(color)]
+        if colorrange[1] == colorrange[2]
+            colorrange[1] -= 1
+        end
         palette = GLMakie.Colors.colormap(colorpalette)
     end
     
@@ -90,7 +93,7 @@ function plotRodBacteria(a::GLMakie.GridPosition,
             GLMakie.mesh!(ax,ci,color=c)
             GLMakie.mesh!(ax,b1,color=c)
             GLMakie.mesh!(ax,b2,color=c)
-        elseif typeof(color) == Array{<:Real}
+        elseif typeof(color) <: Array{<:Real}
             c = color[i]
             c = palette[ceil(Int,(c-colorrange[1])/(colorrange[2]-colorrange[1])*99)+1]
             GLMakie.mesh!(ax,ci,color=c)
@@ -99,6 +102,6 @@ function plotRodBacteria(a::GLMakie.GridPosition,
         end
             
     end
-    
+        
     return ax
 end
