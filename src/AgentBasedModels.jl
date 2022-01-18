@@ -87,7 +87,7 @@ include("./model/cuda/cudaConfigurator.jl")
 
 #Visualization functions
 export plotSpheres, plotCylinders
-include("./plotting/cylinders.jl")
+include("./plotting/rods.jl")
 include("./plotting/spheres.jl")
 
 #Auxiliar function
