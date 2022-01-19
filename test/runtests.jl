@@ -1,8 +1,6 @@
 using CUDA
 using AgentBasedModels
 using Test
-using Distributions
-using CUDA
 using DataFrames
 import MacroTools: prettify
 

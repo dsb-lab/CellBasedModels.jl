@@ -24,7 +24,7 @@
             com.x .= 0.
             com.y .= 0.
             com.z .= 0.
-            com.w = rand(Uniform(1,2),com.N)
+            com.w = rand(AgentBasedModels.Uniform(1,2),com.N)
             comt = mo.evolve(com,dt=1.,tMax=100)#,t=0.,N=com.N,nMax=com.N)
 
             for i in 1:10
