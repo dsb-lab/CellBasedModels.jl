@@ -114,8 +114,16 @@ function addIntegratorHeun_!(p::Program_, platform::String)
             push!(p.args,:dW,:S_)
         end
         if "UpdateInteraction" in keys(p.agent.declaredUpdates)
-            addInteraction1 = [:(@platformAdapt cleanInteraction_!(ARGS_);@platformAdapt interactionStep1_(ARGS_))]
-            addInteraction2 = [:(@platformAdapt cleanInteraction_!(ARGS_);@platformAdapt interactionStep2_(ARGS_))]
+            cleanLocal = :()
+            if !isempty(p.agent.declaredSymbols["LocalInteraction"])
+                cleanLocal = :(localInteractionV .= 0)
+            end
+            cleanInteraction = :()
+            if !isempty(p.agent.declaredSymbols["IdentityInteraction"])
+                cleanInteraction = :(identityInteractionV .= 0)
+            end
+            addInteraction1 = [:($cleanLocal;$cleanInteraction;@platformAdapt interactionStep1_(ARGS_))]
+            addInteraction2 = [:($cleanLocal;$cleanInteraction;@platformAdapt interactionStep2_(ARGS_))]
             push!(p.execInit.args, :(@platformAdapt cleanInteraction_!(ARGS_); @platformAdapt interactionStep1_(ARGS_)))
         else
             addInteraction1 = []

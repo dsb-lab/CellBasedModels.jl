@@ -14,10 +14,13 @@
         0,
         
         l::Local,
+        li::LocalInteraction,
+        id2::Identity,
+        id3::IdentityInteraction,
         g::Global,
         ga::GlobalArray,
-        
-        Equation = d_v = 34*dt ,
+
+        Equation = d(v) = 34*dt ,
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
@@ -27,11 +30,13 @@
     m = @agent(
         1,
 
+        l::LocalInteraction,
+        l1::IdentityInteraction,
         g::Global,
         ga::GlobalArray,
         m::Medium,
 
-        Equation = d_v = 34*dt ,
+        Equation = d(v) = 34*dt ,
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
@@ -53,7 +58,7 @@
         [g,g2]::Global,
         [ga,ga2]::GlobalArray,
 
-        Equation = d_v = 34*dt ,
+        Equation = d(v) = 34*dt ,
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
@@ -64,11 +69,13 @@
         2,
 
         [id2]::Identity,
+        [li,li2]::LocalInteraction,
+        [idi,idi2]::IdentityInteraction,
         [g,g2]::Global,
         [ga,ga2]::GlobalArray,
         [m1,m2]::Medium,
 
-        Equation = d_v = 34*dt ,
+        Equation = d(v) = 34*dt ,
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
@@ -83,14 +90,15 @@
     end
 
     @test_throws ErrorException try @eval @agent(0, [l,l]::Local) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(0, [l,l]::LocalInteraction) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(0, [l,l]::Identity) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(0, [l,l]::IdentityInteraction) catch err; throw(err.error) end
     @test_throws ErrorException try @eval @agent(0, [l,l]::Global) catch err; throw(err.error) end
     @test_throws ErrorException try @eval @agent(0, [l,l]::Variable) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(0, [l,l]::Interaction) catch err; throw(err.error) end
     @test_throws ErrorException try @eval @agent(0, [l,l]::GlobalArray) catch err; throw(err.error) end
 
     @test_throws ErrorException try @eval @agent(0, l::Local, l::Global) catch err; throw(err.error) end
     @test_throws ErrorException try @eval @agent(0, l::Local, l::Variable) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(0, l::Local, l::Interaction) catch err; throw(err.error) end
     @test_throws ErrorException try @eval @agent(0, l::Local, l::GlobalArray) catch err; throw(err.error) end
 
     @test_nowarn @agent(0, Boundary=BoundaryFlat())

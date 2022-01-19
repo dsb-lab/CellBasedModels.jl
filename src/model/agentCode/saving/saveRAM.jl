@@ -9,8 +9,20 @@ function addSavingRAM_!(p::Program_,platform::String)
         push!(l,:(Core.Array{Float64,2}(undef,0,2)))
     end
 
+    if length(p.agent.declaredSymbols["LocalInteraction"])>0
+        push!(l,:(Core.Array(localInteractionV)[1:N,:]))
+    else
+        push!(l,:(Core.Array{Float64,2}(undef,0,2)))
+    end
+
     if length(p.agent.declaredSymbols["Identity"])>0
         push!(l,:(Core.Array(identityV)[1:N,:]))
+    else
+        push!(l,:(Core.Array{Int,2}(undef,0,2)))
+    end
+
+    if length(p.agent.declaredSymbols["IdentityInteraction"])>0
+        push!(l,:(Core.Array(identityInteractionV)[1:N,:]))
     else
         push!(l,:(Core.Array{Int,2}(undef,0,2)))
     end

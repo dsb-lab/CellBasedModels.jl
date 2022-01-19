@@ -5,12 +5,16 @@ INTCUDA = Int32
 
 VALID_TYPES = [
     :Identity,
+    :IdentityInteraction,
     :Local,
+    :LocalInteraction,
     :Global,
     :GlobalArray,
     :Medium,
     :BaseModel
 ]
+
+UPDATINGTYPES = ["Local","Identity","Global","GlobalArray","Medium"]
 
 VALID_UPDATES = [
     :UpdateGlobal,
@@ -41,6 +45,8 @@ RESERVEDSYMBOLS = [:x,:y,:z,:id,:t,:N,:dt,:dW,:nMax,
                     :∇,:∇x,:∇y,:∇z,:Δ,:Δx,:Δy,:Δz,:δx,:δy,:δz,:xₘ,:yₘ,:zₘ,:∑ₐ,:∑ₙ];
 
 GLOBALARRAYCOPY = "_Copy"
+
+UPDATEOPERATORS = [:(+=),:(-=),:(*=),:(/=),:(\=),:(÷=),:(%=),:(^=),:(&=),:(|=),:(⊻=),:(>>>=),:(>>=),:(<<=)]
 
 DIFFSYMBOL = :d
 

@@ -33,6 +33,16 @@ function addParameters_!(p::Program_,platform::String)
         end
     end
 
+    if length(p.agent.declaredSymbols["LocalInteraction"])>0
+        append!(p.declareVar.args, 
+            (quote
+                localInteractionV = Array($FLOAT.([com.localInteraction_;Base.zeros(nMax-N,$(length(p.agent.declaredSymbols["LocalInteraction"])))]))
+            end).args
+        )
+
+        push!(p.args,:localInteractionV)
+    end
+
     if length(p.agent.declaredSymbols["Identity"])>0
         append!(p.declareVar.args, 
             (quote
@@ -51,6 +61,16 @@ function addParameters_!(p::Program_,platform::String)
     
             push!(p.args,:identityVCopy)
         end
+    end
+
+    if length(p.agent.declaredSymbols["IdentityInteraction"])>0
+        append!(p.declareVar.args, 
+            (quote
+                identityInteractionV = Array($INT.([com.identityInteraction_;Base.zeros(nMax-N,$(length(p.agent.declaredSymbols["IdentityInteraction"])))]))
+            end).args
+        )
+
+        push!(p.args,:identityInteractionV)
     end
 
     if length(p.agent.declaredSymbols["Global"])>0

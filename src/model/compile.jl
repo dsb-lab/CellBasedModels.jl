@@ -19,7 +19,6 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
     arguments_![neighbors](p,platform)
     
     #Declare all the agent properties related functions, arguments, code...
-    addCleanInteraction_!(p,platform)
     addParameters_!(p,platform)
     addCopyInitialisation_!(p,platform)
     addIntegrator_![integrator](p,platform)
@@ -36,6 +35,15 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
 
     if platform == "gpu"
         gpuConf = :()
+    end
+
+    cleanLocal = :()
+    if !isempty(p.agent.declaredSymbols["LocalInteraction"])
+        cleanLocal = :(localInteractionV .= 0)
+    end
+    cleanInteraction = :()
+    if !isempty(p.agent.declaredSymbols["IdentityInteraction"])
+        cleanInteraction = :(identityInteractionV .= 0)
     end
 
     program = quote
@@ -58,6 +66,8 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
             
             $(p.execInit)
             while t <= (tMax-dt)
+                $cleanLocal
+                $cleanInteraction
                 $(p.execInloop)
 
                 t += dt

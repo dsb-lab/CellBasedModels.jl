@@ -1,3 +1,25 @@
+function change(x,code)
+
+    if code.args[1] == x
+        code.args[1] = :($x.new)
+    end
+    for op in INTERACTIONSYMBOLS
+        if code.args[1] == :($x.$op)
+            code.args[1] = :($x.$op.new)
+        end
+    end
+
+    return code
+end
+
+function update(code,s)
+    for op in UPDATEOPERATORS
+        code = postwalk(x-> isexpr(x,op) ? change(s,x) : x, code)
+    end
+
+    return code
+end
+
 """
     macro @agent(dims, varargs...) 
 
@@ -169,6 +191,17 @@ macro agent(dims, varargs...)
                 error(i, " is not an understood rule or variable declaration. Error in ", ii)
             end 
         end
+    end
+
+    for i in keys(m.declaredUpdates) #Make explicit the updates
+        code = m.declaredUpdates[i]
+        for j in UPDATINGTYPES
+            for k in [m.declaredSymbols[j]]
+                code = update(code,i)
+            end
+        end
+
+        m.declaredUpdates[i] = code
     end
 
     if !boundaryDeclared && !isempty(m.declaredSymbols["Medium"])

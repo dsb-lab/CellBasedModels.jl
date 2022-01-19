@@ -58,7 +58,7 @@
             comt = m.evolve(com,dt=0.01,tMax=5)
 
             @test begin
-                v = [var(comt.x[i,:]) for i in 1:size(comt.x)[1]]
+                v = [sum(comt.x[i,:].^2)/com.N-(sum(comt.x[i,:])/com.N)^2 for i in 1:size(comt.x)[1]]
                 all(abs.(v .- comt.t) .< 0.8)
             end
             @test comt.x[:,1] != comt.y[:,1]
