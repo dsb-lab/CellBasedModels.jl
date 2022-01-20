@@ -25,8 +25,9 @@
     m = @agent(
         0,
 
-        [l1,l2,intLocal,int]::Local,
-        [i1,i2]::Identity,
+        [l1,l2]::Local,
+        [intLocal,int]::LocalInteraction,
+        [i1,i2]::IdentityInteraction,
 
         Equation = begin
             nothing
@@ -44,6 +45,7 @@
             end
         end
     )
+    # print(m)
     m = compile(m,debug=false)
 
     @test begin
@@ -52,7 +54,7 @@
         com.l2 = [0,1,1,0]
 
         comt = m.evolve(com,dt=0.1,tMax=1)
-        comt[1].int == [4,4,4,4] 
+        comt[2].int == [4,4,4,4] 
     end    
 
     @test begin
@@ -258,7 +260,7 @@ end
         m = @agent(
             1,
 
-            [intLocal,int]::Local,
+            [intLocal,int]::LocalInteraction,
 
             Equation = begin
                 d(l2) = 0.
@@ -284,14 +286,14 @@ end
             com.radiusInteraction = 1.1
 
             comt = mo.evolve(com,dt=0.1,tMax=1)
-            (comt[1].intLocal == [2,3,3,2]) && (comt[1].int == [1,1,1,1])
+            (comt[2].intLocal == [2,3,3,2]) && (comt[1].int == [1,1,1,1])
         end   
 
         #Check 2D
         m = @agent(
             2,
 
-            [intLocal,int]::Local,
+            [intLocal,int]::LocalInteraction,
 
             Equation = begin
                 d(l2) = 0.
@@ -318,14 +320,14 @@ end
             com.radiusInteraction = 1.1
 
             comt = mo.evolve(com,dt=0.1,tMax=1)
-            (comt[1].intLocal == [4.,6.,6.,4.,6.,9.,9.,6.,6.,9.,9.,6.,4.,6.,6.,4.]) && (comt[1].int == [3.,4.,4.,3.,4.,5.,5.,4.,4.,5.,5.,4.,3.,4.,4.,3.])
+            (comt[2].intLocal == [4.,6.,6.,4.,6.,9.,9.,6.,6.,9.,9.,6.,4.,6.,6.,4.]) && (comt[2].int == [3.,4.,4.,3.,4.,5.,5.,4.,4.,5.,5.,4.,3.,4.,4.,3.])
         end                  
 
         #Check 3D
         m = @agent(
             3,
 
-            [intLocal,int]::Local,
+            [intLocal,int]::LocalInteraction,
 
             Equation = begin
                 d(l2) = 0.
@@ -375,14 +377,14 @@ end
             com.simulationBox = [-1. 1.;-1. 1.;-1. 1]
             com.radiusInteraction = 1.1
             comt = mo.evolve(com,dt=0.1,tMax=1)
-            (comt[1].intLocal == intLocal) && (comt[1].int == intt)
+            (comt[2].intLocal == intLocal) && (comt[2].int == intt)
         end                  
 
         #Check 1D Periodic
         m = @agent(
             1,
 
-            [intLocal,int]::Local,
+            [intLocal,int]::LocalInteraction,
 
             Equation = begin
                 d(l2) = 0.
@@ -410,14 +412,14 @@ end
             com.radiusInteraction = 1.
 
             comt = mo.evolve(com,dt=0.1,tMax=1)
-            (comt[1].intLocal == [3,3,3,3]) && (comt[1].int == [1,1,1,1])
+            (comt[2].intLocal == [3,3,3,3]) && (comt[2].int == [1,1,1,1])
         end   
 
         #Check 2D Periodic
         m = @agent(
             2,
 
-            [intLocal,int]::Local,
+            [intLocal,int]::LocalInteraction,
 
             Equation = begin
                 d(l2) = 0.
@@ -446,13 +448,13 @@ end
             com.radiusInteraction = 1.1
 
             comt = mo.evolve(com,dt=0.1,tMax=1)
-            (comt[1].intLocal == [6.,6.,6.,6.,9.,9.,9.,9.,9.,9.,9.,9.,6.,6.,6.,6.]) && (comt[1].int == [3.,4.,4.,3.,4.,5.,5.,4.,4.,5.,5.,4.,3.,4.,4.,3.])
+            (comt[2].intLocal == [6.,6.,6.,6.,9.,9.,9.,9.,9.,9.,9.,9.,6.,6.,6.,6.]) && (comt[2].int == [3.,4.,4.,3.,4.,5.,5.,4.,4.,5.,5.,4.,3.,4.,4.,3.])
         end                  
 
         m = @agent(
             2,
 
-            [intLocal,int]::Local,
+            [intLocal,int]::LocalInteraction,
 
             Equation = begin
                 d(l2) = 0.
@@ -481,13 +483,13 @@ end
             com.radiusInteraction = 1.1
 
             comt = mo.evolve(com,dt=0.1,tMax=1)
-            (comt[1].intLocal == [6.,9.,9.,6.,6.,9.,9.,6.,6.,9.,9.,6.,6.,9.,9.,6.]) && (comt[1].int == [3.,4.,4.,3.,4.,5.,5.,4.,4.,5.,5.,4.,3.,4.,4.,3.])
+            (comt[2].intLocal == [6.,9.,9.,6.,6.,9.,9.,6.,6.,9.,9.,6.,6.,9.,9.,6.]) && (comt[2].int == [3.,4.,4.,3.,4.,5.,5.,4.,4.,5.,5.,4.,3.,4.,4.,3.])
         end 
 
         m = @agent(
             2,
 
-            [intLocal,int]::Local,
+            [intLocal,int]::LocalInteraction,
 
             Equation = begin
                 d(l2) = 0.
@@ -516,14 +518,14 @@ end
             com.radiusInteraction = 1.1
 
             comt = mo.evolve(com,dt=0.1,tMax=1)
-            (comt[1].intLocal == [9.,9.,9.,9.,9.,9.,9.,9.,9.,9.,9.,9.,9.,9.,9.,9.]) && (comt[1].int == [3.,4.,4.,3.,4.,5.,5.,4.,4.,5.,5.,4.,3.,4.,4.,3.])
+            (comt[2].intLocal == [9.,9.,9.,9.,9.,9.,9.,9.,9.,9.,9.,9.,9.,9.,9.,9.]) && (comt[2].int == [3.,4.,4.,3.,4.,5.,5.,4.,4.,5.,5.,4.,3.,4.,4.,3.])
         end 
 
         #Check 3D Periodic
         m = @agent(
             3,
 
-            [intLocal,int]::Local,
+            [intLocal,int]::LocalInteraction,
 
             Equation = begin
                 d(l2) = 0.
@@ -580,13 +582,13 @@ end
             com.simulationBox = [-2. 2.;-2. 2.;-2. 2]
             com.radiusInteraction = 1.1
             comt = mo.evolve(com,dt=0.1,tMax=1)
-            (comt[1].intLocal == intLocal) && (comt[1].int == intt)
+            (comt[2].intLocal == intLocal) && (comt[2].int == intt)
         end                  
 
         m = @agent(
             3,
 
-            [intLocal,int]::Local,
+            [intLocal,int]::LocalInteraction,
 
             Equation = begin
                 d(l2) = 0.
@@ -643,13 +645,13 @@ end
             com.simulationBox = [-2. 2.;-2. 2.;-2. 2]
             com.radiusInteraction = 1.1
             comt = mo.evolve(com,dt=0.1,tMax=1)
-            (comt[1].intLocal == intLocal) && (comt[1].int == intt)
+            (comt[2].intLocal == intLocal) && (comt[2].int == intt)
         end                  
 
         m = @agent(
             3,
 
-            [intLocal,int]::Local,
+            [intLocal,int]::LocalInteraction,
 
             Equation = begin
                 d(l2) = 0.
@@ -706,13 +708,13 @@ end
             com.simulationBox = [-2. 2.;-2. 2.;-2. 2]
             com.radiusInteraction = 1.1
             comt = mo.evolve(com,dt=0.1,tMax=1)
-            (comt[1].intLocal == intLocal) && (comt[1].int == intt)
+            (comt[2].intLocal == intLocal) && (comt[2].int == intt)
         end                  
 
         m = @agent(
             3,
 
-            [intLocal,int]::Local,
+            [intLocal,int]::LocalInteraction,
 
             Equation = begin
                 d(l2) = 0.
@@ -762,7 +764,7 @@ end
             com.simulationBox = [-2. 2.;-2. 2.;-2. 2]
             com.radiusInteraction = 1.1
             comt = mo.evolve(com,dt=0.1,tMax=1)
-            (comt[1].intLocal == intLocal) && (comt[1].int == intt)
+            (comt[2].intLocal == intLocal) && (comt[2].int == intt)
         end                  
 
 

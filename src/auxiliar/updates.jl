@@ -23,7 +23,7 @@ function updates_!(p::Program_)
 
             #Add symbols that are assigned
             for up in keys(p.agent.declaredUpdates)
-                code =  postwalk(x->@capture(x, c_.g_.new = f_) && c == i && g in INTERACTIONSYMBOLS ? :ARGS_ : x , p.agent.declaredUpdates[up])
+                code =  postwalk(x->@capture(x, c_.g_.new) && c == i && g in INTERACTIONSYMBOLS ? :ARGS_ : x , p.agent.declaredUpdates[up])
 
                 if inexpr(code,:ARGS_)
                     found = true
