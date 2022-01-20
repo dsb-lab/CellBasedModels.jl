@@ -24,7 +24,7 @@
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
-        UpdateLocalInteraction = i += 1
+        UpdateLocalInteraction = l.i += 1
     )
 
     m = @agent(

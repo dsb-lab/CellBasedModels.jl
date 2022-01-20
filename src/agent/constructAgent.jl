@@ -1,3 +1,6 @@
+"""
+Function called by update to add the .new if it is an update expression.
+"""
 function change(x,code)
 
     if code.args[1] == x
@@ -12,10 +15,27 @@ function change(x,code)
     return code
 end
 
+"""
+Function called by update that checks that a function is a macro functions before adding the .new
+"""
+function updateMacroFunctions(s,code)
+    if code.args[1] in MACROFUNCTIONS
+        code = postwalk(x-> isexpr(x,:kw) ? change(s,x) : x, code)
+    end
+
+    return code
+end
+
+"""
+Function that adds .new to all the times the symbol s is being updated. e.g. update(x=1,x) -> x.new = 1.
+The modifications are also done in the keyword arguments of the macro functions as addAgent.
+"""
 function update(code,s)
+
     for op in UPDATEOPERATORS
         code = postwalk(x-> isexpr(x,op) ? change(s,x) : x, code)
     end
+    code = postwalk(x-> isexpr(x,:call) ? updateMacroFunctions(s,x) : x, code) #Update keyarguments of macrofunctions
 
     return code
 end
@@ -196,8 +216,8 @@ macro agent(dims, varargs...)
     for i in keys(m.declaredUpdates) #Make explicit the updates
         code = m.declaredUpdates[i]
         for j in UPDATINGTYPES
-            for k in [m.declaredSymbols[j]]
-                code = update(code,i)
+            for k in m.declaredSymbols[j]
+                code = update(code,k)
             end
         end
 

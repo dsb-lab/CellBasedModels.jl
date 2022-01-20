@@ -26,13 +26,15 @@ VALID_UPDATES = [
     :Equation,
 ]
 
+MACROFUNCTIONS = [:addAgent,:removeAgent]
+
 POSITIONSYMBOLS = [:x,:y,:z]
 
 BASICARGS=[:t,:N,:dt,:simulationBox]
 
 PREDECLAREDPARAMETERS = Dict("Local"=>[:x,:y,:z],"Identity"=>:id,"Integration"=>[:dt,:dW],"Community"=>[:N],"Evolve"=>[:nMax])
 
-UPDATINGOPERATORS = [:+= ,:-=,:*=,:/=,:\=,:÷=,:%=,:^=,:&=,:|=,:⊻=,:>>>=,:>>=,:<<=]
+UPDATINGOPERATORS = [:(=),:+= ,:-=,:*=,:/=,:\=,:÷=,:%=,:^=,:&=,:|=,:⊻=,:>>>=,:>>=,:<<=]
 
 RESERVEDSYMBOLS = [:x,:y,:z,:id,:t,:N,:dt,:dW,:nMax,
                     :idMediumX,:idMediumY,:idMediumZ,
@@ -46,7 +48,7 @@ RESERVEDSYMBOLS = [:x,:y,:z,:id,:t,:N,:dt,:dW,:nMax,
 
 GLOBALARRAYCOPY = "_Copy"
 
-UPDATEOPERATORS = [:(+=),:(-=),:(*=),:(/=),:(\=),:(÷=),:(%=),:(^=),:(&=),:(|=),:(⊻=),:(>>>=),:(>>=),:(<<=)]
+UPDATEOPERATORS = [:(=),:(+=),:(-=),:(*=),:(/=),:(\=),:(÷=),:(%=),:(^=),:(&=),:(|=),:(⊻=),:(>>>=),:(>>=),:(<<=)]
 
 DIFFSYMBOL = :d
 

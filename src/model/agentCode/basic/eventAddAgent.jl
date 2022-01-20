@@ -10,7 +10,6 @@ function addAgentCode(g,p,platform;rem=false)
         code = quote
             ic1New_ = N+CUDA.atomic_add!(CUDA.pointer(NV,1),$INTCUDA(1)) + 1
             idNew_ = CUDA.atomic_add!(CUDA.pointer(agentIdMax,1),$INTCUDA(1)) + 1
-
             id = idNew_
             end
     end
@@ -22,7 +21,7 @@ function addAgentCode(g,p,platform;rem=false)
     args = []
     for i in g
         if i.head == :kw
-            if !(i.args[1] in p.agent.declaredSymbols["Local"] || i.args[1] in p.agent.declaredSymbols["Identity"])
+            if !(i.args[1] in [:($i.new) for i in p.agent.declaredSymbols["Local"]] || i.args[1] in [:($i.new) for i in p.agent.declaredSymbols["Identity"]])
                 error(i.args[1], "is not a Local or Identity parameter of the agent.")
             end
         else
@@ -37,7 +36,7 @@ function addAgentCode(g,p,platform;rem=false)
             error("id should not be declared when calling addAgent, it is assigned automatically.")
         end
         push!(code.args,:($(i.args[1])=$(i.args[2])))
-        push!(args,i.args[1])
+        push!(args,i.args[1].args[1])
     end
 
     for i in p.agent.declaredSymbols["Local"]
@@ -54,19 +53,19 @@ function addAgentCode(g,p,platform;rem=false)
 
     code = vectorize_(p.agent,code,p)
 
-    for i in keys(p.update["Local"])
-        pos = findfirst(i .== p.agent.declaredSymbols["Local"])
-        posNew = p.update["Local"][i]
+    # for i in keys(p.update["Local"])
+    #     pos = findfirst(i .== p.agent.declaredSymbols["Local"])
+    #     posNew = p.update["Local"][i]
 
-        push!(code.args,:(localV[ic1New_,$pos]=localVCopy[ic1New_,$posNew]))
-    end
+    #     push!(code.args,:(localV[ic1New_,$pos]=localVCopy[ic1New_,$posNew]))
+    # end
 
-    for i in keys(p.update["Identity"])
-        pos = findfirst(i .== p.agent.declaredSymbols["Identity"])
-        posNew = p.update["Identity"][i]
+    # for i in keys(p.update["Identity"])
+    #     pos = findfirst(i .== p.agent.declaredSymbols["Identity"])
+    #     posNew = p.update["Identity"][i]
 
-        push!(code.args,:(identityV[ic1New_,$pos]=identityVCopy[ic1New_,$posNew]))
-    end
+    #     push!(code.args,:(identityV[ic1New_,$pos]=identityVCopy[ic1New_,$posNew]))
+    # end
 
     code = postwalk(x->@capture(x,g0_[g1_,g2_] = g3_) && g1 == :ic1_ ? :($g0[ic1New_,$g2] = $g3) : x , code)
 
