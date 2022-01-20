@@ -72,7 +72,7 @@ function addIntegratorHeun_!(p::Program_, platform::String)
         #Create second interaction parameter kernel using localVCopy if there is any
         if "UpdateInteraction" in keys(p.agent.declaredUpdates)
 
-            k3 = loop_(p,p.agent,space,p.agent.declaredUpdates["UpdateInteraction"],platform)
+            k3 = loop_[p.neighbors](p,p.agent.declaredUpdates["UpdateInteraction"],platform)
             for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
                 codeK1 = postwalk(x -> @capture(x,$j) ? :(localVCopy[ic1_,$ii]) : x, k3)
             end
@@ -124,7 +124,6 @@ function addIntegratorHeun_!(p::Program_, platform::String)
             end
             addInteraction1 = [:($cleanLocal;$cleanInteraction;@platformAdapt interactionStep1_(ARGS_))]
             addInteraction2 = [:($cleanLocal;$cleanInteraction;@platformAdapt interactionStep2_(ARGS_))]
-            push!(p.execInit.args, :(@platformAdapt cleanInteraction_!(ARGS_); @platformAdapt interactionStep1_(ARGS_)))
         else
             addInteraction1 = []
             addInteraction2 = []
