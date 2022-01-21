@@ -34,4 +34,15 @@
         r == :(AgentBasedModels.rand(AgentBasedModels.Normal(2,3)) += AgentBasedModels.rand(AgentBasedModels.Gamma(3,4)))
     end
 
+    #Test distributions
+    for platform in testplatforms
+        m = @agent(0,UpdateLocal = begin Uniform(0,1) end)
+        m = compile(m); com = Community(m); @test_nowarn m.evolve(com,dt=0.1,tMax=10);
+
+        m = @agent(0,UpdateLocal = begin Normal(0,1) end)
+        m = compile(m); com = Community(m); @test_nowarn m.evolve(com,dt=0.1,tMax=10);
+
+        m = @agent(0,UpdateLocal = begin Exponential(1) end)
+        m = compile(m); com = Community(m); @test_nowarn m.evolve(com,dt=0.1,tMax=10);
+    end
 end

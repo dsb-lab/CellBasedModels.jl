@@ -40,8 +40,8 @@ function updates_!(p::Program_)
                 end
             end
 
-            if "Equation" in keys(p.agent.declaredUpdates)
-                code =  postwalk(x->@capture(x, g_(c_) = f_) && c == i && g == DIFFSYMBOL ? :ARGS_ : x , p.agent.declaredUpdates["Equation"])
+            if "UpdateVariable" in keys(p.agent.declaredUpdates)
+                code =  postwalk(x->@capture(x, g_(c_) = f_) && c == i && g == DIFFSYMBOL ? :ARGS_ : x , p.agent.declaredUpdates["UpdateVariable"])
                 if inexpr(code,:ARGS_)
                     found = true
                 end
@@ -73,8 +73,8 @@ function updates_!(p::Program_)
     counter = 1
     for i in p.agent.declaredSymbols["Local"]
         found = false
-        if "Equation" in keys(p.agent.declaredUpdates)
-            code =  postwalk(x->@capture(x, g_(c_) = f_) && c == i && g == DIFFSYMBOL ? :ARGS_ : x , p.agent.declaredUpdates["Equation"])
+        if "UpdateVariable" in keys(p.agent.declaredUpdates)
+            code =  postwalk(x->@capture(x, g_(c_) = f_) && c == i && g == DIFFSYMBOL ? :ARGS_ : x , p.agent.declaredUpdates["UpdateVariable"])
             if inexpr(code,:ARGS_)
                 found = true
             end

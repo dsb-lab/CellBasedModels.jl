@@ -14,9 +14,9 @@ The algorithm can be reduced to three kernel invocations performing the followin
 """
 function addIntegratorEuler_!(p::Program_, platform::String)
     
-    if "Equation" in keys(p.agent.declaredUpdates)
+    if "UpdateVariable" in keys(p.agent.declaredUpdates)
 
-        code = p.agent.declaredUpdates["Equation"]
+        code = p.agent.declaredUpdates["UpdateVariable"]
 
         #Create interaction parameter kernel if there is any interaction parameter updated
         if "UpdateInteraction" in keys(p.agent.declaredUpdates)

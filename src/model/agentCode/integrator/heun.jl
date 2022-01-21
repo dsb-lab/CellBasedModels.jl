@@ -25,9 +25,9 @@ The algorithm can be reduced to six kernels invocations performing the following
 """
 function addIntegratorHeun_!(p::Program_, platform::String)
     
-    if  "Equation" in keys(p.agent.declaredUpdates)
+    if  "UpdateVariable" in keys(p.agent.declaredUpdates)
 
-        code = p.agent.declaredUpdates["Equation"]
+        code = p.agent.declaredUpdates["UpdateVariable"]
 
         #Create first interaction parameter kernel if there is any interaction parameter updated
         if "UpdateInteraction" in keys(p.agent.declaredUpdates)
