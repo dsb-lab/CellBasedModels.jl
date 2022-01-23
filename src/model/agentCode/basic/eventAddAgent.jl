@@ -14,9 +14,9 @@ function addAgentCode(g,p,platform;rem=false)
             end
     end
     
-    if rem #In case of removal, add new people to the list
-        push!(code.args,:(keepList_[ic1New_] = ic1New_))
-    end
+    # if rem #In case of removal, add new people to the list
+    #     push!(code.args,:(keepList_[ic1New_] = ic1New_))
+    # end
 
     args = []
     for i in g

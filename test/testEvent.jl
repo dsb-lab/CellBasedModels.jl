@@ -155,7 +155,30 @@ using Base: LogicalIndex
             if any([comt.loc[i,i] for i in 1:105] .!= 67) error() end
             if any(comt[end].id .!= 106) error() end
         end
-        
+
+        #Remove randomly
+        m = @agent(2,
+            l::Local,
+            tDie::Local,
+            UpdateLocal=begin
+                if tDie < t
+                    # addAgent(x=x,y=y,tDie=tDie+1,l=l)
+                    removeAgent()
+                end
+            end
+        )
+        model = compile(m,platform=platform,neighbors="grid")
+        com = Community(model,N=1000)
+        com.x .= rand(com.N)
+        com.y .= rand(com.N)
+        com.tDie .= rand(com.N)
+        com.simulationBox .= [0 1;0 1]
+        com.radiusInteraction = .1
+
+        @test_nowarn begin
+            model.evolve(com,dt=0.01,tMax=.9,nMax=1000,dtSave=10)
+        end    
+
     end
     
 end
