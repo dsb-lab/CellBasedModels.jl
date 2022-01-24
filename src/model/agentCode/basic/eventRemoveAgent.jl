@@ -115,7 +115,7 @@ function removeDeadAgents_gpu!(remV_,keepList_,removeList_,N,localV,nLocal,ident
         if keepList_[ic1_] != keepList_[ic1_+1]
             oldPos_ = ic1_
             # println(keepList_[ic1_+1]," ",N," ",N+2-remV_[]-keepList_[ic1_+1])
-            newPos_ = removeList_[N+2-remV_[]-keepList_[ic1_+1]]
+            newPos_ = removeList_[N+2-remV_[1]-keepList_[ic1_+1]]
             if oldPos_ > 0
                 for ic2_ in 1:nLocal
                     localV[newPos_, ic2_] = localV[oldPos_, ic2_] 
@@ -145,7 +145,7 @@ function removeDeadAgents_gpu!(remV_,keepList_,removeList_,N,localV,nLocal,ident
         if keepList_[ic1_] != keepList_[ic1_+1]
             oldPos_ = ic1_
             # println(keepList_[ic1_+1]," ",N," ",N+2-remV_[]-keepList_[ic1_+1])
-            newPos_ = removeList_[N+2-remV_[]-keepList_[ic1_+1]]
+            newPos_ = removeList_[N+2-remV_[1]-keepList_[ic1_+1]]
             if oldPos_ > 0
                 for ic2_ in 1:nLocal
                     localV[newPos_, ic2_] = localV[oldPos_, ic2_] 
@@ -172,7 +172,7 @@ function removeDeadAgents_gpu!(remV_,keepList_,removeList_,N,localV,nLocal,ident
         if keepList_[ic1_] != keepList_[ic1_+1]
             oldPos_ = ic1_
             # println(keepList_[ic1_+1]," ",N," ",N+2-remV_[]-keepList_[ic1_+1])
-            newPos_ = removeList_[N+2-remV_[]-keepList_[ic1_+1]]
+            newPos_ = removeList_[N+2-remV_[1]-keepList_[ic1_+1]]
             if oldPos_ > 0
                 for ic2_ in 1:nLocal
                     localV[newPos_, ic2_] = localV[oldPos_, ic2_] 
@@ -199,7 +199,7 @@ function removeDeadAgents_gpu!(remV_,keepList_,removeList_,N,localV,nLocal,ident
         if keepList_[ic1_] != keepList_[ic1_+1]
             oldPos_ = ic1_
             # println(keepList_[ic1_+1]," ",N," ",N+2-remV_[]-keepList_[ic1_+1])
-            newPos_ = removeList_[N+2-remV_[]-keepList_[ic1_+1]]
+            newPos_ = removeList_[N+2-remV_[1]-keepList_[ic1_+1]]
             if oldPos_ > 0
                 for ic2_ in 1:nLocal
                     localV[newPos_, ic2_] = localV[oldPos_, ic2_] 
