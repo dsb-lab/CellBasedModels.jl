@@ -1,18 +1,6 @@
 function addAgentCode(g,p,platform;rem=false)
 
-    if platform == "cpu"
-        code = quote
-                ic1New_ = N+Threads.atomic_add!(NV,$INT(1)) + 1
-                idNew_ = Threads.atomic_add!(agentIdMax,$INT(1)) + 1
-                id = idNew_
-            end
-    else
-        code = quote
-            ic1New_ = N+CUDA.atomic_add!(CUDA.pointer(NV,1),$INTCUDA(1)) + 1
-            idNew_ = CUDA.atomic_add!(CUDA.pointer(agentIdMax,1),$INTCUDA(1)) + 1
-            id = idNew_
-            end
-    end
+    code = quote end
     
     if rem #In case of removal, add new people to the list
         push!(code.args,:(keepList_[ic1New_] = ic1New_))
@@ -51,21 +39,33 @@ function addAgentCode(g,p,platform;rem=false)
         end
     end
 
+    if platform == "cpu" 
+        code = quote
+                ic1New_ = N+Threads.atomic_add!(NV,$INT(1)) + 1
+                idNew_ = Threads.atomic_add!(agentIdMax,$INT(1)) + 1
+                if nMax >= ic1New_
+                    id = idNew_
+                    $code
+                else
+                    Threads.atomic_add!(NV,$INT(-1))
+                    limNMax_[] = 0
+                end
+            end
+    else
+        code = quote
+            ic1New_ = N+CUDA.atomic_add!(CUDA.pointer(NV,1),$INTCUDA(1)) + 1
+            idNew_ = CUDA.atomic_add!(CUDA.pointer(agentIdMax,1),$INTCUDA(1)) + 1
+            if nMax >= ic1New_
+                id = idNew_
+                $code
+            else
+                Threads.atomic_add!(NV,$INT(-1))
+                limNMax_[1] = 0
+            end
+        end
+    end
+
     code = vectorize_(p.agent,code,p)
-
-    # for i in keys(p.update["Local"])
-    #     pos = findfirst(i .== p.agent.declaredSymbols["Local"])
-    #     posNew = p.update["Local"][i]
-
-    #     push!(code.args,:(localV[ic1New_,$pos]=localVCopy[ic1New_,$posNew]))
-    # end
-
-    # for i in keys(p.update["Identity"])
-    #     pos = findfirst(i .== p.agent.declaredSymbols["Identity"])
-    #     posNew = p.update["Identity"][i]
-
-    #     push!(code.args,:(identityV[ic1New_,$pos]=identityVCopy[ic1New_,$posNew]))
-    # end
 
     code = postwalk(x->@capture(x,g0_[g1_,g2_] = g3_) && g1 == :ic1_ ? :($g0[ic1New_,$g2] = $g3) : x , code)
 
@@ -103,7 +103,7 @@ function addEventAddAgent_(code::Expr,p::Program_,platform::String)
 
         end
 
-        push!(p.args,:(NV),:(agentIdMax))
+        push!(p.args,:(NV),:(agentIdMax),:(limNMax_),:(nMax))
 
     end
 

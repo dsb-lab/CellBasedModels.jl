@@ -43,6 +43,7 @@ RESERVEDSYMBOLS = [:x,:y,:z,:id,:t,:N,:dt,:dW,:nMax,
                     :localVCopy,:identityVCopy,:globalVCopy,:mediumVCopy,
                     :simulationBox,:radiusInteraction,:n_,
                     :ALGORITHM_,:ARGS_,:AUX1_,:AUX2_,
+                    :limNMax_,
                     :index_,:stride_,:lockadd_,
                     :∇,:∇x,:∇y,:∇z,:Δ,:Δx,:Δy,:Δz,:δx,:δy,:δz,:xₘ,:yₘ,:zₘ,:∑ₐ,:∑ₙ];
 

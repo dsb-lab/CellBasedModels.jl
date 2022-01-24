@@ -65,6 +65,18 @@ using Base: LogicalIndex
 
         end
 
+        @test_logs (:warn,"nMax exceded at t=11.0. Please, call again the system declaring a bigger size.") begin
+
+            com = Community(m,N=5)
+            n = com.N 
+
+            com.id1 .= 4
+            com.active .= 1
+            com.loc .= 67.
+
+            comt = m.evolve(com,dt=1,tMax=12,nMax=55)
+        end
+
         #Execute Death without problems
         @test_nowarn begin
             m = @agent(

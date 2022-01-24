@@ -61,9 +61,16 @@ function addSavingRAM_!(p::Program_,platform::String)
             push!(commRAM_,ob)
         end)
     )
+
+    if platform == "cpu"
+        checkNMax = :(limNMax_[] == 1)
+    else
+        checkNMax = :(Core.Array(limNMax_)[1] == 1)
+    end
+
     push!(p.execInloop.args,
         :(begin
-            if t >= tSave
+            if t >= tSave && $checkNMax
                 tSave += dtSave
                 ob = Community($(p.agent.dims),t+dt,N,com.mediumN,com.simulationBox,com.radiusInteraction,com.declaredSymbols_,$(l...))
                 push!(commRAM_,ob)
