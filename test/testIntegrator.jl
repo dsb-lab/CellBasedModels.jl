@@ -8,7 +8,7 @@
                 m = @agent(
                     3,
                     
-                    Equation = 
+                    UpdateVariable = 
                     begin
                         d(x) = x*dt 
                         d(y) = 0*dt 
@@ -22,7 +22,7 @@
             m = @agent(
                 3,
                 
-                Equation = 
+                UpdateVariable = 
                 begin
                     d(x) = -x*dt 
                     d(z) = 1*dt
@@ -44,14 +44,14 @@
             m = @agent(
                 3,
                 
-                Equation = 
+                UpdateVariable = 
                 begin
                     d(x) = -0*dt + dW
                     d(y) = -0*dt + dW
                 end
             )
             m = compile(m, integrator=integrator, platform=platform, debug=false)
-            #println(m.program)
+            # println(m.program)
             com = Community(m,N = 5000)
             com.x .= 0.
             com.y .= 0.
@@ -69,7 +69,7 @@
 
                 f::LocalInteraction,
                 
-                Equation = 
+                UpdateVariable = 
                 begin
                     d(x) = -f*dt 
                 end,
@@ -94,7 +94,7 @@
 
                 f::LocalInteraction,
                 
-                Equation = 
+                UpdateVariable = 
                 begin
                     d(x) = -f*dt 
                 end,

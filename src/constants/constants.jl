@@ -23,7 +23,7 @@ VALID_UPDATES = [
     :UpdateInteraction,
     :UpdateMedium,
     :UpdateMediumInteraction,
-    :Equation,
+    :UpdateVariable,
 ]
 
 MACROFUNCTIONS = [:addAgent,:removeAgent]

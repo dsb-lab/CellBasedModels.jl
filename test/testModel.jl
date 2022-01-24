@@ -9,7 +9,7 @@
             ga::GlobalArray,
             m::Medium,
             
-            Equation = d_v = 34*dt ,
+            UpdateVariable = d_v = 34*dt ,
             UpdateLocal = l += 1,
             UpdateGlobal = begin
                 g += Normal(1,2) + Normal(1,2) + Uniform(1,2) 

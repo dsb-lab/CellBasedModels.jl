@@ -29,7 +29,7 @@
         [intLocal,int]::LocalInteraction,
         [i1,i2]::IdentityInteraction,
 
-        Equation = begin
+        UpdateVariable = begin
             nothing
         end,
 
@@ -262,7 +262,7 @@ end
 
             [intLocal,int]::LocalInteraction,
 
-            Equation = begin
+            UpdateVariable = begin
                 d(l2) = 0.
             end,
 
@@ -295,7 +295,7 @@ end
 
             [intLocal,int]::LocalInteraction,
 
-            Equation = begin
+            UpdateVariable = begin
                 d(l2) = 0.
             end,
 
@@ -329,7 +329,7 @@ end
 
             [intLocal,int]::LocalInteraction,
 
-            Equation = begin
+            UpdateVariable = begin
                 d(l2) = 0.
             end,
 
@@ -386,7 +386,7 @@ end
 
             [intLocal,int]::LocalInteraction,
 
-            Equation = begin
+            UpdateVariable = begin
                 d(l2) = 0.
             end,
 
@@ -421,7 +421,7 @@ end
 
             [intLocal,int]::LocalInteraction,
 
-            Equation = begin
+            UpdateVariable = begin
                 d(l2) = 0.
             end,
 
@@ -456,7 +456,7 @@ end
 
             [intLocal,int]::LocalInteraction,
 
-            Equation = begin
+            UpdateVariable = begin
                 d(l2) = 0.
             end,
 
@@ -491,7 +491,7 @@ end
 
             [intLocal,int]::LocalInteraction,
 
-            Equation = begin
+            UpdateVariable = begin
                 d(l2) = 0.
             end,
 
@@ -527,7 +527,7 @@ end
 
             [intLocal,int]::LocalInteraction,
 
-            Equation = begin
+            UpdateVariable = begin
                 d(l2) = 0.
             end,
 
@@ -590,7 +590,7 @@ end
 
             [intLocal,int]::LocalInteraction,
 
-            Equation = begin
+            UpdateVariable = begin
                 d(l2) = 0.
             end,
 
@@ -653,7 +653,7 @@ end
 
             [intLocal,int]::LocalInteraction,
 
-            Equation = begin
+            UpdateVariable = begin
                 d(l2) = 0.
             end,
 
@@ -716,7 +716,7 @@ end
 
             [intLocal,int]::LocalInteraction,
 
-            Equation = begin
+            UpdateVariable = begin
                 d(l2) = 0.
             end,
 

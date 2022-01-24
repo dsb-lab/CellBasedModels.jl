@@ -36,7 +36,7 @@ For now, the following methods are included:
 ||Medium||||
 |[**Updates**](@ref updates)|[UpdateLocal](@ref updateLocal)||`addAgent`,`removeAgent`||
 ||[UpdateGlobal](@ref updateGlobal)||||
-||[Equation](@ref equation)|`dt`,`dW`|`d`||
+||[UpdateVariable](@ref equation)|`dt`,`dW`|`d`||
 ||[UpdateLocalInteraction](@ref updateLocalInteraction)|||`.i`,`.j`|
 ||[UpdateInteraction](@ref updateInteraction)|||`.i`,`.j`|
 ||[UpdateMedium](@ref updateMedium)||`∂t`,`∇x`,`∇y`,`∇z`,`Δx`,`Δy`,`Δz`,`δx`,`δy`,`δz`||
@@ -178,8 +178,8 @@ m = @agent(0,
 )
 ```
 
-#### [**Equation**](@id equation)
-Specific local update rule for the definition of ODE ans SDE systems of equations governing the dynamics of the agents. Equations accept both ODE and SDE systems of equations. Each equation is defined by using the special operator `d` acting over the differential variable, `dt` for deterministic component and `dW` for the stochastic term.
+#### [**UpdateVariable**](@id equation)
+Specific local update rule for the definition of ODE ans SDE systems of equations governing the dynamics of the agents. UpdateVariables accept both ODE and SDE systems of equations. Each equation is defined by using the special operator `d` acting over the differential variable, `dt` for deterministic component and `dW` for the stochastic term.
 
 Example: Consider a 2D [Ornstein–Uhlenbeck process](https://en.wikipedia.org/wiki/Ornstein%E2%80%93Uhlenbeck_process) with asymmetric difussivity. The system of equations would look like:
 
@@ -190,7 +190,7 @@ $$dy = -ydt + \sqrt{D_y}dW$$
 m = @agent(2,
     [Dx,Dy]::Global,
 
-    Equation = begin
+    UpdateVariable = begin
         d(x) = -x*dt + sqrt(Dx)*dW
         d(y) = -y*dt + sqrt(Dy)*dW
     end
@@ -239,7 +239,7 @@ m = @agent(1,
     [l,int]::Local,
     [g]::Global,
 
-    Equation = begin
+    UpdateVariable = begin
         d(x) = g*dt + l*dt + int*dt
     end
 
@@ -263,7 +263,7 @@ m = @agent(1,
     u::Medium,
     [α,k]::Global,
 
-    Equation = d(x) = u*dW
+    UpdateVariable = d(x) = u*dW
 
     UpdateMedium = begin
         ∂t(u) = Δx(u) + α*δx(0.) - k*u
@@ -292,7 +292,7 @@ m = @agent(1,
     α::Local,
     k::Global,
 
-    Equation = d(x) = u*dW
+    UpdateVariable = d(x) = u*dW
 
     UpdateMedium = begin
         ∂t(u) = Δx(u) - k*u
@@ -332,7 +332,7 @@ m = @agent(2,
     driftx::Global, #Drift of the particles in the x direction
     diffussion::Global, #Drift of the particles in the x direction
 
-    Equation = begin
+    UpdateVariable = begin
         d(x) = vx*dt
         d(y) = vy*dt
         d(x1) = vx*dt
@@ -370,7 +370,7 @@ Depending of the type of simulation we can sum over the interacting agents in di
 
 ### Integrator
 
-The equations of motion defined in `Equations` can be integrated with for the moment with two different explicit methods.
+The equations of motion defined in `UpdateVariable` can be integrated with for the moment with two different explicit methods.
 
 | Integration algorithm | Approximation |
 |---|:---:|

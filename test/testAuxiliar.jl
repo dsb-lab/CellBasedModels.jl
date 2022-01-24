@@ -125,7 +125,7 @@
                 id1.new = 1
             end,
 
-            Equation =
+            UpdateVariable =
             begin
                 d(x) = a*dt + b*dW
             end,

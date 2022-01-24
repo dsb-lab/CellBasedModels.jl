@@ -4,25 +4,25 @@ function addSavingRAM_!(p::Program_,platform::String)
     l = []
 
     if length(p.agent.declaredSymbols["Local"])>0
-        push!(l,:(Core.Array(localV)[1:N,:]))
+        push!(l,:(Core.Array(localV[1:N,:])))
     else
         push!(l,:(Core.Array{Float64,2}(undef,0,2)))
     end
 
     if length(p.agent.declaredSymbols["LocalInteraction"])>0
-        push!(l,:(Core.Array(localInteractionV)[1:N,:]))
+        push!(l,:(Core.Array(localInteractionV[1:N,:])))
     else
         push!(l,:(Core.Array{Float64,2}(undef,0,2)))
     end
 
     if length(p.agent.declaredSymbols["Identity"])>0
-        push!(l,:(Core.Array(identityV)[1:N,:]))
+        push!(l,:(Core.Array(identityV[1:N,:])))
     else
         push!(l,:(Core.Array{Int,2}(undef,0,2)))
     end
 
     if length(p.agent.declaredSymbols["IdentityInteraction"])>0
-        push!(l,:(Core.Array(identityInteractionV)[1:N,:]))
+        push!(l,:(Core.Array(identityInteractionV[1:N,:])))
     else
         push!(l,:(Core.Array{Int,2}(undef,0,2)))
     end
@@ -43,11 +43,11 @@ function addSavingRAM_!(p::Program_,platform::String)
 
     if length(p.agent.declaredSymbols["Medium"]) > 0
         if p.agent.dims == 1
-            push!(l,:(Core.Array(mediumV)[2:end-1,:]))
+            push!(l,:(Core.Array(mediumV[2:end-1,:])))
         elseif p.agent.dims == 2
-            push!(l,:(Core.Array(mediumV)[2:end-1,2:end-1,:]))
+            push!(l,:(Core.Array(mediumV[2:end-1,2:end-1,:])))
         elseif p.agent.dims == 3
-            push!(l,:(Core.Array(mediumV)[2:end-1,2:end-1,2:end-1,:]))
+            push!(l,:(Core.Array(mediumV[2:end-1,2:end-1,2:end-1,:])))
         end
     else
         push!(l,:(Core.Array{Float64,1}()))

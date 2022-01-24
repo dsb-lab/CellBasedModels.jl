@@ -372,7 +372,7 @@ fBoundary3D(x,y,z,t) = 1
     #             u::Medium, 
     #             k::Global,
 
-    #             Equation = begin
+    #             UpdateVariable = begin
     #                 d_p = (u-k*p)*dt 
     #             end
     #             )

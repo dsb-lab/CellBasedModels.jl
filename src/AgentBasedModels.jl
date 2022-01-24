@@ -11,6 +11,7 @@ using DataFrames
 using CSV
 import GeometryBasics, GLMakie
 import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, flatten, unblock, isexpr
+import SpecialFunctions
 #using WriteVTK
 
 export MediumFlat, δMedium_
