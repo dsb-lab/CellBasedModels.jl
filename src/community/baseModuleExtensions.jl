@@ -17,9 +17,15 @@ function Base.getproperty(a::Community,var::Symbol)
         if var in a.declaredSymbols_["Local"]
             pos = findfirst(a.declaredSymbols_["Local"].==var) 
             return @views a.local_[:,pos]
+        elseif var in a.declaredSymbols_["LocalInteraction"]
+            pos = findfirst(a.declaredSymbols_["LocalInteraction"].==var) 
+            return @views a.localInteraction_[:,pos]
         elseif var in a.declaredSymbols_["Identity"]
             pos = findfirst(a.declaredSymbols_["Identity"].==var) 
             return @views a.identity_[:,pos]
+        elseif var in a.declaredSymbols_["IdentityInteraction"]
+            pos = findfirst(a.declaredSymbols_["IdentityInteraction"].==var) 
+            return @views a.identityInteraction_[:,pos]
         elseif var in a.declaredSymbols_["Global"]
             pos = findfirst(a.declaredSymbols_["Global"].==var) 
             return @views a.global_[pos]
@@ -63,11 +69,27 @@ function Base.setproperty!(a::Community,var::Symbol,v::Array{<:Number})
         vec = a.local_
         vec[:,pos] = v
         setfield!(a,:local_,vec)
+    elseif var in a.declaredSymbols_["LocalInteraction"]
+        if size(v) != (a.N,)
+            error("Trying to assign array with shape ", shape(v), ". It should be of size (N,)")
+        end
+        pos = findfirst(a.declaredSymbols_["LocalInteraction"].==var) 
+        vec = a.local_
+        vec[:,pos] = v
+        setfield!(a,:local_,vec)
     elseif var in a.declaredSymbols_["Identity"]
         if size(v) != (a.N,)
             error("Trying to assign array with shape ", shape(v), ". It should be of size (N,)")
         end
         pos = findfirst(a.declaredSymbols_["Identity"].==var) 
+        vec = a.identity_
+        vec[:,pos] = v
+        setfield!(a,:identity_,vec)
+    elseif var in a.declaredSymbols_["IdentityInteraction"]
+        if size(v) != (a.N,)
+            error("Trying to assign array with shape ", shape(v), ". It should be of size (N,)")
+        end
+        pos = findfirst(a.declaredSymbols_["IdentityInteraction"].==var) 
         vec = a.identity_
         vec[:,pos] = v
         setfield!(a,:identity_,vec)
@@ -112,8 +134,12 @@ function Base.setproperty!(a::Community,var::Symbol,v::Number)
     
     if var in a.declaredSymbols_["Local"]
         error("Local parameter ", var, " cannot be assigned with a scalar. Use .= instead.")
+    elseif var in a.declaredSymbols_["LocalInteraction"]
+        error("Local Interaction parameter ", var, " cannot be assigned with a scalar. Use .= instead.")
     elseif var in a.declaredSymbols_["Identity"]
         error("Identity parameter ", var, " cannot be assigned with a scalar. Use .= instead.")
+    elseif var in a.declaredSymbols_["IdentityInteraction"]
+        error("Identity Interaction parameter ", var, " cannot be assigned with a scalar. Use .= instead.")
     elseif var in a.declaredSymbols_["Global"]
         pos = findfirst(a.declaredSymbols_["Global"].==var) 
         a.global_[pos] = v

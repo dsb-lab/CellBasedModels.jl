@@ -102,7 +102,9 @@ mutable struct Community
     radiusInteraction::Union{Real,Array{<:AbstractFloat,1}}
     declaredSymbols_::Dict{String,Array{Symbol}}
     local_::Array{<:AbstractFloat,2}
+    localInteraction_::Array{<:AbstractFloat,2}
     identity_::Array{Int,2}
+    identityInteraction_::Array{Int,2}
     global_::Array{<:AbstractFloat,1}
     globalArray_::Array{Array{Float64},1}
     medium_::Union{Array{<:AbstractFloat,1},Array{<:AbstractFloat,2},Array{<:AbstractFloat,3},Array{<:AbstractFloat,4}}
@@ -121,7 +123,9 @@ function Community(abm::Model; N::Int=1, t::AbstractFloat=0., mediumN::Array{Int
     simulationBox = zeros(FLOAT,dims,2)
     radiusInteraction = 0.
     loc = zeros(FLOAT,N,length(abm.agent.declaredSymbols["Local"]))
+    locInter = zeros(FLOAT,N,length(abm.agent.declaredSymbols["LocalInteraction"]))
     ids = ones(INT,N,length(abm.agent.declaredSymbols["Identity"]))
+    idsInter = ones(INT,N,length(abm.agent.declaredSymbols["IdentityInteraction"]))
     ids[:,1] .= 1:N
     glob = zeros(FLOAT,length(abm.agent.declaredSymbols["Global"]))
     globArray = []
@@ -132,7 +136,7 @@ function Community(abm::Model; N::Int=1, t::AbstractFloat=0., mediumN::Array{Int
 
     declaredSymbols = abm.agent.declaredSymbols
 
-    return Community(dims,t,N,mediumN,simulationBox,radiusInteraction,declaredSymbols,loc,ids,glob,globArray,medium)
+    return Community(dims,t,N,mediumN,simulationBox,radiusInteraction,declaredSymbols,loc,locInter,ids,idsInter,glob,globArray,medium)
 end
 
 function Base.show(io::IO,com::Community)

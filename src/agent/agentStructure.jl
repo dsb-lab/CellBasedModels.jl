@@ -13,7 +13,7 @@ mutable struct Agent
         
     function Agent()
         new(0,
-            Dict{String,Array{Symbol}}("Local"=>Symbol[],"Identity"=>Symbol[],
+            Dict{String,Array{Symbol}}("Local"=>Symbol[],"Identity"=>Symbol[],"LocalInteraction"=>Symbol[],"IdentityInteraction"=>Symbol[],
                                         "Global"=>Symbol[],"GlobalArray"=>Symbol[],"Medium"=>Symbol[]),
             Dict{String,Expr}(),
             BoundaryFlat(0)

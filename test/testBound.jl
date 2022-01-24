@@ -130,7 +130,7 @@
             [b,bMin,bMax]::Local, #Bounce bounds 
             [r,rMin,rMax]::Local, #Hard bounds 
 
-            Equation = begin
+            UpdateVariable = begin
                 d(x) = sx*dt
                 d(y) = sy*dt
                 d(z) = sz*dt
@@ -202,7 +202,7 @@
             [sx,sy,sz]::Local, #Steps
 
 
-            Equation = begin
+            UpdateVariable = begin
                 d(x) = sx*dt
                 d(y) = sy*dt
                 d(z) = sz*dt

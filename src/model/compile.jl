@@ -9,7 +9,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
     
     p = Program_(abm)
     p.integrator = integrator
-    p.integratorMedium = integratorMedium
+    p.integratorMedium = integratorMedium 
     p.neighbors = neighbors
 
     #Update
@@ -19,7 +19,6 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
     arguments_![neighbors](p,platform)
     
     #Declare all the agent properties related functions, arguments, code...
-    addCleanInteraction_!(p,platform)
     addParameters_!(p,platform)
     addCopyInitialisation_!(p,platform)
     addIntegrator_![integrator](p,platform)
@@ -34,8 +33,23 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
     #Saving
     addSaving_![save](p,platform)
 
-    if platform == "gpu"
+    if platform == "cpu"
+        declareCheckNMax = :(limNMax_ = Threads.Atomic{$INT}(1))
+        checkNMax = :(limNMax_[] == 1)
+    else
         gpuConf = :()
+
+        declareCheckNMax = :(limNMax_ = CUDA.ones($INTCUDA,1))
+        checkNMax = :(Core.Array(limNMax_)[1] == 1)
+    end
+
+    cleanLocal = :()
+    if !isempty(p.agent.declaredSymbols["LocalInteraction"])
+        cleanLocal = :(localInteractionV .= 0)
+    end
+    cleanInteraction = :()
+    if !isempty(p.agent.declaredSymbols["IdentityInteraction"])
+        cleanInteraction = :(identityInteractionV .= 0)
     end
 
     program = quote
@@ -49,6 +63,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
             tMax = $FLOAT(tMax)
             t = $FLOAT(com.t)
             N = $INT(com.N)
+            $declareCheckNMax
             #Declaration of variables
             $(p.declareVar)
             #Declaration of functions
@@ -57,13 +72,19 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
             #Execution of the program
             
             $(p.execInit)
-            while t <= (tMax-dt)
+            while t <= (tMax-dt) && $checkNMax
+                $cleanLocal
+                $cleanInteraction
                 $(p.execInloop)
 
                 t += dt
             end
-            $(p.execAfter)
-                
+
+            if $checkNMax
+                $(p.execAfter)
+            else
+                @warn("nMax exceded at t=$t. Please, call again the system declaring a bigger size.")
+            end            
             return $(p.returning)
         end
     end

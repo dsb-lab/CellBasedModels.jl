@@ -25,9 +25,9 @@ The algorithm can be reduced to six kernels invocations performing the following
 """
 function addIntegratorHeun_!(p::Program_, platform::String)
     
-    if  "Equation" in keys(p.agent.declaredUpdates)
+    if  "UpdateVariable" in keys(p.agent.declaredUpdates)
 
-        code = p.agent.declaredUpdates["Equation"]
+        code = p.agent.declaredUpdates["UpdateVariable"]
 
         #Create first interaction parameter kernel if there is any interaction parameter updated
         if "UpdateInteraction" in keys(p.agent.declaredUpdates)
@@ -72,7 +72,7 @@ function addIntegratorHeun_!(p::Program_, platform::String)
         #Create second interaction parameter kernel using localVCopy if there is any
         if "UpdateInteraction" in keys(p.agent.declaredUpdates)
 
-            k3 = loop_(p,p.agent,space,p.agent.declaredUpdates["UpdateInteraction"],platform)
+            k3 = loop_[p.neighbors](p,p.agent.declaredUpdates["UpdateInteraction"],platform)
             for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
                 codeK1 = postwalk(x -> @capture(x,$j) ? :(localVCopy[ic1_,$ii]) : x, k3)
             end
@@ -114,9 +114,16 @@ function addIntegratorHeun_!(p::Program_, platform::String)
             push!(p.args,:dW,:S_)
         end
         if "UpdateInteraction" in keys(p.agent.declaredUpdates)
-            addInteraction1 = [:(@platformAdapt cleanInteraction_!(ARGS_);@platformAdapt interactionStep1_(ARGS_))]
-            addInteraction2 = [:(@platformAdapt cleanInteraction_!(ARGS_);@platformAdapt interactionStep2_(ARGS_))]
-            push!(p.execInit.args, :(@platformAdapt cleanInteraction_!(ARGS_); @platformAdapt interactionStep1_(ARGS_)))
+            cleanLocal = :()
+            if !isempty(p.agent.declaredSymbols["LocalInteraction"])
+                cleanLocal = :(localInteractionV .= 0)
+            end
+            cleanInteraction = :()
+            if !isempty(p.agent.declaredSymbols["IdentityInteraction"])
+                cleanInteraction = :(identityInteractionV .= 0)
+            end
+            addInteraction1 = [:($cleanLocal;$cleanInteraction;@platformAdapt interactionStep1_(ARGS_))]
+            addInteraction2 = [:($cleanLocal;$cleanInteraction;@platformAdapt interactionStep2_(ARGS_))]
         else
             addInteraction1 = []
             addInteraction2 = []

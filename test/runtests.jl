@@ -1,8 +1,6 @@
 using CUDA
 using AgentBasedModels
 using Test
-using Distributions
-using CUDA
 using DataFrames
 import MacroTools: prettify
 
@@ -25,6 +23,7 @@ include("testUpdates.jl")
 include("testIntegrator.jl")
 include("testEvent.jl")
 include("testNeighbors.jl")
-include("testBound.jl")
 include("testSave.jl")
-include("testMedium.jl")
+
+# include("testBound.jl")
+# include("testMedium.jl")

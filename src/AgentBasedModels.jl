@@ -10,7 +10,8 @@ using CUDA
 using DataFrames
 using CSV
 import GeometryBasics, GLMakie
-import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, flatten, unblock
+import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, flatten, unblock, isexpr
+import SpecialFunctions
 #using WriteVTK
 
 export MediumFlat, δMedium_
@@ -35,7 +36,6 @@ export Model, compile
 include("./model/model.jl")
 include("./model/agentCode/basic/addParameters.jl")
 include("./model/agentCode/basic/checkBounds.jl")
-include("./model/agentCode/basic/cleanInteraction.jl")
 include("./model/agentCode/basic/eventRemoveAgent.jl")
 include("./model/agentCode/basic/eventAddAgent.jl")
 include("./model/agentCode/basic/updateGlobal.jl")
@@ -86,8 +86,8 @@ include("./model/cuda/cudaAdapt.jl")
 include("./model/cuda/cudaConfigurator.jl")
 
 #Visualization functions
-export plotSpheres, plotCylinders
-include("./plotting/cylinders.jl")
+export plotSpheres, plotRods
+include("./plotting/rods.jl")
 include("./plotting/spheres.jl")
 
 #Auxiliar function
@@ -95,7 +95,7 @@ include("./auxiliar/checkDeclared.jl")
 include("./auxiliar/clean.jl")
 include("./auxiliar/substitution.jl")
 include("./auxiliar/vectorize.jl")
-include("./auxiliar/arguments.jl")
+# include("./auxiliar/arguments.jl")
 include("./auxiliar/wrapping.jl")
 include("./auxiliar/emptyquote.jl")
 include("./auxiliar/updates.jl")

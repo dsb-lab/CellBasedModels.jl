@@ -24,7 +24,7 @@
             com.x .= 0.
             com.y .= 0.
             com.z .= 0.
-            com.w = rand(Uniform(1,2),com.N)
+            com.w = rand(AgentBasedModels.Uniform(1,2),com.N)
             comt = mo.evolve(com,dt=1.,tMax=100)#,t=0.,N=com.N,nMax=com.N)
 
             for i in 1:10
@@ -82,13 +82,14 @@
             
             UpdateGlobal = 
             begin
-                x1 += 1 
+                x1 += 1
+                y1 += 1 
                 z1 += 2
                 w = Uniform(1.,2.)
             end
         )
         mo = compile(m, platform = i, debug=false)
-        #println(mo.program)
+        # println(mo.program)
 
         @test_nowarn begin
 
@@ -100,9 +101,9 @@
             comt = mo.evolve(com,dt=1.,tMax=10)#,t=0.,N=com.N,nMax=com.N)
 
             for i in 1:10
-                if comt[i].x1 != 1. *(i-1) println("x ", i, " ", comt[i].x);error() end 
-                if comt[i].y1 != 0. println("y ", i, " ", comt[i].y);error() end 
-                if comt[i].z1 != 2. *(i-1) println("z ", i, " ", comt[i].z);error() end 
+                if comt[i].x1 != 1. *(i-1) println("x ", i, " ", comt[i].x1);error() end 
+                if comt[i].y1 != 1. *(i-1) println("y ", i, " ", comt[i].y1);error() end 
+                if comt[i].z1 != 2. *(i-1) println("z ", i, " ", comt[i].z1);error() end 
                 if !prod(Bool((comt[i].w .>= 1) * (comt[i].w .<= 2))) println("w ", i, " ", comt[i].w);error() end 
             end
         end
@@ -111,15 +112,19 @@
         #Update Local Interaction
         m = @agent(
             3,
+            [a,b]::LocalInteraction,
+            [c,d]::IdentityInteraction,
             
             UpdateLocalInteraction = 
             begin
-                x.i += 1
-                z.i += 2
+                a.i += 1
+                b.i += 2
+                c.i += 1
+                d.i += 2
             end
         )
         mo = compile(m, platform = i, debug=false)
-        # println(prettify(mo.program))
+        # println(mo.program)
 
         @test_nowarn begin
 
@@ -127,12 +132,13 @@
             com.x .= 0.
             com.y .= 0.
             com.z .= 0.
-            comt = mo.evolve(com,dt=1.,tMax=10)#,t=0.,N=com.N,nMax=com.N)
+            comt = mo.evolve(com,dt=1.,tMax=15)#,t=0.,N=com.N,nMax=com.N)
 
-            for i in 1:10
-                if comt[i].x != 10*ones(10) println("x ", i, " ", comt[i].x);error() end 
-                if comt[i].y != zeros(10) println("y ", i, " ", comt[i].y);error() end 
-                if comt[i].z != 20*ones(10) println("z ", i, " ", comt[i].z);error() end 
+            for i in 2:length(comt)
+                if comt[i].a != 10*ones(10) println("a ", i, " ", comt[i].a);error() end 
+                if comt[i].b != 20*ones(10) println("b ", i, " ", comt[i].b);error() end 
+                if comt[i].c != 10*ones(10) println("c ", i, " ", comt[i].c);error() end 
+                if comt[i].d != 20*ones(10) println("d ", i, " ", comt[i].d);error() end 
             end
         end
 

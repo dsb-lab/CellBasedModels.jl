@@ -7,7 +7,7 @@ function randomAdapt_(p::Program_, code::Expr, platform::String)
 
     if platform == "cpu"
         for i in VALIDDISTRIBUTIONS
-            code = postwalk(x -> @capture(x,$i(v__)) ? :(rand($i($(v...)))) : x, code)
+            code = postwalk(x -> @capture(x,$i(v__)) ? :(AgentBasedModels.rand(AgentBasedModels.$i($(v...)))) : x, code)
         end
     elseif platform == "gpu"
         for i in VALIDDISTRIBUTIONS
@@ -17,7 +17,7 @@ function randomAdapt_(p::Program_, code::Expr, platform::String)
             else
 
                 s = Meta.parse(string("AgentBasedModels.",i,"CUDA"))
-                code = postwalk(x -> @capture(x,$i(v__)) ? :($s(rand(),$(v...))) : x, code)
+                code = postwalk(x -> @capture(x,$i(v__)) ? :($s(AgentBasedModels.rand(),$(v...))) : x, code)
 
             end
 

@@ -35,7 +35,7 @@ function plotSpheres(a::GLMakie.GridPosition,
             r = radius[i]
         end
             
-        c = GeometryBasics.Sphere(pos,r)
+        c = GeometryBasics.Sphere(pos,Float64(r))
             
         if com.dims == 2 
             GLMakie.meshscatter!(ax,com.x[i:i],com.y[i:i],zeros(1),color="blue",marker=c)

@@ -36,17 +36,6 @@
     @test AgentBasedModels.vectorize_(m,:(id = id), p) == :(identityV[ic1_,1]=identityV[ic1_,1])
     @test AgentBasedModels.vectorize_(m,:(id.i = id.i), p) == :(identityV[ic1_,1]=identityV[ic1_,1])
     @test AgentBasedModels.vectorize_(m,:(id.j = id.j), p) == :(identityV[nnic2_,1]=identityV[nnic2_,1])
-    
-    @test begin
-        m = @agent(
-            0,
-            l::Local,
-            g::Global,
-            h::GlobalArray
-        )
-            
-        prod([i in [:t,:N,:simulationBox,:loc_,:glob_,:id_,:h] for i in AgentBasedModels.agentArguments_(m)])
-    end
 
     @test AgentBasedModels.cudaAdapt_(:(sin(e^2^x))) == :(CUDA.sin(Float32(e)^Float32(2)^x))
     @test AgentBasedModels.cudaAdapt_(:(zeros(e^2))) == :(CUDA.zeros(e^2))
@@ -131,21 +120,21 @@
 
             UpdateLocal = 
             begin
-                l1 += 1
-                l2 = 3
-                id1 = 1
+                l1.new += 1
+                l2.new = 3
+                id1.new = 1
             end,
 
-            Equation =
+            UpdateVariable =
             begin
                 d(x) = a*dt + b*dW
             end,
 
             UpdateGlobal = 
             begin
-                g1 += 1
-                g2 = 0
-                ga1[1,2] += 1
+                g1.new += 1
+                g2.new = 0
+                ga1[1,2].new += 1
             end
         )
         p = AgentBasedModels.Program_(abm); 

@@ -6,28 +6,14 @@ Function that checks the variables in the model that are modified at each step i
 function updates_!(p::Program_)
 
     ##Assign updates of variable types
-    for t in keys(p.agent.declaredSymbols)
+    for t in UPDATINGTYPES
         dict = Dict{Symbol,Int}()
         counter = 1
         for i in p.agent.declaredSymbols[t]
 
             found = false
             for up in keys(p.agent.declaredUpdates)
-                code =  postwalk(x->@capture(x, c_ = f_) && c == i ? :ARGS_ : x , p.agent.declaredUpdates[up])
-                code =  postwalk(x->@capture(x, c_ += f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_ -= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_ *= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_ /= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_ \= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_ ÷= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_ %= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_ ^= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_ &= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_ |= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_ ⊻= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_ >>>= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_ >>= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_ <<= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_.new)  && c == i ? :ARGS_ : x , p.agent.declaredUpdates[up]) #remove agent updates
 
                 if inexpr(code,:ARGS_)
                     found = true
@@ -37,7 +23,7 @@ function updates_!(p::Program_)
 
             #Add symbols that are assigned
             for up in keys(p.agent.declaredUpdates)
-                code =  postwalk(x->@capture(x, c_.g_ = f_) && c == i && g in INTERACTIONSYMBOLS ? :ARGS_ : x , p.agent.declaredUpdates[up])
+                code =  postwalk(x->@capture(x, c_.g_.new) && c == i && g in INTERACTIONSYMBOLS ? :ARGS_ : x , p.agent.declaredUpdates[up])
 
                 if inexpr(code,:ARGS_)
                     found = true
@@ -46,21 +32,7 @@ function updates_!(p::Program_)
             end
             
             for up in keys(p.agent.declaredUpdates)
-                code =  postwalk(x->@capture(x, c_[g__] = f_) && c == i ? :ARGS_ : x , p.agent.declaredUpdates[up])
-                code =  postwalk(x->@capture(x, c_[g__] += f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_[g__] -= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_[g__] *= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_[g__] /= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_[g__] \= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_[g__] ÷= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_[g__] %= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_[g__] ^= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_[g__] &= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_[g__] |= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_[g__] ⊻= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_[g__] >>>= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_[g__] >>= f_) && c == i ? :ARGS_ : x , code)
-                code =  postwalk(x->@capture(x, c_[g__] <<= f_) && c == i ? :ARGS_ : x , code)
+                code =  postwalk(x->@capture(x, c_[g__].new) && c == i ? :ARGS_ : x , p.agent.declaredUpdates[up])
                 
                 if inexpr(code,:ARGS_)
                     found = true
@@ -68,8 +40,8 @@ function updates_!(p::Program_)
                 end
             end
 
-            if "Equation" in keys(p.agent.declaredUpdates)
-                code =  postwalk(x->@capture(x, g_(c_) = f_) && c == i && g == DIFFSYMBOL ? :ARGS_ : x , p.agent.declaredUpdates["Equation"])
+            if "UpdateVariable" in keys(p.agent.declaredUpdates)
+                code =  postwalk(x->@capture(x, g_(c_) = f_) && c == i && g == DIFFSYMBOL ? :ARGS_ : x , p.agent.declaredUpdates["UpdateVariable"])
                 if inexpr(code,:ARGS_)
                     found = true
                 end
@@ -101,8 +73,8 @@ function updates_!(p::Program_)
     counter = 1
     for i in p.agent.declaredSymbols["Local"]
         found = false
-        if "Equation" in keys(p.agent.declaredUpdates)
-            code =  postwalk(x->@capture(x, g_(c_) = f_) && c == i && g == DIFFSYMBOL ? :ARGS_ : x , p.agent.declaredUpdates["Equation"])
+        if "UpdateVariable" in keys(p.agent.declaredUpdates)
+            code =  postwalk(x->@capture(x, g_(c_) = f_) && c == i && g == DIFFSYMBOL ? :ARGS_ : x , p.agent.declaredUpdates["UpdateVariable"])
             if inexpr(code,:ARGS_)
                 found = true
             end
