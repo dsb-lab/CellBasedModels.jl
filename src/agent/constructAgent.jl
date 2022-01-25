@@ -96,9 +96,9 @@ macro agent(dims, varargs...)
                 if !(type in VALID_TYPES)
                     error(i, " should be and expression containing at least a name and a type. Example variable::Variable.") 
                 elseif typeof(name) == Expr
-                    if !(name.head == :vect)
+                    if !(name.head == :vect) && !(name.head == :.)
                         error(name, " should be a symbol or an array of symbols. Check how to declare ", type, " types.")
-                    else
+                    elseif name.head == :vect
                         names = Symbol[]
                         for j in name.args
                             if typeof(j) != Symbol
@@ -107,13 +107,19 @@ macro agent(dims, varargs...)
                             push!(names,j)
                         end
                         name = names
+                    elseif type != :BaseModel
+                        error(i, " should be and expression containing at least a name and a type. Example variable::Variable.") 
                     end
                 end    
 
                 if type == :BaseModel
                     if typeof(name) == Array{Symbol,1}
                         for baseModel in name
-                            baseModel = Main.eval(baseModel)
+                            if inexpr(baseModel,:(AgentBasedModels.Models))
+                                baseModel = eval(baseModel)
+                            else
+                                baseModel = Main.eval(baseModel)
+                            end
 
                             if m.dims != baseModel.dims
                                 error("Base model", name," has different dimensions as model ",baseModel," that is being declared.")
@@ -141,7 +147,11 @@ macro agent(dims, varargs...)
                             end                            
                         end
                     else
-                        baseModel = Main.eval(name)
+                            if inexpr(name,:(AgentBasedModels.Models))
+                                baseModel = eval(name)
+                            else
+                                baseModel = Main.eval(name)
+                            end
 
                         if m.dims != baseModel.dims
                             error("Base model", name," has different dimensions as model ",baseModel," that is being declared.")
