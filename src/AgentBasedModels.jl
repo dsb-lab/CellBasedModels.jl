@@ -102,4 +102,7 @@ include("./auxiliar/updates.jl")
 include("./auxiliar/substitution2.jl")
 include("./auxiliar/extract.jl")
 
+#Implemented models
+include("./implementedModels/models.jl")
+
 end
