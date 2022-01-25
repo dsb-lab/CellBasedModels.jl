@@ -59,7 +59,7 @@ function addAgentCode(g,p,platform;rem=false)
                 id = idNew_
                 $code
             else
-                Threads.atomic_add!(NV,$INT(-1))
+                CUDA.atomic_add!(CUDA.pointer(NV,1),$INTCUDA(-1))
                 limNMax_[1] = 0
             end
         end
