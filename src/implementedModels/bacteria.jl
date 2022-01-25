@@ -1,10 +1,31 @@
 """
-Bacterial model of rod interacting cylinders.
+Bacterial model of pysical interactions.
+
+Bacterial cells are implemented as rod shape like bacteria. The model is implemented in https://www.pnas.org/content/105/40/15346.
+
+Parameters:
+
+vx,vy (Local): Velocity of the center of mass in the x,y directions
+theta (Local): orientation of the rod along the symmetry axis
+ω (Local): Angular velocity
+d (Local): Diameter of the cylinder
+l (Local): Length of the cylinder
+m (Local): Mass of the cylinder
+fx,fy (LocalInteraction): Forces in the x,y directions
+W (LocalInteraction): Angular momentum
+kn (Global): Strength of repulsion
+γn (Global): Material coefficient tangential
+γt (Global): Material coefficient tangential
+μcc (Global): Friction coefficient of cell-cell
+β (Global): Fricction coeficient
+βω (Global): Angular friction coefficient
+
+For more details check the paper of the Documentation on the Models section.
 """
 Bacteria2D = @agent(2,
-[vx,vy,theta,ω,d,l,m,I]::Local, #Local parameters
-[Fx,Fy,W]::LocalInteraction,    #Local Interaction Parameters
-[kn,γn,γt,μcc,μcw,β,βω]::Global,#Global parameters
+[vx,vy,theta,ω,d,l,m]::Local, #Local parameters
+[fx,fy,W]::LocalInteraction,    #Local Interaction Parameters
+[kn,γn,γt,μcc,β,βω]::Global,#Global parameters
 
 UpdateInteraction = begin
     #Compute distance between centers of mass
@@ -123,8 +144,8 @@ UpdateInteraction = begin
             Fijx = FnAux*nijx + FtAux*(vijx-vnAux*nijx)
             Fijy = FnAux*nijy + FtAux*(vijy-vnAux*nijy)
             #Append the interaction forces
-            Fx.i += Fijx
-            Fy.i += Fijy
+            fx.i += Fijx
+            fy.i += Fijy
             #Append radial forces
             W.i += ((xiAux-x.i)*Fijy - (yiAux-y.i)*Fijx)
         end
@@ -134,8 +155,8 @@ end,
 UpdateVariable = begin
     d(x) = vx*dt
     d(y) = vy*dt
-    d(vx) = -β*vx*dt+Fx/m*dt
-    d(vy) = -β*vy*dt+Fy/m*dt
+    d(vx) = -β*vx*dt+fx/m*dt
+    d(vy) = -β*vy*dt+fy/m*dt
     d(ω) = W/(m*(d+l)^2/12+m*d^2)*dt-βω*ω*dt
     d(theta) = ω*dt
 end,
@@ -148,3 +169,99 @@ UpdateLocal = begin #Bound cells
     end
 end
 );
+
+
+"""
+Bacterial model of pysical interactions within a 2D channel where the Y-axis boundaries are closed and agents leaving the X-axis are removed.
+
+Bacterial cells are implemented as rod shape like bacteria. The model is implemented in https://www.pnas.org/content/105/40/15346.
+
+Parameters:
+
+vx,vy (Local): Velocity of the center of mass in the x,y directions
+theta (Local): orientation of the rod along the symmetry axis
+ω (Local): Angular velocity
+d (Local): Diameter of the cylinder
+l (Local): Length of the cylinder
+m (Local): Mass of the cylinder
+fx,fy (LocalInteraction): Forces in the x,y directions
+W (LocalInteraction): Angular momentum
+kn (Global): Strength of repulsion
+γn (Global): Material coefficient tangential
+γt (Global): Material coefficient tangential
+μcc (Global): Friction coefficient of cell-cell
+μcw (Global): Friction coefficient of cell-wall
+β (Global): Fricction coeficient
+βω (Global): Angular friction coefficient
+
+For more details check the paper of the Documentation on the Models section.
+"""
+Bacteria2DChannel = @agent(2,
+
+            μcw::Global,
+    
+            #Add boundary characteristics
+            UpdateVariable=begin
+        
+                #Boundary conditions in y
+                xiAux = 0; yiAux = 0; xjAux=0; yjAux=0; #Declare them in the global scope
+                if y + l/2 + d/2 > simulationBox[2,2] || y - l/2 - d/2 < simulationBox[2,1] #In the upper boundary region
+                    signAux = -1; yjAux = simulationBox[2,1]
+                    if y + l/2 + d/2 > simulationBox[2,2] 
+                        signAux = +1
+                        yjAux = simulationBox[2,2]
+                    end
+                    if abs(sin(theta)) > .0001 #If is some angle against the wall
+                        a = sin(theta)
+                        xiAux = x + signAux*sign(a)*cos(theta)*l/2
+                        yiAux = y + signAux*abs(a)*l/2
+                    else #Otherwise
+                        xiAux = x
+                        yiAux = y
+                    end
+            
+                    if yiAux >= simulationBox[2,2] || yiAux <= simulationBox[2,1]#If the bead has surpassed the axis
+                        xjAux = xiAux
+                        yjAux = yiAux+signAux*0.00001
+                    else
+                        xjAux = xiAux
+                    end
+            
+            #println(y," ",xiAux," ",yiAux," ",xjAux," ",yjAux)
+            
+                    #Compute distance between virtual spheres
+                    rij = sqrt((xiAux-xjAux)^2 +(yiAux-yjAux)^2)
+                    if rij > 0 && rij < d #If it is smaller than a diameter
+                        #Compute auxiliar
+                        δAux = d - rij
+                        MeAux = m.i/2
+                        #Compute interaction
+                        nijx = (xiAux-xjAux)/rij
+                        nijy = (yiAux-yjAux)/rij
+                        vijx = vx
+                        vijy = vy
+                        #Compute inner product
+                        vnAux = nijx*vijx+nijy*vijy
+                        #Compute normal and tangential forces
+                        FnAux = kn*δAux^1.5-γn*MeAux*δAux*vnAux
+                        FtAux = -min(γt*MeAux*δAux^.5,μcw*FnAux)
+                        #Compute the interaction forces
+                        Fijx = FnAux*nijx + FtAux*(vijx-vnAux*nijx)
+                        Fijy = FnAux*nijy + FtAux*(vijy-vnAux*nijy)
+                        #Append the interaction forces
+                        Fx += Fijx
+                        Fy += Fijy
+                        #Append radial forces
+                        W += ((xiAux-x)*Fijy - (yiAux-y)*Fijx)
+                    end
+                 end
+            end,
+    
+            UpdateLocal = begin
+                if x < simulationBox[1,1] || x > simulationBox[1,2]
+                    removeAgent()
+                end
+            end,
+    
+            UpdateInteraction::BaseModel #Put the other first as I want it to be computed before the motion equations
+        )
