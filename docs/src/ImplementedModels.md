@@ -28,9 +28,7 @@ This implementation follows the model of [Volfson et al.](https://www.pnas.org/c
 The forces that the rods feel are computed by the closest virtual spheres in contact. For a rod of mass $m$.
 
 ```math
-$\begin{aligned}
 \bold{f}_{ij}=f_n\bold{n}_{ij}+f_t\bold{v}_t
-\end{aligned}$
 ```
 
 where ``\bold{n}_{ij}`` if the normal vector between between the center of the spheres, defined as ``\bold{n}_{ij}=(\bold{r}_i-\bold{r}_j)/r_{ij}``; and the normal and tangential forces are defined as
