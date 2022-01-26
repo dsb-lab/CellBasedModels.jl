@@ -27,31 +27,37 @@ This implementation follows the model of [Volfson et al.](https://www.pnas.org/c
 
 The forces that the rods feel are computed by the closest virtual spheres in contact. For a rod of mass $m$.
 
+```math
 $\begin{equation}
 \bold{f}_{ij}=f_n\bold{n}_{ij}+f_t\bold{v}_t
 \end{equation}$
+```
 
-where $\bold{n}_{ij}$ if the normal vector between between the center of the spheres, defined as $\bold{n}_{ij}=(\bold{r}_i-\bold{r}_j)/r_{ij}$; and the normal and tangential forces are defined as
+where ``\bold{n}_{ij}`` if the normal vector between between the center of the spheres, defined as ``\bold{n}_{ij}=(\bold{r}_i-\bold{r}_j)/r_{ij}``; and the normal and tangential forces are defined as
 
-$\begin{equation}
+```math
+\begin{equation}
 \begin{cases}
 f_n=k_n\delta^{3/2}-\gamma_n \frac{m}{2}\delta v_n\\
 f_t=-\min(\gamma_t\frac{m}{2}\delta^{1/2},\mu_{cc}f_n)
 \end{cases}
-\end{equation}$
+\end{equation}
+```
 
-and $\delta=d-r_{ij}$, $v_n=\bold{v}_{ij}·\bold{n}_{ij}$ and $\bold{v}_t=\bold{v}_{ij}-v_n\bold{n}_{ij}$.
+and ``\delta=d-r_{ij}``, ``v_n=\bold{v}_{ij}·\bold{n}_{ij}`` and ``\bold{v}_t=\bold{v}_{ij}-v_n\bold{n}_{ij}``.
 
-The equations of for a bacteria $i$ are given by
+The equations of for a bacteria ``i`` are given by
 
-$\begin{equation}
+```math
+\begin{equation}
 \begin{cases}
 m\ddot{\bold{r}_i}=\sum_s\bold{f}_{s}-\beta m \bold{v}\\
 \bold{I}·\dot{\bold{\omega}}_i=\sum_s(\bold{r}_s-\bold{r_i})\times\bold{f}_s - \beta_\omega\omega
 \end{cases}
-\end{equation}$
+\end{equation}
+```
 
-where $s$ denotes for the sum over the virtual interacting spheres acting on bacteria $i$ and $\bold{i}$ is the tensor of inertia of a cylinder.
+where ``s`` denotes for the sum over the virtual interacting spheres acting on bacteria $i$ and $\bold{i}$ is the tensor of inertia of a cylinder.
 
 ### Bacteria2DChannel
 
