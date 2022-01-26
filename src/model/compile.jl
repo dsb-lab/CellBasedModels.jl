@@ -56,12 +56,12 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
         function (com::Community;
                 dt::Real, tMax::Real,
                 nMax::Integer=com.N, 
-                dtSave::Real=dt,
-                tSave::Real=0, saveFile::String="")
+                dtSave::Real=dt, saveFile::String="")
             #Promoting to the correct type
             dt = $FLOAT(dt)
             tMax = $FLOAT(tMax)
             t = $FLOAT(com.t)
+            tSave = t+dtSave
             N = $INT(com.N)
             $declareCheckNMax
             #Declaration of variables
