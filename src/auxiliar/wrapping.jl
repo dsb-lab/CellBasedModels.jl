@@ -8,7 +8,7 @@ function simpleFirstLoop_(platform::String, code::Expr)
     if platform == "cpu"
         code = 
             quote
-                Threads.@threads for ic1_ in 1:N
+                Threads.@threads for ic1_ in 1:1:N
                     $code                    
                 end
             end
