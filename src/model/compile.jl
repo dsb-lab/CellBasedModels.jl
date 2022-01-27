@@ -3,21 +3,27 @@
 
 Function that takes an Agent and a simulation and constructs the function in charge of the evolutions of the model.
 """
-function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", 
+function compile(abmOriginal::Union{Agent,Array{Agent}}; 
+    platform="cpu", 
     integrator::String = "Euler", 
     integratorMedium::String = "FTCS", 
-    neighbors::String="full", 
+    neighbors::String="full", periodic::Vector{Bool}=[false,false,false],
     save::String = "RAM", 
     debug = false, 
     user_=true,
     checkInBounds=true)
 
     abm = deepcopy(abmOriginal)
+
+    if length(periodic) < abm.dims
+        error("periodic property must be at leas the same length as the dimensions of the model.")
+    end
     
     p = Program_(abm)
     p.integrator = integrator
     p.integratorMedium = integratorMedium 
     p.neighbors = neighbors
+    p.neighborsPeriodic = periodic
 
     #Update
     updates_!(p)
@@ -68,7 +74,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu",
             dt = $FLOAT(dt)
             tMax = $FLOAT(tMax)
             t = $FLOAT(com.t)
-            tSave = t+dtSave
+            tSave = t
             N = $INT(com.N)
             $declareCheckNMax
             #Declaration of variables
