@@ -45,7 +45,9 @@ RESERVEDSYMBOLS = [:x,:y,:z,:id,:t,:N,:dt,:dW,:nMax,
                     :ALGORITHM_,:ARGS_,:AUX1_,:AUX2_,
                     :limNMax_,
                     :index_,:stride_,:lockadd_,
-                    :∇,:∇x,:∇y,:∇z,:Δ,:Δx,:Δy,:Δz,:δx,:δy,:δz,:xₘ,:yₘ,:zₘ,:∑ₐ,:∑ₙ];
+                    :Nx_,:Ny_,:Nz_,
+                    :∇,:∇x,:∇y,:∇z,:Δ,:Δx,:Δy,:Δz,:δx,:δy,:δz,:xₘ,:yₘ,:zₘ,
+                    :newmannX,:dirichletX,:periodicX,:newmannY,:dirichletY,:periodicY,:newmannZ,:dirichletZ,:periodicZ];
 
 GLOBALARRAYCOPY = "_Copy"
 
@@ -58,6 +60,11 @@ INTERACTIONSYMBOLSDICT = Dict([:i=>"[ic1_,VAR]",:j=>"[nnic2_,VAR]"])
 
 DIFFMEDIUMSYMBOL = :∂t
 MEDIUMSYMBOLS = [:∂t,:∇,:∇x,:∇y,:∇z,:Δ,:Δx,:Δy,:Δz,:δr]
+MEDIUMBOUNDARYSYMBOLS = [1=>{:newmannXmin,:newmannXmax,:dirichletXmin,:dirichletXmax,:periodicX},
+                        2=>{:newmannYmin,:newmannYmax,:dirichletYmin,:dirichletYmax,:periodicY},
+                        3=>{:newmannZmin,:newmannZmax,:dirichletZmin,:dirichletZmax,:periodicZ}]
+MEDIUMITERATIONSYMBOLS = [:ic1_,:ic2_,:ic3_]
+MEDIUMSUMATIONSYMBOLS = [:Nx_,:Ny_,:Nz_]
 
 #Adaptation functions
 GPUINFUNCTION = 

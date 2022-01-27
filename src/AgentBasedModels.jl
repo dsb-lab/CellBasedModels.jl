@@ -22,14 +22,9 @@ include("./constants/constants.jl")
 
 #Agent
 export @agent, Agent
-export BoundaryFlat, Periodic, Bounded, Free
-export PeriodicBoundaryCondition, DirichletBoundaryCondition, DirichletBoundaryCondition_NewmannBoundaryCondition, NewmannBoundaryCondition, NewmannBoundaryCondition_DirichletBoundaryCondition
-include("./agent/boundary/boundaryAbstract.jl")
-include("./agent/boundary/boundaryFlatStructures.jl")
 include("./agent/agentStructure.jl")
 include("./agent/constructAgent.jl")
 include("./model/structProgram.jl") #Structure
-include("./agent/boundary/boundaryFlatFunctions.jl")
 
 #Model
 export Model, compile
@@ -41,6 +36,7 @@ include("./model/agentCode/basic/eventAddAgent.jl")
 include("./model/agentCode/basic/updateGlobal.jl")
 include("./model/agentCode/basic/updateLocal.jl")
 include("./model/agentCode/basic/updateLocalInteraction.jl")
+include("./model/agentCode/basic/updateMediumBoundaries.jl")
 include("./model/compile.jl")
 
 #Community
