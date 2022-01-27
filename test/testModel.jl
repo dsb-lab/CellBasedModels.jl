@@ -17,10 +17,8 @@
             end,
             UpdateInteraction = l.i += 1,
             UpdateLocalInteraction = l.i += 1,
-
-            Boundary = BoundaryFlat(1)
         )
-        compile(m, platform="cpu",debug=false)
+        m = compile(m, platform="cpu",debug=false,checkInBounds=true)
     end
 
 end

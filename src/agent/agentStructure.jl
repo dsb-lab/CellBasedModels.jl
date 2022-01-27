@@ -9,14 +9,12 @@ mutable struct Agent
     
     declaredSymbols::Dict{String,Array{Symbol,1}}
     declaredUpdates::Dict{String,Expr}
-    boundary::Boundary
         
     function Agent()
         new(0,
             Dict{String,Array{Symbol}}("Local"=>Symbol[],"Identity"=>Symbol[],"LocalInteraction"=>Symbol[],"IdentityInteraction"=>Symbol[],
                                         "Global"=>Symbol[],"GlobalArray"=>Symbol[],"Medium"=>Symbol[]),
-            Dict{String,Expr}(),
-            BoundaryFlat(0)
+            Dict{String,Expr}()
             )
     end
 end

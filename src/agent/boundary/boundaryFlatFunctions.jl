@@ -179,113 +179,257 @@ end
 #######################################################################################
 #Return computation over boundaries
 #######################################################################################
-function boundariesFunctionDefinition(b::BoundaryFlat,p::Program_, platform::String)
+# function boundariesFunctionDefinition(b::Vector{Symbol},p::Program_, platform::String)
 
-    #Make function to compute the boundaries
-    code = quote end
+#     #Make function to compute the boundaries
+#     code = quote end
 
-    lUpdate = length(p.agent.declaredSymbols["Medium"])
-    for i in 1:p.agent.dims #Adapt boundary updates depending on the boundary type
-        ic = Meta.parse(string("ic",i,"_"))
-        nm = Meta.parse(string("N",["x","y","z"][i],"_"))
-        subcode = quote end
+#     lUpdate = length(p.agent.declaredSymbols["Medium"])
+#     for i in 0:p.agent.dims-1 #Adapt boundary updates depending on the boundary type
+#         ic = Meta.parse(string("ic",i+1,"_"))
+#         nm = Meta.parse(string("N",["x","y","z"][i+1],"_"))
+#         subcode = quote end
 
-        if p.agent.dims == 1
-            v = :(mediumVCopy[ic1_,ic4_])
-            v2 = :(mediumV[ic1_,ic4_])
-        elseif p.agent.dims == 2
-            v = :(mediumVCopy[ic1_,ic2_,ic4_])
-            v2 = :(mediumV[ic1_,ic2_,ic4_])
-        elseif p.agent.dims == 3
-            v = :(mediumVCopy[ic1_,ic2_,ic3_,ic4_])
-            v2 = :(mediumV[ic1_,ic2_,ic3_,ic4_])
-        end
+#         if p.agent.dims == 1
+#             v = :(mediumVCopy[ic1_,$up])
+#             v2 = :(mediumV[ic1_,$up])
+#         elseif p.agent.dims == 2
+#             v = :(mediumVCopy[ic1_,ic2_,$up])
+#             v2 = :(mediumV[ic1_,ic2_,$up])
+#         elseif p.agent.dims == 3
+#             v = :(mediumVCopy[ic1_,ic2_,ic3_,$up])
+#             v2 = :(mediumV[ic1_,ic2_,ic3_,$up])
+#         end
 
-        if b.boundaries[i].medium == PeriodicBoundaryCondition
+#         if b[2*i+1] == :Periodic
 
-            #Lower boundary
-            vUp = postwalk(x->@capture(x, t_) && t == ic ? 1 : x, v)
-            vAss = postwalk(x->@capture(x, t_) && t == ic ? :($nm-1) : x, v)
+#             #Lower boundary
+#             vUp = postwalk(x->@capture(x, t_) && t == ic ? 1 : x, v)
+#             vAss = postwalk(x->@capture(x, t_) && t == ic ? :($nm-1) : x, v)
 
-            push!(subcode.args, :($vUp=$vAss))
+#             push!(subcode.args, :($vUp=$vAss))
 
-            #Upper boundary
-            vUp = postwalk(x->@capture(x, t_) && t == ic ? :($nm) : x, v)
-            vAss = postwalk(x->@capture(x, t_) && t == ic ? 2 : x, v)
+#             #Upper boundary
+#             vUp = postwalk(x->@capture(x, t_) && t == ic ? :($nm) : x, v)
+#             vAss = postwalk(x->@capture(x, t_) && t == ic ? 2 : x, v)
 
-            push!(subcode.args, :($vUp=$vAss))
+#             push!(subcode.args, :($vUp=$vAss))
 
-        end
+#         end
 
-        xMin = [:(simulationBox[1,1]) :(ic2_*(simulationBox[2,2]-simulationBox[2,1])/Ny_+simulationBox[2,1]) :(ic3_*(simulationBox[3,2]-simulationBox[3,1])/Nz_+simulationBox[3,1]);
-        :(ic1_*(simulationBox[1,2]-simulationBox[1,1])/Nx_+simulationBox[1,1]) :(simulationBox[2,1]) :(ic3_*(simulationBox[3,2]-simulationBox[3,1])/Nz_+simulationBox[3,1]);
-        :(ic1_*(simulationBox[1,2]-simulationBox[1,1])/Nx_+simulationBox[1,1]) :(ic2_*(simulationBox[2,2]-simulationBox[2,1])/Ny_+simulationBox[2,1]) :(simulationBox[3,1])]
+#         if b[2*i+1] == :Newmann
 
-        xMax = [:(simulationBox[1,2]) :(ic2_*(simulationBox[2,2]-simulationBox[2,1])/Ny_+simulationBox[2,1]) :(ic3_*(simulationBox[3,2]-simulationBox[3,1])/Nz_+simulationBox[3,1]);
-        :(ic1_*(simulationBox[1,2]-simulationBox[1,1])/Nx_+simulationBox[1,1]) :(simulationBox[2,2]) :(ic3_*(simulationBox[3,2]-simulationBox[3,1])/Nz_+simulationBox[3,1]);
-        :(ic1_*(simulationBox[1,2]-simulationBox[1,1])/Nx_+simulationBox[1,1]) :(ic2_*(simulationBox[2,2]-simulationBox[2,1])/Ny_+simulationBox[2,1]) :(simulationBox[3,2])]
+#             #Lower boundary
+#             vUp = postwalk(x->@capture(x, t_) && t == ic ? 1 : x, v)
+#             vUp2 = postwalk(x->@capture(x, t_) && t == ic ? 2 : x, v2) #Original medium variable
 
-        if typeof(b.boundaries[i].medium) in [NewmannBoundaryCondition,NewmannBoundaryCondition_DirichletBoundaryCondition]
+#             xmax = [2,2,2]
+#             xmin = [2,2,2]
+#             xmin[i+1] = 1
+#             xmax = xmax[1:p.agent.dims]
+#             xmin = xmin[1:p.agent.dims]
+#         end            
 
-            #Lower boundary
-            vUp = postwalk(x->@capture(x, t_) && t == ic ? 1 : x, v)
-            vUp2 = postwalk(x->@capture(x, t_) && t == ic ? 2 : x, v2) #Original medium variable
+#         if b[2*i+2] == :Newmann
 
-            x = xMin[i,1:p.agent.dims]
-            push!(subcode.args, :($vUp=$(b.boundaries[i].medium.fMin)($(x...),t)*$vUp2+$vUp2))
+#             #Upper boundary
+#             vUp = postwalk(x->@capture(x, t_) && t == ic ? nm : x, v)
+#             vUp2 = postwalk(x->@capture(x, t_) && t == ic ? :($nm-1) : x, v2) #Original medium variable
 
-        end            
+#             xmax = Array{Union{Expr,Symbol}}([:Nx_,:Ny_,:Nz_])
+#             xmin = Array{Union{Expr,Symbol}}([:Nx_,:Ny_,:Nz_])
+#             xmin[i+1] = :($(xmin[i+1])-1)
+#             xmax = xmax[1:p.agent.dims]
+#             xmin = xmin[1:p.agent.dims]
+#             println(:($vUp=(mediumV[$(xmax...),$up]-mediumV[$(xmin...),$up])/dt*$vUp2+$vUp2))
+#             push!(subcode.args, :($vUp=(mediumV[$(xmax...),$up]-mediumV[$(xmin...),$up])/dt*$vUp2+$vUp2))
 
-        if typeof(b.boundaries[i].medium) in [NewmannBoundaryCondition,DirichletBoundaryCondition_NewmannBoundaryCondition]
+#         end   
 
-            #Upper boundary
-            vUp = postwalk(x->@capture(x, t_) && t == ic ? nm : x, v)
-            vUp2 = postwalk(x->@capture(x, t_) && t == ic ? :($nm-1) : x, v2) #Original medium variable
+#         if b[2*i+1] == :Dirichlet
 
-            x = xMin[i,1:p.agent.dims]
-            push!(subcode.args, :($vUp=$(b.boundaries[i].medium.fMax)($(x...),t)*$vUp2+$vUp2))
+#             #Lower boundary
+#             vUp = postwalk(x->@capture(x, t_) && t == ic ? 1 : x, v)
 
-        end   
+#             # x = xMin[i+1,1:p.agent.dims]
+#             # push!(subcode.args, :($vUp=$(b.boundaries[i].medium.fMin)($(x...),t)))
 
-        if typeof(b.boundaries[i].medium) in [DirichletBoundaryCondition,DirichletBoundaryCondition_NewmannBoundaryCondition]
+#         end            
 
-            #Lower boundary
-            vUp = postwalk(x->@capture(x, t_) && t == ic ? 1 : x, v)
+#         if b[2*i+2] == :Dirichlet
 
-            x = xMin[i,1:p.agent.dims]
-            push!(subcode.args, :($vUp=$(b.boundaries[i].medium.fMin)($(x...),t)))
-
-        end            
-
-        if typeof(b.boundaries[i].medium) in [DirichletBoundaryCondition,NewmannBoundaryCondition_DirichletBoundaryCondition]
-
-            #Upper boundary
-            vUp = postwalk(x->@capture(x, t_) && t == ic ? nm : x, v)
+#             #Upper boundary
+#             vUp = postwalk(x->@capture(x, t_) && t == ic ? nm : x, v)
             
-            x = xMax[i,1:p.agent.dims]
-            update = :($vUp=$(b.boundaries[i].medium.fMax)($(x...),t))
+#             # x = xMax[i+1,1:p.agent.dims]
+#             # update = :($vUp=$(b.boundaries[i].medium.fMax)($(x...),t))
 
-            push!(subcode.args, update)
+#             # push!(subcode.args, update)
 
+#         end
+
+#         subcode = :(for $up in 1:$lUpdate
+#                         $subcode
+#                     end
+#                 )
+
+#         subcode = simpleGridLoop_(platform,subcode,p.agent.dims-1, indexes = [1,2,3][findall([1,2,3].!=i)])
+
+#         push!(code.args,subcode) 
+
+#     end
+
+#     f = wrapInFunction_(:mediumBoundaryStep_!,code)
+
+#     push!(p.declareF.args,f)
+# end
+
+function changeARGS(code,f)
+    code = postwalk(x -> @capture(ARRGS_, x) ? f : x, code)
+
+    return code
+end
+
+function boundariesFunctionDefinition(p::Program_, platform::String)
+
+    if "UpdateMediumBoundary" in keys(p.agent.declaredUpdates)
+
+        code = p.agent.declaredUpdates["UpdateMediumBoundary"]
+
+        #For all axis
+        codMin = quote end
+        codMax = quote end
+        codPer = quote end
+        for i in ["x","y","z"][1:p.agent.dims]
+            d1 = MetaTools.parse(string("∂Min$i"))
+            d2 = MetaTools.parse(string("∂Max$i"))
+            d3 = MetaTools.parse(string("periodic$i"))
+            push!(codxMin.args,:($d1($s) = ARGS_))
+            push!(codxMax.args,:($d2($s) = ARGS_))
+            push!(codxPer.args,:($d3($s)))
         end
+        code = postwalk(x -> @capture(∂Min() = f_, x) ? changeARGS(codMin,f) : x, code)
+        code = postwalk(x -> @capture(∂Max() = f_, x) ? changeARGS(codMax,f) : x, code)
+        code = postwalk(x -> @capture(periodic(), x) ? codxPer : x, code)
 
-        if !(typeof(b.boundaries[i]) in [Bounded,Periodic])
-            error("Boundary has to be a bounded boundary but some was set to a non-valid type: ", [typeof(i) for i in b.boundaries])
+        #For axis symbols
+        codxMin = quote end
+        codyMin = quote end
+        codzMin = quote end
+        codxMax = quote end
+        codyMax = quote end
+        codzMax = quote end
+        codxPer = quote end
+        codyPer = quote end
+        codzPer = quote end
+        for s in p.agent.declaredSymbols["Medium"]
+            push!(codxMin.args,:(∂xMin($s) = ARGS_))
+            push!(codyMin.args,:(∂yMin($s) = ARGS_))
+            push!(codzMin.args,:(∂zMin($s) = ARGS_))
+            push!(codxMax.args,:(∂xMax($s) = ARGS_))
+            push!(codyMax.args,:(∂yMax($s) = ARGS_))
+            push!(codxMax.args,:(∂zMax($s) = ARGS_))
+            push!(codxPer.args,:(periodicx($s)))
+            push!(codyPer.args,:(periodicy($s)))
+            push!(codzPer.args,:(periodicz($s)))
         end
+        code = postwalk(x -> @capture(∂xMin() = f_, x) ? changeARGS(codxMin,f) : x, code)
+        code = postwalk(x -> @capture(∂yMin() = f_, x) ? changeARGS(codyMin,f) : x, code)
+        code = postwalk(x -> @capture(∂zMin() = f_, x) ? changeARGS(codzMin,f) : x, code)
+        code = postwalk(x -> @capture(∂xMax() = f_, x) ? changeARGS(codxMax,f) : x, code)
+        code = postwalk(x -> @capture(∂yMax() = f_, x) ? changeARGS(codyMax,f) : x, code)
+        code = postwalk(x -> @capture(∂zMax() = f_, x) ? changeARGS(codzMax,f) : x, code)
+        code = postwalk(x -> @capture(periodicx(), x) ? codxPer : x, code)
+        code = postwalk(x -> @capture(periodicy(), x) ? codyPer : x, code)
+        code = postwalk(x -> @capture(periodicz(), x) ? codzPer : x, code)
 
-        subcode = :(for ic4_ in 1:$lUpdate
-                        $subcode
-                    end
-                )
+        #For each symbol
+        for (i,s) in enumerate(p.agent.declaredSymbols["Medium"])
 
-        subcode = simpleGridLoop_(platform,subcode,p.agent.dims-1, indexes = [1,2,3][findall([1,2,3].!=i)])
+            up = p.update["Medium"][s]
 
-        push!(code.args,subcode) 
+            #Neumann
+            ind1 = copy(ind); ind2 = copy(ind)
+            ind1[1] = :(2); ind2[1] = :(1) 
+            code = postwalk(x -> @capture(∂xMin(ss_) = f_, x) && ss == s ? :(mediumVCopy[$(ind2...),$up] = mediumV[$(ind1...),$i] - ($f)*dx_) : x, code)
 
+            ind1 = copy(ind); ind2 = copy(ind)
+            ind1[1] = :(Nx_-1); ind2[1] = :(Nx_) 
+            code = postwalk(x -> @capture(∂xMax(ss_) = f_, x) && ss == s ? :(mediumVCopy[$(ind2...),$up] = mediumV[$(ind1...),$i] - ($f)*dx_) : x, code)
+
+            ind1 = copy(ind); ind2 = copy(ind)
+            ind1[2] = :(2); ind2[2] = :(1) 
+            code = postwalk(x -> @capture(∂yMin(ss_) = f_, x) && ss == s ? :(mediumVCopy[$(ind2...),$up] = mediumV[$(ind1...),$i] - ($f)*dy_) : x, code)
+
+            ind1 = copy(ind); ind2 = copy(ind)
+            ind1[2] = :(Ny_-1); ind2[2] = :(Ny_) 
+            code = postwalk(x -> @capture(∂yMax(ss_) = f_, x) && ss == s ? :(mediumVCopy[$(ind2...),$up] = mediumV[$(ind1...),$i] - ($f)*dy_) : x, code)
+
+            ind1 = copy(ind); ind2 = copy(ind)
+            ind1[3] = :(2); ind2[3] = :(1) 
+            code = postwalk(x -> @capture(∂zMin(ss_) = f_, x) && ss == s ? :(mediumVCopy[$(ind2...),$up] = mediumV[$(ind1...),$i] - ($f)*dz_) : x, code)
+
+            ind1 = copy(ind); ind2 = copy(ind)
+            ind1[3] = :(Nz_-1); ind2[3] = :(Nz_) 
+            code = postwalk(x -> @capture(∂zMax(ss_) = f_, x) && ss == s ? :(mediumVCopy[$(ind2...),$up] = mediumV[$(ind1...),$i] - ($f)*dz_) : x, code)
+
+            #Periodic
+            ind1 = copy(ind); ind2 = copy(ind); ind3 = copy(ind); ind4 = copy(ind)
+            ind1[1] = :(2); ind2[1] = :(1); ind3[1] = :(Nx_-1); ind4[1] = :(Nx_) 
+            code = postwalk(x -> @capture(periodicx(ss_), x) && ss == s ? 
+            :(begin 
+            mediumVCopy[$(ind4...),$up] = mediumV[$(ind1...),$i]
+            mediumVCopy[$(ind3...),$up] = mediumV[$(ind2...),$i]        
+            end)
+            : x, code)
+
+            ind1 = copy(ind); ind2 = copy(ind); ind3 = copy(ind); ind4 = copy(ind)
+            ind1[2] = :(2); ind2[2] = :(1); ind3[2] = :(Ny_-1); ind4[2] = :(Ny_) 
+            code = postwalk(x -> @capture(periodicx(ss_), x) && ss == s ? 
+            :(begin 
+            mediumVCopy[$(ind4...),$up] = mediumV[$(ind1...),$i]
+            mediumVCopy[$(ind3...),$up] = mediumV[$(ind2...),$i]        
+            end)
+            : x, code)
+
+            ind1 = copy(ind); ind2 = copy(ind); ind3 = copy(ind); ind4 = copy(ind)
+            ind1[3] = :(2); ind2[3] = :(1); ind3[3] = :(Nz_-1); ind4[3] = :(Nz_) 
+            code = postwalk(x -> @capture(periodicx(ss_), x) && ss == s ? 
+            :(begin 
+            mediumVCopy[$(ind4...),$up] = mediumV[$(ind1...),$i]
+            mediumVCopy[$(ind3...),$up] = mediumV[$(ind2...),$i]        
+            end)
+            : x, code)
+
+            #Dirichlet
+            ind2 = copy(ind)
+            ind2[1] = :(1) 
+            code = postwalk(x -> @capture(ss_.min = f_, x) && ss == s ? :(mediumVCopy[$(ind2...),$up] = $f) : x, code)
+
+            ind2 = copy(ind)
+            ind2[1] = :(Nx_) 
+            code = postwalk(x -> @capture(ss_.max = f_, x) && ss == s ? :(mediumVCopy[$(ind2...),$up] = $f) : x, code)
+
+            ind2 = copy(ind)
+            ind2[2] = :(1) 
+            code = postwalk(x -> @capture(ss_.min = f_, x) && ss == s ? :(mediumVCopy[$(ind2...),$up] = $f) : x, code)
+
+            ind2 = copy(ind)
+            ind2[2] = :(Ny_) 
+            code = postwalk(x -> @capture(ss_.max = f_, x) && ss == s ? :(mediumVCopy[$(ind2...),$up] = $f) : x, code)
+
+            ind2 = copy(ind)
+            ind2[3] = :(1) 
+            code = postwalk(x -> @capture(ss_.min = f_, x) && ss == s ? :(mediumVCopy[$(ind2...),$up] = $f) : x, code)
+
+            ind2 = copy(ind)
+            ind2[3] = :(Nz_) 
+            code = postwalk(x -> @capture(ss_.max = f_, x) && ss == s ? :(mediumVCopy[$(ind2...),$up] = $f) : x, code)
+        end
+    else
+        code = quote end
     end
 
-    f = wrapInFunction_(:mediumBoundaryStep_!,code)
-
-    push!(p.declareF.args,f)
+    return code
 end
     

@@ -3,7 +3,14 @@
 
 Function that takes an Agent and a simulation and constructs the function in charge of the evolutions of the model.
 """
-function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integrator::String = "Euler", integratorMedium::String = "FTCS", neighbors::String="full", save::String = "RAM", debug = false, user_=true)
+function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", 
+    integrator::String = "Euler", 
+    integratorMedium::String = "FTCS", 
+    neighbors::String="full", 
+    save::String = "RAM", 
+    debug = false, 
+    user_=true,
+    checkInBounds=true)
 
     abm = deepcopy(abmOriginal)
     
@@ -25,7 +32,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
     addUpdateGlobal_!(p,platform)
     addUpdateLocal_!(p,platform)
     addUpdateLocalInteraction_!(p,platform)
-    addCheckBounds_!(p,platform)
+#    addCheckBounds_!(p,platform)
     addUpdateMediumInteraction_!(p,platform)
     addIntegratorMedium_![integratorMedium](p,platform)
     addUpdate_!(p,platform)
@@ -100,6 +107,9 @@ function compile(abmOriginal::Union{Agent,Array{Agent}}; platform="cpu", integra
     program = postwalk(x->@capture(x,v_(g_)) && g == :ARGS_ ? :($v($(p.args...))) : x, program)
     program = postwalk(x->@capture(x,v_(g_;h__)) && g == :ARGS_ ? :($v($(p.args...);$(h...))) : x, program)
     program = randomAdapt_(p,program,platform)
+    if checkInBounds
+        program = postwalk(x->@capture(x,Threads.@threads f_) ? :(@inbounds Threads.@threads $f) : x, program)
+    end
     programugly = gensym_ids(program)
     program = flatten(programugly)
     
