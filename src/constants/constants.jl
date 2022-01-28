@@ -59,12 +59,17 @@ INTERACTIONSYMBOLS = [:i,:j]
 INTERACTIONSYMBOLSDICT = Dict([:i=>"[ic1_,VAR]",:j=>"[nnic2_,VAR]"])
 
 DIFFMEDIUMSYMBOL = :∂t
+DIFFMEDIUM = [:dxₘ_,:dyₘ_,:dzₘ_]
 MEDIUMSYMBOLS = [:∂t,:∇,:∇x,:∇y,:∇z,:Δ,:Δx,:Δy,:Δz,:δr]
-MEDIUMBOUNDARYSYMBOLS = [1=>{:newmannXmin,:newmannXmax,:dirichletXmin,:dirichletXmax,:periodicX},
-                        2=>{:newmannYmin,:newmannYmax,:dirichletYmin,:dirichletYmax,:periodicY},
-                        3=>{:newmannZmin,:newmannZmax,:dirichletZmin,:dirichletZmax,:periodicZ}]
+MEDIUMBOUNDARYSYMBOLS = Dict([
+                        1=>[:newmannXmin,:newmannXmax,:dirichletXmin,:dirichletXmax,:periodicX],
+                        2=>[:newmannYmin,:newmannYmax,:dirichletYmin,:dirichletYmax,:periodicY],
+                        3=>[:newmannZmin,:newmannZmax,:dirichletZmin,:dirichletZmax,:periodicZ]
+                        ])
 MEDIUMITERATIONSYMBOLS = [:ic1_,:ic2_,:ic3_]
 MEDIUMSUMATIONSYMBOLS = [:Nx_,:Ny_,:Nz_]
+MEDIUMINDEXSYMBOLS = [:indexX_,:indexY_,:indexZ_]
+MEDIUMSTRIDESYMBOLS = [:strideX_,:strideY_,:strideZ_]
 
 #Adaptation functions
 GPUINFUNCTION = 

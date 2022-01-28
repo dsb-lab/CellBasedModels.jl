@@ -8,14 +8,26 @@ function addIntegratorMediumFTCS_!(p::Program_,platform::String)
     if "UpdateMedium" in keys(p.agent.declaredUpdates)
 
         #Add boundary computation
-        codeBoundary = boundariesFunctionDefinition(p, platform)
-        codeInnner = p.agent.declaredUpdates["UpdateMedium"]
+        boundaryFunction = boundariesFunctionDefinition(p, platform)
 
-        f = quote
+        #Remove all the lines that are Boundary lines
+        code = copy(p.agent.declaredUpdates["UpdateMedium"])
+
+        mediumsym = []
+        for i in 1:p.agent.dims
+            append!(mediumsym,MEDIUMBOUNDARYSYMBOLS[i])
         end
+        code = postwalk(x -> @capture(x,f1_() = f2_) && (f1 in mediumsym) ? :nothing : x, code)
+        code = postwalk(x -> @capture(x,f1_()) && (f1 in mediumsym) ? :nothing : x, code)
+        code = postwalk(x -> @capture(x,f1_(f3_) = f2_) && (f1 in mediumsym) ? :nothing : x, code)
+        code = postwalk(x -> @capture(x,f1_(f3_)) && (f1 in mediumsym) ? :nothing : x, code)
 
+        f = quote end
+        f.args = [i for i in code.args if i !== :nothing]
+
+        #Create modified operator
         for (i,j) in enumerate(p.agent.declaredSymbols["Medium"]) # Change symbol for update
-            f = postwalk(x -> @capture(x,g_(s_)=v_) && s == j && g == DIFFMEDIUMSYMBOL ? :($j = $j + $v*dt) : x, f)
+            f = postwalk(x -> @capture(x,g_(s_)=v_) && s == j && g == DIFFMEDIUMSYMBOL ? :($j.new = $j + $v*dt) : x, f)
         end
         f = postwalk(x->@capture(x,s_(v_)) ? :($(adaptOperatorsMediumFTCS_(v,s,p))) : x, f) # Adapt
         f = postwalk(x->@capture(x,s_) ? adaptSymbolsMediumFTCS_(s,p) : x, f) # Adapt
@@ -26,34 +38,31 @@ function addIntegratorMediumFTCS_!(p::Program_,platform::String)
 
         #Remove count over boundaries
         if platform == "cpu"
-            f = postwalk(x->@capture(x,1:Nx_) && Nx == :Nx_ ? :(1:Nx_) : x, f)
-            f = postwalk(x->@capture(x,1:Ny_) && Ny == :Ny_ ? :(1:Ny_) : x, f)
-            f = postwalk(x->@capture(x,1:Nz_) && Nz == :Nz_ ? :(1:Nz_) : x, f)
+            f = postwalk(x->@capture(x,1:1:Nx_) && Nx == :Nx_ ? :(2:1:Nx_-1) : x, f)
+            f = postwalk(x->@capture(x,1:1:Ny_) && Ny == :Ny_ ? :(2:1:Ny_-1) : x, f)
+            f = postwalk(x->@capture(x,1:1:Nz_) && Nz == :Nz_ ? :(2:1:Nz_-1) : x, f)
         elseif platform == "gpu"
-            f = postwalk(x->@capture(x,indexX_:strideX_:Nx_) && Nx == :Nx_ ? :(indexX_:strideX_:Nx_) : x, f)
-            f = postwalk(x->@capture(x,indexY_:strideY_:Ny_) && Ny == :Ny_ ? :(indexY_:strideY_:Ny_) : x, f)
-            f = postwalk(x->@capture(x,indexZ_:strideZ_:Nz_) && Nz == :Nz_ ? :(indexZ_:strideZ_:Nz_) : x, f)
+            f = postwalk(x->@capture(x,indexX_:strideX_:Nx_) && Nx == :Nx_ ? :(indexX_+1:strideX_:Nx_-1) : x, f)
+            f = postwalk(x->@capture(x,indexY_:strideY_:Ny_) && Ny == :Ny_ ? :(indexY_+1:strideY_:Ny_-1) : x, f)
+            f = postwalk(x->@capture(x,indexZ_:strideZ_:Nz_) && Nz == :Nz_ ? :(indexZ_+1:strideZ_:Nz_-1) : x, f)
         end
         push!(p.declareF.args, ## Add it to code
                 f 
             )        
 
-        if "UpdateMediumInteraction" in keys(p.agent.declaredUpdates)
-            fWrap = wrapInFunction_(:mediumStep_!, 
-                                    :(begin 
-                                        @platformAdapt mediumInnerStep_!(ARGS_)
-                                        @platformAdapt mediumBoundaryStep_!(ARGS_)
-                                        @platformAdapt mediumInteractionStep_!(ARGS_)
-                                    end)
-                                    )
-        else
-            fWrap = wrapInFunction_(:mediumStep_!, 
-                                    :(begin 
-                                        @platformAdapt mediumInnerStep_!(ARGS_)
-                                        @platformAdapt mediumBoundaryStep_!(ARGS_)
-                                    end)
-                                    )
+        wrapFunction = quote @platformAdapt mediumInnerStep_!(ARGS_) end
+        if boundaryFunction
+            push!(wrapFunction.args,:(@platformAdapt mediumBoundaryStep_!(ARGS_)))
         end
+
+        if "UpdateMediumInteraction" in keys(p.agent.declaredUpdates)
+            push!(wrapFunction.args,:(@platformAdapt mediumInteractionStep_!(ARGS_)))
+        end
+
+        fWrap = wrapInFunction_(:mediumStep_!, 
+                                wrapFunction
+                                )
+
         push!(p.declareF.args, ## Add it to code
             fWrap 
             )        

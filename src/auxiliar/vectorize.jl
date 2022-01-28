@@ -139,91 +139,39 @@ function vectorizeMedium_(abm::Agent,code::Union{Expr,Symbol,<:Number},p::Progra
     for (i,v) in enumerate(abm.declaredSymbols["Global"])
 
         bs = :globalV
+        bsnew = :globalVCopy
+        if v in keys(p.update["Global"])
+            pos = p.update["Global"][v]
+        else
+            pos = i
+        end
 
+        code = postwalk(x->@capture(x, $v.new) ? :($bsnew[$pos]) : x, code)
         code = postwalk(x->@capture(x, $v) ? :($bs[$i]) : x, code)
 
-        if "Global" in keys(p.update)
-            if v in keys(p.update["Global"])
-                cc = findfirst(abm.declaredSymbols["Global"].==v)
-                pos = p.update["Global"][v]
-                #Code that may be optimized hopefully
-                code = postwalk(x->@capture(x, globalV[c_] = v1__) && cc==c ? :(globalVCopy[$pos] = $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, globalV[c_] += v1__) && cc==c ? :(globalVCopy[$pos] += $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, globalV[c_] -= v1__) && cc==c ? :(globalVCopy[$pos] -= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, globalV[c_] *= v1__) && cc==c ? :(globalVCopy[$pos] *= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, globalV[c_] /= v1__) && cc==c ? :(globalVCopy[$pos] /= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, globalV[c_] \= v1__) && cc==c ? :(globalVCopy[$pos] \= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, globalV[c_] ÷= v1__) && cc==c ? :(globalVCopy[$pos] ÷= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, globalV[c_] %= v1__) && cc==c ? :(globalVCopy[$pos] %= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, globalV[c_] ^= v1__) && cc==c ? :(globalVCopy[$pos] ^= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, globalV[c_] &= v1__) && cc==c ? :(globalVCopy[$pos] &= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, globalV[c_] |= v1__) && cc==c ? :(globalVCopy[$pos] |= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, globalV[c_] ⊻= v1__) && cc==c ? :(globalVCopy[$pos] ⊻= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, globalV[c_] >>>= v1__) && cc==c ? :(globalVCopy[$pos] >>>= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, globalV[c_] >>= v1__) && cc==c ? :(globalVCopy[$pos] >>= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, globalV[c_] <<= v1__) && cc==c ? :(globalVCopy[$pos] <<= $(v1...)) : x, code)
-            end
-        end
     end
 
     for (i,v) in enumerate(abm.declaredSymbols["GlobalArray"])
 
-        if "GlobalArray" in keys(p.update)
-            if v in keys(p.update["GlobalArray"])
-                name = Meta.parse(string(v,GLOBALARRAYCOPY))
-                code = postwalk(x->@capture(x, cc_[c__] = v1__) && cc==v ? :($name[$(c...)] = $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, cc_[c__] += v1__) && cc==v ? :($name[$(c...)] += $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, cc_[c__] -= v1__) && cc==v ? :($name[$(c...)] -= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, cc_[c__] *= v1__) && cc==v ? :($name[$(c...)] *= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, cc_[c__] /= v1__) && cc==v ? :($name[$(c...)] /= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, cc_[c__] \= v1__) && cc==v ? :($name[$(c...)] \= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, cc_[c__] ÷= v1__) && cc==v ? :($name[$(c...)] ÷= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, cc_[c__] %= v1__) && cc==v ? :($name[$(c...)] %= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, cc_[c__] ^= v1__) && cc==v ? :($name[$(c...)] ^= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, cc_[c__] &= v1__) && cc==v ? :($name[$(c...)] &= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, cc_[c__] |= v1__) && cc==v ? :($name[$(c...)] |= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, cc_[c__] ⊻= v1__) && cc==v ? :($name[$(c...)] ⊻= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, cc_[c__] >>>= v1__) && cc==v ? :($name[$(c...)] >>>= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, cc_[c__] >>= v1__) && cc==v ? :($name[$(c...)] >>= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, cc_[c__] <<= v1__) && cc==v ? :($name[$(c...)] <<= $(v1...)) : x, code)
-            end
-        end
+        name = Meta.parse(string(v,GLOBALARRAYCOPY))
+        code = postwalk(x->@capture(x, cc_[c__].new) && cc==v ? :($name[$(c...)]) : x, code)
+        code = postwalk(x->@capture(x, cc_.new) && cc==v ? :($name) : x, code)
+
     end
 
     for (i,v) in enumerate(abm.declaredSymbols["Medium"])
 
         bs = :mediumV
-
-        if abm.dims == 1
-            code = postwalk(x->@capture(x, $v) ? :($bs[ic1_,$i]) : x, code)
-        elseif abm.dims == 2
-            code = postwalk(x->@capture(x, $v) ? :($bs[ic1_,ic2_,$i]) : x, code)
-        elseif abm.dims == 3
-            code = postwalk(x->@capture(x, $v) ? :($bs[ic1_,ic2_,ic3_,$i]) : x, code)
+        bsnew = :mediumVCopy
+        if v in keys(p.update["Medium"])
+            pos = p.update["Medium"][v]
+        else
+            pos = i
         end
 
-        if "Medium" in keys(p.update)
-            if v in keys(p.update["Medium"])
-                cc = findfirst(abm.declaredSymbols["Medium"].==v)
-                pos = p.update["Medium"][v]
-                #Code that may be optimized hopefully
-                code = postwalk(x->@capture(x, mediumV[g__,c_] = v1__) && cc==c ? :(mediumVCopy[$(g...),$pos] = $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, mediumV[g__,c_] += v1__) && cc==c ? :(mediumVCopy[$(g...),$pos] += $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, mediumV[g__,c_] -= v1__) && cc==c ? :(mediumVCopy[$(g...),$pos] -= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, mediumV[g__,c_] *= v1__) && cc==c ? :(mediumVCopy[$(g...),$pos] *= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, mediumV[g__,c_] /= v1__) && cc==c ? :(mediumVCopy[$(g...),$pos] /= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, mediumV[g__,c_] \= v1__) && cc==c ? :(mediumVCopy[$(g...),$pos] \= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, mediumV[g__,c_] ÷= v1__) && cc==c ? :(mediumVCopy[$(g...),$pos] ÷= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, mediumV[g__,c_] %= v1__) && cc==c ? :(mediumVCopy[$(g...),$pos] %= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, mediumV[g__,c_] ^= v1__) && cc==c ? :(mediumVCopy[$(g...),$pos] ^= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, mediumV[g__,c_] &= v1__) && cc==c ? :(mediumVCopy[$(g...),$pos] &= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, mediumV[g__,c_] |= v1__) && cc==c ? :(mediumVCopy[$(g...),$pos] |= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, mediumV[g__,c_] ⊻= v1__) && cc==c ? :(mediumVCopy[$(g...),$pos] ⊻= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, mediumV[g__,c_] >>>= v1__) && cc==c ? :(mediumVCopy[$(g...),$pos] >>>= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, mediumV[g__,c_] >>= v1__) && cc==c ? :(mediumVCopy[$(g...),$pos] >>= $(v1...)) : x, code)
-                code = postwalk(x->@capture(x, mediumV[g__,c_] <<= v1__) && cc==c ? :(mediumVCopy[$(g...),$pos] <<= $(v1...)) : x, code)
-            end
-        end
+        code = postwalk(x->@capture(x, vAux_.new) && vAux == v ? :($bsnew[$(MEDIUMITERATIONSYMBOLS[1:p.agent.dims]...),$pos]) : x, code)
+        code = postwalk(x->@capture(x, vAux_) && vAux == v ? :($bs[$(MEDIUMITERATIONSYMBOLS[1:p.agent.dims]...),$i]) : x, code)
+
     end
 
     return code
