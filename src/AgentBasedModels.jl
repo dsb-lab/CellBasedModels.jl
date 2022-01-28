@@ -10,7 +10,7 @@ using CUDA
 using DataFrames
 using CSV
 import GeometryBasics, GLMakie
-import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, flatten, unblock, isexpr
+import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, gensym, flatten, unblock, isexpr
 import SpecialFunctions
 #using WriteVTK
 
@@ -36,7 +36,6 @@ include("./model/agentCode/basic/eventAddAgent.jl")
 include("./model/agentCode/basic/updateGlobal.jl")
 include("./model/agentCode/basic/updateLocal.jl")
 include("./model/agentCode/basic/updateLocalInteraction.jl")
-include("./model/agentCode/basic/updateMediumBoundaries.jl")
 include("./model/compile.jl")
 
 #Community
@@ -66,6 +65,7 @@ include("./model/agentCode/integrator/heun.jl")
 include("./model/agentCode/integrator/integrators.jl")
 
 #Integrators Medium
+include("./model/agentCode/basic/updateMediumBoundaries.jl")
 include("./model/agentCode/integratorMedium/ftcs.jl")
 include("./model/agentCode/integratorMedium/lax.jl")
 include("./model/agentCode/integratorMedium/leapfrog.jl")
