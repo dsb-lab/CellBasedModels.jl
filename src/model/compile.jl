@@ -123,6 +123,9 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
         println(prettify(programugly))
     end
 
+    #Prettify the LineNumberNode output
+    program = postwalk(x -> isexpr(x,LineNumberNode) ? LineNumberNode(Meta.parse(split(String(gensym("x")),"#")[end]),"evolve_program") : x, program)
+
     model = Model(abm,program,Main.eval(program))
 
     return model
