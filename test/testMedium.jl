@@ -174,66 +174,64 @@ fBoundary3D(x,y,z,t) = 1
         #     all(comt[end].u .- 1 .< 10E-8)
         # end
 
-        #######################################################################################################33
-        #Newmann boundary
-        #######################################################################################################33
+        # #######################################################################################################33
+        # #Newmann boundary
+        # #######################################################################################################33
 
-        ## Default
+        # ## Default
 
-        ###Dim 1
-        m = @agent(1,
-            [u,v]::Medium,
+        # ###Dim 1
+        # m = @agent(1,
+        #     [u,v]::Medium,
 
-            UpdateMedium = begin
-                ∂t(u) = Δx(u)
+        #     UpdateMedium = begin
+        #         ∂t(u) = Δx(u)
             
-                newmannXmin() = 0
-                newmannXmax() = 0
-            end
-            )
-        mc = compile(m,platform=platform)
-        # println(mc.program)
+        #         newmannXmin() = 0
+        #         newmannXmax() = 0
+        #     end
+        #     )
+        # mc = compile(m,platform=platform)
+        # # println(mc.program)
 
-        @test begin #Test conservation of matter and homogeneization
-            Nx = 10
-            com = Community(mc,N=10,mediumN=[10])
-            com.u .= exp.(- (range(0,Nx,length=Nx).-Nx/2).^2)
-            com.simulationBox .= [-10 10]
-            comt = mc.evolve(com,dt=0.1,tMax=1000)
-            all( sum(comt[1].u) .- sum(comt[end].u) .< 0.02 ) && (abs(minimum(comt[end].u) - maximum(comt[end].u)) .< 10E-4)
-        end
+        # @test begin #Test conservation of matter and homogeneization
+        #     Nx = 10
+        #     com = Community(mc,N=10,mediumN=[10])
+        #     com.u .= exp.(- (range(0,Nx,length=Nx).-Nx/2).^2)
+        #     com.simulationBox .= [-10 10]
+        #     comt = mc.evolve(com,dt=0.1,tMax=1000)
+        #     all( sum(comt[1].u) .- sum(comt[end].u) .< 0.02 ) && (abs(minimum(comt[end].u) - maximum(comt[end].u)) .< 10E-4)
+        # end
 
-        ###Dim 2
-        m = @agent(2,
-            [u,v]::Medium,
+        # ###Dim 2
+        # m = @agent(2,
+        #     [u,v]::Medium,
 
-            UpdateMedium = begin
-                ∂t(u) = Δx(u) + Δy(u)   
+        #     UpdateMedium = begin
+        #         ∂t(u) = Δx(u) + Δy(u)   
 
-                newmannXmin() = 0
-                newmannXmax() = 0
-                newmannYmin() = 0
-                newmannYmax() = 0
-            end
+        #         newmannXmin() = 0
+        #         newmannXmax() = 0
+        #         newmannYmin() = 0
+        #         newmannYmax() = 0
+        #     end
 
-            )
-        mc = compile(m,platform=platform)
-        println(mc.program)
+        #     )
+        # mc = compile(m,platform=platform)
+        # # println(mc.program)
 
-        @test begin #Test conservation of matter and homogeneization
-            Nx = 10; Ny = 10
-            com = Community(mc,N=10,mediumN=[Nx,Ny])
-            for (i,x) in enumerate(range(0,Nx,length=Nx))
-                for (j,y) in enumerate(range(0,Ny,length=Ny))
-                    com.u[i,j] = exp.(- (i.-Nx/2).^2- (j.-Ny/2).^2)
-                end
-            end
-            com.simulationBox .= [-10 10;-10 10]
-            comt = mc.evolve(com,dt=0.1,tMax=1)
-            println(sum(comt[1].u))
-            println(sum(comt[1].u) .- sum(comt[end].u))
-            all( sum(comt[1].u) .- sum(comt[end].u) .< 10E-1 ) && (minimum(comt[end].u) - maximum(comt[end].u) .< 10E-2)
-        end
+        # @test begin #Test conservation of matter and homogeneization
+        #     Nx = 10; Ny = 10
+        #     com = Community(mc,N=10,mediumN=[Nx,Ny])
+        #     for (i,x) in enumerate(range(0,Nx,length=Nx))
+        #         for (j,y) in enumerate(range(0,Ny,length=Ny))
+        #             com.u[i,j] = exp.(- (i.-Nx/2).^2- (j.-Ny/2).^2)
+        #         end
+        #     end
+        #     com.simulationBox .= [-10 10;-10 10]
+        #     comt = mc.evolve(com,dt=0.1,tMax=100)
+        #     all( sum(comt[1].u) .- sum(comt[end].u) .< 10E-1 ) && (minimum(comt[end].u) - maximum(comt[end].u) .< 10E-2)
+        # end
 
         # ###Dim 3
         # m = @agent(3,
@@ -241,7 +239,7 @@ fBoundary3D(x,y,z,t) = 1
 
         #     UpdateMedium = begin
         
-        #         ∂t(u) = Δx(u) + Δy(u) + Δz(u),
+        #         ∂t(u) = Δx(u) + Δy(u) + Δz(u)
 
         #         newmannXmin() = 0
         #         newmannXmax() = 0
@@ -269,62 +267,151 @@ fBoundary3D(x,y,z,t) = 1
         #     all( sum(comt[1].u) .- sum(comt[end].u) .< 10E-1 ) && (minimum(comt[end].u) - maximum(comt[end].u) .< 10E-2)
         # end
 
-    #     ########################################################################################################33
-    #     #Delta sources
-    #     ########################################################################################################33
+        # #######################################################################################################33
+        # #Periodic boundary
+        # #######################################################################################################33
 
-    #     ##1 dim
-    #     m = @agent(1, 
-    #                 [u,v]::Medium, 
-    #                 # UpdateMedium = ∂t(u) = Δx(u) + δx(0.), 
-    #                 Boundary = BoundaryFlat(1,Bounded())
-    #                 )
-    #     mc = compile(m,platform=platform)
-    #     # println(prettify(mc.program))
-    #     com = Community(mc,N=10,mediumN=[30])
-    #     com.u .= 0
-    #     com.simulationBox .= [-10 10]
-    #     @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
-    #     @test begin 
-    #         comt = mc.evolve(com,dt=0.01,tMax=4000,dtSave=200)
+        # ## Default
 
-    #         all(abs.(comt[end].u .- comt[10].u) .< 0.001)
-    #     end
+        # ###Dim 1
+        # m = @agent(1,
+        #     [u,v]::Medium,
 
-    #     ##2 dim
-    #     m = @agent(2, [u,v]::Medium, UpdateMedium = ∂t(u) = Δx(u) + Δy(u) + δx(0.) + δy(0.), Boundary = BoundaryFlat(2,Bounded(),Bounded()))
-    #     mc = compile(m,platform=platform)
-    #     # println(mc.program)
-    #     com = Community(mc,N=10,mediumN=[30,30])
-    #     com.u .= 0
-    #     com.simulationBox .= [-10 10; -10 10]
-    #     @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
-    #     @test begin 
-    #         comt = mc.evolve(com,dt=0.01,tMax=4000,dtSave=200)
+        #     UpdateMedium = begin
+        #         ∂t(u) = Δx(u)
+            
+        #         periodicX()
+        #     end
+        #     )
+        # mc = compile(m,platform=platform)
+        # # println(mc.program)
 
-    #         all(abs.(comt[end].u .- transpose(comt[10].u)) .< 0.001)
-    #     end
+        # @test begin #Test conservation of matter and homogeneization
+        #     Nx = 10
+        #     com = Community(mc,N=10,mediumN=[10])
+        #     com.u .= exp.(- (range(0,Nx,length=Nx).-Nx/2).^2)
+        #     com.simulationBox .= [-10 10]
+        #     comt = mc.evolve(com,dt=0.1,tMax=1000)
+        #     all( sum(comt[1].u) .- sum(comt[end].u) .< 0.02 ) && (abs(minimum(comt[end].u) - maximum(comt[end].u)) .< 10E-4)
+        # end
 
-    #     ##3 dim
-    #     m = @agent(3, 
-    #                 [u,v]::Medium, 
-    #                 UpdateMedium = ∂t(u) = Δx(u) + Δy(u) + Δz(u) + δx(0.) + δy(0.) + δz(0.),
-    #                 Boundary = BoundaryFlat(3,Bounded(),Bounded(),Bounded()))
-    #     mc = compile(m,platform=platform)
-    #     # println(mc.program)
-    #     com = Community(mc,N=10,mediumN=[5,5,5])
-    #     com.u .= 0
-    #     com.simulationBox .= [-10 10; -10 10; -10 10]
-    #     @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
-    #     @test begin 
-    #         comt = mc.evolve(com,dt=0.01,tMax=4000,dtSave=200)
+        # ###Dim 2
+        # m = @agent(2,
+        #     [u,v]::Medium,
 
-    #         all(abs.(comt[end].u .- comt[10].u) .< 0.001)
-    #     end
+        #     UpdateMedium = begin
+        #         ∂t(u) = Δx(u) + Δy(u)   
 
-    #     ########################################################################################################33
-    #     #Coupling sources
-    #     ########################################################################################################33
+        #         periodicX()
+        #         periodicY()
+        #     end
+
+        #     )
+        # mc = compile(m,platform=platform)
+        # # println(mc.program)
+
+        # @test begin #Test conservation of matter and homogeneization
+        #     Nx = 10; Ny = 10
+        #     com = Community(mc,N=10,mediumN=[Nx,Ny])
+        #     for (i,x) in enumerate(range(0,Nx,length=Nx))
+        #         for (j,y) in enumerate(range(0,Ny,length=Ny))
+        #             com.u[i,j] = exp.(- (i.-Nx/2).^2- (j.-Ny/2).^2)
+        #         end
+        #     end
+        #     com.simulationBox .= [-10 10;-10 10]
+        #     comt = mc.evolve(com,dt=0.1,tMax=100)
+        #     all( sum(comt[1].u) .- sum(comt[end].u) .< 10E-1 ) && (minimum(comt[end].u) - maximum(comt[end].u) .< 10E-2)
+        # end
+
+        # ###Dim 3
+        # m = @agent(3,
+        #     [u,v]::Medium,
+
+        #     UpdateMedium = begin
+        
+        #         ∂t(u) = Δx(u) + Δy(u) + Δz(u)
+
+        #         periodicX()
+        #         periodicY()
+        #         periodicZ()
+        #     end
+        #     )
+        # mc = compile(m,platform=platform)
+        # # println(mc.program)
+
+        # @test begin #Test conservation of matter and homogeneization
+        #     Nx = 10; Ny = 10; Nz = 10
+        #     com = Community(mc,N=10,mediumN=[Nx,Ny,Nz])
+        #     for (i,x) in enumerate(range(0,Nx,length=Nx))
+        #         for (j,y) in enumerate(range(0,Ny,length=Ny))
+        #             for (k,z) in enumerate(range(0,Nz,length=Nz))
+        #                 com.u[i,j,k] = exp.(- (i.-Nx/2).^2 - (j.-Ny/2).^2 - (k.-Nz/2).^2)
+        #             end
+        #         end
+        #     end
+        #     com.simulationBox .= [-10 10;-10 10;-10 10]
+        #     comt = mc.evolve(com,dt=0.1,tMax=1000)
+        #     all( sum(comt[1].u) .- sum(comt[end].u) .< 10E-1 ) && (minimum(comt[end].u) - maximum(comt[end].u) .< 10E-2)
+        # end
+
+        ########################################################################################################33
+        #Delta sources
+        ########################################################################################################33
+
+        ##1 dim
+        m = @agent(1, 
+                [u,v]::Medium, 
+                UpdateMedium = ∂t(u) = Δx(u) + δx(0.)
+            )
+        mc = compile(m,platform=platform)
+        # println(prettify(mc.program))
+        com = Community(mc,N=10,mediumN=[30])
+        com.u .= 0
+        com.simulationBox .= [-10 10]
+        @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+        @test begin 
+            comt = mc.evolve(com,dt=0.01,tMax=4000,dtSave=200)
+
+            all(abs.(comt[end].u .- comt[10].u) .< 0.001)
+        end
+
+        ##2 dim
+        m = @agent(2, 
+                [u,v]::Medium, 
+                UpdateMedium = ∂t(u) = Δx(u) + Δy(u) + δx(0.) + δy(0.)
+            )
+        mc = compile(m,platform=platform)
+        # println(mc.program)
+        com = Community(mc,N=10,mediumN=[30,30])
+        com.u .= 0
+        com.simulationBox .= [-10 10; -10 10]
+        @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+        @test begin 
+            comt = mc.evolve(com,dt=0.01,tMax=4000,dtSave=200)
+
+            all(abs.(comt[end].u .- transpose(comt[10].u)) .< 0.001)
+        end
+
+        ##3 dim
+        m = @agent(3, 
+                    [u,v]::Medium, 
+                    UpdateMedium = ∂t(u) = Δx(u) + Δy(u) + Δz(u) + δx(0.) + δy(0.) + δz(0.),
+            )
+        mc = compile(m,platform=platform)
+        # println(mc.program)
+        com = Community(mc,N=10,mediumN=[5,5,5])
+        com.u .= 0
+        com.simulationBox .= [-10 10; -10 10; -10 10]
+        @test_nowarn mc.evolve(com,dt=0.1,tMax=.2)
+        @test begin 
+            comt = mc.evolve(com,dt=0.01,tMax=4000,dtSave=200)
+
+            all(abs.(comt[end].u .- comt[10].u) .< 0.001)
+        end
+
+    ########################################################################################################
+    #Coupling sources
+    ########################################################################################################
 
 
     #     ########################################################################################################33

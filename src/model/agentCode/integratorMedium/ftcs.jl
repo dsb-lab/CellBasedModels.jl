@@ -27,7 +27,7 @@ function addIntegratorMediumFTCS_!(p::Program_,platform::String)
 
         #Create modified operator
         for (i,j) in enumerate(p.agent.declaredSymbols["Medium"]) # Change symbol for update
-            f = postwalk(x -> @capture(x,g_(s_)=v_) && s == j && g == DIFFMEDIUMSYMBOL ? :($j.new = $j + $v*dt) : x, f)
+            f = postwalk(x -> @capture(x,g_(s_)=v_) && s == j && g == DIFFMEDIUMSYMBOL ? :($j.new = $j + ($v)*dt) : x, f)
         end
         f = postwalk(x->@capture(x,s_(v_)) ? :($(adaptOperatorsMediumFTCS_(v,s,p))) : x, f) # Adapt
         f = postwalk(x->@capture(x,s_) ? adaptSymbolsMediumFTCS_(s,p) : x, f) # Adapt

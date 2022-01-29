@@ -63,11 +63,11 @@ function boundariesFunctionDefinition(p::Program_, platform::String)
                 #Neumann
                 ind1 = Vector{Union{Symbol,Expr,Int}}(MEDIUMITERATIONSYMBOLS)[1:p.agent.dims]; ind2 = Vector{Union{Symbol,Expr,Int}}(MEDIUMITERATIONSYMBOLS)[1:p.agent.dims]
                 ind1[i] = :(2); ind2[i] = :(1) 
-                code = postwalk(x -> @capture(x,f1_(ss_) = f_) && ss == s && f1 == MEDIUMBOUNDARYSYMBOLS[i][1] ? :(mediumVCopy[$(ind2...),$up] = mediumV[$(ind1...),$i] - ($f)*$(dx)) : x, code)
+                code = postwalk(x -> @capture(x,f1_(ss_) = f_) && ss == s && f1 == MEDIUMBOUNDARYSYMBOLS[i][1] ? :(mediumVCopy[$(ind2...),$up] = mediumVCopy[$(ind1...),$j] - ($f)*$(dx)) : x, code)
 
                 ind1 = Vector{Union{Symbol,Expr,Int}}(MEDIUMITERATIONSYMBOLS)[1:p.agent.dims]; ind2 = Vector{Union{Symbol,Expr,Int}}(MEDIUMITERATIONSYMBOLS)[1:p.agent.dims]
                 ind1[i] = :($(MEDIUMSUMATIONSYMBOLS[i])-1); ind2[i] = MEDIUMSUMATIONSYMBOLS[i] 
-                code = postwalk(x -> @capture(x,f1_(ss_) = f_) && ss == s && f1 == MEDIUMBOUNDARYSYMBOLS[i][2] ? :(mediumVCopy[$(ind2...),$up] = mediumV[$(ind1...),$i] - ($f)*$(dx)) : x, code)
+                code = postwalk(x -> @capture(x,f1_(ss_) = f_) && ss == s && f1 == MEDIUMBOUNDARYSYMBOLS[i][2] ? :(mediumVCopy[$(ind2...),$up] = mediumVCopy[$(ind1...),$j] - ($f)*$(dx)) : x, code)
             
                 #Dirichlet
                 ind2 = Vector{Union{Symbol,Expr,Int}}(MEDIUMITERATIONSYMBOLS)[1:p.agent.dims]
@@ -86,7 +86,7 @@ function boundariesFunctionDefinition(p::Program_, platform::String)
                 code = postwalk(x -> @capture(x,f1_(ss_)) && ss == s && f1 == MEDIUMBOUNDARYSYMBOLS[i][5] ? 
                 :(begin 
                 mediumVCopy[$(ind4...),$up] = mediumV[$(ind1...),$j]
-                mediumVCopy[$(ind3...),$up] = mediumV[$(ind2...),$j]        
+                mediumVCopy[$(ind2...),$up] = mediumV[$(ind3...),$j]        
                 end)
                 : x, code)
             end
@@ -158,7 +158,7 @@ function boundariesFunctionDefinition(p::Program_, platform::String)
             finalFunction = wrapInFunction_(:mediumBoundaryStep_!,finalCode)
 
             push!(p.execInit.args, ## Add it to code
-            :(@platformAdapt mediumBoundaryStep_!(ARGS_)) 
+            :(@platformAdapt mediumBoundaryStep_!(ARGS_); mediumV .= mediumVCopy) 
             )        
 
             push!(p.declareF.args, ## Add it to code
