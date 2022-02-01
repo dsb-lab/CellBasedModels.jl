@@ -35,12 +35,12 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
     addParameters_!(p,platform)
     addCopyInitialisation_!(p,platform)
     addIntegrator_![integrator](p,platform)
+    addUpdateMediumInteraction_!(p,platform)
+    addIntegratorMedium_![integratorMedium](p,platform)
     addUpdateGlobal_!(p,platform)
     addUpdateLocal_!(p,platform)
     addUpdateLocalInteraction_!(p,platform)
 #    addCheckBounds_!(p,platform)
-    addUpdateMediumInteraction_!(p,platform)
-    addIntegratorMedium_![integratorMedium](p,platform)
     addUpdate_!(p,platform)
 
     #Saving
@@ -104,10 +104,22 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
 
     if platform == "cpu"
         program = postwalk(x->@capture(x,@platformAdapt v_(ARGS__)) ? :($v($(ARGS...))) : x, program)
+        program = postwalk(x->@capture(x,@platformAdapt1 v_(ARGS__)) ? :($v($(ARGS...))) : x, program)
+        program = postwalk(x->@capture(x,@platformAdapt2 v_(ARGS__)) ? :($v($(ARGS...))) : x, program)
+        program = postwalk(x->@capture(x,@platformAdapt3 v_(ARGS__)) ? :($v($(ARGS...))) : x, program)
     elseif platform == "gpu"
         program = postwalk(x->@capture(x,@platformAdapt v_(ARGS__)) ? :(kernel_ = @cuda launch = false $v($(ARGS...)); 
                                                                     prop_ = AgentBasedModels.configurator_(kernel_,N); 
                                                                     kernel_($(ARGS...);threads=prop_[1],blocks=prop_[2])) : x, program)
+        program = postwalk(x->@capture(x,@platformAdapt1 v_(ARGS__)) ? :(kernel_ = @cuda launch = false $v($(ARGS...)); 
+                                                                    prop_ = AgentBasedModels.configurator_(kernel_,Nx_); 
+                                                                    kernel_($(ARGS...);threads=prop_[1],blocks=prop_[2])) : x, program)
+        program = postwalk(x->@capture(x,@platformAdapt2 v_(ARGS__)) ? :(kernel_ = @cuda launch = false $v($(ARGS...)); 
+                                                                    prop_ = AgentBasedModels.configurator2_(kernel_,Nx_,Ny_); 
+                                                                    kernel_($(ARGS...);threads=(prop_[1],prop_[2]),blocks=(prop_[3],prop_[4]))) : x, program)
+        program = postwalk(x->@capture(x,@platformAdapt3 v_(ARGS__)) ? :(kernel_ = @cuda launch = false $v($(ARGS...)); 
+                                                                    prop_ = AgentBasedModels.configurator3_(kernel_,Nx_,Ny_,Nz_); 
+                                                                    kernel_($(ARGS...);threads=(prop_[1],prop_[2],prop_[3]),blocks=(prop_[4],prop_[5],prop_[6]))) : x, program)
         program = cudaAdapt_(program)
     end
     program = postwalk(x->@capture(x,v_(g_)) && g == :ARGS_ ? :($v($(p.args...))) : x, program)

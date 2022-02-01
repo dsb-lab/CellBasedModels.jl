@@ -279,7 +279,7 @@ function addCopyInitialisation_!(p::Program_,platform::String)
                 for j in keys(p.update[i])
                     pos = findfirst(p.agent.declaredSymbols[i] .== j)
                     posCopy = p.update[i][j]
-                    push!(up.args,:($varCopy[ic1_,$posCopy]=$varCopy[ic1_,$pos]))
+                    push!(up.args,:($varCopy[ic1_,$posCopy]=$var[ic1_,$pos]))
                 end
             elseif i == "Global"
                 var = Meta.parse(string(lowercase(i),"V"))

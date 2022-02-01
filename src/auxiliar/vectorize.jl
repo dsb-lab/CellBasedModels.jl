@@ -116,13 +116,17 @@ function vectorize_(abm::Agent,code::Expr,p::Program_;interaction=false)
     for (i,v) in enumerate(abm.declaredSymbols["Medium"])
 
         bs = :mediumV
+        cp = :mediumVCopy
 
         if abm.dims == 1
-            code = postwalk(x->@capture(x, $v) ? :($bs[idMediumV[ic1_,1],$i]) : x, code)
+            code = postwalk(x->@capture(x, cc_.new) && cc==v ? :($cp[idMediumX_,$i]) : x, code)
+            code = postwalk(x->@capture(x, cc_) && cc==v ? :($bs[idMediumX_,$i]) : x, code)
         elseif abm.dims == 2
-            code = postwalk(x->@capture(x, $v) ? :($bs[idMediumV[ic1_,1],idMediumV[ic1_,2],$i]) : x, code)
+            code = postwalk(x->@capture(x, cc_.new) && cc==v ? :($cp[idMediumX_,idMediumY_,$i]) : x, code)
+            code = postwalk(x->@capture(x, cc_) && cc==v ? :($bs[idMediumX_,idMediumY_,$i]) : x, code)
         elseif abm.dims == 3
-            code = postwalk(x->@capture(x, $v) ? :($bs[idMediumV[ic1_,1],idMediumV[ic1_,2],idMediumV[ic1_,3],$i]) : x, code)
+            code = postwalk(x->@capture(x, cc_.new) && cc==v ? :($cp[idMediumX_,idMediumY_,idMediumZ_,$i]) : x, code)
+            code = postwalk(x->@capture(x, cc_) && cc==v ? :($bs[idMediumX_,idMediumY_,idMediumZ_,$i]) : x, code)
         end
     end
 

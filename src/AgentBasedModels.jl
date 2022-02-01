@@ -9,7 +9,7 @@ using Distributions
 using CUDA
 using DataFrames
 using CSV
-import GeometryBasics, GLMakie
+# import GeometryBasics, GLMakie
 import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, gensym, flatten, unblock, isexpr
 import SpecialFunctions
 #using WriteVTK
@@ -18,7 +18,7 @@ export MediumFlat, δMedium_
 export configurator_
 
 #Constants
-include("./constants/constants.jl")
+include("./constants.jl")
 
 #Agent
 export @agent, Agent
@@ -81,10 +81,10 @@ include("./model/agentCode/saving/saving.jl")
 include("./model/cuda/cudaAdapt.jl")
 include("./model/cuda/cudaConfigurator.jl")
 
-#Visualization functions
-export plotSpheres, plotRods
-include("./plotting/rods.jl")
-include("./plotting/spheres.jl")
+# #Visualization functions
+# export plotSpheres, plotRods
+# include("./plotting/rods.jl")
+# include("./plotting/spheres.jl")
 
 #Auxiliar function
 include("./auxiliar/checkDeclared.jl")

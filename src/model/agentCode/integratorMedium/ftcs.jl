@@ -49,15 +49,34 @@ function addIntegratorMediumFTCS_!(p::Program_,platform::String)
         push!(p.declareF.args, ## Add it to code
                 f 
             )        
+        
+        if p.agent.dims == 1
+            wrapFunction = quote @platformAdapt1 mediumInnerStep_!(ARGS_) end
+        elseif p.agent.dims == 2
+            wrapFunction = quote @platformAdapt2 mediumInnerStep_!(ARGS_) end
+        elseif p.agent.dims == 3
+            wrapFunction = quote @platformAdapt3 mediumInnerStep_!(ARGS_) end
+        end
 
-        wrapFunction = quote @platformAdapt mediumInnerStep_!(ARGS_) end
         if boundaryFunction
-            push!(wrapFunction.args,:(@platformAdapt mediumBoundaryStep_!(ARGS_)))
+            if p.agent.dims == 1
+                push!(wrapFunction.args, ## Add it to code
+                :(@platformAdapt1 mediumBoundaryStep_!(ARGS_)) 
+                )        
+            elseif p.agent.dims == 2
+                push!(wrapFunction.args, ## Add it to code
+                :(@platformAdapt2 mediumBoundaryStep_!(ARGS_)) 
+                )        
+            elseif p.agent.dims == 3
+                push!(wrapFunction.args, ## Add it to code
+                :(@platformAdapt3 mediumBoundaryStep_!(ARGS_)) 
+                )        
+            end
         end
 
-        if "UpdateMediumInteraction" in keys(p.agent.declaredUpdates)
-            push!(wrapFunction.args,:(@platformAdapt mediumInteractionStep_!(ARGS_)))
-        end
+        # if "UpdateMediumInteraction" in keys(p.agent.declaredUpdates)
+        #     push!(wrapFunction.args,:(@platformAdapt mediumInteractionStep_!(ARGS_)))
+        # end
 
         fWrap = wrapInFunction_(:mediumStep_!, 
                                 wrapFunction
@@ -102,7 +121,7 @@ function adaptOperatorsMediumFTCS_(f,op,p)
 
     if op == :δx
 
-        f = :(δMedium_(round(Int,($f-simulationBox[1,1])/dxₘ_)+1,ic1_))
+        f = :(δMedium_(round(Int,($f-simulationBox[1,1])/dxₘ_)+2,ic1_))
 
     elseif op == :δy
 
@@ -110,7 +129,7 @@ function adaptOperatorsMediumFTCS_(f,op,p)
             error("Operator δy cannot be used in Agent with dimension 1.")
         end
 
-        f = :(δMedium_(round(Int,($f-simulationBox[2,1])/dyₘ_)+1,ic2_))
+        f = :(δMedium_(round(Int,($f-simulationBox[2,1])/dyₘ_)+2,ic2_))
 
     elseif op == :δz
 
@@ -118,7 +137,7 @@ function adaptOperatorsMediumFTCS_(f,op,p)
             error("Operator δz cannot be used in Agent with dimension 1 or 2.")
         end
 
-        f = :(δMedium_(round(Int,($f-simulationBox[3,1])/dzₘ_)+1,ic3_))
+        f = :(δMedium_(round(Int,($f-simulationBox[3,1])/dzₘ_)+2,ic3_))
 
     elseif op == :Δ
         if p.agent.dims == 1

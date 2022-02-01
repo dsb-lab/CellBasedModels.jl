@@ -91,61 +91,23 @@ function boundariesFunctionDefinition(p::Program_, platform::String)
                 : x, code)
             end
 
-            push!(finalCode.args,simpleGridLoop_(platform, code, p.agent.dims-1,indexes=[j for j in [1,2,3] if j != i]))
-
-            # if platform == "cpu"
-            #     if p.agent.dims == 1
-            #         final_code = quote
-            #             $code
-            #         end
-            #     elseif p.agent.dims == 2
-            #         sum1 = [j for j in MEDIUMITERATIONSYMBOLS[1:2] if j != MEDIUMITERATIONSYMBOLS[i]]
-            #         nmax = [j for j in MEDIUMSUMATIONSYMBOLS[1:2] if j != MEDIUMSUMATIONSYMBOLS[i]]
-                    
-            #         final_code = quote
-            #             Theads.@theads for $(sum1[1]) in 2:1:$(nmax[1])-1
-            #                 $code
-            #             end
-            #         end
-            #     elseif p.agent.dims == 3
-            #         sum1 = [j for j in MEDIUMITERATIONSYMBOLS if j != MEDIUMITERATIONSYMBOLS[i]]
-            #         nmax = [j for j in MEDIUMSUMATIONSYMBOLS if j != MEDIUMSUMATIONSYMBOLS[i]]
-                    
-            #         final_code = quote
-            #             Theads.@theads for $(sum1[1]) in 2:1:$(nmax[1])-1
-            #                 for $(sum1[2]) in 2:1:$(nmax[2])-1
-            #                     $code
-            #                 end
-            #             end
-            #         end
-            #     end
-            # else
-            #     if p.agent.dims == 1
-            #         final_code = quote
-            #             $code
-            #         end
-            #     elseif p.agent.dims == 2
-            #         sum1 = [j for j in MEDIUMITERATIONSYMBOLS[1:2] if j != MEDIUMITERATIONSYMBOLS[i]]
-            #         nmax = [j for j in MEDIUMSUMATIONSYMBOLS[1:2] if j != MEDIUMSUMATIONSYMBOLS[i]]
-                    
-            #         final_code = quote
-            #             for $(sum1[1]) in index_+1:stride_:$(nmax[1])-1
-            #                 $code
-            #             end
-            #         end
-            #     elseif p.agent.dims == 3
-            #         sum1 = [j for j in MEDIUMITERATIONSYMBOLS if j != MEDIUMITERATIONSYMBOLS[i]]
-            #         nmax = [j for j in MEDIUMSUMATIONSYMBOLS if j != MEDIUMSUMATIONSYMBOLS[i]]
-                    
-            #         final_code = quote
-            #             for $(sum1[1]) in index_+1:stride_:$(nmax[1])-1
-            #                 for $(sum1[2]) in 2:1:$(nmax[2])-1
-            #                     $code
-            #                 end
-            #             end
-            #         end
-            #     end
-            # end
+            if p.agent.dims == 2
+                nSub = MEDIUMSUMATIONSYMBOLS[i]
+                finalCode = postwalk(x->@capture(x,g_) && g == MEDIUMSUMATIONSYMBOLS[1] ? nSub : x, finalCode)
+                nSub = MEDIUMITERATIONSYMBOLS[i]
+                finalCode = postwalk(x->@capture(x,g_) && g == MEDIUMITERATIONSYMBOLS[1] ? nSub : x, finalCode)
+                add = :(platformAdapt2)
+            elseif p.agent.dims == 3
+                nSub = [k for k in MEDIUMSUMATIONSYMBOLS if k != MEDIUMSUMATIONSYMBOLS[i]]
+                finalCode = postwalk(x->@capture(x,g_) && g == MEDIUMSUMATIONSYMBOLS[1] ? nSub[1] : x, finalCode)
+                finalCode = postwalk(x->@capture(x,g_) && g == MEDIUMSUMATIONSYMBOLS[2] ? nSub[2] : x, finalCode)
+                nSub = [k for k in MEDIUMITERATIONSYMBOLS if k != MEDIUMITERATIONSYMBOLS[i]]
+                finalCode = postwalk(x->@capture(x,g_) && g == MEDIUMITERATIONSYMBOLS[1] ? nSub[1] : x, finalCode)
+                finalCode = postwalk(x->@capture(x,g_) && g == MEDIUMITERATIONSYMBOLS[2] ? nSub[2] : x, finalCode)
+                add = :(platformAdapt3)
+            end
+    
+            push!(finalCode.args,simpleGridLoop_(platform, code, p.agent.dims, indexes=1:1:p.agent.dims))
 
             if length([i for i in codeC.args if typeof(i) != LineNumberNode]) > 0
                 ret = true
@@ -157,9 +119,19 @@ function boundariesFunctionDefinition(p::Program_, platform::String)
 
             finalFunction = wrapInFunction_(:mediumBoundaryStep_!,finalCode)
 
-            push!(p.execInit.args, ## Add it to code
-            :(@platformAdapt mediumBoundaryStep_!(ARGS_); mediumV .= mediumVCopy) 
-            )        
+            if p.agent.dims == 1
+                push!(p.execInit.args, ## Add it to code
+                :(@platformAdapt1 mediumBoundaryStep_!(ARGS_); mediumV .= mediumVCopy) 
+                )        
+            elseif p.agent.dims == 2
+                push!(p.execInit.args, ## Add it to code
+                :(@platformAdapt2 mediumBoundaryStep_!(ARGS_); mediumV .= mediumVCopy) 
+                )        
+            elseif p.agent.dims == 3
+                push!(p.execInit.args, ## Add it to code
+                :(@platformAdapt3 mediumBoundaryStep_!(ARGS_); mediumV .= mediumVCopy) 
+                )        
+            end
 
             push!(p.declareF.args, ## Add it to code
             finalFunction 
