@@ -11,6 +11,7 @@ function addUpdateLocal_!(p::Program_,platform::String)
             :(@platformAdapt locStep_!(ARGS_)) 
         )
 
+        code = quote end
         if !(isempty(p.agent.declaredSymbols["Medium"]))
             if p.agent.dims == 1
                 code = quote
