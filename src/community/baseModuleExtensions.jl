@@ -61,7 +61,25 @@ Array{Float} otherwise
 """
 function Base.setproperty!(a::Community,var::Symbol,v::Array{<:Number})
     
-    if var in a.declaredSymbols_["Local"]
+    if var == :simulationBox
+        if (a.dims,2) != size(v)
+            error("Trying to assign array with shape ", size(v), ". It should be of size ", (a.dims,2))
+        end
+        setfield!(a,:simulationBox,v)
+    elseif var == :radiusInteraction
+        if size(v) != (a.dims,)
+            error("Trying to assign array with shape ", size(v), ". It should be of size ", (a.dims,) , " or scalar.")
+        end
+        setfield!(a,:radiusInteraction,v)
+    elseif var == :mediumN
+        setfield!(a,:mediumN,v)
+    elseif var == :N
+        error("Parameter N cannot be assignet to a vector. It must be an scalar.")
+    elseif var == :t
+        error("Parameter t cannot be assignet to a vector. It must be an scalar.")
+    elseif var in fieldnames(Community)
+        setfield!(a,var,v)
+    elseif var in a.declaredSymbols_["Local"]
         if size(v) != (a.N,)
             error("Trying to assign array with shape ", shape(v), ". It should be of size (N,)")
         end
@@ -110,29 +128,25 @@ function Base.setproperty!(a::Community,var::Symbol,v::Array{<:Number})
             vec[:,:,:,pos] = v
         end
         setfield!(a,:medium_,vec)
-    elseif var == :simulationBox
-        if (a.dims,2) != size(v)
-            error("Trying to assign array with shape ", size(v), ". It should be of size ", (a.dims,2))
-        end
-        setfield!(a,:simulationBox,v)
-    elseif var == :radiusInteraction
-        if size(v) != (a.dims,)
-            error("Trying to assign array with shape ", size(v), ". It should be of size ", (a.dims,) , " or scalar.")
-        end
-        setfield!(a,:radiusInteraction,v)
-    elseif var == :N
-        error("Parameter N cannot be assignet to a vector. It must be an scalar.")
-    elseif var == :t
-        error("Parameter t cannot be assignet to a vector. It must be an scalar.")
     else
-        error("Parameter ", var, " not fount in the community.")
+        error("Parameter ", var, " not found in the community.")
     end
 
 end
 
 function Base.setproperty!(a::Community,var::Symbol,v::Number)
     
-    if var in a.declaredSymbols_["Local"]
+    if var == :simulationBox
+        error("GlobalArray ", var, " cannot be assigned with a scalar. It has to be a matrix of dimensions (dims,2)")
+    elseif var == :radiusInteraction
+        setfield!(a,:radiusInteraction,v)
+    elseif var == :N
+        setfield!(a,:N,v)
+    elseif var == :t
+        setfield!(a,:t,v)
+    elseif var == :dims
+        setfield!(a,:dims,v)
+    elseif var in a.declaredSymbols_["Local"]
         error("Local parameter ", var, " cannot be assigned with a scalar. Use .= instead.")
     elseif var in a.declaredSymbols_["LocalInteraction"]
         error("Local Interaction parameter ", var, " cannot be assigned with a scalar. Use .= instead.")
@@ -145,16 +159,8 @@ function Base.setproperty!(a::Community,var::Symbol,v::Number)
         a.global_[pos] = v
     elseif var in a.declaredSymbols_["GlobalArray"]
         error("GlobalArray ", var, " cannot be assigned with a scalar.")
-    elseif var == :simulationBox
-        error("GlobalArray ", var, " cannot be assigned with a scalar. It has to be a matrix of dimensions (dims,2)")
-    elseif var == :radiusInteraction
-        setfield!(a,:radiusInteraction,v)
-    elseif var == :N
-        setfield!(a,:N,v)
-    elseif var == :t
-        setfield!(a,:t,v)
     else
-        error("Parameter ", var," not fount in the community.")
+        error("Parameter ", var," not found in the community.")
     end
 
 end
