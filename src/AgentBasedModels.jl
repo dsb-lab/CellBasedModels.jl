@@ -101,4 +101,7 @@ include("./auxiliar/extract.jl")
 #Implemented models
 include("./implementedModels/models.jl")
 
+#Implemented models
+include("./optimization/optimization.jl")
+
 end
