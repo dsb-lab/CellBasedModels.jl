@@ -1,22 +1,21 @@
-import ...AgentBasedModels: rand, Categorical, Uniform
+import ...AgentBasedModels: rand, MultivariateNormal
 
 """
-    function geneticAlgorithm(communityInitial::Community, 
+    function stochasticDescentAlgorithm(communityInitial::Community, 
         model::Model, 
         loosFunction:: Function, 
         searchList::Dict{Symbol,<:Union{<:Tuple{<:Number,<:Number},Vector{<:Number}}}, 
-        evalParams::Dict{Symbol,<:Number};
-        population::Int=100,
-        parentSelectionAlg::String = "weighted", #weighted or random
-        parentSelectionP::Number = .1, 
-        mutationRate::Number = .1, 
-        stopMaxGenerations::Int = 10,
+        evalParams::Dict{Symbol,<:Number}; 
+        population::Int=1,
+        jumpVarianceStart::Union{<:Number,Matrix{<:Number}} = .1, 
+        nStatistics::Number = 10, 
+        stopMaxGenerations::Number = 100, 
         initialisation::Union{Nothing,DataFrame} = nothing,
         initialisationF::Union{Nothing,Function} = nothing,
-        returnAll::Bool = false,
+        returnAll::Bool=false,
         saveFileName::Union{Nothing,String} = nothing)
 
-Optimization of the parameter space of a model that uses the [Particle Swarm Algorithm](https://en.wikipedia.org/wiki/Particle_swarm_optimization).
+Optimization of the parameter space of a model that uses [Stochastic Gradient Descent](https://en.wikipedia.org/wiki/Stochastic_gradient_descent).
 
 Args:
 communityInitial::Community : Community to use as a base to start the optimization.
@@ -27,31 +26,26 @@ evalParams::Dict{Symbol,<:Number} : Dictionary of parameters and the ranges of e
 
 kArgs:
 population::Int=100 : Size of the colony used at each generation for the optimization.
-parentSelectionAlg::String = "weighted" : Weigthing method of the population ot chose descendants. 
-parentSelectionP::Number = .1 : Hyperparameter of the algorithm indicating the proportion of parameters exchanged between parents.
-mutationRate::Number = .1 : Hyperparameter of the algorithm indicating the probability of resampling the parameter with a uniform.
+jumpVarianceStart::Union{<:Number,Matrix{<:Number}} = .1 : Initial variance of the multivariate normal used to compute the jump. This parameter is updates if the rejection ratio is very high.
 stopMaxGenerations::Int = 10 : How many generations do before stopping the algorithm. 
 initialisation::Union{Nothing,DataFrame} = nothing : DataFrame defining the initial parameters of the population. If nothing, they are set randomly.
 initialisationF::Union{Nothing,Function} = nothing : Function that takes communityInitial as an argument and searchList parameters as kargs and modifies the communityInitial.
 returnAll::Bool = false : If return the hole list of parameters explored or the just the most fit.
 saveFileName::Union{Nothing,String} = nothing : If given a string, it saves the parameters explored in a file with the corresponding name.
 """
-function geneticAlgorithm(communityInitial::Community, 
+function stochasticDescentAlgorithm(communityInitial::Community, 
                         model::Model, 
                         loosFunction:: Function, 
                         searchList::Dict{Symbol,<:Union{<:Tuple{<:Number,<:Number},Vector{<:Number}}}, 
-                        evalParams::Dict{Symbol,<:Number};
-                        population::Int=100,
-                        parentSelectionAlg::String = "weighted", #weighted or random
-                        parentSelectionP::Number = .1, 
-                        mutationRate::Number = .1, 
-                        stopMaxGenerations::Int = 10,
+                        evalParams::Dict{Symbol,<:Number}; 
+                        population::Int=1,
+                        jumpVarianceStart::Union{<:Number,Matrix{<:Number}} = .1, 
+                        nStatistics::Number = 10, 
+                        stopMaxGenerations::Number = 100, 
                         initialisation::Union{Nothing,DataFrame} = nothing,
                         initialisationF::Union{Nothing,Function} = nothing,
-                        returnAll::Bool = false,
+                        returnAll::Bool=false,
                         saveFileName::Union{Nothing,String} = nothing)
-
-    mTotal = DataFrame()
 
     #Creating the dataframe
     m = DataFrame([i=>zeros(population) for i in keys(searchList)]...)
@@ -74,8 +68,10 @@ function geneticAlgorithm(communityInitial::Community,
     end
     m[:,:_score_] .= 0.
     m[:,:_generation_] .= 1
+    m[:,:_variance_] .= jumpVarianceStart
+    m[:,:_rejection_] .= 0
 
-    #Start first simulations
+    #Start simulation
     for i in 1:population
         com = deepcopy(communityInitial)
         #Set parameters
@@ -99,46 +95,36 @@ function geneticAlgorithm(communityInitial::Community,
 
     count = 2
     while count <= stopMaxGenerations
-        #Selective Breading and mutation
+        
         mNew = DataFrame([i=>zeros(population) for i in keys(searchList)]...)
-        #Weighted probability
-        p = 1 .-(m[:,:_score_] .-minimum(m[:,:_score_]))./(maximum(m[:,:_score_])-minimum(m[:,:_score_]))
-        if maximum(m[:,:_score_]) != minimum(m[:,:_score_])
-            p = p./sum(p)
-        else
-            p .= 1/population
-        end
-        for i in 1:2:population
-            parents = rand(Categorical(p),2)
-            for param in keys(searchList)
-                #Crossing
-                if parentSelectionP < rand()
-                    mNew[i,Symbol(param)] = m[parents[1],param]
-                    mNew[i+1,Symbol(param)] = m[parents[2],param]
+        mNew[:,:_score_] .= 0.
+        mNew[:,:_generation_] .= count
+        mNew[:,:_variance_] .= m[:,:_variance_]
+        mNew[:,:_rejection_] .= m[:,:_rejection_]
+
+        #New jumps
+        for i in 1:population
+            #Make the distribution matrix
+            if mNew[i,:_generation_] % nStatistics == 0
+                if mNew[i,:_rejection_] > .6*nStatistics
+                    mNew[i,:_variance_] = m[i,:_variance_]*.75
                 else
-                    mNew[i,Symbol(param)] = m[parents[2],param]
-                    mNew[i+1,Symbol(param)] = m[parents[1],param]
+                    mNew[i,:_variance_] = m[i,:_variance_]*1.5
                 end
-                #Mutation
-                if mutationRate > rand()
-                    if typeof(searchList[Symbol(param)]) <: Tuple{<:Number,<:Number}
-                        mNew[i,Symbol(param)] = rand(Uniform(searchList[Symbol(param)]...))
-                    else
-                        mNew[i,Symbol(param)] = rand(searchList[Symbol(param)])
-                    end
-                end
-                if mutationRate > rand()
-                    if typeof(searchList[Symbol(param)]) <: Tuple{<:Number,<:Number}
-                        mNew[i+1,Symbol(param)] = rand(Uniform(searchList[Symbol(param)]...))
-                    else
-                        mNew[i+1,Symbol(param)] = rand(searchList[Symbol(param)])
-                    end
+                mNew[i,:_rejection_] = 0
+            end
+            dist = rand(MultivariateNormal(zeros(length(keys(searchList))),mNew[i,:_variance_]))
+            for param in keys(searchList)
+                mNew[i,Symbol(param)] = m[i,Symbol(param)] + dist[i]
+                if mNew[i,param] < searchList[Symbol(param)][1]
+                    mNew[i,param] = searchList[Symbol(param)][1]
+                elseif mNew[i,param] > searchList[Symbol(param)][2]
+                    mNew[i,param] = searchList[Symbol(param)][2]
                 end
             end
         end
+        mOld = copy(m)
         m = copy(mNew)
-        m[:,:_score_] .= 0.
-        m[:,:_generation_] .= count
 
         #Simulations
         for i in 1:population
@@ -153,8 +139,17 @@ function geneticAlgorithm(communityInitial::Community,
             end
             #Run simulation
             comt = model.evolve(com;evalParams...)
-            #Run loos function
+            #Compute loos function
             m[i,:_score_] = loosFunction(comt)
+            if m[i,:_score_] > mOld[i,:_score_]
+                variance = m[i,:_variance_]
+                rejection = m[i,:_rejection_]
+                generation = m[i,:_generation_]
+                m[i,:] = mOld[i,:]
+                m[i,:_rejection_] = rejection + 1
+                m[i,:_generation_] = generation
+                m[i,:_variance_] = variance
+            end
         end
         append!(mTotal,m)
 

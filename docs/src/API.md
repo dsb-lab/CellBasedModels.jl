@@ -63,3 +63,15 @@ Handy functions to construct starting communities with different geometries.
 initialiseCommunityCompactCubic
 initialiseCommunityCompactHexagonal
 ```
+
+### Optization
+
+Functions to optimize the parameters of the model.
+
+```@docs
+Optimization.gridSearch
+Optimization.stochasticDescentAlgorithm
+Optimization.geneticAlgorithm
+Optimization.swarmAlgorithm
+Optimization.beeColonyAlgorithm
+```

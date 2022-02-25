@@ -1,22 +1,20 @@
 import ...AgentBasedModels: rand, Categorical, Uniform
 
 """
-    function geneticAlgorithm(communityInitial::Community, 
+    function beeColonyAlgorithm(communityInitial::Community, 
         model::Model, 
         loosFunction:: Function, 
         searchList::Dict{Symbol,<:Union{<:Tuple{<:Number,<:Number},Vector{<:Number}}}, 
         evalParams::Dict{Symbol,<:Number};
         population::Int=100,
-        parentSelectionAlg::String = "weighted", #weighted or random
-        parentSelectionP::Number = .1, 
-        mutationRate::Number = .1, 
-        stopMaxGenerations::Int = 10,
+        limitCycles::Int = 10,
+        stopMaxGenerations::Int = 100,
         initialisation::Union{Nothing,DataFrame} = nothing,
         initialisationF::Union{Nothing,Function} = nothing,
         returnAll::Bool = false,
         saveFileName::Union{Nothing,String} = nothing)
 
-Optimization of the parameter space of a model that uses the [Particle Swarm Algorithm](https://en.wikipedia.org/wiki/Particle_swarm_optimization).
+Optimization of the parameter space of a model that uses the [Bee Colony Algorithm](https://en.wikipedia.org/wiki/Artificial_bee_colony_algorithm).
 
 Args:
 communityInitial::Community : Community to use as a base to start the optimization.
@@ -27,25 +25,21 @@ evalParams::Dict{Symbol,<:Number} : Dictionary of parameters and the ranges of e
 
 kArgs:
 population::Int=100 : Size of the colony used at each generation for the optimization.
-parentSelectionAlg::String = "weighted" : Weigthing method of the population ot chose descendants. 
-parentSelectionP::Number = .1 : Hyperparameter of the algorithm indicating the proportion of parameters exchanged between parents.
-mutationRate::Number = .1 : Hyperparameter of the algorithm indicating the probability of resampling the parameter with a uniform.
-stopMaxGenerations::Int = 10 : How many generations do before stopping the algorithm. 
+limitCycles::Int = 10 : Hyperparameter of the algorithm that says how many generations without update are waited until jump to other position.
+stopMaxGenerations::Int = 100 : How many generations do before stopping the algorithm. 
 initialisation::Union{Nothing,DataFrame} = nothing : DataFrame defining the initial parameters of the population. If nothing, they are set randomly.
 initialisationF::Union{Nothing,Function} = nothing : Function that takes communityInitial as an argument and searchList parameters as kargs and modifies the communityInitial.
 returnAll::Bool = false : If return the hole list of parameters explored or the just the most fit.
 saveFileName::Union{Nothing,String} = nothing : If given a string, it saves the parameters explored in a file with the corresponding name.
 """
-function geneticAlgorithm(communityInitial::Community, 
+function beeColonyAlgorithm(communityInitial::Community, 
                         model::Model, 
                         loosFunction:: Function, 
-                        searchList::Dict{Symbol,<:Union{<:Tuple{<:Number,<:Number},Vector{<:Number}}}, 
+                        searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}, 
                         evalParams::Dict{Symbol,<:Number};
                         population::Int=100,
-                        parentSelectionAlg::String = "weighted", #weighted or random
-                        parentSelectionP::Number = .1, 
-                        mutationRate::Number = .1, 
-                        stopMaxGenerations::Int = 10,
+                        limitCycles::Int = 10,
+                        stopMaxGenerations::Int = 100,
                         initialisation::Union{Nothing,DataFrame} = nothing,
                         initialisationF::Union{Nothing,Function} = nothing,
                         returnAll::Bool = false,
@@ -61,7 +55,7 @@ function geneticAlgorithm(communityInitial::Community,
                 if typeof(searchList[Symbol(param)]) <: Tuple{<:Number,<:Number}
                     m[i,Symbol(param)] = rand(Uniform(searchList[Symbol(param)]...))
                 else
-                    m[i,Symbol(param)] = rand(searchList[Symbol(param)])
+                    error("beeColonyAlgorithm only works with continuous parameters.")
                 end
             end
         end
@@ -74,6 +68,7 @@ function geneticAlgorithm(communityInitial::Community,
     end
     m[:,:_score_] .= 0.
     m[:,:_generation_] .= 1
+    m[:,:_cycles_] .= 0
 
     #Start first simulations
     for i in 1:population
@@ -99,46 +94,39 @@ function geneticAlgorithm(communityInitial::Community,
 
     count = 2
     while count <= stopMaxGenerations
-        #Selective Breading and mutation
+        #Update rule
         mNew = DataFrame([i=>zeros(population) for i in keys(searchList)]...)
-        #Weighted probability
+        mNew[:,:_score_] .= 0.
+        mNew[:,:_generation_] .= count
+        mNew[:,:_cycles_] .= m[:,:_cycles_]
+        #Updating the population
         p = 1 .-(m[:,:_score_] .-minimum(m[:,:_score_]))./(maximum(m[:,:_score_])-minimum(m[:,:_score_]))
         if maximum(m[:,:_score_]) != minimum(m[:,:_score_])
             p = p./sum(p)
         else
             p .= 1/population
         end
-        for i in 1:2:population
-            parents = rand(Categorical(p),2)
+        for i in 1:population
+            candidate = rand(Categorical(p))
             for param in keys(searchList)
-                #Crossing
-                if parentSelectionP < rand()
-                    mNew[i,Symbol(param)] = m[parents[1],param]
-                    mNew[i+1,Symbol(param)] = m[parents[2],param]
+                #Computing new positions
+                if m[i,:_cycles_] < limitCycles
+                    mNew[i,param] = m[i,param] + rand(Uniform(-1,1))*(m[candidate,param]-m[i,param])
+                    if mNew[i,param] < searchList[Symbol(param)][1]
+                        mNew[i,param] = searchList[Symbol(param)][1]
+                    elseif mNew[i,param] > searchList[Symbol(param)][2]
+                        mNew[i,param] = searchList[Symbol(param)][2]
+                    end
                 else
-                    mNew[i,Symbol(param)] = m[parents[2],param]
-                    mNew[i+1,Symbol(param)] = m[parents[1],param]
-                end
-                #Mutation
-                if mutationRate > rand()
-                    if typeof(searchList[Symbol(param)]) <: Tuple{<:Number,<:Number}
-                        mNew[i,Symbol(param)] = rand(Uniform(searchList[Symbol(param)]...))
-                    else
-                        mNew[i,Symbol(param)] = rand(searchList[Symbol(param)])
-                    end
-                end
-                if mutationRate > rand()
-                    if typeof(searchList[Symbol(param)]) <: Tuple{<:Number,<:Number}
-                        mNew[i+1,Symbol(param)] = rand(Uniform(searchList[Symbol(param)]...))
-                    else
-                        mNew[i+1,Symbol(param)] = rand(searchList[Symbol(param)])
-                    end
+                    mNew[i,Symbol(param)] = rand(Uniform(searchList[Symbol(param)]...))
                 end
             end
+            if m[i,:_cycles_] < limitCycles
+                mNew[i,:_cycles_] = 0
+            end
         end
+        mOld = copy(m)
         m = copy(mNew)
-        m[:,:_score_] .= 0.
-        m[:,:_generation_] .= count
 
         #Simulations
         for i in 1:population
@@ -155,6 +143,14 @@ function geneticAlgorithm(communityInitial::Community,
             comt = model.evolve(com;evalParams...)
             #Run loos function
             m[i,:_score_] = loosFunction(comt)
+
+            #Check if keep old update
+            if m[i,:_score_] > mOld[i,:_score_]
+                generation = m[i,:_generation_]
+                m[i,:] = mOld[i,:]
+                m[i,:_cycles_] += 1
+                m[i,:_generation_] = generation
+            end
         end
         append!(mTotal,m)
 

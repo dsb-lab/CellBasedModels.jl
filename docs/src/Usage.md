@@ -397,6 +397,9 @@ modelCompiled.evolve(com,dt=0.1,tMax=10.)
 
 Depending on the choice of saving properties, the evolve function will return a `CommunityInTime` object, which is an array of Communities with the saved steps in the evolution or will return nothing, in case the data is saved in the hard drive.
 
+## Optimizing the parameters
+
+In many cases, we are interested in fitting the algorithm to some data. For that, we need to optimize the parameters of our model. The package areadly incorporates many algorithms that can be used for the optimization of agent based models.
 ## Debugging Tips
 
 In the compile stage, all of this definitions of parameters, rules, etc. are internally managed to be vectorized and construct a custom made evolution function. All this transformations are performed under deep use of Metaprogramming and return a function that is evaluated in the compiled model under `compiledModel.evolve` property. Moreover, the compiled function is saved as an Expression in the property `compiledModel.program`.
