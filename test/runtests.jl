@@ -3,6 +3,7 @@ using AgentBasedModels
 using Test
 using DataFrames
 import MacroTools: prettify
+using JLD
 
 if CUDA.has_cuda()
     testplatforms = ["cpu","gpu"]
@@ -11,7 +12,7 @@ else
     println("CUDA was not found, only checking cpu.")
 end
 
-# testplatforms = ["cpu"]
+# testplatforms = ["gpu"]
 
 include("testAgent.jl")
 include("testSubstitution.jl")
@@ -24,6 +25,7 @@ include("testIntegrator.jl")
 include("testEvent.jl")
 include("testNeighbors.jl")
 include("testSave.jl")
+include("testOptimization.jl")
 
-# include("testBound.jl")
 # include("testMedium.jl")
+

@@ -28,7 +28,7 @@
                 m1 += 1
                 m2 += 1
             end,
-            Boundary=BoundaryFlat(1))
+    )
     p = AgentBasedModels.Program_(abm)
     for i in AgentBasedModels.UPDATINGTYPES
         p.update[i] = Dict(k=>j for (j,k) in enumerate(abm.declaredSymbols[i]))

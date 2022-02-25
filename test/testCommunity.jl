@@ -40,8 +40,6 @@
             [g1,g2,g3]::Global,
             [ga1,ga2,ga3]::GlobalArray,
             [m1,m2]::Medium,
-
-            Boundary = BoundaryFlat(2,Periodic(),Periodic())
         )                
 
         m = compile(m)
@@ -85,8 +83,6 @@
             [g1,g2,g3]::Global,
             [ga1,ga2,ga3]::GlobalArray,
             [m1,m2,m3]::Medium,
-
-            Boundary = BoundaryFlat(2,Periodic(),Periodic())
         )                
 
         m = compile(m)

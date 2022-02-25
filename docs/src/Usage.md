@@ -23,7 +23,6 @@ In addition to specify the dimensions, there are three types of pieces of code t
 
  - **Parameters**: All the properties of the agents and the model in general.
  - **Updates**: Set of rules that change the parameters of the agent model.
- - **Boundary**: Rules to define the simulation space.
 
 For now, the following methods are included:
 
@@ -34,6 +33,7 @@ For now, the following methods are included:
 ||Global||||
 ||GlobalArray||||
 ||Medium||||
+||MediumBoundary||||
 |[**Updates**](@ref updates)|[UpdateLocal](@ref updateLocal)||`addAgent`,`removeAgent`||
 ||[UpdateGlobal](@ref updateGlobal)||||
 ||[UpdateVariable](@ref equation)|`dt`,`dW`|`d`||
@@ -41,7 +41,6 @@ For now, the following methods are included:
 ||[UpdateInteraction](@ref updateInteraction)|||`.i`,`.j`|
 ||[UpdateMedium](@ref updateMedium)||`∂t`,`∇x`,`∇y`,`∇z`,`Δx`,`Δy`,`Δz`,`δx`,`δy`,`δz`||
 ||[UpdateMediumInteraction](@ref updateMediumInteraction)||||
-|[**Boundary**](@ref boundary)|BoundaryFlat||||
 
 ### [Parameter declaration](@id parameters)
 
@@ -52,6 +51,7 @@ With this special characters, we define all the parameters that a model may have
  - **Global**: Parameters that are shared by all the agents.
  - **GlobalArray**: Parameters in terms of array formats that are shared by all agents.
  - **Medium**: Parameters that form part of a continuous medium the agents are emdedded in.
+ - **MediumBoundary**: Properties that define how the boundary behaves during the simulation.
 
 The parameters can be declared individually or collect them in an array declaration.
 
@@ -86,6 +86,7 @@ m = @agent(dims,
     [array1,array2]::GlobalArray,
 
     [medium1,medium2]::Medium
+    [xMinBoundary,xMaxBoundary....]::MediumBoundary
 )
 ```
 
@@ -97,6 +98,8 @@ m = @agent(dims,
      - **dt::Global**: Step of the time integration.
      - **dW::Local**: Step of the Stochastic integration.
      - **N::Global**: Number of particles in the model at the present time.
+     - **simulationBox::GlobalArray**: Box of dimensions ``(dims,2)`` defining the simulation space.
+     - **radiumInteraction::GlobalArray**: Array of dimensions ``(dims)`` defining the maximum of interaction of an agent.
 
     Although this variables can be accessed freely by the programer, it is only advised to use them as **read only** parameters and not modify them for the correct evolution of the program. The program will inerently use and modify them when evolving the system.
 
@@ -304,49 +307,6 @@ m = @agent(1,
 )
 ```
 
-### [Boundary](@id boundary)
-
-For some simulations, it is not necessary to define any simulation space. However, many simulations usually are defined in some bound space. For now, there is only possible to define hyperectangular spaces as medium.
-
-|[BoundaryFlat](@ref APIBoundaries)|
-
-See [Small Example](@ref simulationSpaceExample) for an illustrative example of how to define complex simulation spaces.
-
-!!! warning "Requirement of a bounded in medium simulations"
-    When the agent based model has defined a medium, the model will ask you for the splicit declaration of a medium with Periodic or Bounded bounds as the simulation of a continuum medium cannot be generated over infinite volumes.
-### [Small Example](@id simulationSpaceExample)
-
-Consider the artificial example of simulating a 2D pipe in which non-interacting elyptic particles flow in the $x$ direction, they get stuck in the upper pippe part and they bounce in the lower part, changing the direction of the velocity in the $y$ axis. The diagram of the boundaries would look like something like this:
-
-```@raw html
-<img src="./assets/ExampleSimulationSpace.png" width="75%" class="center"/>
-```
-
-The code would look like,
-
-```julia
-m = @agent(2,
-
-    [xx1,y1]::Local,   #Particle position and second positions
-    [vx,vy]::Local, #Particle velocity
-    driftx::Global, #Drift of the particles in the x direction
-    diffussion::Global, #Drift of the particles in the x direction
-
-    UpdateVariable = begin
-        d(x) = vx*dt
-        d(y) = vy*dt
-        d(x1) = vx*dt
-        d(y1) = vy*dt
-    end,
-
-    Boundary = BoundaryFlat(2, #Declare the number of dimensions
-                Periodic(addition=[:x1]) #Add x1 to the bounded in the period
-                Bounded(bounceMin=[:y],reflectMin[:vy],stopMax=[:y] #Bounce in the lower region, stop n the upper region and reflect the velocity in y when reached the border
-                )
-)
-
-```
-
 ## Compilation
 
 Once defined the model and the space, the model is ready to be compiled into the full model program. For that we use the function 'compile' which will take all the pieces of information of the Agent and Space and the model and construct a compiled model with an evolution function ready to be used. The optional arguments can be checked at the [API documentation](@ref APIcompilation).
@@ -437,6 +397,9 @@ modelCompiled.evolve(com,dt=0.1,tMax=10.)
 
 Depending on the choice of saving properties, the evolve function will return a `CommunityInTime` object, which is an array of Communities with the saved steps in the evolution or will return nothing, in case the data is saved in the hard drive.
 
+## Optimizing the parameters
+
+In many cases, we are interested in fitting the algorithm to some data. For that, we need to optimize the parameters of our model. The package areadly incorporates many algorithms that can be used for the optimization of agent based models.
 ## Debugging Tips
 
 In the compile stage, all of this definitions of parameters, rules, etc. are internally managed to be vectorized and construct a custom made evolution function. All this transformations are performed under deep use of Metaprogramming and return a function that is evaluated in the compiled model under `compiledModel.evolve` property. Moreover, the compiled function is saved as an Expression in the property `compiledModel.program`.

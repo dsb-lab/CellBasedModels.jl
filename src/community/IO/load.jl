@@ -48,3 +48,14 @@ function loadCommunityInTimeFromCSV(abm::Model, file)
     
     return com
 end
+
+function loadCommunityInTimeFromJLD(file)
+
+    com = CommunityInTime()
+    m = JLD.load(file)
+    for i in 1:length(keys(m))
+        push!(com,m[string(i)])
+    end
+    
+    return com
+end

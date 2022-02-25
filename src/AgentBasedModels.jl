@@ -9,8 +9,9 @@ using Distributions
 using CUDA
 using DataFrames
 using CSV
-import GeometryBasics, GLMakie
-import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, flatten, unblock, isexpr
+using JLD
+# import GeometryBasics, GLMakie
+import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, gensym, flatten, unblock, isexpr
 import SpecialFunctions
 #using WriteVTK
 
@@ -18,18 +19,13 @@ export MediumFlat, δMedium_
 export configurator_
 
 #Constants
-include("./constants/constants.jl")
+include("./constants.jl")
 
 #Agent
 export @agent, Agent
-export BoundaryFlat, Periodic, Bounded, Free
-export PeriodicBoundaryCondition, DirichletBoundaryCondition, DirichletBoundaryCondition_NewmannBoundaryCondition, NewmannBoundaryCondition, NewmannBoundaryCondition_DirichletBoundaryCondition
-include("./agent/boundary/boundaryAbstract.jl")
-include("./agent/boundary/boundaryFlatStructures.jl")
 include("./agent/agentStructure.jl")
 include("./agent/constructAgent.jl")
 include("./model/structProgram.jl") #Structure
-include("./agent/boundary/boundaryFlatFunctions.jl")
 
 #Model
 export Model, compile
@@ -44,7 +40,7 @@ include("./model/agentCode/basic/updateLocalInteraction.jl")
 include("./model/compile.jl")
 
 #Community
-export Community, CommunityInTime, saveCSV, loadCommunityFromCSV, loadCommunityInTimeFromCSV
+export Community, CommunityInTime, saveCSV, loadCommunityFromCSV, loadCommunityInTimeFromCSV, loadCommunityInTimeFromJLD
 export initialiseCommunityCompactHexagonal, initialiseCommunityCompactCubic
 include("./community/community.jl")
 include("./community/baseModuleExtensions.jl")
@@ -70,6 +66,7 @@ include("./model/agentCode/integrator/heun.jl")
 include("./model/agentCode/integrator/integrators.jl")
 
 #Integrators Medium
+include("./model/agentCode/basic/updateMediumBoundaries.jl")
 include("./model/agentCode/integratorMedium/ftcs.jl")
 include("./model/agentCode/integratorMedium/lax.jl")
 include("./model/agentCode/integratorMedium/leapfrog.jl")
@@ -79,16 +76,17 @@ include("./model/agentCode/basic/updateMediumInteraction.jl")
 #Saving
 include("./model/agentCode/saving/saveRAM.jl")
 include("./model/agentCode/saving/saveCSV.jl")
+include("./model/agentCode/saving/saveJLD.jl")
 include("./model/agentCode/saving/saving.jl")
 
 #Cuda specific functions
 include("./model/cuda/cudaAdapt.jl")
 include("./model/cuda/cudaConfigurator.jl")
 
-#Visualization functions
-export plotSpheres, plotRods
-include("./plotting/rods.jl")
-include("./plotting/spheres.jl")
+# #Visualization functions
+# export plotSpheres, plotRods
+# include("./plotting/rods.jl")
+# include("./plotting/spheres.jl")
 
 #Auxiliar function
 include("./auxiliar/checkDeclared.jl")
@@ -104,5 +102,8 @@ include("./auxiliar/extract.jl")
 
 #Implemented models
 include("./implementedModels/models.jl")
+
+#Implemented models
+include("./optimization/optimization.jl")
 
 end

@@ -54,13 +54,6 @@ function updates_!(p::Program_)
                 end
             end
 
-            #Add symbols from boundaries
-            if t == "Local"
-                if i in p.agent.boundary.addSymbols
-                    found = true
-                end
-            end
-
             if found
                 dict[i] = counter
                 counter += 1

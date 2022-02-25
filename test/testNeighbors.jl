@@ -399,11 +399,9 @@ end
             UpdateLocalInteraction = begin
                 intLocal.i += 1
             end,
-
-            Boundary = BoundaryFlat(1,Periodic())
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",debug=false)
+        mo = compile(m,platform=platform,neighbors="grid",periodic=[true],debug=false)
         # println(mo.program)
         @test begin
             com = Community(mo,N=4)
@@ -434,11 +432,9 @@ end
             UpdateLocalInteraction = begin
                 intLocal.i += 1
             end,
-
-            Boundary = BoundaryFlat(2,Periodic())
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",debug=false)
+        mo = compile(m,platform=platform,neighbors="grid",periodic=[true,false],debug=false)
         # println(mo.program)
         @test begin
             com = Community(mo,N=16)
@@ -469,11 +465,9 @@ end
             UpdateLocalInteraction = begin
                 intLocal.i += 1
             end,
-
-            Boundary = BoundaryFlat(2,Free(),Periodic())
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",debug=false)
+        mo = compile(m,platform=platform,neighbors="grid",periodic=[false,true],debug=false)
         # println(mo.program)
         @test begin
             com = Community(mo,N=16)
@@ -504,11 +498,9 @@ end
             UpdateLocalInteraction = begin
                 intLocal.i += 1
             end,
-
-            Boundary = BoundaryFlat(2,Periodic(),Periodic())
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",debug=false)
+        mo = compile(m,platform=platform,neighbors="grid",periodic=[true,true],debug=false)
         # println(mo.program)
         @test begin
             com = Community(mo,N=16)
@@ -540,11 +532,9 @@ end
             UpdateLocalInteraction = begin
                 intLocal.i += 1
             end,
-
-            Boundary = BoundaryFlat(3,Periodic(),Free(),Free())
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",debug=false)
+        mo = compile(m,platform=platform,neighbors="grid",periodic=[true,false,false],debug=false)
         # println(mo.program)
         @test begin
             com = Community(mo,N=64)
@@ -603,11 +593,9 @@ end
             UpdateLocalInteraction = begin
                 intLocal.i += 1
             end,
-
-            Boundary = BoundaryFlat(3,Free(),Periodic(),Free())
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",debug=false)
+        mo = compile(m,platform=platform,neighbors="grid",periodic=[false,true,false],debug=false)
         # println(mo.program)
         @test begin
             com = Community(mo,N=64)
@@ -666,11 +654,9 @@ end
             UpdateLocalInteraction = begin
                 intLocal.i += 1
             end,
-
-            Boundary = BoundaryFlat(3,Free(),Free(),Periodic())
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",debug=false)
+        mo = compile(m,platform=platform,neighbors="grid",periodic=[false,false,true],debug=false)
         # println(mo.program)
         @test begin
             com = Community(mo,N=64)
@@ -729,11 +715,9 @@ end
             UpdateLocalInteraction = begin
                 intLocal.i += 1
             end,
-
-            Boundary = BoundaryFlat(3,Periodic(),Periodic(),Periodic())
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",debug=false)
+        mo = compile(m,platform=platform,neighbors="grid",periodic=[true,true,true],debug=false)
         # println(mo.program)
         @test begin
             com = Community(mo,N=64)

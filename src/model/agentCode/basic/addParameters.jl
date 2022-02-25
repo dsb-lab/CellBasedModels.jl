@@ -171,7 +171,7 @@ function addUpdate_!(p::Program_,platform::String)
     create = false
 
     #Check is there is something to update
-    for i in keys(p.update)
+    for i in UPDATINGTYPES
         if !isempty(p.update[i])
             create = true
         end
@@ -205,12 +205,14 @@ function addUpdate_!(p::Program_,platform::String)
                     push!(upb.args,:($var[$pos]=$varCopy[$posCopy]))
                 end
 
-                push!(up.args,
-                    :(begin
-                        if ic1_ == 1
-                            $(upb)
-                        end
-                    end))
+                if length([i for i in upb.args if typeof(i) != LineNumberNode]) > 0
+                    push!(up.args,
+                        :(begin
+                            if ic1_ == 1
+                                $(upb)
+                            end
+                        end))
+                end
             elseif i == "Medium"
                 if "UpdateMedium" in keys(p.agent.declaredUpdates)
                     push!(gen.args,:(mediumV.=mediumVCopy))
@@ -220,14 +222,20 @@ function addUpdate_!(p::Program_,platform::String)
         end
         
         #Construct global and local update function
-        f = simpleFirstLoopWrapInFunction_(platform,:updateLocGlob_!,up)
-        push!(p.declareF.args,f)
+        add = nothing
+        if length([i for i in up.args if typeof(i) != LineNumberNode]) > 0
+            f = simpleFirstLoopWrapInFunction_(platform,:updateLocGlob_!,up)
+            push!(p.declareF.args,f)
+            add = :(@platformAdapt updateLocGlob_!(ARGS_))
+        else
+            add = :nothing
+        end
         #Construct general update function
         push!(p.declareF.args,
             :(begin 
                 function update_!(ARGS_)
                     $gen
-                    @platformAdapt updateLocGlob_!(ARGS_)
+                    $add
                     return
                 end
             end)
@@ -249,11 +257,12 @@ function addCopyInitialisation_!(p::Program_,platform::String)
 
     create = false
 
-    for i in keys(p.agent.declaredUpdates)
-        if !(i in ["UpdateLocalInteraction","UpdateInteraction","EventDivision"]) && !emptyquote_(p.agent.declaredUpdates[i])
+    #Check is there is something to update
+    for i in UPDATINGTYPES
+        if !isempty(p.update[i])
             create = true
         end
-    end 
+    end
 
     if create
         gen = quote end #General update
@@ -283,32 +292,44 @@ function addCopyInitialisation_!(p::Program_,platform::String)
                     push!(upb.args,:($varCopy[$posCopy]=$var[$pos]))
                 end
 
-                push!(up.args,
-                    :(begin
-                        if ic1_ == 1
-                            $(upb)
-                        end
-                    end))
+                if length([i for i in upb.args if typeof(i) != LineNumberNode]) > 0
+                    push!(up.args,
+                        :(begin
+                            if ic1_ == 1
+                                $(upb)
+                            end
+                        end))
+                end
+            elseif i == "Medium"
+                if "UpdateMedium" in keys(p.agent.declaredUpdates)
+                    push!(gen.args,:(mediumVCopy.=mediumV))
+                end
             end
 
         end
         
         #Construct global and local update function
-        f = simpleFirstLoopWrapInFunction_(platform,:initialiseLocGlobCopy_!,up)
-        push!(p.declareF.args,f)
+        add = nothing
+        if length([i for i in up.args if typeof(i) != LineNumberNode]) > 0
+            f = simpleFirstLoopWrapInFunction_(platform,:updateLocGlobInitialisation_!,up)
+            push!(p.declareF.args,f)
+            add = :(@platformAdapt updateLocGlobInitialisation_!(ARGS_))
+        else
+            add = :nothing
+        end
         #Construct general update function
         push!(p.declareF.args,
             :(begin 
-                function initialiseCopy_!(ARGS_)
+                function updateInitialisation_!(ARGS_)
                     $gen
-                    @platformAdapt initialiseLocGlobCopy_!(ARGS_)
+                    $add
                     return
                 end
             end)
             )
 
         #Add to execution cue
-        push!(p.execInit.args,:(initialiseCopy_!(ARGS_)))
+        push!(p.execInloop.args,:(updateInitialisation_!(ARGS_)))
     end
 
     return nothing

@@ -15,8 +15,10 @@
         com.ga = [1 2;3 4]
         
         saveCSV(com,"testCSV")
-
         com2 = loadCommunityFromCSV(model,"testCSV")
+
+        JLD.save("testJLD.jld","com",com)
+        com3 = JLD.load("testJLD.jld","com")
     end
 
     m = @agent(0,
@@ -32,6 +34,15 @@
     com.ga = [1 2;3 4]
     saveCSV(com,"testCSV")
     com2 = loadCommunityFromCSV(model,"testCSV")
+    @test com.declaredSymbols_ == com2.declaredSymbols_
+    @test com.local_ == com2.local_
+    @test com.identity_ == com2.identity_
+    @test com.global_ == com2.global_
+    @test com.globalArray_ == com2.globalArray_
+    @test com.t == com2.t
+    @test com.N == com2.N
+    JLD.save("testJLD.jld","com",com)
+    com2 = JLD.load("testJLD.jld","com")
     @test com.declaredSymbols_ == com2.declaredSymbols_
     @test com.local_ == com2.local_
     @test com.identity_ == com2.identity_
@@ -58,9 +69,6 @@
         @test length(comt)==51
         @test comt[end].l[1,2] == 0. 
         @test comt[1].l[1,1] == 0
-    end
-
-    for platform in testplatforms
 
         m = @agent(0,
             l::GlobalArray,
@@ -76,11 +84,29 @@
         model.evolve(com, dt=0.1, tMax=10.05, dtSave=0.2, saveFile="testCSV")
 
         @test_nowarn loadCommunityInTimeFromCSV(model,"testCSV")
+
+        m = @agent(0,
+            l::GlobalArray,
+
+            UpdateGlobal = begin
+                    l[1,1] += 1
+                end
+            )
+        model = compile(m,save="JLD",debug=false,platform=platform)
+        # println(model.program)
+        com = Community(model)
+        com.l = zeros(2,2)
+        model.evolve(com, dt=0.1, tMax=10.05, dtSave=0.2, saveFile="testJLD")
+
+        @test_nowarn loadCommunityInTimeFromJLD("testJLD.jld")
     end
 
     dir = readdir("./")
     for i in dir
         if occursin(".csv",i)
+            rm(i)
+        end
+        if occursin(".jld",i)
             rm(i)
         end
     end

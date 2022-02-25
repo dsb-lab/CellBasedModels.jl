@@ -9,6 +9,7 @@ mutable struct Program_
     integrator::String
     integratorMedium::String
     neighbors::String
+    neighborsPeriodic::Vector{Bool}
     declareVar::Expr
     declareF::Expr
     args::Array{Symbol,1}
@@ -21,6 +22,6 @@ mutable struct Program_
 end
 
 function Program_(abm::Agent)
-    return Program_(abm,"Euler","FTCS","full",quote end,quote end,Array{Symbol,1}(BASICARGS),
+    return Program_(abm,"Euler","FTCS","full",Vector{Bool}([false,false,false]),quote end,quote end,Array{Symbol,1}(BASICARGS),
                     quote end,quote end,quote end,quote end,Dict{String,Dict{Symbol,Int}}())
 end

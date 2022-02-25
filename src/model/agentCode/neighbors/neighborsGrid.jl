@@ -480,7 +480,7 @@ function loopGrid_(program::Program_, code::Expr, platform::String)
 
     #Compute the cell id for each agent in grid and linearized format for any box possible box dimensions.
     if program.agent.dims == 1
-        periodicX = typeof(program.agent.boundary.boundaries[1]) == Periodic
+        periodicX = program.neighborsPeriodic[1]
         loop=:(begin 
             for iAux1_ in 1:3
                 pos_ = AgentBasedModels.gridVectorPositionNeighbour_(nnPosIdCell_[ic1_],iAux1_,n_[1],$periodicX)
@@ -495,8 +495,8 @@ function loopGrid_(program::Program_, code::Expr, platform::String)
             end
         end)
     elseif program.agent.dims == 2
-        periodicX = typeof(program.agent.boundary.boundaries[1]) == Periodic
-        periodicY = typeof(program.agent.boundary.boundaries[2]) == Periodic
+        periodicX = program.neighborsPeriodic[1]
+        periodicY = program.neighborsPeriodic[2]
         loop=:(begin 
             for iAux1_ in 1:9
                 pos_ = AgentBasedModels.gridVectorPositionNeighbour_(nnPosIdCell_[ic1_],iAux1_,n_[1],$periodicX,n_[2],$periodicY)
@@ -511,9 +511,9 @@ function loopGrid_(program::Program_, code::Expr, platform::String)
             end
         end)
     elseif program.agent.dims == 3
-        periodicX = typeof(program.agent.boundary.boundaries[1]) == Periodic
-        periodicY = typeof(program.agent.boundary.boundaries[2]) == Periodic
-        periodicZ = typeof(program.agent.boundary.boundaries[3]) == Periodic
+        periodicX = program.neighborsPeriodic[1]
+        periodicY = program.neighborsPeriodic[2]
+        periodicZ = program.neighborsPeriodic[3]
         loop=:(begin 
             for iAux1_ in 1:27
                 pos_ = AgentBasedModels.gridVectorPositionNeighbour_(nnPosIdCell_[ic1_],iAux1_,n_[1],$periodicX,n_[2],$periodicY,n_[3],$periodicZ)

@@ -94,9 +94,9 @@ macro agent(dims, varargs...)
                 type = i.args[2]
 
                 if !(type in VALID_TYPES)
-                    error(i, " should be and expression containing at least a name and a type. Example variable::Variable.") 
+                    error(type, " is not a valid tag.") 
                 elseif typeof(name) == Expr
-                    if !(name.head == :vect) && !(name.head == :.)
+                    if !(name.head in [:vect, :.])
                         error(name, " should be a symbol or an array of symbols. Check how to declare ", type, " types.")
                     elseif name.head == :vect
                         names = Symbol[]
@@ -107,7 +107,7 @@ macro agent(dims, varargs...)
                             push!(names,j)
                         end
                         name = names
-                    elseif type != :BaseModel
+                    elseif !(type in [:BaseModel])
                         error(i, " should be and expression containing at least a name and a type. Example variable::Variable.") 
                     end
                 end    
@@ -201,19 +201,6 @@ macro agent(dims, varargs...)
                     else
                         push!(m.declaredUpdates[string(i.args[1])].args,i.args[2])
                     end
-                elseif i.args[1] == :(Boundary)
-                    if boundaryDeclared
-                        error("Boundary can only be declared once.")
-                    end
-                    boundary = Main.eval(i.args[2])
-                    if !(typeof(boundary)<:Boundary)
-                        error("Boundary has to be declared with a type boundary.")
-                    elseif dims != boundary.dims
-                        error("Boundary must have the same dimensions as the agent.") 
-                    else
-                        m.boundary = boundary
-                        boundaryDeclared = true
-                    end
                 else
                     error(i.args[1], " is not a valid type.")
                 end
@@ -234,11 +221,6 @@ macro agent(dims, varargs...)
         m.declaredUpdates[i] = code
     end
 
-    if !boundaryDeclared && !isempty(m.declaredSymbols["Medium"])
-        error("If medium variables are declared, a boundary must be explicitely declared.")
-    elseif !boundaryDeclared
-        m.boundary = BoundaryFlat(dims)
-    end
         
     return m
 end

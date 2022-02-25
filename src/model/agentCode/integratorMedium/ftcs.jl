@@ -7,13 +7,27 @@ function addIntegratorMediumFTCS_!(p::Program_,platform::String)
 
     if "UpdateMedium" in keys(p.agent.declaredUpdates)
 
-        #Construct functions
+        #Add boundary computation
+        boundaryFunction = boundariesFunctionDefinition(p, platform)
 
-            #Make function to compute everything inside the volume
+        #Remove all the lines that are Boundary lines
+        code = copy(p.agent.declaredUpdates["UpdateMedium"])
 
-        f = p.agent.declaredUpdates["UpdateMedium"]
+        mediumsym = []
+        for i in 1:p.agent.dims
+            append!(mediumsym,MEDIUMBOUNDARYSYMBOLS[i])
+        end
+        code = postwalk(x -> @capture(x,f1_() = f2_) && (f1 in mediumsym) ? :nothing : x, code)
+        code = postwalk(x -> @capture(x,f1_()) && (f1 in mediumsym) ? :nothing : x, code)
+        code = postwalk(x -> @capture(x,f1_(f3_) = f2_) && (f1 in mediumsym) ? :nothing : x, code)
+        code = postwalk(x -> @capture(x,f1_(f3_)) && (f1 in mediumsym) ? :nothing : x, code)
+
+        f = quote end
+        f.args = [i for i in code.args if i !== :nothing]
+
+        #Create modified operator
         for (i,j) in enumerate(p.agent.declaredSymbols["Medium"]) # Change symbol for update
-            f = postwalk(x -> @capture(x,g_(s_)=v_) && s == j && g == DIFFMEDIUMSYMBOL ? :($j = $j + $v*dt) : x, f)
+            f = postwalk(x -> @capture(x,g_(s_)=v_) && s == j && g == DIFFMEDIUMSYMBOL ? :($j.new = $j + ($v)*dt) : x, f)
         end
         f = postwalk(x->@capture(x,s_(v_)) ? :($(adaptOperatorsMediumFTCS_(v,s,p))) : x, f) # Adapt
         f = postwalk(x->@capture(x,s_) ? adaptSymbolsMediumFTCS_(s,p) : x, f) # Adapt
@@ -24,9 +38,9 @@ function addIntegratorMediumFTCS_!(p::Program_,platform::String)
 
         #Remove count over boundaries
         if platform == "cpu"
-            f = postwalk(x->@capture(x,1:Nx_) && Nx == :Nx_ ? :(2:Nx_-1) : x, f)
-            f = postwalk(x->@capture(x,1:Ny_) && Ny == :Ny_ ? :(2:Ny_-1) : x, f)
-            f = postwalk(x->@capture(x,1:Nz_) && Nz == :Nz_ ? :(2:Nz_-1) : x, f)
+            f = postwalk(x->@capture(x,1:1:Nx_) && Nx == :Nx_ ? :(2:1:Nx_-1) : x, f)
+            f = postwalk(x->@capture(x,1:1:Ny_) && Ny == :Ny_ ? :(2:1:Ny_-1) : x, f)
+            f = postwalk(x->@capture(x,1:1:Nz_) && Nz == :Nz_ ? :(2:1:Nz_-1) : x, f)
         elseif platform == "gpu"
             f = postwalk(x->@capture(x,indexX_:strideX_:Nx_) && Nx == :Nx_ ? :(indexX_+1:strideX_:Nx_-1) : x, f)
             f = postwalk(x->@capture(x,indexY_:strideY_:Ny_) && Ny == :Ny_ ? :(indexY_+1:strideY_:Ny_-1) : x, f)
@@ -35,26 +49,39 @@ function addIntegratorMediumFTCS_!(p::Program_,platform::String)
         push!(p.declareF.args, ## Add it to code
                 f 
             )        
-
-        #Add boundary computation
-        boundariesFunctionDefinition(p.agent.boundary, p, platform)
-
-        if "UpdateMediumInteraction" in keys(p.agent.declaredUpdates)
-            fWrap = wrapInFunction_(:mediumStep_!, 
-                                    :(begin 
-                                        @platformAdapt mediumInnerStep_!(ARGS_)
-                                        @platformAdapt mediumBoundaryStep_!(ARGS_)
-                                        @platformAdapt mediumInteractionStep_!(ARGS_)
-                                    end)
-                                    )
-        else
-            fWrap = wrapInFunction_(:mediumStep_!, 
-                                    :(begin 
-                                        @platformAdapt mediumInnerStep_!(ARGS_)
-                                        @platformAdapt mediumBoundaryStep_!(ARGS_)
-                                    end)
-                                    )
+        
+        if p.agent.dims == 1
+            wrapFunction = quote @platformAdapt1 mediumInnerStep_!(ARGS_) end
+        elseif p.agent.dims == 2
+            wrapFunction = quote @platformAdapt2 mediumInnerStep_!(ARGS_) end
+        elseif p.agent.dims == 3
+            wrapFunction = quote @platformAdapt3 mediumInnerStep_!(ARGS_) end
         end
+
+        if boundaryFunction
+            if p.agent.dims == 1
+                push!(wrapFunction.args, ## Add it to code
+                :(@platformAdapt1 mediumBoundaryStep_!(ARGS_)) 
+                )        
+            elseif p.agent.dims == 2
+                push!(wrapFunction.args, ## Add it to code
+                :(@platformAdapt2 mediumBoundaryStep_!(ARGS_)) 
+                )        
+            elseif p.agent.dims == 3
+                push!(wrapFunction.args, ## Add it to code
+                :(@platformAdapt3 mediumBoundaryStep_!(ARGS_)) 
+                )        
+            end
+        end
+
+        # if "UpdateMediumInteraction" in keys(p.agent.declaredUpdates)
+        #     push!(wrapFunction.args,:(@platformAdapt mediumInteractionStep_!(ARGS_)))
+        # end
+
+        fWrap = wrapInFunction_(:mediumStep_!, 
+                                wrapFunction
+                                )
+
         push!(p.declareF.args, ## Add it to code
             fWrap 
             )        
@@ -94,7 +121,7 @@ function adaptOperatorsMediumFTCS_(f,op,p)
 
     if op == :δx
 
-        f = :(δMedium_(round(Int,($f-simulationBox[1,1])/dxₘ_)+1,ic1_))
+        f = :(δMedium_(round(Int,($f-simulationBox[1,1])/dxₘ_)+2,ic1_))
 
     elseif op == :δy
 
@@ -102,7 +129,7 @@ function adaptOperatorsMediumFTCS_(f,op,p)
             error("Operator δy cannot be used in Agent with dimension 1.")
         end
 
-        f = :(δMedium_(round(Int,($f-simulationBox[2,1])/dyₘ_)+1,ic2_))
+        f = :(δMedium_(round(Int,($f-simulationBox[2,1])/dyₘ_)+2,ic2_))
 
     elseif op == :δz
 
@@ -110,7 +137,7 @@ function adaptOperatorsMediumFTCS_(f,op,p)
             error("Operator δz cannot be used in Agent with dimension 1 or 2.")
         end
 
-        f = :(δMedium_(round(Int,($f-simulationBox[3,1])/dzₘ_)+1,ic3_))
+        f = :(δMedium_(round(Int,($f-simulationBox[3,1])/dzₘ_)+2,ic3_))
 
     elseif op == :Δ
         if p.agent.dims == 1
