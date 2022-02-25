@@ -9,6 +9,7 @@ using Distributions
 using CUDA
 using DataFrames
 using CSV
+using JLD
 # import GeometryBasics, GLMakie
 import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, gensym, flatten, unblock, isexpr
 import SpecialFunctions
@@ -39,7 +40,7 @@ include("./model/agentCode/basic/updateLocalInteraction.jl")
 include("./model/compile.jl")
 
 #Community
-export Community, CommunityInTime, saveCSV, loadCommunityFromCSV, loadCommunityInTimeFromCSV
+export Community, CommunityInTime, saveCSV, loadCommunityFromCSV, loadCommunityInTimeFromCSV, loadCommunityInTimeFromJLD
 export initialiseCommunityCompactHexagonal, initialiseCommunityCompactCubic
 include("./community/community.jl")
 include("./community/baseModuleExtensions.jl")
@@ -75,6 +76,7 @@ include("./model/agentCode/basic/updateMediumInteraction.jl")
 #Saving
 include("./model/agentCode/saving/saveRAM.jl")
 include("./model/agentCode/saving/saveCSV.jl")
+include("./model/agentCode/saving/saveJLD.jl")
 include("./model/agentCode/saving/saving.jl")
 
 #Cuda specific functions
