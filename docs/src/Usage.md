@@ -320,8 +320,8 @@ Depending of the type of simulation we can sum over the interacting agents in di
 
 | Nighbour algorithms | Good for simulations | Required parameters | Optional parameters |
 |---|:---:|:---:|---|
-| [full](@ref Simulation) | Unbounded simulations , Small bounded simulations, All-to-all interactions | None | Array with bounds (1D-3D) |
-| [grid](@ref Simulation) | Bounded simulations, Large bounded simulations, Local interactions | Array with bounds (1D-3D), Distance of interaction | None |
+| `full` | Unbounded simulations , Small bounded simulations, All-to-all interactions | None | Array with bounds (1D-3D) |
+| `grid` | Bounded simulations, Large bounded simulations, Local interactions | Array with bounds (1D-3D), Distance of interaction | None |
 
 !!! info "A bit deeper insight in simulation space methods"
     **SimulationFree** uses brute force and computes the interaction between all the pair of particles, hence being its computation complexity of $N^2$. This is the way to go when all the particles are interacting with each other at all times. The method is straighforward and does not require additional memory to compute anything. Because of its simplicity, it may be also more efficient than more convolute methods as the one of the simulation grid method for small scale systems even when the particles interact only locally.\
@@ -332,16 +332,27 @@ Depending of the type of simulation we can sum over the interacting agents in di
 
 The equations of motion defined in `UpdateVariable` can be integrated with for the moment with two different explicit methods.
 
-| Integration algorithm | Approximation |
+| Integration algorithm | Accuracy |
 |---|:---:|
-| `Euler` |  |
-| `Heun` |  |
+| `Euler` | $\mathcal{O}(\Delta t)$ |
+| `Heun` | $\mathcal{O}(\Delta t^2)$ |
 
 See [Small Example](@ref simulationSpaceExample) for an illustrative example of how to define complex simulation spaces.
 
+### MediumIntegrator
+
+The equations of motion defined in `UpdateMedium` can be integrated with for the moment with two different explicit methods.
+
+| Integration algorithm | Good for | Stability | Accuracy | Caution |
+|---|:---:|:---:|:---:|:---:|
+| `FTCS` | Diffussion and advection-diffusion equations of the form $$\partial_t u(x,t) =  \alpha(u) \partial_{xx} u(x,t) + f(u,t) $$ $$\partial_t u(x,t) = \beta(u) \partial_{x} u(x,t) +  \alpha(u) \partial_{xx} u(x,t) + f(u,t) $$ | $$\alpha(u) \Delta t/\Delta x^2 \leq 1/2$$ | $\mathcal{O}(\Delta t) + \mathcal{O}(\Delta x^2)$ | Unconditionaly unstable for advection-only equations. |
+| `Lax` | Advection equations of the form $$\partial_t u(x,t) = \alpha(u) \partial_{x} u(x,t) + f(u,t)$$ | $$\|\alpha(u) \Delta t/\Delta x\| \leq 1$$ | $\mathcal{O}(\Delta t)+\mathcal{O}(\Delta x^2/\Delta t)$  | The stability makes the colution to be diffusive. |
+
+See [Small Example](@ref simulationSpaceExample) for an illustrative example of how to define complex simulation spaces.
 ### Platform
 
 Choose between running the model in `cpu` or `gpu`. For small systems, the cpu can give better results, giving a increased speed of for big models in the gpu.
+
 ## Initialising the model: construction of an initial Community
 
 With the model at hand, the only we are required is to define an initial condition for the model to be evolved. We use for that the `Community` structure. The community structure is an instantiation of an agent based model for a particular time that stores the information of all the global and local parameters of the model. 

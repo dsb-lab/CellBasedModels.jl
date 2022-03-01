@@ -1,22 +1,20 @@
 """
-    function addIntegratorMediumLax_!(p::Program_,platform::String)
+    function addIntegratorMediumImplicitEuler_!(p::Program_,platform::String)
 
-Generate the functions related with Medium Update with Lax integration method.
-
-This method is conditionally stable for advection functions without viscosity (ecc. functions with the form ``∂ₜx(x) = ∇x u(x)```). 
+Generate the functions related with Medium Update with Implicit Euler integration method integration method.
 
 The discretization scheme implemented is,
 
 ``
-∇x(f(u(x))) = (f(u(x+dx)) - f(u(x-dx)))/2dx
+∇x(f(u(x,t))) = (f(u(x+dx,t)) - f(u(x-dx,t)))/2dx
 ``
 
 ``
-Δx(f(u(x))) = (f(u(x+dx)) - 2 f(u(x)) + f(u(x-dx)))/dx^2
+Δx(f(u(x,t))) = (f(u(x+dx,t+dt)) - 2 f(u(x,t+dt)) + f(u(x-dx,t+dt)))/dx^2
 ``
 
 ``
-∂ₜ(u(x)) = (u(x+dx) - (u(x+dx)+u(x-dx))/2) / dt
+∂ₜ(u(x,t)) = (u(x,t+dt) - (u(x+dx,t)+u(x-dx,t))/2) / dt
 ``
 
 The accuracy of this scheme is,

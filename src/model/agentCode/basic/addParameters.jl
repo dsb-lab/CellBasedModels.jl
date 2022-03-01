@@ -170,7 +170,7 @@ function addUpdate_!(p::Program_,platform::String)
 
     create = false
 
-    #Check is there is something to update
+    #Check if there is something to update
     for i in UPDATINGTYPES
         if !isempty(p.update[i])
             create = true

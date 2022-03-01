@@ -1,38 +1,42 @@
 """
-    function addIntegratorMediumFTCS_!(p::Program_,platform::String)
+    function addIntegratorMediumLax_!(p::Program_,platform::String)
 
-Generate the functions related with Medium Update with FTCS integration method.
+Generate the functions related with Medium Update with Lax integration method.
 
-This method is unconditionally unstable for advection functions without viscosity (ecc. functions with the form `∂ₜx(x) = ∇x u(x)`). It is only advised to use with difussion equations. 
-    
+This method is conditionally stable for advection functions without viscosity (ecc. functions with the form ``∂ₜx(x) = ∇x u(x)```). 
+
 The discretization scheme implemented is,
 
 ``
-∇x(f(u(x,t))) = (f(u(x+dx,t)) - f(u(x-dx,t)))/2dx
+∇x(u(x,t)) = (u(x+dx,t+dt) - u(x-dx,t+dt))/2dx
 ``
 
 ``
-Δx(f(u(x,t))) = (f(u(x+dx,t)) - 2 f(u(x,t)) + f(u(x-dx,t)))/dx^2
+Δx(u(x,t+dt)) = (u(x+dx,t+dt) - 2 u(x,t+dt) + u(x-dx,t+dt))/dx^2
 ``
 
 ``
 ∂ₜ(u(x,t)) = (u(x,t+dt) - u(x,t)) / dt
 ``
 
-The stability of this method is,
-
-``αΔt/Δx² ≤ 1/2``
+The stability of this method is unconditional.
 """
-function addIntegratorMediumFTCS_!(p::Program_,platform::String)
+function addIntegratorMediumImplicitEuler_!(p::Program_,platform::String)
 
     if "UpdateMedium" in keys(p.agent.declaredUpdates)
 
         #Add boundary computation
         f = boundariesFunctionDefinition(p, platform)
 
+        error()
+
         #Create modified operator
         for (i,j) in enumerate(p.agent.declaredSymbols["Medium"]) # Change symbol for update
-            f = postwalk(x -> @capture(x,g_(s_)=v_) && s == j && g == DIFFMEDIUMSYMBOL ? :($j.new = $j + ($v)*dt) : x, f)
+            ind1 = Vector{Union{Symbol,Expr,Int}}(MEDIUMITERATIONSYMBOLS)[1:p.agent.dims]; 
+            ind2 = Vector{Union{Symbol,Expr,Int}}(MEDIUMITERATIONSYMBOLS)[1:p.agent.dims];
+            ind1[i] = :($(ind1[i])+1); ind2[i] = :($(ind2[i])-1);
+            add = :((mediumV[$(ind1)...,$i] + mediumV[$(ind2)...,$i])/2)
+            f = postwalk(x -> @capture(x,g_(s_)=v_) && s == j && g == DIFFMEDIUMSYMBOL ? :($j.new = $add + ($v)*dt) : x, f)
         end
         f = postwalk(x->@capture(x,s_(v_)) ? :($(adaptOperatorsMediumFTCS_(v,s,p))) : x, f) # Adapt
         f = postwalk(x->@capture(x,s_) ? adaptSymbolsMediumFTCS_(s,p) : x, f) # Adapt
