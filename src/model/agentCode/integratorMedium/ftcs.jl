@@ -3,7 +3,23 @@
 
 Generate the functions related with Medium Update with FTCS integration method.
 
-This method is unconditionally unstable for advection functions without viscosity (ecc. functions with the form `∂ₜx(x) = ∇x u(x)`). It is only advised to use with difussion equations. The stability of this method is,
+This method is unconditionally unstable for advection functions without viscosity (ecc. functions with the form `∂ₜx(x) = ∇x u(x)`). It is only advised to use with difussion equations. 
+    
+The discretization scheme implemented is,
+
+``
+∇x(f(u(x))) = (f(u(x+dx)) - f(u(x-dx)))/2dx
+``
+
+``
+Δx(f(u(x))) = (f(u(x+dx)) - 2 f(u(x)) + f(u(x-dx)))/dx^2
+``
+
+``
+∂ₜ(u(x)) = (u(x+dx) - u(x)) / dt
+``
+
+The stability of this method is,
 
 ``αΔt/Δx² ≤ 1/2``
 """

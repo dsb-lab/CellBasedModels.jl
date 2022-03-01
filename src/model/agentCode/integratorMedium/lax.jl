@@ -1,158 +1,91 @@
 """
     function addIntegratorMediumLax_!(p::Program_,platform::String)
 
-Generate the functions related with Medium Update.
+Generate the functions related with Medium Update with Lax integration method.
+
+This method is conditionally stable for advection functions without viscosity (ecc. functions with the form ``∂ₜx(x) = ∇x u(x)```). 
+
+The discretization scheme implemented is,
+
+``
+∇x(f(u(x))) = (f(u(x+dx)) - f(u(x-dx)))/2dx
+``
+
+``
+Δx(f(u(x))) = (f(u(x+dx)) - 2 f(u(x)) + f(u(x-dx)))/dx^2
+``
+
+``
+∂ₜ(u(x)) = (u(x+dx) - (u(x+dx)+u(x-dx))/2) / dt
+``
+
+The accuracy of this scheme is,
+
+``O(Δt)+O(Δx²/Δt)``
+
+The stability of this method for advective equations is (ecc. equations of the form ``∂ₜx(x) = α ∇x u(x)```),
+
+``|α Δt/Δx| ≤ 1``
 """
 function addIntegratorMediumLax_!(p::Program_,platform::String)
 
     if "UpdateMedium" in keys(p.agent.declaredUpdates)
 
-        #Construct functions
+        #Add boundary computation
+        f = boundariesFunctionDefinition(p, platform)
 
-            #Make function to compute everything inside the volume
+        error()
 
-        f = p.agent.declaredUpdates["UpdateMedium"]
+        #Create modified operator
         for (i,j) in enumerate(p.agent.declaredSymbols["Medium"]) # Change symbol for update
-
-            if p.agent.dims == 1
-                add = :((mediumV[ic1_+1,$i] + mediumV[ic1_+1,$i])/2)
-            elseif p.agent.dims == 2
-                add = :((mediumV[ic1_-1,ic2_,$i] + mediumV[ic1_+1,ic2_,$i]
-                        +mediumV[ic1_,ic2_-1,$i] + mediumV[ic1_,ic2_+1,$i])/4)
-            elseif p.agent.dims == 3
-                add = :((mediumV[ic1_-1,ic2_,ic3_,$i] + mediumV[ic1_+1,ic2_,ic3_,$i]
-                        +mediumV[ic1_,ic2_-1,ic3_,$i] + mediumV[ic1_,ic2_+1,ic3_,$i]
-                        +mediumV[ic1_,ic2_,ic3_-1,$i] + mediumV[ic1_,ic2_,ic3_+1,$i])/6)
-            end
-
-            f = postwalk(x -> @capture(x,g_(s_)=v_) && s == j && g == DIFFMEDIUMSYMBOL ? :($j = $add + $v*dt) : x, f)
+            ind1 = Vector{Union{Symbol,Expr,Int}}(MEDIUMITERATIONSYMBOLS)[1:p.agent.dims]; 
+            ind2 = Vector{Union{Symbol,Expr,Int}}(MEDIUMITERATIONSYMBOLS)[1:p.agent.dims];
+            ind1[i] = :($(ind1[i])+1); ind2[i] = :($(ind2[i])-1);
+            add = :((mediumV[$(ind1)...,$i] + mediumV[$(ind2)...,$i])/2)
+            f = postwalk(x -> @capture(x,g_(s_)=v_) && s == j && g == DIFFMEDIUMSYMBOL ? :($j.new = $add + ($v)*dt) : x, f)
         end
-        f = postwalk(x->@capture(x,s_(v_)) ? :($(adaptOperatorsMediumLax_(v,s,p))) : x, f) # Adapt
-        f = postwalk(x->@capture(x,s_) ? adaptSymbolsMediumLax_(s,p) : x, f) # Adapt
+        f = postwalk(x->@capture(x,s_(v_)) ? :($(adaptOperatorsMediumFTCS_(v,s,p))) : x, f) # Adapt
+        f = postwalk(x->@capture(x,s_) ? adaptSymbolsMediumFTCS_(s,p) : x, f) # Adapt
                         
         f = vectorizeMedium_(p.agent,f,p)
 
-        f = simpleGridLoopWrapInFunction_(platform,:mediumInnerStep_!, f, p.agent.dims)
+        f = simpleGridLoopWrapInFunction_(platform,:mediumStep_!, f, p.agent.dims)
 
-        #Remove count over boundaries
-        if platform == "cpu"
-            f = postwalk(x->@capture(x,1:Nx_) && Nx == :Nx_ ? :(2:Nx_-1) : x, f)
-            f = postwalk(x->@capture(x,1:Ny_) && Ny == :Ny_ ? :(2:Ny_-1) : x, f)
-            f = postwalk(x->@capture(x,1:Nz_) && Nz == :Nz_ ? :(2:Nz_-1) : x, f)
-        elseif platform == "gpu"
-            f = postwalk(x->@capture(x,indexX_:strideX_:Nx_) && Nx == :Nx_ ? :(indexX_+1:strideX_:Nx_-1) : x, f)
-            f = postwalk(x->@capture(x,indexY_:strideY_:Ny_) && Ny == :Ny_ ? :(indexY_+1:strideY_:Ny_-1) : x, f)
-            f = postwalk(x->@capture(x,indexZ_:strideZ_:Nz_) && Nz == :Nz_ ? :(indexZ_+1:strideZ_:Nz_-1) : x, f)
+        push!(p.declareF.args, ## Add it to code
+                f 
+            )        
+        
+        if p.agent.dims == 1
+            wrapFunction = quote @platformAdapt1 mediumStep_!(ARGS_) end
+        elseif p.agent.dims == 2
+            wrapFunction = quote @platformAdapt2 mediumStep_!(ARGS_) end
+        elseif p.agent.dims == 3
+            wrapFunction = quote @platformAdapt3 mediumStep_!(ARGS_) end
         end
 
-            #Make function to compute the boundaries
-        code = quote end
+        push!(p.declareF.args, ## Add it to code
+            wrapFunction 
+            )        
 
-        lUpdate = length(p.agent.declaredSymbols["Medium"])
-        for i in 1:p.agent.dims #Adapt boundary updates depending on the boudary type
-            ic = Meta.parse(string("ic",i,"_"))
-            nm = Meta.parse(string("N",["x","y","z"][i],"_"))
-            subcode = quote end
-
-            if p.agent.dims == 1
-                v = :(mediumVCopy[ic1_,ic4_])
-            elseif p.agent.dims == 2
-                v = :(mediumVCopy[ic1_,ic2_,ic4_])
-            elseif p.agent.dims == 3
-                v = :(mediumVCopy[ic1_,ic2_,ic3_,ic4_])
-            end
-
-            if space.medium[i].minBoundaryType == "Periodic"
-
-                #Lower boundary
-                vUp = postwalk(x->@capture(x, t_) && t == ic ? 1 : x, v)
-                vAss = postwalk(x->@capture(x, t_) && t == ic ? :($nm-1) : x, v)
-
-                push!(subcode.args, :($vUp=$vAss))
-
-                #Upper boundary
-                vUp = postwalk(x->@capture(x, t_) && t == ic ? :($nm) : x, v)
-                vAss = postwalk(x->@capture(x, t_) && t == ic ? 2 : x, v)
-
-                push!(subcode.args, :($vUp=$vAss))
-            end
-
-            if space.medium[i].minBoundaryType == "Newmann"
-
-                #Lower boundary
-                vUp = postwalk(x->@capture(x, t_) && t == ic ? 1 : x, v)
-                vAss = postwalk(x->@capture(x, t_) && t == ic ? :(2) : x, v)
-
-                push!(subcode.args, :($vUp=$vAss))
-            end            
-
-            if space.medium[i].maxBoundaryType == "Newmann"
-
-                #Lower boundary
-                vUp = postwalk(x->@capture(x, t_) && t == ic ? nm : x, v)
-                vAss = postwalk(x->@capture(x, t_) && t == ic ? :($nm-1) : x, v)
-
-                push!(subcode.args, :($vUp=$vAss))
-            end            
-
-            if space.medium[i].minBoundaryType == "Dirichlet"
-
-                #Lower boundary
-                vUp = postwalk(x->@capture(x, t_) && t == ic ? 1 : x, v)
-
-                push!(subcode.args, :($vUp=0.))
-            end            
-
-            if space.medium[i].maxBoundaryType == "Dirichlet"
-
-                #Lower boundary
-                vUp = postwalk(x->@capture(x, t_) && t == ic ? nm : x, v)
-
-                push!(subcode.args, :($vUp=0.))
-            end     
-
-            subcode = :(for ic4_ in 1:$lUpdate
-                            $subcode
-                        end
-                    )
-
-            subcode = simpleGridLoop_(platform,subcode,p.agent.dims-1, indexes = [1,2,3][findall([1,2,3].!=i)])
-
-            push!(code.args,subcode)
+        if p.agent.dims == 1
+            push!(p.execInloop.args, ## Add it to code
+            :(@platformAdapt1 mediumStep_!(ARGS_)) 
+            )        
+        elseif p.agent.dims == 2
+            push!(p.execInloop.args, ## Add it to code
+            :(@platformAdapt2 mediumStep_!(ARGS_)) 
+            )        
+        elseif p.agent.dims == 3
+            push!(p.execInloop.args, ## Add it to code
+            :(@platformAdapt3 mediumStep_!(ARGS_)) 
+            )        
         end
-
-        f2 = wrapInFunction_(:mediumBoundaryStep_!,code)
-
-        if "UpdateMediumInteraction" in keys(p.agent.declaredUpdates)
-            fWrap = wrapInFunction_(:mediumStep_!, 
-                                    :(begin 
-                                        @platformAdapt mediumInnerStep_!(ARGS_)
-                                        @platformAdapt mediumBoundaryStep_!(ARGS_)
-                                        @platformAdapt mediumInteractionStep_!(ARGS_)
-                                    end)
-                                    )
-        else
-            fWrap = wrapInFunction_(:mediumStep_!, 
-                                    :(begin 
-                                        @platformAdapt mediumInnerStep_!(ARGS_)
-                                        @platformAdapt mediumBoundaryStep_!(ARGS_)
-                                    end)
-                                    )
-        end
-
-        # println(prettify(code))
-
-        push!(p.declareF.args,f,f2,fWrap)
-
-        push!(p.execInloop.args,
-                :(mediumStep_!(ARGS_)) 
-            )
     end
 
     return nothing
 end
 
-function adaptSymbolsMediumLax_(s,p)
+function adaptSymbolsMediumFTCS_(s,p)
 
     if s == :xₘ
 
@@ -172,17 +105,13 @@ function adaptSymbolsMediumLax_(s,p)
 
 end
 
-function adaptOperatorsMediumLax_(f,op,p)
+function adaptOperatorsMediumFTCS_(f,op,p)
 
     f = vectorizeMedium_(p.agent,f,p)
 
     if op == :δx
 
-        if space.medium[1].minBoundaryType == "Periodic"
-            f = :(δMedium_(round(Int,($f-$(space.box[1].min))/dxₘ_)+1,ic1_))
-        else
-            f = :(δMedium_(round(Int,($f-$(space.box[1].min))/dxₘ_),ic1_))
-        end
+        f = :(δMedium_(round(Int,($f-simulationBox[1,1])/dxₘ_)+1,ic1_))
 
     elseif op == :δy
 
@@ -190,11 +119,7 @@ function adaptOperatorsMediumLax_(f,op,p)
             error("Operator δy cannot be used in Agent with dimension 1.")
         end
 
-        if space.medium[2].minBoundaryType == "Periodic"
-            f = :(δMedium_(round(Int,($f-$(space.box[2].min))/dyₘ_)+1,ic2_))
-        else
-            f = :(δMedium_(round(Int,($f-$(space.box[2].min))/dyₘ_),ic2_))
-        end
+        f = :(δMedium_(round(Int,($f-simulationBox[2,1])/dyₘ_)+1,ic2_))
 
     elseif op == :δz
 
@@ -202,36 +127,8 @@ function adaptOperatorsMediumLax_(f,op,p)
             error("Operator δz cannot be used in Agent with dimension 1 or 2.")
         end
 
-        if space.medium[3].minBoundaryType == "Periodic"
-            f = :(δMedium_(round(Int,($f-$(space.box[3].min))/dzₘ_)+1,ic3_))
-        else
-            f = :(δMedium_(round(Int,($f-$(space.box[3].min))/dzₘ_),ic3_))
-        end
+        f = :(δMedium_(round(Int,($f-simulationBox[3,1])/dzₘ_)+1,ic3_))
 
-    elseif op == :Δ
-        if p.agent.dims == 1
-            add = postwalk(x->@capture(x,s_[ic1_,j_]) && s == :mediumV ? :(mediumV[ic1_+1,$j]) : x,f)
-            subs = postwalk(x->@capture(x,s_[ic1_,j_]) && s == :mediumV ? :(mediumV[ic1_-1,$j]) : x,f)
-
-            f = :(($add+$subs-2*$f)/dxₘ_^2)
-        elseif p.agent.dims == 2
-            add = postwalk(x->@capture(x,s_[ic1_,ic2_,j_]) && s == :mediumV ? :(mediumV[ic1_+1,ic2_,$j]) : x,f)
-            subs = postwalk(x->@capture(x,s_[ic1_,ic2_,j_]) && s == :mediumV ? :(mediumV[ic1_-1,ic2_,$j]) : x,f)
-            addy = postwalk(x->@capture(x,s_[ic1_,ic2_,j_]) && s == :mediumV ? :(mediumV[ic1_,ic2_+1,$j]) : x,f)
-            subsy = postwalk(x->@capture(x,s_[ic1_,ic2_,j_]) && s == :mediumV ? :(mediumV[ic1_,ic2_-1,$j]) : x,f)
-
-            f = :(($add+$subs-2*$f)/dxₘ_^2+($addy+$subsy-2*$f)/dyₘ_^2)
-        elseif p.agent.dims == 3
-            add = postwalk(x->@capture(x,s_[ic1_,ic2_,ic3_,j_]) && s == :mediumV ? :(mediumV[ic1_+1,ic2_,ic3_,$j]) : x,f)
-            subs = postwalk(x->@capture(x,s_[ic1_,ic2_,ic3_,j_]) && s == :mediumV ? :(mediumV[ic1_-1,ic2_,ic3_,$j]) : x,f)
-            addy = postwalk(x->@capture(x,s_[ic1_,ic2_,ic3_,j_]) && s == :mediumV ? :(mediumV[ic1_,ic2_+1,ic3_,$j]) : x,f)
-            subsy = postwalk(x->@capture(x,s_[ic1_,ic2_,ic3_,j_]) && s == :mediumV ? :(mediumV[ic1_,ic2_-1,ic3_,$j]) : x,f)
-            addz = postwalk(x->@capture(x,s_[ic1_,ic2_,ic3_,j_]) && s == :mediumV ? :(mediumV[ic1_,ic2_,ic3_+1,$j]) : x,f)
-            subsz = postwalk(x->@capture(x,s_[ic1_,ic2_,ic3_,j_]) && s == :mediumV ? :(mediumV[ic1_,ic2_,ic3_-1,$j]) : x,f)
-
-            f = :(($add+$subs-2*$f)/dxₘ_^2+($addy+$subsy-2*$f)/dyₘ_^2+($addz+$subsz-2*$f)/dzₘ_^2)
-
-        end
     elseif op == :Δx
         if p.agent.dims == 1
             add = postwalk(x->@capture(x,s_[ic1_,j_]) && s == :mediumV ? :(mediumV[ic1_+1,$j]) : x,f)
@@ -267,35 +164,12 @@ function adaptOperatorsMediumLax_(f,op,p)
         if p.agent.dims == 1
             error("Operator Δz cannot exist in Agent with dimension 1.")
         elseif p.agent.dims == 2
-            error("Operator Δy cannot exist in Agent with dimension 2.")
+            error("Operator Δz cannot exist in Agent with dimension 2.")
         elseif p.agent.dims == 3
             addz = postwalk(x->@capture(x,s_[ic1_,ic2_,ic3_,j_]) && s == :mediumV ? :(mediumV[ic1_,ic2_,ic3_+1,$j]) : x,f)
             subsz = postwalk(x->@capture(x,s_[ic1_,ic2_,ic3_,j_]) && s == :mediumV ? :(mediumV[ic1_,ic2_,ic3_-1,$j]) : x,f)
 
             f = :(($addz+$subsz-2*$f)/dzₘ_^2)
-        end
-    elseif op == :∇      
-        if p.agent.dims == 1
-            add = postwalk(x->@capture(x,s_[ic1_,j_]) && s == :mediumV ? :(mediumV[ic1_+1,$j]) : x,f)
-            subs = postwalk(x->@capture(x,s_[ic1_,j_]) && s == :mediumV ? :(mediumV[ic1_-1,$j]) : x,f)
-
-            f = :(($add-$subs)/(2*dxₘ_))
-        elseif p.agent.dims == 2
-            add = postwalk(x->@capture(x,s_[ic1_,ic2_,j_]) && s == :mediumV ? :(mediumV[ic1_+1,ic2_,$j]) : x,f)
-            subs = postwalk(x->@capture(x,s_[ic1_,ic2_,j_]) && s == :mediumV ? :(mediumV[ic1_-1,ic2_,$j]) : x,f)
-            addy = postwalk(x->@capture(x,s_[ic1_,ic2_,j_]) && s == :mediumV ? :(mediumV[ic1_,ic2_+1,$j]) : x,f)
-            subsy = postwalk(x->@capture(x,s_[ic1_,ic2_,j_]) && s == :mediumV ? :(mediumV[ic1_,ic2_-1,$j]) : x,f)
-
-            f = :(($add-$subs)/(2*dxₘ_)+($addy-$subsy)/(2*dyₘ_))
-        elseif p.agent.dims == 3
-            add = postwalk(x->@capture(x,s_[ic1_,ic2_,ic3_,j_]) && s == :mediumV ? :(mediumV[ic1_+1,ic2_,ic3_,$j]) : x,f)
-            subs = postwalk(x->@capture(x,s_[ic1_,ic2_,ic3_,j_]) && s == :mediumV ? :(mediumV[ic1_-1,ic2_,ic3_,$j]) : x,f)
-            addy = postwalk(x->@capture(x,s_[ic1_,ic2_,ic3_,j_]) && s == :mediumV ? :(mediumV[ic1_,ic2_+1,ic3_,$j]) : x,f)
-            subsy = postwalk(x->@capture(x,s_[ic1_,ic2_,ic3_,j_]) && s == :mediumV ? :(mediumV[ic1_,ic2_-1,ic3_,$j]) : x,f)
-            addz = postwalk(x->@capture(x,s_[ic1_,ic2_,ic3_,j_]) && s == :mediumV ? :(mediumV[ic1_,ic2_,ic3_+1,$j]) : x,f)
-            subsz = postwalk(x->@capture(x,s_[ic1_,ic2_,ic3_,j_]) && s == :mediumV ? :(mediumV[ic1_,ic2_,ic3_-1,$j]) : x,f)
-
-            f = :(($add-$subs)/(2*dxₘ_)+($addy-$subsy)/(2*dyₘ_)+($addz-$subsz)/(2*dzₘ_))
         end
     elseif op == :∇x
         if p.agent.dims == 1
@@ -344,4 +218,3 @@ function adaptOperatorsMediumLax_(f,op,p)
     return f
 
 end
-

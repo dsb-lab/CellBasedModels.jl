@@ -1,5 +1,13 @@
 """
-    function compile(abm=SimulationFree();platform="cpu", neighbors="full", integrator = "euler", save = "RAM", debug = false, user_=true)
+    function compile(abm=SimulationFree();
+                    platform="cpu", 
+                    neighbors="full", 
+                    periodic::Vector{Bool}=[false,false,false],
+                    integrator = "Euler", 
+                    integratorMedium::String = "FTCS", 
+                    save = "RAM", 
+                    debug = false, 
+                    checkInBounds=true)
 
 Function that takes an Agent and a simulation and constructs the function in charge of the evolutions of the model.
 """
@@ -7,17 +15,13 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
     platform="cpu", 
     integrator::String = "Euler", 
     integratorMedium::String = "FTCS", 
-    neighbors::String="full", periodic::Vector{Bool}=[false,false,false],
+    neighbors::String="full",
+    periodic::Vector{Bool}=[false,false,false],
     save::String = "RAM", 
     debug = false, 
-    user_=true,
     checkInBounds=true)
 
     abm = deepcopy(abmOriginal)
-
-    if length(periodic) < abm.dims
-        error("periodic property must be at leas the same length as the dimensions of the model.")
-    end
     
     p = Program_(abm)
     p.integrator = integrator
