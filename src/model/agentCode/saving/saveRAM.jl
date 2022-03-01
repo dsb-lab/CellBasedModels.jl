@@ -43,11 +43,11 @@ function addSavingRAM_!(p::Program_,platform::String)
 
     if length(p.agent.declaredSymbols["Medium"]) > 0
         if p.agent.dims == 1
-            push!(l,:(Core.Array(mediumV[2:end-1,:])))
+            push!(l,:(Core.Array(mediumV)))
         elseif p.agent.dims == 2
-            push!(l,:(Core.Array(mediumV[2:end-1,2:end-1,:])))
+            push!(l,:(Core.Array(mediumV)))
         elseif p.agent.dims == 3
-            push!(l,:(Core.Array(mediumV[2:end-1,2:end-1,2:end-1,:])))
+            push!(l,:(Core.Array(mediumV)))
         end
     else
         push!(l,:(Core.Array{Float64,1}()))

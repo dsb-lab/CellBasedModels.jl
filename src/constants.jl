@@ -43,6 +43,7 @@ RESERVEDSYMBOLS = [:x,:y,:z,:id,:t,:N,:dt,:dW,:nMax,
                     :localVCopy,:identityVCopy,:globalVCopy,:mediumVCopy,
                     :simulationBox,:radiusInteraction,:n_,
                     :ALGORITHM_,:ARGS_,:AUX1_,:AUX2_,
+                    :BOUNDARY1MIN_,:BOUNDARY1MAX_,:BOUNDARY2MIN_,:BOUNDARY2MAX_,:BOUNDARY3MIN_,:BOUNDARY3MAX_,:INNERMEDIUM_,
                     :limNMax_,
                     :index_,:stride_,:lockadd_,
                     :Nx_,:Ny_,:Nz_,
@@ -62,14 +63,37 @@ DIFFMEDIUMSYMBOL = :∂t
 DIFFMEDIUM = [:dxₘ_,:dyₘ_,:dzₘ_]
 MEDIUMSYMBOLS = [:∂t,:∇,:∇x,:∇y,:∇z,:Δ,:Δx,:Δy,:Δz,:δr]
 MEDIUMBOUNDARYSYMBOLS = Dict([
-                        1=>[:newmannXmin,:newmannXmax,:dirichletXmin,:dirichletXmax,:periodicX],
-                        2=>[:newmannYmin,:newmannYmax,:dirichletYmin,:dirichletYmax,:periodicY],
-                        3=>[:newmannZmin,:newmannZmax,:dirichletZmin,:dirichletZmax,:periodicZ]
+                        1=>Dict([
+                                    "min"=>[:newmannXmin,:dirichletXmin,:periodicX],
+                                    "max"=>[:newmannXmax,:dirichletXmax,:periodicX]
+                                ])
+                        2=>Dict([
+                                    "min"=>[:newmannYmin,:dirichletYmin,:periodicY],
+                                    "max"=>[:newmannYmax,:dirichletYmax,:periodicY]
+                                ])
+                        3=>Dict([
+                                    "min"=>[:newmannZmin,:dirichletZmin,:periodicZ],
+                                    "max"=>[:newmannZmax,:dirichletZmax,:periodicZ]
+                                ])
                         ])
 MEDIUMITERATIONSYMBOLS = [:ic1_,:ic2_,:ic3_]
 MEDIUMSUMATIONSYMBOLS = [:Nx_,:Ny_,:Nz_]
 MEDIUMINDEXSYMBOLS = [:indexX_,:indexY_,:indexZ_]
 MEDIUMSTRIDESYMBOLS = [:strideX_,:strideY_,:strideZ_]
+MEDIUMAUXILIAR = [Dict([
+                    "min"=>:BOUNDARY1MIN_,
+                    "max"=>:BOUNDARY1MAX_
+                    ]),
+                  Dict([
+                    "min"=>:BOUNDARY2MIN_,
+                    "max"=>:BOUNDARY2MAX_
+                    ]),
+                  Dict([
+                    "min"=>:BOUNDARY3MIN_,
+                    "max"=>:BOUNDARY3MAX_
+                    ]),
+                  :INNERMEDIUM_
+                  ]
 
 #Adaptation functions
 GPUINFUNCTION = 

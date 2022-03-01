@@ -69,7 +69,6 @@ include("./model/agentCode/integrator/integrators.jl")
 include("./model/agentCode/basic/updateMediumBoundaries.jl")
 include("./model/agentCode/integratorMedium/ftcs.jl")
 include("./model/agentCode/integratorMedium/lax.jl")
-include("./model/agentCode/integratorMedium/leapfrog.jl")
 include("./model/agentCode/integratorMedium/integratorsMedium.jl")
 include("./model/agentCode/basic/updateMediumInteraction.jl")
 
