@@ -15,18 +15,18 @@ function addUpdateLocal_!(p::Program_,platform::String)
         if !(isempty(p.agent.declaredSymbols["Medium"]))
             if p.agent.dims == 1
                 code = quote
-                    idMediumX_ = round(Int,(x-simulationBox[1,1])/dxₘ_+2)
+                    idMediumX_ = round(Int,(x-simulationBox[1,1])/dxₘ_)+1
                 end
             elseif p.agent.dims == 2
                 code = quote
-                    idMediumX_ = round(Int,(x-simulationBox[1,1])/dxₘ_+2)
-                    idMediumY_ = round(Int,(y-simulationBox[2,1])/dyₘ_+2)
+                    idMediumX_ = round(Int,(x-simulationBox[1,1])/dxₘ_)+1
+                    idMediumY_ = round(Int,(y-simulationBox[2,1])/dyₘ_)+1
                 end
             elseif p.agent.dims == 3
                 code = quote
-                    idMediumX_ = round(Int,(x-simulationBox[1,1])/dxₘ_+2)
-                    idMediumY_ = round(Int,(y-simulationBox[2,1])/dyₘ_+2)
-                    idMediumZ_ = round(Int,(z-simulationBox[3,1])/dzₘ_+2)
+                    idMediumX_ = round(Int,(x-simulationBox[1,1])/dxₘ_)+1
+                    idMediumY_ = round(Int,(y-simulationBox[2,1])/dyₘ_)+1
+                    idMediumZ_ = round(Int,(z-simulationBox[3,1])/dzₘ_)+1
                 end
             end        
         end
