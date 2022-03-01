@@ -18,20 +18,20 @@ import ...AgentBasedModels: rand, MultivariateNormal
 Optimization of the parameter space of a model that uses [Stochastic Gradient Descent](https://en.wikipedia.org/wiki/Stochastic_gradient_descent).
 
 Args:
-communityInitial::Community : Community to use as a base to start the optimization.
-model::Model : Model to be optimized to evolve the communityInitial.
-loosFunction:: Function : Cost function over which optimize the parameter.
-searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}} : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
-evalParams::Dict{Symbol,<:Number} : Dictionary of parameters and the ranges of exloration the parameters (e.g. :tMax => 10).
+ - **communityInitial::Community** : Community to use as a base to start the optimization.
+ - **model::Model** : Model to be optimized to evolve the communityInitial.
+ - **loosFunction:: Function **: Cost function over which optimize the parameter.
+ - **searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
+ - **evalParams::Dict{Symbol,<:Number}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :tMax => 10).
 
 kArgs:
-population::Int=100 : Size of the colony used at each generation for the optimization.
-jumpVarianceStart::Union{<:Number,Matrix{<:Number}} = .1 : Initial variance of the multivariate normal used to compute the jump. This parameter is updates if the rejection ratio is very high.
-stopMaxGenerations::Int = 10 : How many generations do before stopping the algorithm. 
-initialisation::Union{Nothing,DataFrame} = nothing : DataFrame defining the initial parameters of the population. If nothing, they are set randomly.
-initialisationF::Union{Nothing,Function} = nothing : Function that takes communityInitial as an argument and searchList parameters as kargs and modifies the communityInitial.
-returnAll::Bool = false : If return the hole list of parameters explored or the just the most fit.
-saveFileName::Union{Nothing,String} = nothing : If given a string, it saves the parameters explored in a file with the corresponding name.
+ - **population::Int=100** : Size of the colony used at each generation for the optimization.
+ - **jumpVarianceStart::Union{<:Number,Matrix{<:Number}} = .1** : Initial variance of the multivariate normal used to compute the jump. This parameter is updates if the rejection ratio is very high.
+ - **stopMaxGenerations::Int = 10** : How many generations do before stopping the algorithm. 
+ - **initialisation::Union{Nothing,DataFrame} = nothing** : DataFrame defining the initial parameters of the population. If nothing, they are set randomly.
+ - **initialisationF::Union{Nothing,Function} = nothing** : Function that takes communityInitial as an argument and searchList parameters as kargs and modifies the communityInitial.
+ - **returnAll::Bool = false** : If return the hole list of parameters explored or the just the most fit.
+ - **saveFileName::Union{Nothing,String} = nothing** : If given a string, it saves the parameters explored in a file with the corresponding name.
 """
 function stochasticDescentAlgorithm(communityInitial::Community, 
                         model::Model, 

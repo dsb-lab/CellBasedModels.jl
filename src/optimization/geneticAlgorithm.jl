@@ -19,22 +19,22 @@ import ...AgentBasedModels: rand, Categorical, Uniform
 Optimization of the parameter space of a model that uses the [Particle Swarm Algorithm](https://en.wikipedia.org/wiki/Particle_swarm_optimization).
 
 Args:
-communityInitial::Community : Community to use as a base to start the optimization.
-model::Model : Model to be optimized to evolve the communityInitial.
-loosFunction:: Function : Cost function over which optimize the parameter.
-searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}} : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
-evalParams::Dict{Symbol,<:Number} : Dictionary of parameters and the ranges of exloration the parameters (e.g. :tMax => 10).
+ - **communityInitial::Community** : Community to use as a base to start the optimization.
+ - **model::Model** : Model to be optimized to evolve the communityInitial.
+ - **loosFunction:: Function** : Cost function over which optimize the parameter.
+ - **searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
+ - **evalParams::Dict{Symbol,<:Number}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :tMax => 10).
 
 kArgs:
-population::Int=100 : Size of the colony used at each generation for the optimization.
-parentSelectionAlg::String = "weighted" : Weigthing method of the population ot chose descendants. 
-parentSelectionP::Number = .1 : Hyperparameter of the algorithm indicating the proportion of parameters exchanged between parents.
-mutationRate::Number = .1 : Hyperparameter of the algorithm indicating the probability of resampling the parameter with a uniform.
-stopMaxGenerations::Int = 10 : How many generations do before stopping the algorithm. 
-initialisation::Union{Nothing,DataFrame} = nothing : DataFrame defining the initial parameters of the population. If nothing, they are set randomly.
-initialisationF::Union{Nothing,Function} = nothing : Function that takes communityInitial as an argument and searchList parameters as kargs and modifies the communityInitial.
-returnAll::Bool = false : If return the hole list of parameters explored or the just the most fit.
-saveFileName::Union{Nothing,String} = nothing : If given a string, it saves the parameters explored in a file with the corresponding name.
+ - **population::Int=100** : Size of the colony used at each generation for the optimization.
+ - **parentSelectionAlg::String = "weighted"** : Weigthing method of the population ot chose descendants. 
+ - **parentSelectionP::Number = .1** : Hyperparameter of the algorithm indicating the proportion of parameters exchanged between parents.
+ - **mutationRate::Number = .1** : Hyperparameter of the algorithm indicating the probability of resampling the parameter with a uniform.
+ - **stopMaxGenerations::Int = 10** : How many generations do before stopping the algorithm. 
+ - **initialisation::Union{Nothing,DataFrame} = nothing** : DataFrame defining the initial parameters of the population. If nothing, they are set randomly.
+ - **initialisationF::Union{Nothing,Function} = nothing** : Function that takes communityInitial as an argument and searchList parameters as kargs and modifies the communityInitial.
+ - **returnAll::Bool = false** : If return the hole list of parameters explored or the just the most fit.
+ - **saveFileName::Union{Nothing,String} = nothing** : If given a string, it saves the parameters explored in a file with the corresponding name.
 """
 function geneticAlgorithm(communityInitial::Community, 
                         model::Model, 

@@ -11,16 +11,16 @@
 Function that evaluates a grid of parameter configurations for a model.
 
 Args:
-communityInitial::Community : Community to use as a base to start the optimization.
-model::Model : Model to be optimized to evolve the communityInitial.
-loosFunction:: Function : Cost function over which optimize the parameter.
-searchList::Dict{Symbol,<:Vector{<:Number}} : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => [1,2,3]).
-evalParams::Dict{Symbol,<:Number} : Dictionary of parameters and the ranges of exloration the parameters (e.g. :tMax => 10).
+ - **communityInitial::Community** : Community to use as a base to start the optimization.
+ - **model::Model** : Model to be optimized to evolve the communityInitial.
+ - **loosFunction:: Function** : Cost function over which optimize the parameter.
+ - **searchList::Dict{Symbol,<:Vector{<:Number}}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => [1,2,3]).
+ - **evalParams::Dict{Symbol,<:Number}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :tMax => 10).
 
 kArgs:
-repetitions::Int=1 : How many repetitions to perform per set of parameters. The simulations are promediated to obtain the actual cost of that parameter configuration.
-returnAll::Bool = false : If return the hole list of parameters explored or the just the most fit.
-saveFileName::Union{Nothing,String} = nothing : If given a string, it saves the parameters explored in a file with the corresponding name.
+ - **repetitions::Int=1** : How many repetitions to perform per set of parameters. The simulations are promediated to obtain the actual cost of that parameter configuration.
+ - **returnAll::Bool = false** : If return the hole list of parameters explored or the just the most fit.
+ - **saveFileName::Union{Nothing,String} = nothing** : If given a string, it saves the parameters explored in a file with the corresponding name.
 """
 function gridSearch(communityInitial::Community, 
                     model::Model, 
