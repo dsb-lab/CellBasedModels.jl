@@ -1,25 +1,35 @@
 """
-    function compile(abm=SimulationFree();
-                    platform="cpu", 
-                    neighbors="full", 
+    function compile(abmOriginal::Agent;
+                    platform::String="cpu", 
+                    neighbors::String="full", 
                     periodic::Vector{Bool}=[false,false,false],
-                    integrator = "Euler", 
+                    integrator::String = "Euler", 
                     integratorMedium::String = "FTCS", 
-                    save = "RAM", 
-                    debug = false, 
-                    checkInBounds=true)
+                    save::String = "RAM", 
+                    checkInBounds::Bool=true)
 
 Function that takes an Agent and a simulation and constructs the function in charge of the evolutions of the model.
+
+Args:
+ - abmOriginal::Model : Model to be compiled
+
+kAargs:
+ - platform::String ="cpu" : Platfrom to compile the model on. Choose between "cpu" or "gpu".
+ - neighbors::String ="full" : Algorithm to compute the neigbours of each agent. Choose between "full" or "grid".
+ - periodic::Vector{Bool}=[false,false,false] : If agents are in  periodic boundary conditions and neighbors = "grid", connects the edge boxes.
+ - integrator::String = "Euler", : Integrator used for agent based models equation sdeclared in UpdateVariable.
+ - integratorMedium::String = "FTCS", : Integrator used for agent based models declared in UpdateMedium.
+ - save::String = "RAM", : Place to save the outcome of the simulations. Choose between "RAM", "JLD" (julia datafile format) and "CSV" (not recomended).
+ - checkInBounds::Bool=true : If to add @checkinbounds to all the for loops in the functions.
 """
 function compile(abmOriginal::Union{Agent,Array{Agent}}; 
-    platform="cpu", 
+    platform::String ="cpu", 
     integrator::String = "Euler", 
     integratorMedium::String = "FTCS", 
     neighbors::String="full",
     periodic::Vector{Bool}=[false,false,false],
     save::String = "RAM", 
-    debug = false, 
-    checkInBounds=true)
+    checkInBounds::Bool=true)
 
     abm = deepcopy(abmOriginal)
     
@@ -135,10 +145,6 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
     programugly = gensym_ids(program)
     program = flatten(programugly)
     
-    if debug == true
-        println(prettify(programugly))
-    end
-
     #Prettify the LineNumberNode output
     program = postwalk(x -> isexpr(x,LineNumberNode) ? LineNumberNode(Meta.parse(split(String(gensym("x")),"#")[end]),"evolve_program") : x, program)
 

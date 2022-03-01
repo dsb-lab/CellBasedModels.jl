@@ -39,7 +39,12 @@ For now, the following methods are included:
 ||[UpdateVariable](@ref equation)|`dt`,`dW`|`d`||
 ||[UpdateLocalInteraction](@ref updateLocalInteraction)|||`.i`,`.j`|
 ||[UpdateInteraction](@ref updateInteraction)|||`.i`,`.j`|
-||[UpdateMedium](@ref updateMedium)||`∂t`,`∇x`,`∇y`,`∇z`,`Δx`,`Δy`,`Δz`,`δx`,`δy`,`δz`||
+||[UpdateMedium](@ref updateMedium)||`∂t`,`∇x`,`∇y`,`∇z`,`Δx`,`Δy`,`Δz`,`δx`,`δy`,`δz`,
+||||`periodicX`,`periodicY`,`periodicZ`,||
+||||`newmannXmin`,`newmannYmin`,`newmannZmin`,
+||||`newmannXmax`,`newmannYmax`,`newmannZmax` ||
+||||`dirichletXmin`,`dirichletYmin`,`dirichletZmin`,||
+||||`dirichletXmax`,`dirichletYmax`,`dirichletZmax` ||
 ||[UpdateMediumInteraction](@ref updateMediumInteraction)||||
 
 ### [Parameter declaration](@id parameters)
@@ -262,50 +267,31 @@ has a puntual source of input in the medium and general degradation everywhere. 
 too but its diffussion is faster or slower according to the concentration of `u`.
 
 ```julia
-m = @agent(1,
+m = @agent(3,
     u::Medium,
     [α,k]::Global,
 
     UpdateVariable = d(x) = u*dW
 
     UpdateMedium = begin
+        #Add equation governing the dynamics of the medium
         ∂t(u) = Δx(u) + α*δx(0.) - k*u
+
+        #Add boundary conditions
+            #Periodic boudaries
+        periodicX(u)
+            #Fixed boundaries
+        dirichletYmin(u) = 0
+        dirichletYmax(u) = 1
+            #Reflective boundaries
+        newmannZmin(u) = 1
+        newmannZmax(u) = -1
     end
 )
 ```
 
 !!! warning "Stability of solutions"
     This package is not a package for solving partial differential equations. PDEs are a hole world and it is impossible to make a bulletproof integrator to solve any partial differential equation. We restrict the use to reaction-drift-diffussion models, that are the most reasonable situation for an agent based model in a medium. Even in this case, a stable solution is not waranteed as the integrators so far implemented are not unconditionally stable. You can see a table of integrators implemented and their recomended use in [here](@ref MediumIntegrators).
-
-
-#### [**UpdateMediumInteraction**](@id updateMediumInteraction)
-Define the interaction dynamics from the agents to the medium. The agents behave as punctual particles centered at their main coordinates `(x,y,z)`. 
-The effect of the interaction would effectivaly look as an additional term in the PDE summing over the agents:
-
-$$
-\partial_u(x) = \sum_{i\in Agents} \delta(x) f(\text{Agent i Parameters})
-$$
-
-Consider the example that we want a one dimensional model of a medium that is diffusive of a compunent `u`, 
-the agents act as puntual source of input in the medium and general degradation everywhere. The agents move diffussively.
-
-```julia
-m = @agent(1,
-    u::Medium,
-    α::Local,
-    k::Global,
-
-    UpdateVariable = d(x) = u*dW
-
-    UpdateMedium = begin
-        ∂t(u) = Δx(u) - k*u
-    end
-
-    UpdateMediumInteraction = begin
-        ∂t(u) += α
-    end
-)
-```
 
 ## Compilation
 
