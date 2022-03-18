@@ -16,7 +16,10 @@ function addIntegratorEuler_!(p::Program_, platform::String)
     
     if "UpdateVariable" in keys(p.agent.declaredUpdates)
 
-        code = p.agent.declaredUpdates["UpdateVariable"]
+        #Add medium coupling
+        code = addMediumCode(p)
+
+        push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
 
         #Create interaction parameter kernel if there is any interaction parameter updated
         if "UpdateInteraction" in keys(p.agent.declaredUpdates)

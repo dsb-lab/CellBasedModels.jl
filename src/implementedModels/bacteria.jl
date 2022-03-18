@@ -161,38 +161,29 @@ UpdateVariable = begin
     d(theta) = ω*dt
 end,
 
-UpdateLocal = begin #Bound cells
-    if theta < -π/2
-        theta += π
-    elseif theta > π/2
-        theta -= π
-    end
-end
+# UpdateLocal = begin #Bound cells
+#     if theta < -π/2
+#         theta += π
+#     elseif theta > π/2
+#         theta -= π
+#     end
+# end
 );
 
 
 """
-Bacterial model of pysical interactions within a 2D channel where the Y-axis boundaries are closed and agents leaving the X-axis are removed.
+Addon to the Bacteria2D model of pysical interactions within a 2D channel where the Y-axis boundaries are closed and agents leaving the X-axis are removed. The model is implemented in https://www.pnas.org/content/105/40/15346.
 
-Bacterial cells are implemented as rod shape like bacteria. The model is implemented in https://www.pnas.org/content/105/40/15346.
+Add the model before the Bacteria2D model.
+
+    @agent(
+        Bacteria2DChannel::BaseModel,
+        Bacteria2D::BaseModel
+    )
 
 Parameters:
 
-vx,vy (Local): Velocity of the center of mass in the x,y directions
-theta (Local): orientation of the rod along the symmetry axis
-ω (Local): Angular velocity
-d (Local): Diameter of the cylinder
-l (Local): Length of the cylinder
-m (Local): Mass of the cylinder
-fx,fy (LocalInteraction): Forces in the x,y directions
-W (LocalInteraction): Angular momentum
-kn (Global): Strength of repulsion
-γn (Global): Material coefficient tangential
-γt (Global): Material coefficient tangential
-μcc (Global): Friction coefficient of cell-cell
 μcw (Global): Friction coefficient of cell-wall
-β (Global): Fricction coeficient
-βω (Global): Angular friction coefficient
 
 For more details check the paper of the Documentation on the Models section.
 """
@@ -260,6 +251,68 @@ UpdateLocal = begin
         removeAgent()
     end
 end,
-
-AgentBasedModels.Models.Bacteria2D::BaseModel #Put the other first as I want it to be computed before the motion equations
 )
+
+"""
+Addon to the Bacteria2D model incorporating growth. The model is implemented in https://www.pnas.org/content/105/40/15346.
+
+Add the model before the Bacteria2D model.
+
+    @agent(
+        Bacteria2D::BaseModel
+        Bacteria2DGrowth::BaseModel,
+    )
+
+Parameters:
+
+lTarget (Local): Friction coefficient of cell-wall
+growth (Global):
+lMax (Global):
+σLTarget (Global):
+
+For more details check the paper of the Documentation on the Models section.
+"""
+Bacteria2DGrowth = @agent(2,
+    
+            lTarget::Local,
+            [growth,lMax,σLTarget]::Global, #Growth parameters
+
+            UpdateVariable = begin
+                    d(l) = growth*dt
+            end,
+
+            UpdateLocal = begin #Bound cells
+
+                #Add division
+                if l > lTarget
+                    torque = σLTarget*Uniform(-1,1)
+                    addAgent(
+                            x=(l+d)/4*cos(theta)+x,
+                            y=(l+d)/4*sin(theta)+y,
+                            l=l/2,
+                            vx = vx,
+                            vy = vy,
+                            theta = theta+Uniform(-.1,.1),
+                            ω = torque,
+                            d = d,
+                            m = m/2,
+                            lTarget = lMax+σLTarget*Uniform(-1,1)
+                            )
+                    addAgent(
+                            x=-(l+d)/4*cos(theta)+x,
+                            y=-(l+d)/4*sin(theta)+y,
+                            l=l/2,
+                            vx = vx,
+                            vy = vy,
+                            theta = theta,
+                            ω = -torque,
+                            d = d,
+                            m = m/2,
+                            lTarget = lMax+σLTarget*Uniform(-1,1)
+                            )
+                    removeAgent()
+                end
+                
+                m = l/5
+            end
+    );

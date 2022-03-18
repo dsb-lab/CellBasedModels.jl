@@ -1,8 +1,10 @@
 """
-    function addIntegratorMediumImplicitEuler_!(p::Program_,platform::String)
+    function addIntegratorMediumFTCS_!(p::Program_,platform::String)
 
-Generate the functions related with Medium Update with Implicit Euler integration method integration method.
+Generate the functions related with Medium Update with FTCS integration method.
 
+This method is unconditionally unstable for advection functions without viscosity (ecc. functions with the form `∂ₜx(x) = ∇x u(x)`). It is only advised to use with difussion equations. 
+    
 The discretization scheme implemented is,
 
 ``
@@ -14,36 +16,25 @@ The discretization scheme implemented is,
 ``
 
 ``
-∂ₜ(u(x,t)) = (u(x,t+dt) - (u(x+dx,t)+u(x-dx,t))/2) / dt
+∂ₜ(u(x,t)) = (u(x,t+dt) - u(x,t)) / dt
 ``
 
-The accuracy of this scheme is,
-
-``O(Δt)+O(Δx²/Δt)``
-
-The stability of this method for advective equations is (ecc. equations of the form ``∂ₜx(x) = α ∇x u(x)```),
-
-``|α Δt/Δx| ≤ 1``
+This method is unconditionally stable.
 """
-function addIntegratorMediumLax_!(p::Program_,platform::String)
+function addIntegratorMediumImplicitEuler_!(p::Program_,platform::String)
 
     if "UpdateMedium" in keys(p.agent.declaredUpdates)
 
         #Add boundary computation
         f = boundariesFunctionDefinition(p, platform)
 
-        error()
-
         #Create modified operator
         for (i,j) in enumerate(p.agent.declaredSymbols["Medium"]) # Change symbol for update
-            ind1 = Vector{Union{Symbol,Expr,Int}}(MEDIUMITERATIONSYMBOLS)[1:p.agent.dims]; 
-            ind2 = Vector{Union{Symbol,Expr,Int}}(MEDIUMITERATIONSYMBOLS)[1:p.agent.dims];
-            ind1[i] = :($(ind1[i])+1); ind2[i] = :($(ind2[i])-1);
-            add = :((mediumV[$(ind1)...,$i] + mediumV[$(ind2)...,$i])/2)
-            f = postwalk(x -> @capture(x,g_(s_)=v_) && s == j && g == DIFFMEDIUMSYMBOL ? :($j.new = $add + ($v)*dt) : x, f)
+            f = postwalk(x -> @capture(x,g_(s_)=v_) && s == j && g == DIFFMEDIUMSYMBOL ? divisionFactorImplicitEuler_(j,v,1) : x, f)
         end
-        f = postwalk(x->@capture(x,s_(v_)) ? :($(adaptOperatorsMediumLax_(v,s,p))) : x, f) # Adapt
-        f = postwalk(x->@capture(x,s_) ? adaptSymbolsMediumLax_(s,p) : x, f) # Adapt
+        println(f)
+        f = postwalk(x->@capture(x,s_(v_)) ? :($(adaptOperatorsMediumImplicitEuler_(v,s,p))) : x, f) # Adapt
+        f = postwalk(x->@capture(x,s_) ? adaptSymbolsMediumImplicitEuler_(s,p) : x, f) # Adapt
                         
         f = vectorizeMedium_(p.agent,f,p)
 
@@ -83,7 +74,7 @@ function addIntegratorMediumLax_!(p::Program_,platform::String)
     return nothing
 end
 
-function adaptSymbolsMediumLax_(s,p)
+function adaptSymbolsMediumImplicitEuler_(s,p)
 
     if s == :xₘ
 
@@ -103,7 +94,7 @@ function adaptSymbolsMediumLax_(s,p)
 
 end
 
-function adaptOperatorsMediumLax_(f,op,p)
+function adaptOperatorsMediumImplicitEuler_(f,op,p)
 
     f = vectorizeMedium_(p.agent,f,p)
 
@@ -215,4 +206,39 @@ function adaptOperatorsMediumLax_(f,op,p)
 
     return f
 
+end
+
+function divisionFactorImplicitEuler_(j,f,dims)
+
+    div = :(1)
+    if dims == 1
+        fMod = postwalk(x->@capture(x,g_(v_)) && g == :Δx ? :AUX_ : x,f)
+        if inexpr(fMod,:AUX_)
+            par = postwalk(x->@capture(x,k_=g_) ? g : x,f)
+            par = postwalk(x->@capture(x,k_*g_(v_)) && g != :Δx ? 0 : x, par)
+            par = postwalk(x->@capture(x,k_*g_(v_)) && g == :Δx ? k : x, par)
+            par = postwalk(x->@capture(x,g_(v_)) && g == :Δx ? 1 : x, par)
+            div = :($div+2*$par)
+        end
+    elseif dims == 2
+        fMod = postwalk(x->@capture(x,g_(v_)) && g == :Δy ? :AUX_ : x,f)
+        if inexpr(fMod,:AUX_)
+            par = postwalk(x->@capture(x,k_=g_) ? g : x,f)
+            par = postwalk(x->@capture(x,k_*g_(v_)) && g != :Δy ? 0 : x, par)
+            par = postwalk(x->@capture(x,k_*g_(v_)) && g == :Δy ? k : x, par)
+            par = postwalk(x->@capture(x,g_(v_)) && g == :Δy ? 1 : x, par)
+            div = :($div+2*$par)
+        end
+    elseif dims == 3
+        fMod = postwalk(x->@capture(x,g_(v_)) && g == :Δz ? :AUX_ : x,f)
+        if inexpr(fMod,:AUX_)
+            par = postwalk(x->@capture(x,k_=g_) ? g : x,f)
+            par = postwalk(x->@capture(x,k_*g_(v_)) && g != :Δz ? 0 : x, par)
+            par = postwalk(x->@capture(x,k_*g_(v_)) && g == :Δz ? k : x, par)
+            par = postwalk(x->@capture(x,g_(v_)) && g == :Δz ? 1 : x, par)
+            div = :($div+2*$par)
+        end
+    end
+
+    return :($j.new = ($j + ($f)*dt)/$div)
 end

@@ -69,6 +69,7 @@ include("./model/agentCode/integrator/integrators.jl")
 include("./model/agentCode/basic/updateMediumBoundaries.jl")
 include("./model/agentCode/integratorMedium/ftcs.jl")
 include("./model/agentCode/integratorMedium/lax.jl")
+include("./model/agentCode/integratorMedium/implicitEuler.jl")
 include("./model/agentCode/integratorMedium/integratorsMedium.jl")
 include("./model/agentCode/basic/updateMediumInteraction.jl")
 
@@ -98,6 +99,7 @@ include("./auxiliar/emptyquote.jl")
 include("./auxiliar/updates.jl")
 include("./auxiliar/substitution2.jl")
 include("./auxiliar/extract.jl")
+include("./auxiliar/addMediumCode.jl")
 
 #Implemented models
 include("./implementedModels/models.jl")
