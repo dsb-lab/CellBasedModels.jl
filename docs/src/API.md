@@ -53,3 +53,11 @@ Optimization.geneticAlgorithm
 Optimization.swarmAlgorithm
 Optimization.beeColonyAlgorithm
 ```
+
+## Models
+
+```@docs
+Models.Bacteria2D
+Models.Bacteria2DChannel
+Models.Bacteria2DGrowth
+```

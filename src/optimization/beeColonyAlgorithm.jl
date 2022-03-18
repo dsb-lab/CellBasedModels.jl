@@ -1,49 +1,42 @@
 import ...AgentBasedModels: rand, Categorical, Uniform
 
 """
-    function beeColonyAlgorithm(communityInitial::Community, 
-        model::Model, 
-        loosFunction:: Function, 
-        searchList::Dict{Symbol,<:Union{<:Tuple{<:Number,<:Number},Vector{<:Number}}}, 
-        evalParams::Dict{Symbol,<:Number};
+    function beeColonyAlgorithm(
+        evalFunction::Function, 
+        searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}; 
         population::Int=100,
         limitCycles::Int = 10,
         stopMaxGenerations::Int = 100,
-        initialisation::Union{Nothing,DataFrame} = nothing,
-        initialisationF::Union{Nothing,Function} = nothing,
         returnAll::Bool = false,
-        saveFileName::Union{Nothing,String} = nothing)
+        initialisation::Union{Nothing,DataFrame} = nothing,
+        saveFileName::Union{Nothing,String} = nothing,
+        args::Vector{<:Any} = Any[])
 
 Optimization of the parameter space of a model that uses the [Bee Colony Algorithm](https://en.wikipedia.org/wiki/Artificial_bee_colony_algorithm).
 
 Args:
- - **communityInitial::Community** : Community to use as a base to start the optimization.
- - **model::Model** : Model to be optimized to evolve the communityInitial.
- - **loosFunction:: Function** : Cost function over which optimize the parameter.
+ - **evalFunction:: Function** : Function that takes a DataFrame with parameters, generates the simulations and returns a score of the fit.
  - **searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
- - **evalParams::Dict{Symbol,<:Number}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :tMax => 10).
 
 kArgs:
  - **population::Int=100** : Size of the colony used at each generation for the optimization.
  - **limitCycles::Int = 10** : Hyperparameter of the algorithm that says how many generations without update are waited until jump to other position.
  - **stopMaxGenerations::Int = 100** : How many generations do before stopping the algorithm. 
- - **initialisation::Union{Nothing,DataFrame} = nothing** : DataFrame defining the initial parameters of the population. If nothing, they are set randomly.
- - **initialisationF::Union{Nothing,Function} = nothing** : Function that takes communityInitial as an argument and searchList parameters as kargs and modifies the communityInitial.
  - **returnAll::Bool = false** : If return the hole list of parameters explored or the just the most fit.
+ - **initialisation::Union{Nothing,DataFrame} = nothing** : DataFrame defining the initial parameters of the population. If nothing, they are set randomly.
  - **saveFileName::Union{Nothing,String} = nothing** : If given a string, it saves the parameters explored in a file with the corresponding name.
+ - **args::Vector{<:Any} = Any[]** : Additional arguments to give to `evalFunction`.
 """
-function beeColonyAlgorithm(communityInitial::Community, 
-                        model::Model, 
-                        loosFunction:: Function, 
-                        searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}, 
-                        evalParams::Dict{Symbol,<:Number};
+function beeColonyAlgorithm(
+                        evalFunction::Function, 
+                        searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}; 
                         population::Int=100,
                         limitCycles::Int = 10,
                         stopMaxGenerations::Int = 100,
-                        initialisation::Union{Nothing,DataFrame} = nothing,
-                        initialisationF::Union{Nothing,Function} = nothing,
                         returnAll::Bool = false,
-                        saveFileName::Union{Nothing,String} = nothing)
+                        initialisation::Union{Nothing,DataFrame} = nothing,
+                        saveFileName::Union{Nothing,String} = nothing,
+                        args::Vector{<:Any} = Any[])
 
     mTotal = DataFrame()
 
@@ -72,19 +65,7 @@ function beeColonyAlgorithm(communityInitial::Community,
 
     #Start first simulations
     for i in 1:population
-        com = deepcopy(communityInitial)
-        #Set parameters
-        if initialisationF === nothing
-            for param in keys(searchList)
-                com[Symbol(param)] = m[i,param]
-            end
-        else
-            initialisationF(com;[Symbol(param)=>m[i,param] for param in keys(searchList)]...)
-        end
-        #Run simulation
-        comt = model.evolve(com;evalParams...)
-        #Run loos function
-        m[i,:_score_] = loosFunction(comt)
+        m[i,:_score_] = evalFunction(m[i,:],args...)
     end
     mTotal = copy(m)
 
@@ -130,19 +111,7 @@ function beeColonyAlgorithm(communityInitial::Community,
 
         #Simulations
         for i in 1:population
-            com = deepcopy(communityInitial)
-            #Set parameters
-            if initialisationF === nothing
-                for param in keys(searchList)
-                    com[Symbol(param)] = m[i,param]
-                end
-            else
-                initialisationF(com;[Symbol(param)=>m[i,param] for param in keys(searchList)]...)
-            end
-            #Run simulation
-            comt = model.evolve(com;evalParams...)
-            #Run loos function
-            m[i,:_score_] = loosFunction(comt)
+            m[i,:_score_] = evalFunction(m[i,:],args...)
 
             #Check if keep old update
             if m[i,:_score_] > mOld[i,:_score_]

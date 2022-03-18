@@ -1,29 +1,23 @@
 import ...AgentBasedModels: rand
 
 """
-    function swarmAlgorithm(communityInitial::Community, 
-        model::Model, 
-        loosFunction:: Function, 
-        searchList::Dict{Symbol,<:Union{<:Tuple{<:Number,<:Number},Vector{<:Number}}}, 
-        evalParams::Dict{Symbol,<:Number};
+    function swarmAlgorithm(evalFunction::Function,  
+        searchList::Dict{Symbol,<:Union{<:Tuple{<:Number,<:Number},Vector{<:Number}}};
         population::Int=100,
         weightInertia::Number = .1,
         weightGlobalBest::Number = .1, 
         weightPopulationBest::Number = .1, 
         stopMaxGenerations::Int = 10,
         initialisation::Union{Nothing,DataFrame} = nothing,
-        initialisationF::Union{Nothing,Function} = nothing,
         returnAll::Bool = false,
-        saveFileName::Union{Nothing,String} = nothing)
+        saveFileName::Union{Nothing,String} = nothing,
+        args::Vector{<:Any} = Any[])
 
 Optimization of the parameter space of a model that uses the [Swarm Algorithm](https://en.wikipedia.org/wiki/Particle_swarm_optimization).
 
 Args:
- - **communityInitial::Community** : Community to use as a base to start the optimization.
- - **model::Model** : Model to be optimized to evolve the communityInitial.
- - **loosFunction:: Function** : Cost function over which optimize the parameter.
- - **searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
- - **evalParams::Dict{Symbol,<:Number}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :tMax => 10).
+- **evalFunction:: Function** : Function that takes a DataFrame with parameters, generates the simulations and returns a score of the fit.
+- **searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
 
 kArgs:
  - **population::Int = 100** : Size of the colony used at each generation for the optimization.
@@ -32,24 +26,21 @@ kArgs:
  - **weightPopulationBest::Number = .1** : Hyperparameter of the colony weighting the local best solution.
  - **stopMaxGenerations::Int = 10** : How many generations do before stopping the algorithm. 
  - **initialisation::Union{Nothing,DataFrame} = nothing** : DataFrame defining the initial parameters of the population. If nothing, they are set randomly.
- - **initialisationF::Union{Nothing,Function} = nothing** : Function that takes communityInitial as an argument and searchList parameters as kargs and modifies the communityInitial.
  - **returnAll::Bool = false** : If return the hole list of parameters explored or the just the most fit.
  - **saveFileName::Union{Nothing,String} = nothing** : If given a string, it saves the parameters explored in a file with the corresponding name.
+ - **args::Vector{<:Any} = Any[]** : Additional arguments to give to `evalFunction`.
 """
-function swarmAlgorithm(communityInitial::Community, 
-                        model::Model, 
-                        loosFunction:: Function, 
-                        searchList::Dict{Symbol,<:Union{<:Tuple{<:Number,<:Number},Vector{<:Number}}}, 
-                        evalParams::Dict{Symbol,<:Number};
+function swarmAlgorithm(evalFunction::Function,  
+                        searchList::Dict{Symbol,<:Union{<:Tuple{<:Number,<:Number},Vector{<:Number}}};
                         population::Int=100,
                         weightInertia::Number = .1,
                         weightGlobalBest::Number = .1, 
                         weightPopulationBest::Number = .1, 
                         stopMaxGenerations::Int = 10,
                         initialisation::Union{Nothing,DataFrame} = nothing,
-                        initialisationF::Union{Nothing,Function} = nothing,
                         returnAll::Bool = false,
-                        saveFileName::Union{Nothing,String} = nothing)
+                        saveFileName::Union{Nothing,String} = nothing,
+                        args::Vector{<:Any} = Any[])
 
     mTotal = DataFrame()
 
@@ -88,19 +79,7 @@ function swarmAlgorithm(communityInitial::Community,
 
     #Start first simulations
     for i in 1:population
-        com = deepcopy(communityInitial)
-        #Set parameters
-        if initialisationF === nothing
-            for param in keys(searchList)
-                com[Symbol(param)] = m[i,param]
-            end
-        else
-            initialisationF(com;[Symbol(param)=>m[i,param] for param in keys(searchList)]...)
-        end
-        #Run simulation
-        comt = model.evolve(com;evalParams...)
-        #Run loos function
-        m[i,:_score_] = loosFunction(comt)
+        m[i,:_score_] = evalFunction(m[i,:],args...)
     end
     mTotal = copy(m)
     mPBest = m[argmin(m._score_),:]
@@ -139,19 +118,7 @@ function swarmAlgorithm(communityInitial::Community,
 
         #Simulations
         for i in 1:population
-            com = deepcopy(communityInitial)
-            #Set parameters
-            if initialisationF === nothing
-                for param in keys(searchList)
-                    com[Symbol(param)] = m[i,param]
-                end
-            else
-                initialisationF(com;[Symbol(param)=>m[i,param] for param in keys(searchList)]...)
-            end
-            #Run simulation
-            comt = model.evolve(com;evalParams...)
-            #Run loos function
-            m[i,:_score_] = loosFunction(comt)
+            m[i,:_score_] = evalFunction(m[i,:],args...)
         end
         append!(mTotal,m)
 

@@ -53,10 +53,14 @@ m\ddot{\bold{r}_i} &= \sum_s\bold{f}_{s}-\beta m \bold{v}\\
 
 where ``s`` denotes for the sum over the virtual interacting spheres acting on bacteria $i$ and $\bold{i}$ is the tensor of inertia of a cylinder.
 
-### Bacteria2DChannel
+### Add-on: Bacteria2DChannel
 
-Model written over Bacteria2D with the added implementation of a closed boundary at the Y-limits and cells are revomed at the X-limits. The limits are imposed by the `simulationBox` property of the `Community` object. This implementation follows the model of [Volfson et al.](https://www.pnas.org/content/105/40/15346)
+Added implementation of a closed boundary at the Y-limits and cells are revomed at the X-limits. The limits are imposed by the `simulationBox` property of the `Community` object. This implementation follows the model of [Volfson et al.](https://www.pnas.org/content/105/40/15346)
 
 ```@raw html
 <img src="./assets/BacteriaChannel.png" alt="drawing" width="800"/>
 ```
+
+### Add-on: Bacteria2DGrowth
+
+Added implementation of growth and division events. This implementation follows the model of [Volfson et al.](https://www.pnas.org/content/105/40/15346)
