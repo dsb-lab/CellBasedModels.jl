@@ -99,6 +99,8 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
                         count += 1
                     end
 
+                    println(count)
+
                     if count >= maxLearningStepsIntegrator
                         #println("Implicit Euler integrator is not converging. Try reducing the learning rate.")
                     end
