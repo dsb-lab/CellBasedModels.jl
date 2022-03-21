@@ -83,7 +83,11 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
         function (com::Community;
                 dt::Real, tMax::Real,
                 nMax::Integer=com.N, 
-                dtSave::Real=dt, saveFile::String="")
+                dtSave::Real=dt, 
+                saveFile::String="",
+                relativeErrorIntegrator::Real=10E-2,
+                learningRateIntegrator::Real=1.,
+                maxLearningStepsIntegrator::Int=100)
             #Promoting to the correct type
             dt = $FLOAT(dt)
             tMax = $FLOAT(tMax)
