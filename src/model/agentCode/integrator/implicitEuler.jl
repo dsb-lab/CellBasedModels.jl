@@ -95,13 +95,9 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
                         @platformAdapt integrationStep1_!(ARGS_)
                         localVCopy .= (1-learningRateIntegrator).*localVCopy .+ learningRateIntegrator.*predV
                         errorMax = maximum(abs.(predV .- localVCopy))
-                        println(errorMax)
-
-                        #println(localVCopy[1,:])
+                        
                         count += 1
                     end
-
-                    # println(count)
 
                     if count >= maxLearningStepsIntegrator
                         #println("Implicit Euler integrator is not converging. Try reducing the learning rate.")
