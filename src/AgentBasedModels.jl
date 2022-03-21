@@ -10,7 +10,7 @@ using CUDA
 using DataFrames
 using CSV
 using JLD
-# import GeometryBasics, GLMakie
+import GeometryBasics, GLMakie
 import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, gensym, flatten, unblock, isexpr
 import SpecialFunctions
 #using WriteVTK
@@ -87,7 +87,7 @@ include("./model/cuda/cudaConfigurator.jl")
 # #Visualization functions
 export plotSpheres, plotRods
 include("./plotting/rods.jl")
-include("./plotting/spheres.jl")
+# include("./plotting/spheres.jl")
 
 #Auxiliar function
 include("./auxiliar/checkDeclared.jl")
