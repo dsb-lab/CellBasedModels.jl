@@ -121,7 +121,7 @@ function stochasticDescentAlgorithm(evalFunction::Function,
         append!(mTotal,m)
 
         if saveFileName !== nothing
-            CSV.write(saveFileName,m[line,:],append=true)
+            CSV.write(saveFileName,m,append=true)
         end
 
         count += 1

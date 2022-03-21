@@ -86,7 +86,7 @@ function swarmAlgorithm(evalFunction::Function,
     mGBest = m[argmin(m._score_),:]
 
     if saveFileName !== nothing
-        CSV.write(saveFileName,m[line,:])
+        CSV.write(saveFileName,mTotal)
     end
 
     count = 2
@@ -128,7 +128,7 @@ function swarmAlgorithm(evalFunction::Function,
         end
 
         if saveFileName !== nothing
-            CSV.write(saveFileName,m[line,:],append=true)
+            CSV.write(saveFileName,m,append=true)
         end
 
         count += 1
