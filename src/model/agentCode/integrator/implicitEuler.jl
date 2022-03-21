@@ -93,9 +93,10 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
                     while errorMax > relativeErrorIntegrator && maxLearningStepsIntegrator > count
                         $(addInteraction...)
                         @platformAdapt integrationStep1_!(ARGS_)
-                        localVCopy .= (1-learningRateIntegrator).*localVCopy .+ learningRateIntegrator.*predV
+                        println(predV)
+                        println(localVCopy)
                         errorMax = maximum(abs.(predV .- localVCopy))
-                        println(errorMax)
+                        localVCopy .= (1-learningRateIntegrator).*localVCopy .+ learningRateIntegrator.*predV
 
                         #println(localVCopy[1,:])
                         count += 1
