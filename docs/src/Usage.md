@@ -204,7 +204,6 @@ m = @agent(2,
     end
 )
 ```
-
 #### [**UpdateLocalInteraction**](@id updateLocalInteraction)
 Define the rules for interacting agents one in each integration step. In these rules, local and identity parameters of two agents will be used. To differentiate the parameters of which agent we are using, we use the notation `.i` to indicate the agent we are updating the rules and `.j` for the other agents interacting with the agent being updated. This notation resembles the notation of a contracting index $x_i=\sum_jx_{ij}$.
 
@@ -318,13 +317,13 @@ Depending of the type of simulation we can sum over the interacting agents in di
 
 The equations of motion defined in `UpdateVariable` can be integrated with for the moment with two different explicit methods.
 
-| Integration algorithm | Accuracy |
-|---|:---:|
-| `Euler` | $\mathcal{O}(\Delta t)$ |
-| `Heun` | $\mathcal{O}(\Delta t^2)$ |
+| Integration algorithm | Accuracy | Stability |
+|---|:---:|:---:|
+| `Euler` | $\mathcal{O}(\Delta t)$ | $\lambda < 1$ |
+| `Heun` | $\mathcal{O}(\Delta t^2)$ | $\lambda < 1$ |
+| `ImplicitEuler` | $\mathcal{O}(\Delta t)$ | unconditionally stable* | 
 
-See [Small Example](@ref simulationSpaceExample) for an illustrative example of how to define complex simulation spaces.
-
+*Because the method is implicit, a solver has to be used to solve the implicit system of equations. A iterative algorithm is used for that purpose that has a conditional convergence to the solution. This efectively adds some constraint to the stability regime. To control the convergence properties, you can tune the learning rate of the algorithm when running the algorithm with the parameter `learningRateIntegrator` in the `kwargs` of the model's `evolve` function.
 ### MediumIntegrator
 
 The equations of motion defined in `UpdateMedium` can be integrated with for the moment with two different explicit methods.

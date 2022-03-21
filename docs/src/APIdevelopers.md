@@ -46,3 +46,9 @@ addUpdateGlobal_!
 addUpdateLocal_!
 addUpdateLocalInteraction_!
 ```
+## Integrators
+```@docs
+addIntegratorEuler_!
+addIntegratorHeun_!
+addIntegratorImplicitEuler_!
+```

@@ -7,10 +7,18 @@ Adapter for the Implicit Euler integration step method.
 x(t+Δt) = x(t) + a(t+Δt)*Δt
 ```
 
-The algorithm can be reduced to three kernel invocations performing the following actions:
- - Clean the interaction parameters array
- - Compute interaction parameters at original position v₀ (if there are interaction parameters)
- - Compute final position v₁
+The solution is computed iteratively as,
+
+```math
+x_{k+1} = (1-lr)x_{k-1}+lr*x_{k}
+```
+where `lr` if the learning rate of the algorithm.
+
+The algorithm can be reduced to a loop over four kernel invocations performing the following actions:
+ - Clean the interaction parameters array.
+ - Compute interaction parameters at original position v₀ (if there are interaction parameters).
+ - Compute error of new update.
+ - Assign new update.
 """
 function addIntegratorImplicitEuler_!(p::Program_, platform::String)
     
