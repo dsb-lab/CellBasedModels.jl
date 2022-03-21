@@ -90,31 +90,6 @@
             @test comt.x[1:40,2]-comt.x[1:40,2] != range(.1,1,length=40)
             @test all(comt.x[41:end,1]-comt.x[41:end,2] != 1)
 
-            #Interactions
-            m = @agent(
-                3,
-
-                f::LocalInteraction,
-                
-                UpdateVariable = 
-                begin
-                    d(x) = -f*dt 
-                end,
-
-                UpdateInteraction=begin
-                   if abs(x.i-x.j) < 1
-                        f.i += 1*sign(x.j-x.i)
-                   end 
-                end
-            )
-            m = compile(m, integrator=integrator, platform=platform)
-            #println(m.program)
-            com = Community(m,N = 2)
-            com.x .= [-.1,.1]
-            comt = m.evolve(com,dt=0.01,tMax=5)
-            @test comt.x[1:40,2]-comt.x[1:40,2] != range(.1,1,length=40)
-            @test all(comt.x[41:end,1]-comt.x[41:end,2] != 1)
-
         end
     end
 

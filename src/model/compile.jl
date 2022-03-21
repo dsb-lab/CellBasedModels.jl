@@ -49,11 +49,11 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
     addParameters_!(p,platform)
     addCopyInitialisation_!(p,platform)
     addIntegrator_![integrator](p,platform)
+    addUpdateLocalInteraction_!(p,platform)
     addUpdateMediumInteraction_!(p,platform)
     addIntegratorMedium_![integratorMedium](p,platform)
     addUpdateGlobal_!(p,platform)
     addUpdateLocal_!(p,platform)
-    addUpdateLocalInteraction_!(p,platform)
 #    addCheckBounds_!(p,platform)
     addUpdate_!(p,platform)
 
