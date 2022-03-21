@@ -63,8 +63,8 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
 
         #Create wrapped integration step function
         if "UpdateInteraction" in keys(p.agent.declaredUpdates)
-            addInteraction = [:(@platformAdapt interactionCompute_!(ARGS_))]
-            push!(p.execInit.args, :(@platformAdapt interactionCompute_!(ARGS_)))
+            addInteraction = [:(@platformAdapt interactionComputeIntermediate_!(ARGS_))]
+            push!(p.execInit.args, :(@platformAdapt interactionComputeIntermediate_!(ARGS_)))
         else
             addInteraction = []
         end
