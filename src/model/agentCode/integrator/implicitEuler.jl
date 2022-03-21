@@ -44,7 +44,7 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
         end
 
         #Create integration step function
-        for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
+        for (i,j) in keys(p.update["Local"])
             pos = p.update["Local"][j]
             code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(predV[ic1_,$pos] = localV[ic1_,$i] + $(v...)) : x, code)
             code = postwalk(x -> @capture(x,dW) ? error("Implicit Euler method do not work with SDE.") : x, code)
