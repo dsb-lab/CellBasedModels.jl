@@ -35,10 +35,8 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
             for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
                 if j in keys(p.update["Local"])
                     pos = p.update["Local"][j]
-                else
-                    pos = i
+                    k1 = postwalk(x -> @capture(x,s_) && s == j ? :(localVCopy[ic1_,$pos]) : x, k1)
                 end
-                k1 = postwalk(x -> @capture(x,s_) && s == j ? :(localVCopy[ic1_,$pos]) : x, k1)
             end
             k1 = vectorize_(p.agent,k1,p,interaction=true)
             k1 = wrapInFunction_(:interactionCompute_!,k1)
