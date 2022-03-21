@@ -46,7 +46,7 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
             else
                 pos = i
             end
-            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(predV[ic1_,$pos] = $j + $(v...)) : x, code)
+            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(predVNew[ic1_,$pos] = localV[ic1_,$i] + $(v...)) : x, code)
             code = postwalk(x -> @capture(x,dW) ? error("Implicit Euler method do not work with SDE.") : x, code)
         end
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
@@ -86,7 +86,6 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
                         @platformAdapt integrationStep1_!(ARGS_)
                         errorMax = maximum(abs.(predV-localVCopy))
                         localVCopy .= (1-learningRateIntegrator).*localVCopy .+ learningRateIntegrator.*predV
-                        
                         #println(localVCopy[1,:])
                         count += 1
                     end
