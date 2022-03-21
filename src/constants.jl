@@ -39,7 +39,7 @@ UPDATINGOPERATORS = [:(=),:+= ,:-=,:*=,:/=,:\=,:÷=,:%=,:^=,:&=,:|=,:⊻=,:>>>=,
 RESERVEDSYMBOLS = [:x,:y,:z,:id,:t,:N,:dt,:dW,:nMax,
                     :idMediumX,:idMediumY,:idMediumZ,
                     :ic1_,:ic2_,:nnic2_,:pos_,
-                    :localV,:identityV,:globalV,:mediumV,
+                    :localV,:identityV,:globalV,:mediumV,:localInteractionV,
                     :localVCopy,:identityVCopy,:globalVCopy,:mediumVCopy,
                     :simulationBox,:radiusInteraction,:n_,
                     :ALGORITHM_,:ARGS_,:AUX1_,:AUX2_,
@@ -48,7 +48,8 @@ RESERVEDSYMBOLS = [:x,:y,:z,:id,:t,:N,:dt,:dW,:nMax,
                     :index_,:stride_,:lockadd_,
                     :Nx_,:Ny_,:Nz_,
                     :∇,:∇x,:∇y,:∇z,:Δ,:Δx,:Δy,:Δz,:δx,:δy,:δz,:xₘ,:yₘ,:zₘ,
-                    :newmannX,:dirichletX,:periodicX,:newmannY,:dirichletY,:periodicY,:newmannZ,:dirichletZ,:periodicZ];
+                    :newmannX,:dirichletX,:periodicX,:newmannY,:dirichletY,:periodicY,:newmannZ,:dirichletZ,:periodicZ,
+                    :predV,:learningRateIntegrator,:relativeErrorIntegrator,:maxLearningStepsIntegrator];
 
 GLOBALARRAYCOPY = "_Copy"
 

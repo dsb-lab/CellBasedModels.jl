@@ -49,11 +49,11 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
     addParameters_!(p,platform)
     addCopyInitialisation_!(p,platform)
     addIntegrator_![integrator](p,platform)
+    addUpdateLocalInteraction_!(p,platform)
     addUpdateMediumInteraction_!(p,platform)
     addIntegratorMedium_![integratorMedium](p,platform)
     addUpdateGlobal_!(p,platform)
     addUpdateLocal_!(p,platform)
-    addUpdateLocalInteraction_!(p,platform)
 #    addCheckBounds_!(p,platform)
     addUpdate_!(p,platform)
 
@@ -83,7 +83,11 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
         function (com::Community;
                 dt::Real, tMax::Real,
                 nMax::Integer=com.N, 
-                dtSave::Real=dt, saveFile::String="")
+                dtSave::Real=dt, 
+                saveFile::String="",
+                relativeErrorIntegrator::Real=10E-2,
+                learningRateIntegrator::Real=1.,
+                maxLearningStepsIntegrator::Int=100)
             #Promoting to the correct type
             dt = $FLOAT(dt)
             tMax = $FLOAT(tMax)

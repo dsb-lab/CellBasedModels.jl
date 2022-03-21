@@ -34,12 +34,16 @@ function addIntegratorHeun_!(p::Program_, platform::String)
 
         #Create first interaction parameter kernel if there is any interaction parameter updated
         if "UpdateInteraction" in keys(p.agent.declaredUpdates)
-
             k1 = loop_[p.neighbors](p,p.agent.declaredUpdates["UpdateInteraction"],platform)
+            for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
+                if j in keys(p.update["Local"])
+                    pos = p.update["Local"][j]
+                    k1 = postwalk(x -> @capture(x,s_) && s == j ? :(localVCopy[ic1_,$pos]) : x, k1)
+                end
+            end
             k1 = vectorize_(p.agent,k1,p,interaction=true)
-            k1 = wrapInFunction_(:interactionStep1_,k1)
+            k1 = wrapInFunction_(:interactionCompute_!,k1)
             push!(p.declareF.args,k1)
-
         end
 
         #Create first integration step kernel
@@ -72,19 +76,7 @@ function addIntegratorHeun_!(p::Program_, platform::String)
         push!(p.declareVar.args,:(K₁_ = copy(zeros(Float64,nMax,$(length(p.update["Variables"]))))))  
         push!(p.args,:K₁_ )  
 
-        #Create second interaction parameter kernel using localVCopy if there is any
-        if "UpdateInteraction" in keys(p.agent.declaredUpdates)
-
-            k3 = loop_[p.neighbors](p,p.agent.declaredUpdates["UpdateInteraction"],platform)
-            for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
-                codeK1 = postwalk(x -> @capture(x,$j) ? :(localVCopy[ic1_,$ii]) : x, k3)
-            end
-            k3 = vectorize_(p.agent,k3,p,interaction=true)
-            k3 = wrapInFunction_(:interactionStep2_,k3)
-            push!(p.declareF.args,k3)
-
-        end
-        
+   
         #Create second integration step kernel
         codeK2 = gensym_ids(postwalk(x->@capture(x,dW) ? :($(gensym("dW"))) : x, code))
         codeK2 = postwalk(x->@capture(x,v_) && (split(string(v),"_")[1] == "dW") ? :(dW[ic1_,$(Meta.parse(split(string(v),"_")[2]))]) : x, codeK2)
@@ -125,18 +117,16 @@ function addIntegratorHeun_!(p::Program_, platform::String)
             if !isempty(p.agent.declaredSymbols["IdentityInteraction"])
                 cleanInteraction = :(identityInteractionV .= 0)
             end
-            addInteraction1 = [:($cleanLocal;$cleanInteraction;@platformAdapt interactionStep1_(ARGS_))]
-            addInteraction2 = [:($cleanLocal;$cleanInteraction;@platformAdapt interactionStep2_(ARGS_))]
+            addInteraction = [:($cleanLocal; $cleanInteraction ;@platformAdapt interactionCompute_!(ARGS_))]
         else
-            addInteraction1 = []
-            addInteraction2 = []
+            addInteraction = []
         end
         push!(p.declareF.args,
             :(begin
                 function integrationStep_!(ARGS_)
-                    $(addInteraction1...)
+                    $(addInteraction...)
                     @platformAdapt integrationStep1_(ARGS_)
-                    $(addInteraction2...)
+                    $(addInteraction...)
                     @platformAdapt integrationStep1_(ARGS_)
 
                     return

@@ -14,37 +14,37 @@ function addUpdateLocalInteraction_!(p::Program_,platform::String)
         push!(p.declareF.args,fcompute)
 
         #Wrap both functions in a clean step function
-        if inexpr(p.declareF,:cleanLocalInteraction_!)
-            f = push!(p.declareF.args,
+        if "UpdateLocalInteraction" in keys(p.agent.declaredUpdates)
+            cleanLocal = :()
+            if !isempty(p.agent.declaredSymbols["LocalInteraction"])
+                cleanLocal = :(localInteractionV .= 0)
+            end
+            cleanInteraction = :()
+            if !isempty(p.agent.declaredSymbols["IdentityInteraction"])
+                cleanInteraction = :(identityInteractionV .= 0)
+            end
+            addInteraction = [:($cleanLocal; $cleanInteraction ;@platformAdapt interactionCompute_!(ARGS_))]
+        else
+            addInteraction = []
+        end
+        f = push!(p.declareF.args,
                 :(
                     function locInterStep_!(ARGS_)
-                        @platformAdapt cleanLocalInteraction_!(ARGS_)
+                        $(addInteraction...)
                         @platformAdapt locInterCompute_!(ARGS_)
                         return
                     end
                 )
                 )
-            push!(p.execInit.args,
+        push!(p.execInit.args,
                     :(locInterStep_!(ARGS_))
                 )
-            push!(p.execInloop.args,
+        push!(p.execInloop.args,
                 :(locInterStep_!(ARGS_))
                 )
-            push!(p.execAfter.args,
+        push!(p.execAfter.args,
                     :(locInterStep_!(ARGS_))
                 )
-        else
-            push!(p.execInit.args,
-                    :(@platformAdapt locInterCompute_!(ARGS_))
-                )
-            push!(p.execInloop.args,
-                    :(@platformAdapt locInterCompute_!(ARGS_))
-                )
-            push!(p.execAfter.args,
-                    :(@platformAdapt locInterCompute_!(ARGS_))
-                )
-        end
-        
     end
 
     return nothing
