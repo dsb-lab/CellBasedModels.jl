@@ -40,9 +40,9 @@ function gridSearch(evalFunction::Function,
 
         if saveFileName !== nothing
             if line == 1
-                CSV.write(saveFileName,m[line,:])
+                CSV.write(string(saveFileName,".csv"),m[line,:])
             else
-                CSV.write(saveFileName,m[line,:],append=true)
+                CSV.write(string(saveFileName,".csv"),m[line,:],append=true)
             end
         end
     end
