@@ -80,6 +80,7 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
                     errorMax = Inf
                     count = 0
 
+                    updateLocGlobInitialisation_!(ARGS_)
                     while errorMax > relativeErrorIntegrator && maxLearningStepsIntegrator > count
                         $(addInteraction...)
                         @platformAdapt integrationStep1_!(ARGS_)
