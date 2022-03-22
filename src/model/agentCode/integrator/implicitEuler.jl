@@ -41,7 +41,7 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
         #Create initial integration step function
         code = addMediumCode(p) #Add medium coupling
         push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
-        function remove(code)
+        function remove(code,j)
             code = postwalk(x -> @capture(x,g_/s_) && inexpr(s,j) ? :(0) : x, code)
             code = postwalk(x -> @capture(x,s_) && s == j ? :(0) : x, code)
 
@@ -53,7 +53,7 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
             else
                 pos = i
             end
-            code = postwalk(x -> @capture(x,g_(s_)=v_) && g == DIFFSYMBOL && s == j ? :(localVCopy[ic1_,$pos] = localV[ic1_,$i] + $(remove(v)...)) : x, code)
+            code = postwalk(x -> @capture(x,g_(s_)=v_) && g == DIFFSYMBOL && s == j ? :(localVCopy[ic1_,$pos] = localV[ic1_,$i] + $(remove(v,j)...)) : x, code)
             code = postwalk(x -> @capture(x,dW) ? error("Implicit Euler method do not work with SDE.") : x, code)
         end
         code = vectorize_(p.agent,code,p)
