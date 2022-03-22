@@ -53,7 +53,7 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
             else
                 pos = i
             end
-            code = postwalk(x -> @capture(x,g_(s_)=v_) && g == DIFFSYMBOL && s == j ? :(localVCopy[ic1_,$pos] = localV[ic1_,$i] + $(remove(v,j)...)) : x, code)
+            code = postwalk(x -> @capture(x,g_(s_)=v_) && g == DIFFSYMBOL && s == j ? :(localVCopy[ic1_,$pos] = localV[ic1_,$i] + $(remove(v,j))) : x, code)
             code = postwalk(x -> @capture(x,dW) ? error("Implicit Euler method do not work with SDE.") : x, code)
         end
         code = vectorize_(p.agent,code,p)
