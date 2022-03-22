@@ -53,6 +53,7 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             if j in keys(p.update["Local"])
                 pos = p.update["Local"][j]
+                code = postwalk(x -> @capture(x,g_/s_) && s == j && inexpr(s,j) ? :(0) : x, code)
                 code = postwalk(x -> @capture(x,s_) && s == j ? :(0) : x, code)
             end
         end
