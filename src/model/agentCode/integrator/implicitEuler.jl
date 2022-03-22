@@ -41,12 +41,11 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
         #Create initial integration step function
         code = addMediumCode(p) #Add medium coupling
         push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
-        for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
-            if j in keys(p.update["Local"])
-                pos = p.update["Local"][j]
-                code = postwalk(x -> @capture(x,g_/s_) && s == j && inexpr(s,j) ? :(0) : x, code)
-                code = postwalk(x -> @capture(x,s_) && s == j ? :(0) : x, code)
-            end
+        function remove(code)
+            code = postwalk(x -> @capture(x,g_/s_) && inexpr(s,j) ? :(0) : x, code)
+            code = postwalk(x -> @capture(x,s_) && s == j ? :(0) : x, code)
+
+            return code
         end
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             if j in keys(p.update["Local"])
@@ -54,7 +53,7 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
             else
                 pos = i
             end
-            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(localVCopy[ic1_,$pos] = localV[ic1_,$i] + $(v...)) : x, code)
+            code = postwalk(x -> @capture(x,g_(s_)=v_) && g == DIFFSYMBOL && s == j ? :(localVCopy[ic1_,$pos] = localV[ic1_,$i] + $(remove(v)...)) : x, code)
             code = postwalk(x -> @capture(x,dW) ? error("Implicit Euler method do not work with SDE.") : x, code)
         end
         code = vectorize_(p.agent,code,p)
