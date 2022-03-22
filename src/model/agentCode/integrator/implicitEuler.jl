@@ -44,18 +44,18 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             if j in keys(p.update["Local"])
                 pos = p.update["Local"][j]
+                code = postwalk(x -> @capture(x,g_/s_) && s == j && inexpr(s,j) ? :(0) : x, code)
+                code = postwalk(x -> @capture(x,s_) && s == j ? :(0) : x, code)
+            end
+        end
+        for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
+            if j in keys(p.update["Local"])
+                pos = p.update["Local"][j]
             else
                 pos = i
             end
             code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(localVCopy[ic1_,$pos] = localV[ic1_,$i] + $(v...)) : x, code)
             code = postwalk(x -> @capture(x,dW) ? error("Implicit Euler method do not work with SDE.") : x, code)
-        end
-        for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
-            if j in keys(p.update["Local"])
-                pos = p.update["Local"][j]
-                code = postwalk(x -> @capture(x,g_/s_) && s == j && inexpr(s,j) ? :(0) : x, code)
-                code = postwalk(x -> @capture(x,s_) && s == j ? :(0) : x, code)
-            end
         end
         code = vectorize_(p.agent,code,p)
         f = simpleFirstLoopWrapInFunction_(platform,:integrationStep0_!,code)
