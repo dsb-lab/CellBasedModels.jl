@@ -265,7 +265,6 @@ function addCopyInitialisation_!(p::Program_,platform::String)
     end
 
     if create
-        println(p.update)
         gen = quote end #General update
         up = quote end
         for i in keys(p.agent.declaredSymbols)
