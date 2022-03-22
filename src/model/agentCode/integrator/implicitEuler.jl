@@ -24,11 +24,6 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
     
     if "UpdateVariable" in keys(p.agent.declaredUpdates)
 
-        #Add medium coupling
-        code = addMediumCode(p)
-
-        push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
-
         #Create interaction parameter kernel if there is any interaction parameter updated
         if "UpdateInteraction" in keys(p.agent.declaredUpdates)
             k1 = loop_[p.neighbors](p,p.agent.declaredUpdates["UpdateInteraction"],platform)
@@ -43,7 +38,31 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
             push!(p.declareF.args,k1)
         end
 
+        #Create initial integration step function
+        code = addMediumCode(p) #Add medium coupling
+        push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
+        for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
+            if j in keys(p.update["Local"])
+                pos = p.update["Local"][j]
+            else
+                pos = i
+            end
+            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(localVCopy[ic1_,$pos] = localV[ic1_,$i] + $(v...)) : x, code)
+            code = postwalk(x -> @capture(x,dW) ? error("Implicit Euler method do not work with SDE.") : x, code)
+        end
+        for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
+            if j in keys(p.update["Local"])
+                pos = p.update["Local"][j]
+                code = postwalk(x -> @capture(x,s_) && s == j ? :(0) : x, code)
+            end
+        end
+        code = vectorize_(p.agent,code,p)
+        f = simpleFirstLoopWrapInFunction_(platform,:integrationStep0_!,code)
+        push!(p.declareF.args,f)
+
         #Create integration step function
+        code = addMediumCode(p) #Add medium coupling
+        push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             if j in keys(p.update["Local"])
                 pos = p.update["Local"][j]
@@ -90,6 +109,7 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
                     count = 0
 
                     updateLocGlobInitialisation_!(ARGS_)
+                    @platformAdapt integrationStep0_!(ARGS_)
                     while errorMax > relativeErrorIntegrator && maxLearningStepsIntegrator > count
                         $(addInteraction...)
                         predV .= localVCopy
