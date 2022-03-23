@@ -49,6 +49,7 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
         #Create integration step 1 function
         code = addMediumCode(p)
         push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
+        code = postwalk(x -> @capture(x,dt) ? :(1) : x, code)
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             if j in keys(p.update["Variables"])
                 pos = p.update["Variables"][j]
@@ -58,7 +59,6 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
             code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(K1_[ic1_,$pos] = $(v...)) : x, code)
             code = postwalk(x -> @capture(x,dW) ? :(Normal(0.,sqrt(dt))) : x, code)
         end
-        code = postwalk(x -> @capture(x,dt) ? :(1) : x, code)
         code = vectorize_(p.agent,code,p)
         f = simpleFirstLoopWrapInFunction_(platform,:integrationStep1_!,code)
         push!(p.declareF.args,f)
@@ -66,6 +66,7 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
         #Create integration step 2 function
         code = addMediumCode(p)
         push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
+        code = postwalk(x -> @capture(x,dt) ? :(1) : x, code)
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             if j in keys(p.update["Variables"])
                 pos = p.update["Variables"][j]
@@ -78,7 +79,6 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
             end
             code = postwalk(x -> @capture(x,dW) ? :(Normal(0.,sqrt(dt))) : x, code)
         end
-        code = postwalk(x -> @capture(x,dt) ? :(1) : x, code)
         code = postwalk(x -> @capture(x,t) ? :(t+dt/2) : x, code)
         code = vectorize_(p.agent,code,p)
         f = simpleFirstLoopWrapInFunction_(platform,:integrationStep2_!,code)
@@ -87,6 +87,7 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
         #Create integration step 3 function
         code = addMediumCode(p)
         push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
+        code = postwalk(x -> @capture(x,dt) ? :(1) : x, code)
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             if j in keys(p.update["Variables"])
                 pos = p.update["Variables"][j]
@@ -99,7 +100,6 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
             end
             code = postwalk(x -> @capture(x,dW) ? :(Normal(0.,sqrt(dt))) : x, code)
         end
-        code = postwalk(x -> @capture(x,dt) ? :(1) : x, code)
         code = postwalk(x -> @capture(x,t) ? :(t+dt/2) : x, code)
         code = vectorize_(p.agent,code,p)
         f = simpleFirstLoopWrapInFunction_(platform,:integrationStep3_!,code)
@@ -108,6 +108,7 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
         #Create integration step 4 function
         code = addMediumCode(p)
         push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
+        code = postwalk(x -> @capture(x,dt) ? :(1) : x, code)
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             if j in keys(p.update["Variables"])
                 pos = p.update["Variables"][j]
@@ -120,7 +121,6 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
             end
             code = postwalk(x -> @capture(x,dW) ? :(Normal(0.,sqrt(dt))) : x, code)
         end
-        code = postwalk(x -> @capture(x,dt) ? :(1) : x, code)
         code = postwalk(x -> @capture(x,t) ? :(t+dt) : x, code)
         code = vectorize_(p.agent,code,p)
         f = simpleFirstLoopWrapInFunction_(platform,:integrationStep4_!,code)
