@@ -37,12 +37,13 @@ function addIntegratorVerletVelocity_!(p::Program_, platform::String)
 
         end
 
+        vels = [p.velocities[i] for i in keys(p.velocities)]
         #Create integration half-velocity step function
         code = addMediumCode(p)
         push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
         for (i,j) in enumerate(keys(p.velocities)) #Remove positions of the computation
             vel = p.velocities[j]
-            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s != vel ? :(nothing) : x, code)
+            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && !(s in vels) ? :(nothing) : x, code)
         end
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :($j.new = $j + $(v...)) : x, code)
@@ -74,9 +75,8 @@ function addIntegratorVerletVelocity_!(p::Program_, platform::String)
         push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
         for (i,j) in enumerate(keys(p.velocities)) #Remove positions of the computation
             vel = p.velocities[j]
-            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s != vel ? :(nothing) : x, code)
+            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && !(s in vels) ? :(nothing) : x, code)
         end
-        vels = [p.velocities[i] for i in keys(p.velocities)]
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :($j = $j + $(v...)) : x, code)
             code = postwalk(x -> @capture(x,v_) && v == j ? :($v.new) : x, code)
