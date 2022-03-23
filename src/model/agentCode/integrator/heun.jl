@@ -48,6 +48,8 @@ function addIntegratorHeun_!(p::Program_, platform::String)
         end
 
         #Create integration step 1 function
+        code = addMediumCode(p)
+        push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :($j.new = $j + $(v...)) : x, code)
             code = postwalk(x -> @capture(x,dW) ? :(Normal(0.,sqrt(dt))) : x, code)
@@ -57,6 +59,8 @@ function addIntegratorHeun_!(p::Program_, platform::String)
         push!(p.declareF.args,f)
 
         #Create integration step 2 function
+        code = addMediumCode(p)
+        push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :($j = $j/2 + $(v...)/2) : x, code)
             code = postwalk(x -> @capture(x,v_) && v == j ? :($v.new) : x, code)
