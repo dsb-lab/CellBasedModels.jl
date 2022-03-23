@@ -49,7 +49,6 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
         #Create integration step 1 function
         code = addMediumCode(p)
         push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
-        println(keys(p.update["Variables"]))
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             if j in keys(p.update["Variables"])
                 pos = p.update["Variables"][j]
