@@ -127,7 +127,7 @@ function addIntegratorHeun_!(p::Program_, platform::String)
                     $(addInteraction...)
                     @platformAdapt integrationStep1_(ARGS_)
                     $(addInteraction...)
-                    @platformAdapt integrationStep1_(ARGS_)
+                    @platformAdapt integrationStep2_(ARGS_)
 
                     return
                 end
