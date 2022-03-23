@@ -4,16 +4,15 @@
 Adapter for the Heun integration step method as described in [Stochastic Improved Euler](https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_method_(SDE)) integrator in Îto prescription.
 
 ```math
-K₁ = f(x(t),t)*Δt + g(x(t),t)(ΔW-S Δt^{1/2} )
+K₁ = f(x(t),t)*Δt + g(x(t),t)(ΔW)
 ```
 ```math
-K₂ = f(x(t)+K₁,t+Δt)*Δt + g(x(t)+K₁,t+Δt)(ΔW+SΔt^{1/2} )
+K₂ = f(x(t)+K₁,t+Δt)*Δt + g(x(t)+K₁,t+Δt)(ΔW)
 ```
 ```math
 x(t+Δt) = x(t) + (K₁+K₂)/2
 ```
-where ``S`` is a random variable chosen to be ±1 with probability 1/2 and
-``ΔW`` is a Wiener process with step proportional to ``Δt^{1/2}``.
+where ``ΔW`` is a Wiener process with step proportional to ``Δt^{1/2}``. The integration considers the SDE Stratonovich.
 
 The algorithm can be reduced to six kernels invocations performing the following actions:
  - Clean the interaction parameters array
