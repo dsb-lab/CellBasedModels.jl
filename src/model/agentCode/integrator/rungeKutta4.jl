@@ -56,7 +56,7 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
             else
                 pos = i
             end
-            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(K1_[ic1_,$pos] = $(v...)) : x, code)
+            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(K1_[ic1_,$pos] = $(v...); localVCopy[ic1_,$pos] = $j + K1_[ic1_,$pos]*dt/2) : x, code)
             code = postwalk(x -> @capture(x,dW) ? :(Normal(0.,sqrt(dt))) : x, code)
         end
         code = vectorize_(p.agent,code,p)
@@ -73,7 +73,7 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
             else
                 pos = i
             end
-            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(K2_[ic1_,$pos] = $(v...)) : x, code)
+            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(K2_[ic1_,$pos] = $(v...); localVCopy[ic1_,$pos] = $j + K2_[ic1_,$pos]*dt/2) : x, code)
             if j in keys(p.update["Variables"])
                 code = postwalk(x -> @capture(x,v_) && v == j ? :($j + K1_[ic1_,$pos]*dt/2) : x, code)
             end
@@ -94,7 +94,7 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
             else
                 pos = i
             end
-            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(K3_[ic1_,$pos] = $(v...)) : x, code)
+            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(K3_[ic1_,$pos] = $(v...); localVCopy[ic1_,$pos] = $j + K3_[ic1_,$pos]*dt/2) : x, code)
             if j in keys(p.update["Variables"])
                 code = postwalk(x -> @capture(x,v_) && v == j ? :($j + K2_[ic1_,$pos]*dt/2) : x, code)
             end
@@ -115,7 +115,7 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
             else
                 pos = i
             end
-            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(K4_[ic1_,$pos] = $(v...)) : x, code)
+            code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(K4_[ic1_,$pos] = $(v...); localVCopy[ic1_,$pos] = $j) : x, code)
             if j in keys(p.update["Variables"])
                 code = postwalk(x -> @capture(x,v_) && v == j ? :($j + K3_[ic1_,$pos]*dt) : x, code)
             end
