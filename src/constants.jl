@@ -49,7 +49,8 @@ RESERVEDSYMBOLS = [:x,:y,:z,:id,:t,:N,:dt,:dW,:nMax,
                     :Nx_,:Ny_,:Nz_,
                     :∇,:∇x,:∇y,:∇z,:Δ,:Δx,:Δy,:Δz,:δx,:δy,:δz,:xₘ,:yₘ,:zₘ,
                     :newmannX,:dirichletX,:periodicX,:newmannY,:dirichletY,:periodicY,:newmannZ,:dirichletZ,:periodicZ,
-                    :predV,:learningRateIntegrator,:relativeErrorIntegrator,:maxLearningStepsIntegrator];
+                    :predV,:learningRateIntegrator,:relativeErrorIntegrator,:maxLearningStepsIntegrator,
+                    :K1_,:K2_,:K3_,:K4_];
 
 GLOBALARRAYCOPY = "_Copy"
 
