@@ -86,7 +86,7 @@ function addIntegratorHeun_!(p::Program_, platform::String)
                 ii = p.update["Local"][j]
                 ki = p.update["Variables"][j]
                 codeK2 = postwalk(x -> @capture(x,g_(s_)) && g == DIFFSYMBOL && s == j ? :(K₁[ic1_,$ii]) : x, codeK2) #Save second point in first vector, saves an additional declaration
-                codeK2 = postwalk(x -> @capture(x,s_) && s == j ? :((localVCopy_[ic1_,$ki])) : x, codeK2)
+                codeK2 = postwalk(x -> @capture(x,s_) && s == j ? :((localVCopy[ic1_,$ki])) : x, codeK2)
                 codeK2 = postwalk(x -> @capture(x,t) ? :(t+dt) : x, codeK2)
 
                 #Add old pos, K2 (stored in final pos for now) and K1 to final pos
@@ -117,7 +117,7 @@ function addIntegratorHeun_!(p::Program_, platform::String)
             if !isempty(p.agent.declaredSymbols["IdentityInteraction"])
                 cleanInteraction = :(identityInteractionV .= 0)
             end
-            addInteraction = [:($cleanLocal; $cleanInteraction ;@platformAdapt interactionCompute_!(ARGS_))]
+            addInteraction = [:($cleanLocal; $cleanInteraction; @platformAdapt interactionCompute_!(ARGS_))]
         else
             addInteraction = []
         end
