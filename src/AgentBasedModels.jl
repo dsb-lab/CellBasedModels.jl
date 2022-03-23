@@ -63,6 +63,7 @@ include("./model/agentCode/neighbors/neighbors.jl")
 #Integrators
 include("./model/agentCode/integrator/euler.jl")
 include("./model/agentCode/integrator/heun.jl")
+include("./model/agentCode/integrator/rungeKutta4.jl")
 include("./model/agentCode/integrator/implicitEuler.jl")
 include("./model/agentCode/integrator/verletVelocity.jl")
 include("./model/agentCode/integrator/integrators.jl")

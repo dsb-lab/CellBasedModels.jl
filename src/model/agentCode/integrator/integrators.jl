@@ -2,6 +2,7 @@ addIntegrator_! =
 Dict{String,Function}(
     "Euler"=>addIntegratorEuler_!,
     "Heun"=>addIntegratorHeun_!,
+    "RungeKutta4"=>addIntegratorRungeKutta4_!,
     "ImplicitEuler"=>addIntegratorImplicitEuler_!,
     "VerletVelocity"=>addIntegratorVerletVelocity_!,
 )
