@@ -56,6 +56,7 @@ GLOBALARRAYCOPY = "_Copy"
 UPDATEOPERATORS = [:(=),:(+=),:(-=),:(*=),:(/=),:(\=),:(÷=),:(%=),:(^=),:(&=),:(|=),:(⊻=),:(>>>=),:(>>=),:(<<=)]
 
 DIFFSYMBOL = :d
+DIFFSYMBOL2 = :d2
 
 INTERACTIONSYMBOLS = [:i,:j]
 INTERACTIONSYMBOLSDICT = Dict([:i=>"[ic1_,VAR]",:j=>"[nnic2_,VAR]"])

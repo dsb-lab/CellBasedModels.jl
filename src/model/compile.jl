@@ -25,6 +25,7 @@ kAargs:
 function compile(abmOriginal::Union{Agent,Array{Agent}}; 
     platform::String ="cpu", 
     integrator::String = "Euler", 
+    velocities::Dict{Symbol,Symbol} = Dict{Symbol,Symbol}(),
     integratorMedium::String = "FTCS", 
     neighbors::String="full",
     periodic::Vector{Bool}=[false,false,false],
@@ -38,6 +39,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
     p.integratorMedium = integratorMedium 
     p.neighbors = neighbors
     p.neighborsPeriodic = periodic
+    p.velocities = velocities
 
     #Update
     updates_!(p)

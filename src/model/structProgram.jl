@@ -17,11 +17,12 @@ mutable struct Program_
     execInloop::Expr
     execAfter::Expr
     returning::Expr
-
+    velocities::Dict{Symbol,Symbol}
     update::Dict{String,Dict{Symbol,Int}}
+
 end
 
 function Program_(abm::Agent)
     return Program_(abm,"Euler","FTCS","full",Vector{Bool}([false,false,false]),quote end,quote end,Array{Symbol,1}(BASICARGS),
-                    quote end,quote end,quote end,quote end,Dict{String,Dict{Symbol,Int}}())
+                    quote end,quote end,quote end,quote end,Dict{Symbol,Symbol}(),Dict{String,Dict{Symbol,Int}}())
 end

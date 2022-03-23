@@ -3,6 +3,7 @@ Dict{String,Function}(
     "Euler"=>addIntegratorEuler_!,
     "Heun"=>addIntegratorHeun_!,
     "ImplicitEuler"=>addIntegratorImplicitEuler_!,
+    "VerletVelocity"=>addIntegratorVerletVelocity_!,
 )
 
 """

@@ -11,7 +11,7 @@ using DataFrames
 using CSV
 using JLD
 import GeometryBasics, GLMakie
-import MacroTools: postwalk, @capture, inexpr, prettify, gensym_ids, gensym, flatten, unblock, isexpr
+import MacroTools: postwalk, prewalk, @capture, inexpr, prettify, gensym_ids, gensym, flatten, unblock, isexpr
 import SpecialFunctions
 #using WriteVTK
 
@@ -64,6 +64,7 @@ include("./model/agentCode/neighbors/neighbors.jl")
 include("./model/agentCode/integrator/euler.jl")
 include("./model/agentCode/integrator/heun.jl")
 include("./model/agentCode/integrator/implicitEuler.jl")
+include("./model/agentCode/integrator/verletVelocity.jl")
 include("./model/agentCode/integrator/integrators.jl")
 
 #Integrators Medium

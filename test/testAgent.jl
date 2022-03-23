@@ -7,6 +7,8 @@
     @test_nowarn @agent(2)
     @test_nowarn @agent(3)
 
+    @test_nowarn @agent(3,AgentsWithVelocity)
+
     @test_throws ErrorException try @eval @agent 0 sin::Local catch err; throw(err.error) end
     @test_throws ErrorException try @eval @agent 0 Normal::Local catch err; throw(err.error) end
 
