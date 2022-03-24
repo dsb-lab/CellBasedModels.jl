@@ -104,8 +104,10 @@ function addIntegratorVerletVelocity_!(p::Program_, platform::String)
         end
         push!(p.declareF.args,
             :(begin
+
                 function integrationStep_!(ARGS_)
                     
+                    updateLocGlobInitialisation_!(ARGS_)                    
                     $(addInteraction...)
                     @platformAdapt integrationStepVelHalf_!(ARGS_)
                     @platformAdapt integrationStepPos_!(ARGS_)
