@@ -50,8 +50,12 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
         code = addMediumCode(p)
         push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
         code = postwalk(x -> @capture(x,dt) ? :(1) : x, code)
-        for (i,j) in enumerate(keys(p.update["Variables"]))
-            pos = p.update["Variables"][j]
+        for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
+            if j in keys(p.update["Variables"])
+                pos = p.update["Variables"][j]
+            else
+                pos = i
+            end
             code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(K1_[ic1_,$pos] = $(v...); localVCopy[ic1_,$pos] = localV[ic1_,$i] + K1_[ic1_,$pos]*dt/2) : x, code)
             code = postwalk(x -> @capture(x,dW) ? :(Normal(0.,sqrt(dt))) : x, code)
         end
@@ -63,8 +67,12 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
         code = addMediumCode(p)
         push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
         code = postwalk(x -> @capture(x,dt) ? :(1) : x, code)
-        for (i,j) in enumerate(keys(p.update["Variables"]))
-            pos = p.update["Variables"][j]
+        for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
+            if j in keys(p.update["Variables"])
+                pos = p.update["Variables"][j]
+            else
+                pos = i
+            end
             code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(K2_[ic1_,$pos] = $(v...); localVCopy[ic1_,$pos] = localV[ic1_,$i] + K2_[ic1_,$pos]*dt/2) : x, code)
             if j in keys(p.update["Variables"])
                 code = postwalk(x -> @capture(x,v_) && v == j ? :($j + K1_[ic1_,$pos]*dt/2) : x, code)
@@ -80,8 +88,12 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
         code = addMediumCode(p)
         push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
         code = postwalk(x -> @capture(x,dt) ? :(1) : x, code)
-        for (i,j) in enumerate(keys(p.update["Variables"]))
-            pos = p.update["Variables"][j]
+        for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
+            if j in keys(p.update["Variables"])
+                pos = p.update["Variables"][j]
+            else
+                pos = i
+            end
             code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(K3_[ic1_,$pos] = $(v...); localVCopy[ic1_,$pos] = localV[ic1_,$i] + K3_[ic1_,$pos]*dt/2) : x, code)
             if j in keys(p.update["Variables"])
                 code = postwalk(x -> @capture(x,v_) && v == j ? :($j + K2_[ic1_,$pos]*dt/2) : x, code)
@@ -97,8 +109,12 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
         code = addMediumCode(p)
         push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
         code = postwalk(x -> @capture(x,dt) ? :(1) : x, code)
-        for (i,j) in enumerate(keys(p.update["Variables"]))
-            pos = p.update["Variables"][j]
+        for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
+            if j in keys(p.update["Variables"])
+                pos = p.update["Variables"][j]
+            else
+                pos = i
+            end
             code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(K4_[ic1_,$pos] = $(v...); localVCopy[ic1_,$pos] = localV[ic1_,$i]) : x, code)
             if j in keys(p.update["Variables"])
                 code = postwalk(x -> @capture(x,v_) && v == j ? :($j + K3_[ic1_,$pos]*dt) : x, code)
