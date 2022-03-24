@@ -110,10 +110,10 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
         f = simpleFirstLoopWrapInFunction_(platform,:integrationStep4_!,code)
         push!(p.declareF.args,f)
 
-        push!(p.declareVar.args,:(K1_ = copy(localVCopy)))
-        push!(p.declareVar.args,:(K2_ = copy(localVCopy)))
-        push!(p.declareVar.args,:(K3_ = copy(localVCopy)))
-        push!(p.declareVar.args,:(K4_ = copy(localVCopy)))
+        push!(p.declareVar.args,:(K1_ = zeros(size(localVCopy))))
+        push!(p.declareVar.args,:(K2_ = zeros(size(localVCopy))))
+        push!(p.declareVar.args,:(K3_ = zeros(size(localVCopy))))
+        push!(p.declareVar.args,:(K4_ = zeros(size(localVCopy))))
         append!(p.args,[:K1_,:K2_,:K3_,:K4_])
 
         #Create wrapped integration step function
