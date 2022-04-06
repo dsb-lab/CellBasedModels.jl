@@ -116,11 +116,11 @@ end
 
 Function that makes a recording of the rods.
 """
-function videoRods(fig, comt; save, 
-                color = (x) -> x.theta, 
-                colorrange=[0,1], 
-                framerate=30, 
-                sampling=2:1:length(comt))
+function AgentBasedModels.videoRods(fig, comt; save, 
+    color = (x) -> x.theta, 
+    colorrange=[0,1], 
+    framerate=30, 
+    sampling=2:1:length(comt))
 
     #Make mesh object for the base of the rod.
     c = GLMakie.Cylinder(GLMakie.Point3f(0,0,0),GLMakie.Point3f(1,0,0),Float32(1))
@@ -159,36 +159,35 @@ function videoRods(fig, comt; save,
     ax = GLMakie.Axis3(fig[1,1],aspect = :data, elevation=π/2, azimuth=0)
     GLMakie.meshscatter!(ax,x,y,z,marker=c,markersize=p,rotations=rot,color=col,colorrange=colorrange)
     GLMakie.meshscatter!(ax,xp,yp,zp,markersize=.5,color=col2,colorrange=colorrange)
-    GLMakie.xlims!(ax,com.simulationBox[1,1],com.simulationBox[1,2])
-    GLMakie.ylims!(ax,com.simulationBox[2,1],com.simulationBox[2,2])
+    GLMakie.xlims!(ax,comt[1].simulationBox[1,1],comt[1].simulationBox[1,2])
+    GLMakie.ylims!(ax,comt[1].simulationBox[2,1],comt[1].simulationBox[2,2])
 
     GLMakie.record(fig,save,sampling[2:end],framerate=framerate) do frame
-       t = frame
-       p.val = []
-       x.val = zeros(comt[t].N)
-       y.val = zeros(comt[t].N)
-       z.val = zeros(comt[t].N)
-       rot.val = comt[t].theta[:,1] 
-       xp.val = zeros(comt[t].N*2)
-       yp.val = zeros(comt[t].N*2)
-       zp.val = zeros(comt[t].N*2)
-       l = comt[t].l
-       d = comt[t].d
-       xx = comt[t].x
-       yy = comt[t].y
-       theta = comt[t].theta[:,1]
-       col.val = color(comt[t])
-       zip.val = 2 .*ones(comt[t].N*2)
-       col2.val = [col.val;col.val]
-       for i in 1:comt[t].N
-        push!(p.val, GLMakie.Point3f(l[i],d[i]/2,1))
-          x.val[i] = xx[i]-l[i]/2*cos(theta[i])
-          y.val[i] = yy[i]-l[i]/2*sin(theta[i])
-          xp.val[i] = xx[i]-l[i]/2*cos(theta[i])
-          yp.val[i] = yy[i]-l[i]/2*sin(theta[i])    
-          xp.val[i+comt[t].N] = xx[i]+l[i]/2*cos(theta[i])
-          yp.val[i+comt[t].N] = yy[i]+l[i]/2*sin(theta[i])  
-       end
-       GLMakie.notify.((x, y, z, p, rot, xp, yp, zp, col, col2))
+        t = frame
+        p.val = []
+        x.val = zeros(comt[t].N)
+        y.val = zeros(comt[t].N)
+        z.val = zeros(comt[t].N)
+        rot.val = comt[t].theta[:,1] 
+        xp.val = zeros(comt[t].N*2)
+        yp.val = zeros(comt[t].N*2)
+        zp.val = zeros(comt[t].N*2)
+        l = comt[t].l
+        d = comt[t].d
+        xx = comt[t].x
+        yy = comt[t].y
+        theta = comt[t].theta[:,1]
+        col.val = color(comt[t])
+        col2.val = [col.val;col.val]
+        for i in 1:comt[t].N
+            push!(p.val, GLMakie.Point3f(l[i],d[i]/2,1))
+            x.val[i] = xx[i]-l[i]/2*cos(theta[i])
+            y.val[i] = yy[i]-l[i]/2*sin(theta[i])
+            xp.val[i] = xx[i]-l[i]/2*cos(theta[i])
+            yp.val[i] = yy[i]-l[i]/2*sin(theta[i])    
+            xp.val[i+comt[t].N] = xx[i]+l[i]/2*cos(theta[i])
+            yp.val[i+comt[t].N] = yy[i]+l[i]/2*sin(theta[i])  
+        end
+        GLMakie.notify.((x, y, z, p, rot, xp, yp, zp, col, col2))
     end
 end
