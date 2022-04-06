@@ -127,18 +127,18 @@ function videoRods(fig, comt; save,
 
     t = sampling[1]
 
-    x = Observable(zeros(comt[t].N))
-    y = Observable(zeros(comt[t].N))
-    z = Observable(zeros(comt[t].N))
-    col = Observable(zeros(comt[t].N))
-    rot = Observable(comt[t].theta[:,1])
-    p = Observable([])
-    xp = Observable(zeros(comt[t].N*2))
-    yp = Observable(zeros(comt[t].N*2))
-    zp = Observable(zeros(comt[t].N*2))
-    col2 = Observable(zeros(comt[t].N*2))
+    x = GLMakie.Observable(zeros(comt[t].N))
+    y = GLMakie.Observable(zeros(comt[t].N))
+    z = GLMakie.Observable(zeros(comt[t].N))
+    col = GLMakie.Observable(zeros(comt[t].N))
+    rot = GLMakie.Observable(comt[t].theta[:,1])
+    p = GLMakie.Observable([])
+    xp = GLMakie.Observable(zeros(comt[t].N*2))
+    yp = GLMakie.Observable(zeros(comt[t].N*2))
+    zp = GLMakie.Observable(zeros(comt[t].N*2))
+    col2 = GLMakie.Observable(zeros(comt[t].N*2))
 
-    p = Observable([])
+    p = GLMakie.Observable([])
     l = comt[t].l
     d = comt[t].d
     xx = comt[t].x
@@ -156,11 +156,11 @@ function videoRods(fig, comt; save,
         yp[][i+comt[t].N] = yy[i]+l[i]/2*sin(theta[i])    
     end
 
-    ax = Axis3(fig[1,1],aspect = :data, elevation=π/2, azimuth=0)
-    meshscatter!(ax,x,y,z,marker=c,markersize=p,rotations=rot,color=col,colorrange=colorrange)
-    meshscatter!(ax,xp,yp,zp,markersize=.5,color=col2,colorrange=colorrange)
-    xlims!(ax,com.simulationBox[1,1],com.simulationBox[1,2])
-    ylims!(ax,com.simulationBox[2,1],com.simulationBox[2,2])
+    ax = GLMakie.Axis3(fig[1,1],aspect = :data, elevation=π/2, azimuth=0)
+    GLMakie.meshscatter!(ax,x,y,z,marker=c,markersize=p,rotations=rot,color=col,colorrange=colorrange)
+    GLMakie.meshscatter!(ax,xp,yp,zp,markersize=.5,color=col2,colorrange=colorrange)
+    GLMakie.xlims!(ax,com.simulationBox[1,1],com.simulationBox[1,2])
+    GLMakie.ylims!(ax,com.simulationBox[2,1],com.simulationBox[2,2])
 
     GLMakie.record(fig,save,sampling[2:end],framerate=framerate) do frame
        t = frame
@@ -189,6 +189,6 @@ function videoRods(fig, comt; save,
           xp.val[i+comt[t].N] = xx[i]+l[i]/2*cos(theta[i])
           yp.val[i+comt[t].N] = yy[i]+l[i]/2*sin(theta[i])  
        end
-       notify.((x, y, z, p, rot, xp, yp, zp, col, col2))
+       GLMakie.notify.((x, y, z, p, rot, xp, yp, zp, col, col2))
     end
 end
