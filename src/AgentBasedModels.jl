@@ -87,7 +87,7 @@ include("./model/cuda/cudaAdapt.jl")
 include("./model/cuda/cudaConfigurator.jl")
 
 # #Visualization functions
-export plotSpheres, plotRods
+export plotSpheres, plotRods, videoRods
 include("./plotting/rods.jl")
 # include("./plotting/spheres.jl")
 
