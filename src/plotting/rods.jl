@@ -116,7 +116,7 @@ end
 
 Function that makes a recording of the rods.
 """
-function AgentBasedModels.videoRods(fig, comt; save, 
+function videoRods(fig, comt; save, 
     color = (x) -> x.theta, 
     colorrange=[0,1], 
     framerate=30, 
