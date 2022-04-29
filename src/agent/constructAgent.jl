@@ -40,6 +40,141 @@ function update(code,s)
     return code
 end
 
+function addBaseModelsAgent(m,name,type)
+
+    if typeof(name) == Array{Symbol,1}
+        for baseModel in name
+            if inexpr(baseModel,:(AgentBasedModels.Models))
+                baseModel = eval(baseModel)
+            else
+                baseModel = Main.eval(baseModel)
+            end
+
+            if m.dims != baseModel.dims
+                error("Base model", name," has different dimensions as model ",baseModel," that is being declared.")
+            end
+
+            for i in keys(m.declaredSymbols)
+                if i == "Local"
+                    checkDeclared_(m,baseModel.declaredSymbols[i][(m.dims+1):end])
+                    append!(m.declaredSymbols[i],baseModel.declaredSymbols[i][(m.dims+1):end])
+                elseif i == "Identity"
+                    checkDeclared_(m,baseModel.declaredSymbols[i][2:end])
+                    append!(m.declaredSymbols[i],baseModel.declaredSymbols[i][2:end])
+                else
+                    checkDeclared_(m,baseModel.declaredSymbols[i])
+                    append!(m.declaredSymbols[i],baseModel.declaredSymbols[i])
+                end
+            end
+
+            for i in keys(baseModel.declaredUpdates)
+                if !(i in keys(m.declaredUpdates))
+                    m.declaredUpdates[i] = copy(baseModel.declaredUpdates[i])
+                else
+                    append!(m.declaredUpdates[i].args,baseModel.declaredUpdates[i].args)
+                end
+            end                            
+        end
+    else
+        if inexpr(name,:(AgentBasedModels.Models))
+            baseModel = eval(name)
+        else
+            baseModel = Main.eval(name)
+        end
+
+        if m.dims != baseModel.dims
+            error("Base model", name," has different dimensions as model ",baseModel," that is being declared.")
+        end
+
+        for i in keys(m.declaredSymbols)
+            if i == "Local"
+                checkDeclared_(m,baseModel.declaredSymbols[i][(m.dims+1):end])
+                append!(m.declaredSymbols[i],baseModel.declaredSymbols[i][(m.dims+1):end])
+            elseif i == "Identity"
+                checkDeclared_(m,baseModel.declaredSymbols[i][2:end])
+                append!(m.declaredSymbols[i],baseModel.declaredSymbols[i][2:end])
+            else
+                checkDeclared_(m,baseModel.declaredSymbols[i])
+                append!(m.declaredSymbols[i],baseModel.declaredSymbols[i])
+            end
+        end
+
+        for i in keys(baseModel.declaredUpdates)
+            if !(i in keys(m.declaredUpdates))
+                m.declaredUpdates[i] = copy(baseModel.declaredUpdates[i])
+            else
+                append!(m.declaredUpdates[i].args,baseModel.declaredUpdates[i].args)
+            end
+        end                            
+    end
+
+    return
+end
+
+function addSymbolsAgent(m,name,type;init=nothing)
+
+    if !(type in VALID_TYPES)
+        error(type, " is not a valid tag.") 
+    elseif typeof(name) == Expr
+        if !(name.head in [:vect, :.])
+            error(name, " should be a symbol or an array of symbols. Check how to declare ", type, " types.")
+        elseif name.head == :vect
+            names = Symbol[]
+            for j in name.args
+                if typeof(j) != Symbol
+                    error(j, " in ", i, " should be a symbol.  Check how to declare ", type, " types.")
+                end
+                push!(names,j)
+            end
+            name = names
+
+            if init === nothing
+                init = [nothing for i in 1:length(name)]
+            else
+                if length(name) != length(init.args)
+                    error("Declared parameters and initialization has to be of the same length. $(length(name)) parameters where declared and $(length(init.args)) initialized.")
+                end
+                inits = Union{Real,Nothing}[]
+                for j in init.args
+                    push!(inits, eval(j))
+                end
+                init = inits
+            end
+        end
+    else
+        name = [name]
+        init = [init]
+    end    
+    
+    checkDeclared_(m,name)
+    for (i,n) in enumerate(name)
+        m.declaredSymbols[string(type)][n] = init[i]
+    end
+
+    return
+end
+
+function addUpdatesAgent(m,name,code)
+
+    if name in VALID_UPDATES
+        if !(string(name) in keys(m.declaredUpdates))
+            if code.head == :block
+                m.declaredUpdates[string(name)] = code
+            else
+                m.declaredUpdates[string(name)] = quote $(code) end
+            end
+        elseif code.head == :block
+            append!(m.declaredUpdates[string(name)].args,code.args)
+        else
+            push!(m.declaredUpdates[string(name)].args,code)
+        end
+    else
+        error(name, " is not a valid type.")
+    end
+
+    return
+end
+
 """
     macro @agent(dims, varargs...) 
 
@@ -57,157 +192,55 @@ macro agent(dims, varargs...)
     if dims == 0
         nothing
     elseif dims == 1
-        push!(m.declaredSymbols["Local"],:x)
+        m.declaredSymbols["Local"][:x] = nothing
     elseif dims == 2
-        push!(m.declaredSymbols["Local"],:x,:y)
+        m.declaredSymbols["Local"][:x] = nothing
+        m.declaredSymbols["Local"][:y] = nothing
     elseif dims == 3
-        push!(m.declaredSymbols["Local"],:x,:y,:z)
+        m.declaredSymbols["Local"][:x] = nothing
+        m.declaredSymbols["Local"][:y] = nothing
+        m.declaredSymbols["Local"][:z] = nothing
     else
         error("Dims has to be an integer between 0 and 3.")
     end
-    push!(m.declaredSymbols["Identity"],:id)
+    m.declaredSymbols["Identity"][:id] = nothing
 
     #Add all contributions
-    for ii in varargs
-        if typeof(ii) != Expr
-            error(ii, " should be and expression containing at least a name and a type. Example variable::Variable.") 
-        end
-
-        if ii.head == :call
-            t = eval(ii)
-            if typeof(t) != Expr
-                error("Function ", ii, " should return a piece of code to be added to the agent.")
-            elseif t.head != :block
-                t = quote $t end
+    for i in varargs
+        if typeof(i) == LineNumberNode
+            nothing
+        else
+            foundSomewhere = false
+            found = @capture(i,name_::BaseModel)
+            if found
+                addBaseModelsAgent(m,name,type)
+                foundSomewhere = true
             end
-
-            t = t.args
-        else 
-            t = [ii]
-        end
-
-        for i in t
-            if typeof(i) == LineNumberNode
-                nothing
-            elseif i.head == :(::)
-                name = i.args[1]
-                type = i.args[2]
-
-                if !(type in VALID_TYPES)
-                    error(type, " is not a valid tag.") 
-                elseif typeof(name) == Expr
-                    if !(name.head in [:vect, :.])
-                        error(name, " should be a symbol or an array of symbols. Check how to declare ", type, " types.")
-                    elseif name.head == :vect
-                        names = Symbol[]
-                        for j in name.args
-                            if typeof(j) != Symbol
-                                error(j, " in ", i, " should be a symbol.  Check how to declare ", type, " types.")
-                            end
-                            push!(names,j)
-                        end
-                        name = names
-                    elseif !(type in [:BaseModel])
-                        error(i, " should be and expression containing at least a name and a type. Example variable::Variable.") 
-                    end
-                end    
-
-                if type == :BaseModel
-                    if typeof(name) == Array{Symbol,1}
-                        for baseModel in name
-                            if inexpr(baseModel,:(AgentBasedModels.Models))
-                                baseModel = eval(baseModel)
-                            else
-                                baseModel = Main.eval(baseModel)
-                            end
-
-                            if m.dims != baseModel.dims
-                                error("Base model", name," has different dimensions as model ",baseModel," that is being declared.")
-                            end
-
-                            for i in keys(m.declaredSymbols)
-                                if i == "Local"
-                                    checkDeclared_(m,baseModel.declaredSymbols[i][(m.dims+1):end])
-                                    append!(m.declaredSymbols[i],baseModel.declaredSymbols[i][(m.dims+1):end])
-                                elseif i == "Identity"
-                                    checkDeclared_(m,baseModel.declaredSymbols[i][2:end])
-                                    append!(m.declaredSymbols[i],baseModel.declaredSymbols[i][2:end])
-                                else
-                                    checkDeclared_(m,baseModel.declaredSymbols[i])
-                                    append!(m.declaredSymbols[i],baseModel.declaredSymbols[i])
-                                end
-                            end
-
-                            for i in keys(baseModel.declaredUpdates)
-                                if !(i in keys(m.declaredUpdates))
-                                    m.declaredUpdates[i] = copy(baseModel.declaredUpdates[i])
-                                else
-                                    append!(m.declaredUpdates[i].args,baseModel.declaredUpdates[i].args)
-                                end
-                            end                            
-                        end
-                    else
-                            if inexpr(name,:(AgentBasedModels.Models))
-                                baseModel = eval(name)
-                            else
-                                baseModel = Main.eval(name)
-                            end
-
-                        if m.dims != baseModel.dims
-                            error("Base model", name," has different dimensions as model ",baseModel," that is being declared.")
-                        end
-
-                        for i in keys(m.declaredSymbols)
-                            if i == "Local"
-                                checkDeclared_(m,baseModel.declaredSymbols[i][(m.dims+1):end])
-                                append!(m.declaredSymbols[i],baseModel.declaredSymbols[i][(m.dims+1):end])
-                            elseif i == "Identity"
-                                checkDeclared_(m,baseModel.declaredSymbols[i][2:end])
-                                append!(m.declaredSymbols[i],baseModel.declaredSymbols[i][2:end])
-                            else
-                                checkDeclared_(m,baseModel.declaredSymbols[i])
-                                append!(m.declaredSymbols[i],baseModel.declaredSymbols[i])
-                            end
-                        end
-
-                        for i in keys(baseModel.declaredUpdates)
-                            if !(i in keys(m.declaredUpdates))
-                                m.declaredUpdates[i] = copy(baseModel.declaredUpdates[i])
-                            else
-                                append!(m.declaredUpdates[i].args,baseModel.declaredUpdates[i].args)
-                            end
-                        end                            
-                    end
-
-                else
-                    checkDeclared_(m,name)
-                    if typeof(name) == Array{Symbol,1}
-                        append!(m.declaredSymbols[string(type)],name)
-                    else
-                        push!(m.declaredSymbols[string(type)],name)
-                    end
+            if !foundSomewhere
+                found = @capture(i,name_::type_)
+                if found
+                    addSymbolsAgent(m,name,type)
+                    foundSomewhere = true
                 end
-
-            elseif i.head == :(=)
-                if i.args[1] in VALID_UPDATES
-                    if !(string(i.args[1]) in keys(m.declaredUpdates))
-                        if i.args[2].head == :block
-                            m.declaredUpdates[string(i.args[1])] = i.args[2]
-                        else
-                            m.declaredUpdates[string(i.args[1])] = quote $(i.args[2]) end
-                        end
-                    elseif i.args[2].head == :block
-                        append!(m.declaredUpdates[string(i.args[1])].args,i.args[2].args)
-                    else
-                        push!(m.declaredUpdates[string(i.args[1])].args,i.args[2])
-                    end
-                else
-                    error(i.args[1], " is not a valid type.")
+            end
+            if !foundSomewhere
+                found = @capture(i,name_::type_=init_)
+                if found
+                    addSymbolsAgent(m,name,type,init = init)
+                    foundSomewhere = true
                 end
-            else
-                error(i, " is not an understood rule or variable declaration. Error in ", ii)
-            end 
-        end
+            end
+            if !foundSomewhere
+                found = @capture(i,name_=code_)
+                if found
+                    addUpdatesAgent(m,name,code)
+                    foundSomewhere = true
+                end
+            end
+            if !foundSomewhere
+                error(i, " is not an understood rule or variable declaration.")
+            end
+        end 
     end
 
     for i in keys(m.declaredUpdates) #Make explicit the updates

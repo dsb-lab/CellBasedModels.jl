@@ -7,13 +7,15 @@ mutable struct Agent
 
     dims::Int
     
-    declaredSymbols::Dict{String,Array{Symbol,1}}
+    declaredSymbols::Dict{String,Dict{Symbol,Union{Real,Nothing}}}
     declaredUpdates::Dict{String,Expr}
         
     function Agent()
         new(0,
-            Dict{String,Array{Symbol}}("Local"=>Symbol[],"Identity"=>Symbol[],"LocalInteraction"=>Symbol[],"IdentityInteraction"=>Symbol[],
-                                        "Global"=>Symbol[],"GlobalArray"=>Symbol[],"Medium"=>Symbol[]),
+            Dict{String,Dict{Symbol,Union{Real,Nothing}}}("Local"=>Dict{Symbol,Union{Real,Nothing}}(),"Identity"=>Dict{Symbol,Union{Real,Nothing}}(),
+                                        "LocalInteraction"=>Dict{Symbol,Union{Real,Nothing}}(),"IdentityInteraction"=>Dict{Symbol,Union{Real,Nothing}}(),
+                                        "Global"=>Dict{Symbol,Union{Real,Nothing}}(),"GlobalArray"=>Dict{Symbol,Union{Real,Nothing}}(),
+                                        "Medium"=>Dict{Symbol,Union{Real,Nothing}}()),
             Dict{String,Expr}()
             )
     end
