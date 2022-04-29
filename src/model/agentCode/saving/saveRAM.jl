@@ -3,44 +3,64 @@ function addSavingRAM_!(p::Program_,platform::String)
     #List of nonempty arrays
     l = []
 
+<<<<<<< HEAD
     if length(p.agent.declaredSymbols["Local"])>0
+=======
+    if length(keys(p.agent.declaredSymbols["Local"]))>0
+>>>>>>> 52b11b692ec0686e69821e52adc750fcb0c2f2dd
         push!(l,:(Core.Array(view(localV,1:N,:))))
     else
         push!(l,:(Core.Array{Float64,2}(undef,0,2)))
     end
 
+<<<<<<< HEAD
     if length(p.agent.declaredSymbols["LocalInteraction"])>0
+=======
+    if length(keys(p.agent.declaredSymbols["LocalInteraction"]))>0
+>>>>>>> 52b11b692ec0686e69821e52adc750fcb0c2f2dd
         push!(l,:(Core.Array(view(localInteractionV,1:N,:))))
     else
         push!(l,:(Core.Array{Float64,2}(undef,0,2)))
     end
 
+<<<<<<< HEAD
     if length(p.agent.declaredSymbols["Identity"])>0
+=======
+    if length(keys(p.agent.declaredSymbols["Identity"]))>0
+>>>>>>> 52b11b692ec0686e69821e52adc750fcb0c2f2dd
         push!(l,:(Core.Array(view(identityV,1:N,:))))
     else
         push!(l,:(Core.Array{Int,2}(undef,0,2)))
     end
 
+<<<<<<< HEAD
     if length(p.agent.declaredSymbols["IdentityInteraction"])>0
+=======
+    if length(keys(p.agent.declaredSymbols["IdentityInteraction"]))>0
+>>>>>>> 52b11b692ec0686e69821e52adc750fcb0c2f2dd
         push!(l,:(Core.Array(view(identityInteractionV,1:N,:))))
     else
         push!(l,:(Core.Array{Int,2}(undef,0,2)))
     end
 
-    if length(p.agent.declaredSymbols["Global"])>0
+    if length(keys(p.agent.declaredSymbols["Global"]))>0
         push!(l,:(Core.Array(globalV)))
     else
         push!(l,:(Core.Array{Float64,1}()))
     end
 
+<<<<<<< HEAD
     if length(p.agent.declaredSymbols["GlobalArray"]) > 0
+=======
+    if length(keys(p.agent.declaredSymbols["GlobalArray"])) > 0
+>>>>>>> 52b11b692ec0686e69821e52adc750fcb0c2f2dd
         list = string("[",[string("copy(",i,")") for i in keys(p.agent.declaredSymbols["GlobalArray"])]...,"]")
         push!(l,Meta.parse(string("Core.Array(",list,")")))
     else
         push!(l,:(Core.Array{Core.Array{Float64},1}()))
     end
 
-    if length(p.agent.declaredSymbols["Medium"]) > 0
+    if length(keys(p.agent.declaredSymbols["Medium"])) > 0
         if p.agent.dims == 1
             push!(l,:(Core.Array(mediumV)))
         elseif p.agent.dims == 2
