@@ -4,25 +4,25 @@ function addSavingRAM_!(p::Program_,platform::String)
     l = []
 
     if length(p.agent.declaredSymbols["Local"])>0
-        push!(l,:(Core.Array(localV[1:N,:])))
+        push!(l,:(Core.Array(view(localV,1:N,:))))
     else
         push!(l,:(Core.Array{Float64,2}(undef,0,2)))
     end
 
     if length(p.agent.declaredSymbols["LocalInteraction"])>0
-        push!(l,:(Core.Array(localInteractionV[1:N,:])))
+        push!(l,:(Core.Array(view(localInteractionV,1:N,:))))
     else
         push!(l,:(Core.Array{Float64,2}(undef,0,2)))
     end
 
     if length(p.agent.declaredSymbols["Identity"])>0
-        push!(l,:(Core.Array(identityV[1:N,:])))
+        push!(l,:(Core.Array(view(identityV,1:N,:))))
     else
         push!(l,:(Core.Array{Int,2}(undef,0,2)))
     end
 
     if length(p.agent.declaredSymbols["IdentityInteraction"])>0
-        push!(l,:(Core.Array(identityInteractionV[1:N,:])))
+        push!(l,:(Core.Array(view(identityInteractionV,1:N,:))))
     else
         push!(l,:(Core.Array{Int,2}(undef,0,2)))
     end
@@ -34,8 +34,7 @@ function addSavingRAM_!(p::Program_,platform::String)
     end
 
     if length(p.agent.declaredSymbols["GlobalArray"]) > 0
-        list = string("[copy(",p.agent.declaredSymbols["GlobalArray"][1],"")
-        list = string(list,")]")
+        list = string("[",[string("copy(",i,")") for i in keys(p.agent.declaredSymbols["GlobalArray"])]...,"]")
         push!(l,Meta.parse(string("Core.Array(",list,")")))
     else
         push!(l,:(Core.Array{Core.Array{Float64},1}()))
