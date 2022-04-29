@@ -13,7 +13,7 @@
             [l1,l2]::Local,
             [i1,i2]::Identity,
 
-            UpdateLocalInteraction = begin
+            UpdateInteraction = begin
                 if sqrt((l1.j-l1.i)^2+(l2.j-l2.i)^2) < 5
                     l1.i += 1
                 end
@@ -38,15 +38,9 @@
                 int.i += 1
             end
         end,
-
-        UpdateLocalInteraction = begin
-            if sqrt((l1.j-l1.i)^2+(l2.j-l2.i)^2) < 5
-                intLocal.i += 1
-            end
-        end
     )
-    # print(m)
-    m = compile(m,debug=false)
+    m = compile(m)
+    # println(m.program)
 
     @test begin
         com = Community(m,N=4)
@@ -59,29 +53,11 @@
 
     @test begin
         com = Community(m,N=4)
-        com.l1 = [1,1,0,0]
-        com.l2 = [0,1,1,0]
-
-        comt = m.evolve(com,dt=0.1,tMax=1)
-        comt[1].intLocal == [4,4,4,4] 
-    end    
-
-    @test begin
-        com = Community(m,N=4)
         com.l1 = [7,7,0,0]
         com.l2 = [0,7,7,0]
 
         comt = m.evolve(com,dt=0.1,tMax=1)
-        comt[1].int == [1,1,1,1] 
-    end    
-
-    @test begin
-        com = Community(m,N=4)
-        com.l1 = [7,7,0,0]
-        com.l2 = [0,7,7,0]
-
-        comt = m.evolve(com,dt=0.1,tMax=1)
-        comt[1].intLocal == [1,1,1,1] 
+        comt[2].int == [1,1,1,1] 
     end    
 
 end
@@ -245,7 +221,7 @@ end
 
     @test_nowarn AgentBasedModels.argumentsGrid_!(AgentBasedModels.Program_(m),"cpu")
 
-    mo = compile(m,neighbors="grid",debug=false)
+    mo = compile(m,neighbors="grid")
     @test_throws ErrorException begin #Error if box not specified
         com = Community(mo,N=12)
         com.x .= [-11,-7,-2,2,7,11,-11,-7,-2,2,7,11]
@@ -277,7 +253,7 @@ end
             end,
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",debug=false)
+        mo = compile(m,platform=platform,neighbors="grid")
         # println(mo.program)
         @test begin
             com = Community(mo,N=4)
@@ -310,7 +286,7 @@ end
             end,
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",debug=false)
+        mo = compile(m,platform=platform,neighbors="grid")
         # println(mo.program)
         @test begin
             com = Community(mo,N=16)
@@ -344,7 +320,7 @@ end
             end,
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",debug=false)
+        mo = compile(m,platform=platform,neighbors="grid")
         # println(mo.program)
         @test begin
             com = Community(mo,N=64)
@@ -401,7 +377,7 @@ end
             end,
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",periodic=[true],debug=false)
+        mo = compile(m,platform=platform,neighbors="grid",periodic=[true])
         # println(mo.program)
         @test begin
             com = Community(mo,N=4)
@@ -434,7 +410,7 @@ end
             end,
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",periodic=[true,false],debug=false)
+        mo = compile(m,platform=platform,neighbors="grid",periodic=[true,false])
         # println(mo.program)
         @test begin
             com = Community(mo,N=16)
@@ -467,7 +443,7 @@ end
             end,
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",periodic=[false,true],debug=false)
+        mo = compile(m,platform=platform,neighbors="grid",periodic=[false,true])
         # println(mo.program)
         @test begin
             com = Community(mo,N=16)
@@ -500,7 +476,7 @@ end
             end,
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",periodic=[true,true],debug=false)
+        mo = compile(m,platform=platform,neighbors="grid",periodic=[true,true])
         # println(mo.program)
         @test begin
             com = Community(mo,N=16)
@@ -534,7 +510,7 @@ end
             end,
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",periodic=[true,false,false],debug=false)
+        mo = compile(m,platform=platform,neighbors="grid",periodic=[true,false,false])
         # println(mo.program)
         @test begin
             com = Community(mo,N=64)
@@ -595,7 +571,7 @@ end
             end,
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",periodic=[false,true,false],debug=false)
+        mo = compile(m,platform=platform,neighbors="grid",periodic=[false,true,false])
         # println(mo.program)
         @test begin
             com = Community(mo,N=64)
@@ -656,7 +632,7 @@ end
             end,
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",periodic=[false,false,true],debug=false)
+        mo = compile(m,platform=platform,neighbors="grid",periodic=[false,false,true])
         # println(mo.program)
         @test begin
             com = Community(mo,N=64)
@@ -717,7 +693,7 @@ end
             end,
         )
 
-        mo = compile(m,platform=platform,neighbors="grid",periodic=[true,true,true],debug=false)
+        mo = compile(m,platform=platform,neighbors="grid",periodic=[true,true,true])
         # println(mo.program)
         @test begin
             com = Community(mo,N=64)

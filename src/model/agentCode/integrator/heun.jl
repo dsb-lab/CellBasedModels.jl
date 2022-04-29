@@ -1,3 +1,23 @@
+function countdW(code)
+    x = gensym()
+    code = postwalk(x->@capture(x,dW) ? gensym() : x, code)
+    y = gensym()
+    
+    return Meta.parse(string(split(string(y),"#")[end]))-Meta.parse(string(split(string(x),"#")[end]))-1
+end
+
+function substitutedW(code;sym=:K1_)
+    x = gensym()
+    code = postwalk(x->@capture(x,dW) ? gensym() : x, code)
+    y = gensym()
+    d = Meta.parse(string(split(string(y),"#")[end]))-Meta.parse(string(split(string(x),"#")[end]))
+    for i in 1:d
+        s = Symbol(string("#####",Meta.parse(string(split(string(x),"#")[end]))+i)[end-4:end])
+        code = postwalk(x->@capture(x,g_) && g == s ? :(sqrt(dt)*$sym[ic1_,$i]) : x, code)
+    end
+    code
+end
+
 """
     function integratorHeun_(p, platform)
 
@@ -52,7 +72,7 @@ function addIntegratorHeun_!(p::Program_, platform::String)
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :($j.new = $j + $(v...)) : x, code)
         end
-        code = postwalk(x -> @capture(x,dW) ? :(Normal(0.,sqrt(dt))) : x, code)
+        code = substitutedW(code)
         code = vectorize_(p.agent,code,p)
         f = simpleFirstLoopWrapInFunction_(platform,:integrationStep1_!,code)
         push!(p.declareF.args,f)
@@ -65,7 +85,7 @@ function addIntegratorHeun_!(p::Program_, platform::String)
             code = postwalk(x -> @capture(x,v_) && v == j ? :($v.new) : x, code)
             code = postwalk(x -> @capture(x,s_.new=s_.new/2+v__)&& s == j ? :($j.new = ($j+$j.new)/2 + $(v...)) : x, code)
         end
-        code = postwalk(x -> @capture(x,dW) ? :(Normal(0.,sqrt(dt))) : x, code)
+        code = substitutedW(code)
         code = postwalk(x -> @capture(x,t) ? :(t+dt) : x, code)
         code = vectorize_(p.agent,code,p)
         f = simpleFirstLoopWrapInFunction_(platform,:integrationStep2_!,code)
@@ -85,14 +105,27 @@ function addIntegratorHeun_!(p::Program_, platform::String)
         else
             addInteraction = []
         end
+
+        c = countdW(p.agent.declaredUpdates["UpdateVariable"])
+        g = :()
+        if c > 0
+            push!(p.declareVar.args,:(K1_=zeros(nMax,$c)))
+            push!(p.args,:K1_)
+            if platform == "cpu"
+                g = :(K1_ .= randn(size(K1_)...))
+            else
+                g = :(randn!(K1_))
+            end
+        end
+
         push!(p.declareF.args,
             :(begin
                 function integrationStep_!(ARGS_)
+                    $g
                     $(addInteraction...)
                     @platformAdapt integrationStep1_!(ARGS_)
                     $(addInteraction...)
                     @platformAdapt integrationStep2_!(ARGS_)
-                    #println(localVCopy[1,:])
 
                     return
                 end

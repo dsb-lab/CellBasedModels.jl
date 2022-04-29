@@ -22,6 +22,9 @@ function addIntegratorVerletVelocity_!(p::Program_, platform::String)
 
         push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
 
+        #Check SDE
+        code = postwalk(x -> @capture(x,dW) ? error("Integrator VerletVelocity method do not work with SDE.") : x, code)
+
         #Create interaction parameter kernel if there is any interaction parameter updated
         if "UpdateInteraction" in keys(p.agent.declaredUpdates)
             k1 = loop_[p.neighbors](p,p.agent.declaredUpdates["UpdateInteraction"],platform)

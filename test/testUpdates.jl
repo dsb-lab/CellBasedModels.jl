@@ -15,7 +15,7 @@
                 w = Uniform(1.,2.)
             end
         )
-        mo = compile(m, platform = i, debug=false)
+        mo = compile(m, platform = i)
         # println(mo.program)
 
         @test_nowarn begin
@@ -51,7 +51,7 @@
                 w2 = ceil(Uniform(1.,2.))
             end
         )
-        mo = compile(m, platform = i, debug=false)
+        mo = compile(m, platform = i)
         #println(mo.program)
 
         @test_nowarn begin
@@ -88,7 +88,7 @@
                 w = Uniform(1.,2.)
             end
         )
-        mo = compile(m, platform = i, debug=false)
+        mo = compile(m, platform = i)
         # println(mo.program)
 
         @test_nowarn begin
@@ -123,7 +123,7 @@
                 d.i += 2
             end
         )
-        mo = compile(m, platform = i, debug=false)
+        mo = compile(m, platform = i)
         # println(mo.program)
 
         @test_nowarn begin

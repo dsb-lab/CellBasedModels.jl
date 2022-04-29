@@ -1,6 +1,6 @@
 @testset "integrators" begin
 
-    for integrator in keys(AgentBasedModels.addIntegrator_!)
+    for integrator in ["Euler","Heun","RungeKutta4","ImplicitEuler"]
         for platform in testplatforms
 
             #Declare
@@ -40,17 +40,18 @@
             @test all(comt.y[1:end,1] .≈ 2 )
             @test all(abs.(comt.z[1:end,1] .- comt.t) .< 0.005)
 
-            if !(integrator in ["ImplicitEuler"])
-                #SDE
-                m = @agent(
-                    3,
-                    
-                    UpdateVariable = 
-                    begin
-                        d(x) = -0*dt + dW
-                        d(y) = -0*dt + dW
-                    end
-                )
+
+            #SDE
+            m = @agent(
+                3,
+                
+                UpdateVariable = 
+                begin
+                    d(x) = -0*dt + dW
+                    d(y) = -0*dt + dW
+                end
+            )
+            if integrator in ["Euler","Heun"]
                 m = compile(m, integrator=integrator, platform=platform)
                 # println(m.program)
                 com = Community(m,N = 5000)
@@ -63,6 +64,8 @@
                     all(abs.(v .- comt.t) .< 0.8)
                 end
                 @test comt.x[:,1] != comt.y[:,1]
+            else
+                @test_throws ErrorException m = compile(m, integrator=integrator, platform=platform)
             end
 
             #Interactions

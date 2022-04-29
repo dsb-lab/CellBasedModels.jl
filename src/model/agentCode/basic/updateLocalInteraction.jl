@@ -23,7 +23,7 @@ function addUpdateLocalInteraction_!(p::Program_,platform::String)
             if !isempty(p.agent.declaredSymbols["IdentityInteraction"])
                 cleanInteraction = :(identityInteractionV .= 0)
             end
-            addInteraction = [:($cleanLocal; $cleanInteraction ;@platformAdapt interactionCompute_!(ARGS_))]
+            addInteraction = [:($cleanLocal; $cleanInteraction)]
         else
             addInteraction = []
         end
