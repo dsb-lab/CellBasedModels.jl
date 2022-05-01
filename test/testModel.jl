@@ -16,7 +16,6 @@
                 ga[3,2] += 3
             end,
             UpdateInteraction = l.i += 1,
-            UpdateLocalInteraction = l.i += 1,
         )
         m = compile(m, platform="cpu",checkInBounds=true)
     end

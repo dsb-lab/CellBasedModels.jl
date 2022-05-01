@@ -1,6 +1,6 @@
 @testset "integrators" begin
 
-    for integrator in ["Euler","Heun","RungeKutta4","ImplicitEuler"]
+    for integrator in ["Euler","Heun","RungeKutta4"]#,"ImplicitEuler"]
         for platform in testplatforms
 
             #Declare
@@ -40,7 +40,6 @@
             @test all(comt.y[1:end,1] .≈ 2 )
             @test all(abs.(comt.z[1:end,1] .- comt.t) .< 0.005)
 
-
             #SDE
             m = @agent(
                 3,
@@ -57,7 +56,7 @@
                 com = Community(m,N = 5000)
                 com.x .= 0.
                 com.y .= 0.
-                comt = m.evolve(com,dt=0.01,tMax=5)
+                comt = m.evolve(com,dt=0.01,tMax=5,dtSave=1)
 
                 @test begin
                     v = [sum(comt.x[i,:].^2)/com.N-(sum(comt.x[i,:])/com.N)^2 for i in 1:size(comt.x)[1]]

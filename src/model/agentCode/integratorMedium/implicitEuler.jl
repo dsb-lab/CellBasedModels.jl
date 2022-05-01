@@ -32,7 +32,6 @@ function addIntegratorMediumImplicitEuler_!(p::Program_,platform::String)
         for (i,j) in enumerate(p.agent.declaredSymbols["Medium"]) # Change symbol for update
             f = postwalk(x -> @capture(x,g_(s_)=v_) && s == j && g == DIFFMEDIUMSYMBOL ? divisionFactorImplicitEuler_(j,v,1) : x, f)
         end
-        println(f)
         f = postwalk(x->@capture(x,s_(v_)) ? :($(adaptOperatorsMediumImplicitEuler_(v,s,p))) : x, f) # Adapt
         f = postwalk(x->@capture(x,s_) ? adaptSymbolsMediumImplicitEuler_(s,p) : x, f) # Adapt
                         

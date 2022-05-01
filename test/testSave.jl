@@ -6,7 +6,7 @@
             g::Global,
             ga::GlobalArray
         )
-        model = compile(m,save="RAM",debug=false)
+        model = compile(m,save="RAM")
 
         com = Community(model,N=5)
         com.l .= 0.1 .*1:5
@@ -26,7 +26,7 @@
         g::Global,
         ga::GlobalArray
     )
-    model = compile(m,save="RAM",debug=false)
+    model = compile(m,save="RAM")
     com = Community(model,N=5)
     com.l .= 0.1 .*1:5
     com.id .= 1:5
@@ -54,21 +54,27 @@
     for platform in testplatforms
 
         m = @agent(0,
-            l::GlobalArray,
+            [l,l2]::GlobalArray,
 
             UpdateGlobal = begin
                     l[1,1] += 1
+                    l2[2,2] += 1
                 end
             )
-        model = compile(m,save="RAM",debug=false,platform=platform)
+        model = compile(m,save="RAM",platform=platform)
         # println(model.program)
         com = Community(model)
         com.l = zeros(2,2)
-        comt = model.evolve(com,dt=0.1,tMax=10.05,dtSave=0.2)
+        com.l2 = zeros(2,2)
+        comt = model.evolve(com,dt=1,tMax=100,dtSave=1)
 
-        @test length(comt)==51
+        @test length(comt)==101
         @test comt[end].l[1,2] == 0. 
+        @test comt[end].l[1,1] == 100 
         @test comt[1].l[1,1] == 0
+        @test comt[end].l2[1,2] == 0. 
+        @test comt[end].l2[2,2] == 100
+        @test comt[1].l2[2,2] == 0
 
         m = @agent(0,
             l::GlobalArray,
@@ -77,7 +83,7 @@
                     l[1,1] += 1
                 end
             )
-        model = compile(m,save="CSV",debug=false,platform=platform)
+        model = compile(m,save="CSV",platform=platform)
         # println(model.program)
         com = Community(model)
         com.l = zeros(2,2)
@@ -92,7 +98,7 @@
                     l[1,1] += 1
                 end
             )
-        model = compile(m,save="JLD",debug=false,platform=platform)
+        model = compile(m,save="JLD",platform=platform)
         # println(model.program)
         com = Community(model)
         com.l = zeros(2,2)

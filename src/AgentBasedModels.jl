@@ -11,7 +11,7 @@ using DataFrames
 using CSV
 using JLD
 import GeometryBasics, GLMakie
-import MacroTools: postwalk, prewalk, @capture, inexpr, prettify, gensym_ids, gensym, flatten, unblock, isexpr
+import MacroTools: postwalk, prewalk, @capture, inexpr, prettify, gensym, flatten, unblock, isexpr
 import SpecialFunctions
 #using WriteVTK
 
@@ -36,7 +36,7 @@ include("./model/agentCode/basic/eventRemoveAgent.jl")
 include("./model/agentCode/basic/eventAddAgent.jl")
 include("./model/agentCode/basic/updateGlobal.jl")
 include("./model/agentCode/basic/updateLocal.jl")
-include("./model/agentCode/basic/updateLocalInteraction.jl")
+include("./model/agentCode/basic/updateInteraction.jl")
 include("./model/compile.jl")
 
 #Community

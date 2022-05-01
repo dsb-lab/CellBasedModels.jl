@@ -24,7 +24,6 @@
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
-        UpdateLocalInteraction = l.i += 1
     )
 
     m = @agent(
@@ -40,7 +39,6 @@
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
-        UpdateLocalInteraction = i += 1,
     )
     for i in keys(m.declaredSymbols)
         @test length(m.declaredSymbols[i]) == 1
@@ -61,7 +59,6 @@
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
-        UpdateLocalInteraction = i += 1
     )
 
     m = @agent(
@@ -78,7 +75,6 @@
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
-        UpdateLocalInteraction = i += 1,
     )
     for i in keys(m.declaredSymbols)
         @test length(m.declaredSymbols[i]) == 2

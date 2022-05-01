@@ -19,7 +19,6 @@ UPDATINGTYPES = ["Local","Identity","Global","GlobalArray","Medium"]
 VALID_UPDATES = [
     :UpdateGlobal,
     :UpdateLocal,
-    :UpdateLocalInteraction,
     :UpdateInteraction,
     :UpdateMedium,
     :UpdateMediumInteraction,

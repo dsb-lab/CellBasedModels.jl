@@ -25,21 +25,6 @@ function addIntegratorVerletVelocity_!(p::Program_, platform::String)
         #Check SDE
         code = postwalk(x -> @capture(x,dW) ? error("Integrator VerletVelocity method do not work with SDE.") : x, code)
 
-        #Create interaction parameter kernel if there is any interaction parameter updated
-        if "UpdateInteraction" in keys(p.agent.declaredUpdates)
-            k1 = loop_[p.neighbors](p,p.agent.declaredUpdates["UpdateInteraction"],platform)
-            for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
-                if j in keys(p.update["Local"])
-                    pos = p.update["Local"][j]
-                    k1 = postwalk(x -> @capture(x,s_) && s == j ? :(localVCopy[ic1_,$pos]) : x, k1)
-                end
-            end
-            k1 = vectorize_(p.agent,k1,p,interaction=true)
-            k1 = wrapInFunction_(:interactionCompute_!,k1)
-            push!(p.declareF.args,k1)
-
-        end
-
         vels = [p.velocities[i] for i in keys(p.velocities)]
         #Create integration half-velocity step function
         code = addMediumCode(p)

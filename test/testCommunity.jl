@@ -19,7 +19,6 @@
                 ga[3,2] += 3
             end,
             UpdateInteraction = i.i += 1,
-            UpdateLocalInteraction = i.i += 1
         )                
 
         m = compile(m)

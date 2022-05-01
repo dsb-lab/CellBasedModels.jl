@@ -115,7 +115,7 @@
             [a,b]::LocalInteraction,
             [c,d]::IdentityInteraction,
             
-            UpdateLocalInteraction = 
+            UpdateInteraction = 
             begin
                 a.i += 1
                 b.i += 2

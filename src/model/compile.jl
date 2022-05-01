@@ -50,8 +50,8 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
     #Declare all the agent properties related functions, arguments, code...
     addParameters_!(p,platform)
     addCopyInitialisation_!(p,platform)
+    addUpdateInteraction_!(p,platform)
     addIntegrator_![integrator](p,platform)
-    addUpdateLocalInteraction_!(p,platform)
     addUpdateMediumInteraction_!(p,platform)
     addIntegratorMedium_![integratorMedium](p,platform)
     addUpdateGlobal_!(p,platform)
@@ -148,8 +148,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
     if checkInBounds
         program = postwalk(x->@capture(x,Threads.@threads f_) ? :(@inbounds Threads.@threads $f) : x, program)
     end
-    programugly = gensym_ids(program)
-    program = flatten(programugly)
+    program = flatten(program)
     
     #Prettify the LineNumberNode output
     program = postwalk(x -> isexpr(x,LineNumberNode) ? LineNumberNode(Meta.parse(split(String(gensym("x")),"#")[end]),"evolve_program") : x, program)

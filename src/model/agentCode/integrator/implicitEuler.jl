@@ -24,23 +24,13 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
     
     if "UpdateVariable" in keys(p.agent.declaredUpdates)
 
-        #Create interaction parameter kernel if there is any interaction parameter updated
-        if "UpdateInteraction" in keys(p.agent.declaredUpdates)
-            k1 = loop_[p.neighbors](p,p.agent.declaredUpdates["UpdateInteraction"],platform)
-            for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
-                if j in keys(p.update["Local"])
-                    pos = p.update["Local"][j]
-                    k1 = postwalk(x -> @capture(x,s_) && s == j ? :(localVCopy[ic1_,$pos]) : x, k1)
-                end
-            end
-            k1 = vectorize_(p.agent,k1,p,interaction=true)
-            k1 = wrapInFunction_(:interactionCompute_!,k1)
-            push!(p.declareF.args,k1)
-        end
-
         #Create initial integration step function
         code = addMediumCode(p) #Add medium coupling
         push!(code.args,p.agent.declaredUpdates["UpdateVariable"])
+
+        #Check SDE
+        code = postwalk(x -> @capture(x,dW) ? error("Implicit Euler method do not work with SDE.") : x, code)
+
         function remove(code,p)
             for j in keys(p.update["Variables"])
                 code = postwalk(x -> @capture(x,g_/s_) && inexpr(s,j) ? :(0) : x, code)
@@ -56,7 +46,6 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
                 pos = i
             end
             code = postwalk(x -> @capture(x,g_(s_)=v_) && g == DIFFSYMBOL && s == j ? :(localVCopy[ic1_,$pos] = localV[ic1_,$i] + $(remove(v,p))) : x, code)
-            code = postwalk(x -> @capture(x,dW) ? error("Implicit Euler method do not work with SDE.") : x, code)
         end
         code = vectorize_(p.agent,code,p)
         f = simpleFirstLoopWrapInFunction_(platform,:integrationStep0_!,code)
@@ -72,7 +61,6 @@ function addIntegratorImplicitEuler_!(p::Program_, platform::String)
                 pos = i
             end
             code = postwalk(x -> @capture(x,g_(s_)=v__) && g == DIFFSYMBOL && s == j ? :(predV[ic1_,$pos] = localV[ic1_,$i] + $(v...)) : x, code)
-            code = postwalk(x -> @capture(x,dW) ? error("Implicit Euler method do not work with SDE.") : x, code)
         end
         for (i,j) in enumerate(p.agent.declaredSymbols["Local"])
             if j in keys(p.update["Local"])
