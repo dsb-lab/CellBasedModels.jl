@@ -65,10 +65,12 @@ include("./agentCompiled/agentCode/saving/saving.jl")
 include("./distributions/distribution.jl")
 
 #Community
+export setParameters!
 export Community, CommunityInTime, saveCSV, loadCommunityFromCSV, loadCommunityInTimeFromCSV, loadCommunityInTimeFromJLD
 export initialiseCommunityCompactHexagonal, initialiseCommunityCompactCubic
 include("./community/community.jl")
 include("./community/baseModuleExtensions.jl")
+include("./community/setParameters.jl")
 include("./community/constructors/latices/compactHexagonal.jl")
 include("./community/constructors/latices/cubic.jl")
 include("./community/constructors/extrude.jl")

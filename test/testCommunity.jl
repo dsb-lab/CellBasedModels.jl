@@ -224,4 +224,28 @@
     @test_nowarn initialiseCommunityCompactCubic(mo,[-10 10;-10 10;-10 10],.5)
     @test_nowarn initialiseCommunityCompactCubic(mo,[-10 10;-10 10;-10 10],.5,fExtrude = fCom)
 
+    m = @agent(
+        0,
+        
+        [v,l,i]::Local,
+        [vid,lid,iid]::Identity,
+        [vint,lint,iint]::LocalInteraction,
+        [vidint,lidint,iidint]::IdentityInteraction,
+        g::Global,
+        ga::GlobalArray,
+    )                
+    mo = compile(m)
+    com = Community(mo,N=10)
+    @test_nowarn begin
+        d = Dict([
+            :v=>1,
+            :l=>rand(10),
+            :vid=>1,
+            :l=>rand([1,2,3],10),
+            :g=>10,
+            :ga=>[1 2;3 4]
+            ])
+        setParameters!(com,d)
+    end
+
 end
