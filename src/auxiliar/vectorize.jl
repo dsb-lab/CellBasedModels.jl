@@ -1,12 +1,27 @@
+"""
+    function errorInteraction(vAux)
+
+Throw an error if a variable has not been added a subindex in an Interaction module.
+"""
 function errorInteraction(vAux)
     error("In an Interaction module the variable ",vAux," has been declared without specifying to which agent is assigned. Please specify putting .i or .j to the variable.")
 end
 
 """
-    function vectorize_(abm::Agent,code::Expr)
+    function vectorize_(abm::Agent,code::Expr,p::Program_;interaction=false)
 
 Function to subtitute all the declared symbols of the agents in the expression into vector form.
-optional arguments base and update add some intermediate names to the vectorized variables and to updated ones.
+
+# Args
+ - **abm::Agent**: Agent structure containing the high level code of the agents.
+ - **code::Expr**: Code to ve vectorised.
+ - **p::Program_**: Program_ structure containing all the created code when compiling.
+
+# KwArgs
+ - **interaction=false**: Check subindex specifying the to which agent belongs the parameter (e.g. in UpdateInteraction code).
+
+# Returns
+ - `Expr` with the code in vectorized form.
 """
 function vectorize_(abm::Agent,code::Expr,p::Program_;interaction=false)
         
@@ -134,9 +149,17 @@ function vectorize_(abm::Agent,code::Expr,p::Program_;interaction=false)
 end
 
 """
-    function vectorizeMedium_(abm::Agent,code::Expr)
+    function vectorizeMedium_(abm::Agent,code::Union{Expr,Symbol,<:Number},p::Program_)
 
 Function to subtitute all the declared symbols of the medium in the expression into vector form.
+
+# Args
+ - **abm::Agent**: Agent structure containing the high level code of the agents.
+ - **code::Union{Expr,Symbol,<:Number}**: Code to ve vectorised.
+ - **p::Program_**: Program_ structure containing all the created code when compiling.
+
+ # Returns
+ - `Expr` with the code in vectorized form.
 """
 function vectorizeMedium_(abm::Agent,code::Union{Expr,Symbol,<:Number},p::Program_)
 

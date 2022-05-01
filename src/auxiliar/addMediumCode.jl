@@ -1,3 +1,14 @@
+"""
+    function addMediumCode(p::Program_)
+
+Function that adds the lines of code that map a the position of an agent with a integer position in the grid of the medium.
+
+# Args
+ - **p::Program_**: Program_ structure containing all the created code when compiling.
+
+# Returns
+ - `Expr` with the code of the grid position.
+"""
 function addMediumCode(p::Program_)
 
     code = quote end

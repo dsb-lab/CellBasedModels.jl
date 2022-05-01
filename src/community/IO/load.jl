@@ -1,4 +1,4 @@
-function loadCommunityFromCSV(abm::Model, file::String)
+function loadCommunityFromCSV(abm::AgentCompiled, file::String)
 
     #Global Array
     d = DataFrame(CSV.File(string(file,"_global.csv")))
@@ -29,7 +29,7 @@ function loadCommunityFromCSV(abm::Model, file::String)
     return com
 end
 
-function loadCommunityInTimeFromCSV(abm::Model, file)
+function loadCommunityInTimeFromCSV(abm::AgentCompiled, file)
 
     out = false
     count = 1

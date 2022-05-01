@@ -1,7 +1,13 @@
 """
     function updates_!(p)
 
-Function that checks the variables in the model that are modified at each step in order to make appropiate copy vectors and add them to program.
+Function that checks the variables in the model that are modified at each step in order to make appropiate copy vectors and add them to `Program_`.
+
+# Args
+ - **p::Program_**: Program_ structure containing all the created code when compiling.
+
+# Returns
+ - Nothing
 """
 function updates_!(p::Program_)
 

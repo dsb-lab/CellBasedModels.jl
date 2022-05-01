@@ -1,15 +1,15 @@
 @testset "auxiliar" begin
 
     m = @agent 2 [x1,y1]::Local
-    @test_nowarn AgentBasedModels.checkIsDeclared_(m,:x1) 
-    @test_nowarn AgentBasedModels.checkIsDeclared_(m,[:x1]) 
-    @test_nowarn AgentBasedModels.checkIsDeclared_(m,[:x1,:y1]) 
-    @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,:g) 
-    @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,[:g]) 
-    @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,[:x1,:g]) 
+    # @test_nowarn AgentBasedModels.checkIsDeclared_(m,:x1) 
+    # @test_nowarn AgentBasedModels.checkIsDeclared_(m,[:x1]) 
+    # @test_nowarn AgentBasedModels.checkIsDeclared_(m,[:x1,:y1]) 
+    # @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,:g) 
+    # @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,[:g]) 
+    # @test_throws ErrorException AgentBasedModels.checkIsDeclared_(m,[:x1,:g]) 
 
-    @test AgentBasedModels.subs_(:(x += 3*x),:x,:y) == :(y += 3*y)
-    @test AgentBasedModels.subs_(:(x += 3*x),:x,:y,update=true) == :(y += 3*x)
+    # @test AgentBasedModels.subs_(:(x += 3*x),:x,:y) == :(y += 3*y)
+    # @test AgentBasedModels.subs_(:(x += 3*x),:x,:y,update=true) == :(y += 3*x)
 
     m = @agent(
         0,
@@ -40,73 +40,73 @@
     @test AgentBasedModels.cudaAdapt_(:(sin(e^2^x))) == :(CUDA.sin(Float32(e)^Float32(2)^x))
     @test AgentBasedModels.cudaAdapt_(:(zeros(e^2))) == :(CUDA.zeros(e^2))
     
-    @test begin
-        code = :(x .+= 1)
-        f = AgentBasedModels.wrapInFunction_(:func,code)
-        f = AgentBasedModels.subs_(f,:ARGS_,:x)
-        eval(quote
-            $f
-            y = ones(10)
-            func(y) 
-            y == 2*ones(10)
-        end)
-    end 
+    # @test begin
+    #     code = :(x .+= 1)
+    #     f = AgentBasedModels.wrapInFunction_(:func,code)
+    #     f = AgentBasedModels.subs_(f,:ARGS_,:x)
+    #     eval(quote
+    #         $f
+    #         y = ones(10)
+    #         func(y) 
+    #         y == 2*ones(10)
+    #     end)
+    # end 
 
-    @test begin
-        code = :(x[ic1_] += 1)
-        code = AgentBasedModels.simpleFirstLoop_("cpu",code)
-        f = AgentBasedModels.wrapInFunction_(:func,code)
-        f = AgentBasedModels.subsArguments_(f,:ARGS_,[:x,:N])
-        eval(quote
-            $f
-            N = 10
-            y = ones(N)
-            func(y,N) 
-            y == 2*ones(N)
-        end)        
-    end
+    # @test begin
+    #     code = :(x[ic1_] += 1)
+    #     code = AgentBasedModels.simpleFirstLoop_("cpu",code)
+    #     f = AgentBasedModels.wrapInFunction_(:func,code)
+    #     f = AgentBasedModels.subsArguments_(f,:ARGS_,[:x,:N])
+    #     eval(quote
+    #         $f
+    #         N = 10
+    #         y = ones(N)
+    #         func(y,N) 
+    #         y == 2*ones(N)
+    #     end)        
+    # end
 
-    @test begin
-        code = :(x[ic1_] += 1)
-        f = AgentBasedModels.simpleFirstLoopWrapInFunction_("cpu",:func,code)
-        f = AgentBasedModels.subsArguments_(f,:ARGS_,[:x,:N])
-        eval(quote
-            $f
-            N = 10
-            y = ones(N)
-            func(y,N) 
-            y == 2*ones(N)
-        end)        
-    end
+    # @test begin
+    #     code = :(x[ic1_] += 1)
+    #     f = AgentBasedModels.simpleFirstLoopWrapInFunction_("cpu",:func,code)
+    #     f = AgentBasedModels.subsArguments_(f,:ARGS_,[:x,:N])
+    #     eval(quote
+    #         $f
+    #         N = 10
+    #         y = ones(N)
+    #         func(y,N) 
+    #         y == 2*ones(N)
+    #     end)        
+    # end
 
-    if CUDA.has_cuda()
-        @test begin
-            code = :(x[ic1_] += 1)
-            code = AgentBasedModels.simpleFirstLoop_("gpu",code)
-            f = AgentBasedModels.wrapInFunction_(:func,code)
-            f = AgentBasedModels.subsArguments_(f,:ARGS_,[:x,:N])
-            eval(quote
-                $f
-                N = 10
-                y = CUDA.ones(N)
-                CUDA.@cuda func(y,N) 
-                Array(y) == 2*ones(N)
-            end)        
-        end
+    # if CUDA.has_cuda()
+    #     @test begin
+    #         code = :(x[ic1_] += 1)
+    #         code = AgentBasedModels.simpleFirstLoop_("gpu",code)
+    #         f = AgentBasedModels.wrapInFunction_(:func,code)
+    #         f = AgentBasedModels.subsArguments_(f,:ARGS_,[:x,:N])
+    #         eval(quote
+    #             $f
+    #             N = 10
+    #             y = CUDA.ones(N)
+    #             CUDA.@cuda func(y,N) 
+    #             Array(y) == 2*ones(N)
+    #         end)        
+    #     end
 
-        @test begin
-            code = :(x[ic1_] += 1)
-            f = AgentBasedModels.simpleFirstLoopWrapInFunction_("gpu", :func, code)
-            f = AgentBasedModels.subsArguments_(f,:ARGS_,[:x,:N])
-            eval(quote
-                $f
-                N = 10
-                y = CUDA.ones(N)
-                CUDA.@cuda func(y,N) 
-                Array(y) == 2*ones(N)
-            end)        
-        end
-    end
+    #     @test begin
+    #         code = :(x[ic1_] += 1)
+    #         f = AgentBasedModels.simpleFirstLoopWrapInFunction_("gpu", :func, code)
+    #         f = AgentBasedModels.subsArguments_(f,:ARGS_,[:x,:N])
+    #         eval(quote
+    #             $f
+    #             N = 10
+    #             y = CUDA.ones(N)
+    #             CUDA.@cuda func(y,N) 
+    #             Array(y) == 2*ones(N)
+    #         end)        
+    #     end
+    # end
 
     @test_nowarn begin
         
@@ -148,6 +148,6 @@
         if p.update["Variables"] != Dict(:x=>1) error() end
     end    
 
-    @test AgentBasedModels.extract(:(f(x)*1+4),:f) == (:x)
+    # @test AgentBasedModels.extract(:(f(x)*1+4),:f) == (:x)
 
 end

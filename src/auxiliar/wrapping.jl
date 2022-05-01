@@ -1,7 +1,14 @@
 """
-    funntion simpleFirstLoop_(platform, code)
+    function simpleFirstLoop_(platform::String, code::Expr)
 
-Returns the sent code wrapped in parallelized loop over the particles of the system adapted for each platform.
+Returns the sent code wrapped in parallelized in the specified platform loop over the number of agents of the system.
+
+# Args
+ - **platform::String**: Platform to adapt the loop.
+ - **code::Expr**: Code to include in the loop.
+
+ # Returns
+ - `Expr` with the code of the created loop.
 """
 function simpleFirstLoop_(platform::String, code::Expr)
 
@@ -29,9 +36,20 @@ function simpleFirstLoop_(platform::String, code::Expr)
 end
 
 """
-    funntion simpleGridLoop_(platform, code)
+    function simpleGridLoop_(platform::String, code::Expr, nloops::Int; indexes = [1,2,3])
 
-Returns the sent code wrapped in parallelized loop over the grid dimensions of the system adapted for each platform.
+Returns the sent code wrapped in parallelized in the specified platform loop over the number of agents of the system and over the specified number of loops.
+
+# Args
+ - **platform::String**: Platform to adapt the loop.
+ - **code::Expr**: Code to include in the loop.
+ - **nloops::Int**: Number of loops of the code.
+
+# KwArgs
+ - **indexes = [1,2,3]**: Numbers to specify the indexes.
+
+ # Returns
+ - `Expr` with the code of the created loop.
 """
 function simpleGridLoop_(platform::String, code::Expr, nloops::Int; indexes = [1,2,3])
 
@@ -141,9 +159,16 @@ function simpleGridLoop_(platform::String, code::Expr, nloops::Int; indexes = [1
 end
 
 """
-    function wrapInFunction_(name, code)
+    function wrapInFunction_(name::Symbol, code::Expr)
 
 Return **code** wrapped in a function called **name** and which returns nothing.
+
+#Args
+ - **name::Symbol**: name of the function to create
+ - **code::Expr**: Code to be included in the function.
+
+ # Returns
+ - `Expr` with the code of the created function.
 """
 function wrapInFunction_(name::Symbol, code::Expr)
     code = 
@@ -157,9 +182,17 @@ function wrapInFunction_(name::Symbol, code::Expr)
 end
 
 """
-    function simpleLoopWrapInFunction_(platform, name, code)
+    function simpleLoopWrapInFunction_(platform::String, name::Symbol, code::Expr)
 
-Calls toguether functions simpleFirstLoop and wrapInFunction.
+Return **code** wrapped in a loop, wrapped in a function called **name** and which returns nothing.
+
+#Args
+ - **platform::String**: name of the function to create
+ - **name::Symbol**: name of the function to create
+ - **code::Expr**: Code to be included in the function.
+
+# Returns
+ - `Expr` with the code of the created function.
 """
 function simpleFirstLoopWrapInFunction_(platform::String, name::Symbol, code::Expr)
     code = simpleFirstLoop_(platform,code)
@@ -174,9 +207,21 @@ function simpleFirstLoopWrapInFunction_(platform::String, name::Symbol, code::Ex
 end
 
 """
-    function simpleGridLoopWrapInFunction_(platform, name, code)
+    function simpleGridLoopWrapInFunction_(platform::String, name::Symbol, code::Expr, nLoop::Int; indexes = [1,2,3])
 
-Calls toguether functions simpleGridLoop and wrapInFunction.
+Return **code** wrapped in a loop, wrapped in a function called **name** and which returns nothing.
+
+#Args
+ - **platform::String**: name of the function to create
+ - **name::Symbol**: name of the function to create
+ - **code::Expr**: Code to be included in the function.
+ - **nloops::Int**: Number of loops of the code.
+
+# KwArgs
+ - **indexes = [1,2,3]**: Numbers to specify the indexes.
+
+ # Returns
+ - `Expr` with the code of the created function.
 """
 function simpleGridLoopWrapInFunction_(platform::String, name::Symbol, code::Expr, nLoop::Int; indexes = [1,2,3])
     code = simpleGridLoop_(platform,code,nLoop,indexes=indexes)
