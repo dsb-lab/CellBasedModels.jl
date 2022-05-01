@@ -24,8 +24,8 @@ function cudaAdapt_(code::Expr)
         code = postwalk(x->@capture(x,g_) && g == i ? Meta.parse(string("CUDA.","$i")) : x, code)
     end
     code = postwalk(x->@capture(x,g_) && g == :Array ? :(CUDA.CuArray) : x, code)
-    code = postwalk(x->@capture(x,g_) && g == :INT ? :(INTCUDA) : x, code)
-    code = postwalk(x->@capture(x,g_) && g == :FLOAT ? :(FLOATCUDA) : x, code)
+    code = postwalk(x->@capture(x,g_) && g == INT ? :($INTCUDA) : x, code)
+    code = postwalk(x->@capture(x,g_) && g == FLOAT ? :($FLOATCUDA) : x, code)
 
     return code
 end
