@@ -45,7 +45,15 @@ end
 
 Basic Macro to create an instance of Agent. It generates an Agent type with the characteristics specified in its arguments.
 
-Check the [documentation](https://dsb-lab.github.io/AgentBasedModels.jl/dev/Usage.html#Defining-Agent-Properties) for details of the possible varargs.
+# Args
+ - **dims**: Number of dimensions of the agent (0,1,2 or 3).
+
+# Varargs
+All the arguments that will define the behavior of the agents.
+Check the [documentation](https://dsb-lab.github.io/AgentBasedModels.jl/dev/Usage.html#Defining-Agent-Properties) for the details of the possible varargs.
+
+# Returns
+ - `Agent` with the specified rules.
 """
 macro agent(dims, varargs...) 
 

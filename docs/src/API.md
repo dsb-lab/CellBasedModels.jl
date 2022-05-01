@@ -11,22 +11,16 @@ Methods involved in the construction and modification of the Agent structure.
 ```@docs
 Agent
 @agent
-add
 ```
 
-## Model
+## AgentCompiled
 
 ```@docs
-Model
-```
-
-## [Compile](@id APIcompilation)
-
-```@docs
+AgentCompiled
 compile
 ```
 
-## [Community](@id APICommunity)
+## Community
 
 ```@docs
 Community

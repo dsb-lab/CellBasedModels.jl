@@ -16,10 +16,10 @@ Basic structure keeping the parameters of all the agents in the current simulati
 
 # Constructors
 
-    function Community(abm::Model; N::Int=1, t::AbstractFloat=0.)
+    function Community(abm::AgentCompiled; N::Int=1, t::AbstractFloat=0.)
 
 ### Arguments
- - **abm** (Model) Agent Model structure
+ - **abm** (AgentCompiled) AgentCompiled structure
 
 ### Additional keyword arguments
  - **N::Int** Number of Agent with wich start the model. N=1 by default.
@@ -28,7 +28,7 @@ Basic structure keeping the parameters of all the agents in the current simulati
 
 ### Example
 ```@julia
- julia> model = Model();
+ julia> model = AgentCompiled();
  julia> addLocal!(model,:x);
  julia> community = Community(model, N=2, t=0.5)
  Community(0.5, 2, Dict{String,Array{Symbol,N} where N}("glob" => [],"ids" => [],"locInter" => [],"loc" => [:x],"inter" => [],"var" => []), Array{AbstractFloat}(undef,2,0), Array{AbstractFloat}(undef,2,0), AbstractFloat[0.0; 0.0], AbstractFloat[0.0; 0.0], AbstractFloat[], Array{Int64}(undef,2,0))
@@ -110,11 +110,11 @@ mutable struct Community
     medium_::Union{Array{<:AbstractFloat,1},Array{<:AbstractFloat,2},Array{<:AbstractFloat,3},Array{<:AbstractFloat,4}}
 end
 
-function Community(abm::Model; N::Int=1, t::AbstractFloat=0., mediumN::Array{Int,1}=Array{Int,1}([]))
+function Community(abm::AgentCompiled; N::Int=1, t::AbstractFloat=0., mediumN::Array{Int,1}=Array{Int,1}([]))
 
     if !isempty(abm.agent.declaredSymbols["Medium"])
         if length(mediumN) != abm.agent.dims
-            error("mediumN has to be an array with the same length as Model dimensions specifing the number of points in the grid.")
+            error("mediumN has to be an array with the same length as AgentCompiled dimensions specifing the number of points in the grid.")
         end
     end
 

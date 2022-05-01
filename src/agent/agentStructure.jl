@@ -1,7 +1,14 @@
 """
     mutable struct Agent
 
-Basic structure which contains the agent based Agent.
+Basic structure which contains the high level code specifying the rules of the agents. 
+For constructing such agents, it is advised to use the macro function `@agent`.
+
+# Elements
+
+ - **dims::Int**: Dimensions of the model.
+ - **declaredSymbols::Dict{String,Array{Symbol,1}}**: Dictionary containing all the parameters of the model.
+ - **declaredUpdates::Dict{String,Expr}**: Dictionary containing all the code specifying the rules of the agents.
 """
 mutable struct Agent
 

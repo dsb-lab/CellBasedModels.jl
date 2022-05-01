@@ -70,7 +70,7 @@ function beeColonyAlgorithm(
     mTotal = copy(m)
 
     if saveFileName !== nothing
-        CSV.write(saveFileName,m[line,:])
+        CSV.write(string(saveFileName,".csv"),mTotal)
     end
 
     count = 2
@@ -124,7 +124,7 @@ function beeColonyAlgorithm(
         append!(mTotal,m)
 
         if saveFileName !== nothing
-            CSV.write(saveFileName,m[line,:],append=true)
+            CSV.write(string(saveFileName,".csv"),m,append=true)
         end
 
         count += 1
