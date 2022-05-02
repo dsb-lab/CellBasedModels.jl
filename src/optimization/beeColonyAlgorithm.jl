@@ -64,7 +64,7 @@ function beeColonyAlgorithm(
     m[:,:_cycles_] .= 0
 
     #Start first simulations
-    for i in 1:population
+    Threads.@threads for i in 1:population
         m[i,:_score_] = evalFunction(m[i,:],args...)
     end
     mTotal = copy(m)
@@ -74,7 +74,7 @@ function beeColonyAlgorithm(
     end
 
     count = 2
-    while count <= stopMaxGenerations
+    @showprogress "Generations..." for k in 2:stopMaxGenerations
         #Update rule
         mNew = DataFrame([i=>zeros(population) for i in keys(searchList)]...)
         mNew[:,:_score_] .= 0.
@@ -87,7 +87,7 @@ function beeColonyAlgorithm(
         else
             p .= 1/population
         end
-        for i in 1:population
+        Threads.@threads for i in 1:population
             candidate = rand(Categorical(p))
             for param in keys(searchList)
                 #Computing new positions

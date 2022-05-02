@@ -35,9 +35,11 @@ function gridSearch(evalFunction::Function,
 
     m[!,:_score_] .= -Inf
 
-    for line in 1:size(m)[1]
+    lock = Threads.SpinLock()
+    Threads.@threads for line in 1:size(m)[1]
         m[line,:_score_] = evalFunction(m[line,:],args...)
 
+        Threads.lock(lock)
         if saveFileName !== nothing
             if line == 1
                 CSV.write(string(saveFileName,".csv"),m[line,:])
@@ -45,6 +47,7 @@ function gridSearch(evalFunction::Function,
                 CSV.write(string(saveFileName,".csv"),m[line,:],append=true)
             end
         end
+        Threads.unlock(lock)
     end
 
     if returnAll

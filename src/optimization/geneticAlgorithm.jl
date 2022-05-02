@@ -69,7 +69,7 @@ function geneticAlgorithm(
     m[:,:_generation_] .= 1
 
     #Start first simulations
-    for i in 1:population
+    Threads.@threads for i in 1:population
         m[i,:_score_] = evalFunction(m[i,:],args...)
     end
     mTotal = copy(m)
@@ -79,7 +79,7 @@ function geneticAlgorithm(
     end
 
     count = 2
-    while count <= stopMaxGenerations
+    @showprogress "Generations..." for k in 2:stopMaxGenerations
         #Selective Breading and mutation
         mNew = DataFrame([i=>zeros(population) for i in keys(searchList)]...)
         #Weighted probability
@@ -89,7 +89,7 @@ function geneticAlgorithm(
         else
             p .= 1/population
         end
-        for i in 1:2:population
+        Threads.@threads for i in 1:2:population
             parents = rand(Categorical(p),2)
             for param in keys(searchList)
                 #Crossing

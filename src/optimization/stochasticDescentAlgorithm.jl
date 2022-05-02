@@ -63,7 +63,7 @@ function stochasticDescentAlgorithm(evalFunction::Function,
     m[:,:_rejection_] .= 0
 
     #Start simulation
-    for i in 1:population
+    Threads.@threads for i in 1:population
         m[i,:_score_] = evalFunction(m[i,:],args...)
     end
     mTotal = copy(m)
@@ -73,7 +73,7 @@ function stochasticDescentAlgorithm(evalFunction::Function,
     end
 
     count = 2
-    while count <= stopMaxGenerations
+    @showprogress "Generations..." for k in 2:stopMaxGenerations
         
         mNew = DataFrame([i=>zeros(population) for i in keys(searchList)]...)
         mNew[:,:_score_] .= 0.
@@ -82,7 +82,7 @@ function stochasticDescentAlgorithm(evalFunction::Function,
         mNew[:,:_rejection_] .= m[:,:_rejection_]
 
         #New jumps
-        for i in 1:population
+        Threads.@threads for i in 1:population
             #Make the distribution matrix
             if mNew[i,:_generation_] % nStatistics == 0
                 if mNew[i,:_rejection_] > .6*nStatistics

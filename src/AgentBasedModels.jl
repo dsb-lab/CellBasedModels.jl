@@ -13,6 +13,7 @@ using JLD
 import GeometryBasics, GLMakie
 import MacroTools: postwalk, prewalk, @capture, inexpr, prettify, gensym, flatten, unblock, isexpr
 import SpecialFunctions
+using ProgressMeter
 #using WriteVTK
 
 export MediumFlat, δMedium_
