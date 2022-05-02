@@ -1,24 +1,47 @@
 """
+Parameters proposed of the Bacterial2DGrowth model.
+"""
+Bacteria2DParameters = constants = Dict([
+    :kn => .0001,
+    :γn => 1,
+    :γt => 1,
+    :μcc => 0.1,
+    :μcw => 0.8,
+    :β => .5,
+    :βω => .1
+    ]);
+
+"""
+Parameters proposed of the Bacterial2DGrowth model.
+"""
+Bacteria2DGrowthParameters = Dict([
+    :growth => 0.0001,
+    :lMax => 3,
+    :σLTarget => 1,
+    :σTorqueDivision => .01
+    ]);
+
+"""
 Bacterial model of pysical interactions.
 
 Bacterial cells are implemented as rod shape like bacteria. The model is implemented in https://www.pnas.org/content/105/40/15346.
 
 Parameters:
 
-vx,vy (Local): Velocity of the center of mass in the x,y directions
-theta (Local): orientation of the rod along the symmetry axis
-ω (Local): Angular velocity
-d (Local): Diameter of the cylinder
-l (Local): Length of the cylinder
-m (Local): Mass of the cylinder
-fx,fy (LocalInteraction): Forces in the x,y directions
-W (LocalInteraction): Angular momentum
-kn (Global): Strength of repulsion
-γn (Global): Material coefficient tangential
-γt (Global): Material coefficient tangential
-μcc (Global): Friction coefficient of cell-cell
-β (Global): Fricction coeficient
-βω (Global): Angular friction coefficient
+ - vx,vy (Local): Velocity of the center of mass in the x,y directions
+ - theta (Local): orientation of the rod along the symmetry axis
+ - ω (Local): Angular velocity
+ - d (Local): Diameter of the cylinder
+ - l (Local): Length of the cylinder
+ - m (Local): Mass of the cylinder
+ - fx,fy (LocalInteraction): Forces in the x,y directions
+ - W (LocalInteraction): Angular momentum
+ - kn (Global): Strength of repulsion
+ - γn (Global): Material coefficient tangential
+ - γt (Global): Material coefficient tangential
+ - μcc (Global): Friction coefficient of cell-cell
+ - β (Global): Fricction coeficient
+ - βω (Global): Angular friction coefficient
 
 For more details check the paper of the Documentation on the Models section.
 """
@@ -26,8 +49,6 @@ Bacteria2D = @agent(2,
 [vx,vy,theta,ω,d,l,m]::Local, #Local parameters
 [Fx,Fy,W]::LocalInteraction,    #Local Interaction Parameters
 [kn,γn,γt,μcc,μcw,β,βω]::Global,#Global parameters
-
-[pxAuxi,pxAuxj,pyAuxi,pyAuxj]::Local, #AUXILIAR FOR VISUALIZING POINTS
 
 UpdateInteraction = begin
     #Compute distance between centers of mass
@@ -246,109 +267,104 @@ Add the model before the Bacteria2D model.
         Bacteria2D::BaseModel
     )
 
-Parameters:
-
-μcw (Global): Friction coefficient of cell-wall
-
 For more details check the paper of the Documentation on the Models section.
 """
 Bacteria2DChannel = @agent(2,
-    
-#Add boundary characteristics
-UpdateVariable=begin
+    #Add boundary characteristics
+    UpdateVariable=begin
 
-        #Boundary conditions in y
-        xiAux = x; yiAux = y; xjAux=0; yjAux=0; #Declare them in the global scope
-        if y + l/2 + d/2 > simulationBox[2,2] #In the upper boundary region
-            a = -sign(sin(theta))
-            xiAux = x - a*cos(theta)*l/2
-            yiAux = y + abs(sin(theta))*l/2
+            #Boundary conditions in y
+            xiAux = x; yiAux = y; xjAux=0; yjAux=0; #Declare them in the global scope
+            if y + l/2 + d/2 > simulationBox[2,2] #In the upper boundary region
+                a = -sign(sin(theta))
+                xiAux = x - a*cos(theta)*l/2
+                yiAux = y + abs(sin(theta))*l/2
 
-            if yiAux >= simulationBox[2,2]#If the bead has surpassed the axis
-                xjAux = xiAux
-                yjAux = yiAux+.0001*d
-            else
-                xjAux = xiAux
-                yjAux = simulationBox[2,2] + d/2
+                if yiAux >= simulationBox[2,2]#If the bead has surpassed the axis
+                    xjAux = xiAux
+                    yjAux = yiAux+.0001*d
+                else
+                    xjAux = xiAux
+                    yjAux = simulationBox[2,2] + d/2
+                end
             end
-        end 
 
-        #Compute distance between virtual spheres
-        rij = sqrt((xiAux-xjAux)^2 +(yiAux-yjAux)^2)
-        if rij > 0 && rij < d #If it is smaller than a diameter
-            #Compute auxiliar
-            δAux = d - rij
-            MeAux = m/2
-            #Compute interaction
-            nijx = (xiAux-xjAux)/rij
-            nijy = (yiAux-yjAux)/rij
-            vijx = vx
-            vijy = vy
-            #Compute inner product
-            vnAux = nijx*vijx+nijy*vijy
-            #Compute normal and tangential forces
-            FnAux = kn*δAux^1.5-γn*MeAux*δAux*vnAux
-            FtAux = -min(γt*MeAux*δAux^.5,μcc*FnAux)
-            #Compute the interaction forces
-            Fijx = FnAux*nijx + FtAux*(vijx-vnAux*nijx)
-            Fijy = FnAux*nijy + FtAux*(vijy-vnAux*nijy)
-            #Append the interaction forces
-            Fx += Fijx
-            Fy += Fijy
-            #Append radial forces
-            W += ((xiAux-x)*Fijy - (yiAux-y)*Fijx)
-        end
-
-        xiAux = x; yiAux = y; xjAux=0; yjAux=0; #Declare them in the global scope
-        if y - l/2 - d/2 < simulationBox[2,1] #In the upper boundary region
-            a = sign(sin(theta))
-            xiAux = x - a*cos(theta)*l/2
-            yiAux = y - abs(sin(theta))*l/2
-
-            if yiAux <= simulationBox[2,1]#If the bead has surpassed the axis
-                xjAux = xiAux
-                yjAux = yiAux-.0001*d
-            else
-                xjAux = xiAux
-                yjAux = simulationBox[2,1] - d/2
+            #Compute distance between virtual spheres
+            rij = sqrt((xiAux-xjAux)^2 +(yiAux-yjAux)^2)
+            if rij > 0 && rij < d #If it is smaller than a diameter
+                #Compute auxiliar
+                δAux = d - rij
+                MeAux = m/2
+                #Compute interaction
+                nijx = (xiAux-xjAux)/rij
+                nijy = (yiAux-yjAux)/rij
+                vijx = vx
+                vijy = vy
+                #Compute inner product
+                vnAux = nijx*vijx+nijy*vijy
+                #Compute normal and tangential forces
+                FnAux = kn*δAux^1.5-γn*MeAux*δAux*vnAux
+                FtAux = -min(γt*MeAux*δAux^.5,μcc*FnAux)
+                #Compute the interaction forces
+                Fijx = FnAux*nijx + FtAux*(vijx-vnAux*nijx)
+                Fijy = FnAux*nijy + FtAux*(vijy-vnAux*nijy)
+                #Append the interaction forces
+                Fx += Fijx
+                Fy += Fijy
+                #Append radial forces
+                W += ((xiAux-x)*Fijy - (yiAux-y)*Fijx)
             end
-        end   
 
-        #Compute distance between virtual spheres
-        rij = sqrt((xiAux-xjAux)^2 +(yiAux-yjAux)^2)
-        if rij > 0 && rij < d #If it is smaller than a diameter
-            #Compute auxiliar
-            δAux = d - rij
-            MeAux = m/2
-            #Compute interaction
-            nijx = (xiAux-xjAux)/rij
-            nijy = (yiAux-yjAux)/rij
-            vijx = vx
-            vijy = vy
-            #Compute inner product
-            vnAux = nijx*vijx+nijy*vijy
-            #Compute normal and tangential forces
-            FnAux = kn*δAux^1.5-γn*MeAux*δAux*vnAux
-            FtAux = -min(γt*MeAux*δAux^.5,μcc*FnAux)
-            #Compute the interaction forces
-            Fijx = FnAux*nijx + FtAux*(vijx-vnAux*nijx)
-            Fijy = FnAux*nijy + FtAux*(vijy-vnAux*nijy)
-            #Append the interaction forces
-            Fx += Fijx
-            Fy += Fijy
-            #Append radial forces
-            W += ((xiAux-x)*Fijy - (yiAux-y)*Fijx)
+            xiAux = x; yiAux = y; xjAux=0; yjAux=0; #Declare them in the global scope
+            if y - l/2 - d/2 < simulationBox[2,1] #In the upper boundary region
+                a = sign(sin(theta))
+                xiAux = x - a*cos(theta)*l/2
+                yiAux = y - abs(sin(theta))*l/2
+
+                if yiAux <= simulationBox[2,1]#If the bead has surpassed the axis
+                    xjAux = xiAux
+                    yjAux = yiAux-.001*d
+                else
+                    xjAux = xiAux
+                    yjAux = simulationBox[2,1] - d/2
+                end
+            end
+
+            #Compute distance between virtual spheres
+            rij = sqrt((xiAux-xjAux)^2 +(yiAux-yjAux)^2)
+            if rij > 0 && rij < d #If it is smaller than a diameter
+                #Compute auxiliar
+                δAux = d - rij
+                MeAux = m/2
+                #Compute interaction
+                nijx = (xiAux-xjAux)/rij
+                nijy = (yiAux-yjAux)/rij
+                vijx = vx
+                vijy = vy
+                #Compute inner product
+                vnAux = nijx*vijx+nijy*vijy
+                #Compute normal and tangential forces
+                FnAux = kn*δAux^1.5-γn*MeAux*δAux*vnAux
+                FtAux = -min(γt*MeAux*δAux^.5,μcc*FnAux)
+                #Compute the interaction forces
+                Fijx = FnAux*nijx + FtAux*(vijx-vnAux*nijx)
+                Fijy = FnAux*nijy + FtAux*(vijy-vnAux*nijy)
+                #Append the interaction forces
+                Fx += Fijx
+                Fy += Fijy
+                #Append radial forces
+                W += ((xiAux-x)*Fijy - (yiAux-y)*Fijx)
+            end
+
+    end,
+
+    UpdateLocal = begin
+        if x < simulationBox[1,1] || x > simulationBox[1,2]
+            removeAgent()
         end
-
-end,
-
-UpdateLocal = begin
-    if x < simulationBox[1,1] || x > simulationBox[1,2]
-        removeAgent()
     end
-end
-
 )
+
 
 """
 Addon to the Bacteria2D model incorporating growth. The model is implemented in https://www.pnas.org/content/105/40/15346.
@@ -362,17 +378,18 @@ Add the model before the Bacteria2D model.
 
 Parameters:
 
-lTarget (Local): Friction coefficient of cell-wall
-growth (Global):
-lMax (Global):
-σLTarget (Global):
+ - lTarget (Local): Friction coefficient of cell-wall.
+ - growth (Global): Growth factor.
+ - lMax (Global): Max length of the bacteria before division.
+ - σLTarget (Global): Standard deviation around the maximum length of growth. Adds sandomness to the division event.
+ - σTorqueDivision (Global): Torque that generates a small missalignement to the cells when dividing.
 
 For more details check the paper of the Documentation on the Models section.
 """
 Bacteria2DGrowth = @agent(2,
     
             lTarget::Local,
-            [growth,lMax,σLTarget]::Global, #Growth parameters
+            [growth,lMax,σLTarget,σTorqueDivision]::Global, #Growth parameters
 
             UpdateVariable = begin
                     d(l) = growth*dt
@@ -382,7 +399,7 @@ Bacteria2DGrowth = @agent(2,
 
                 #Add division
                 if l > lTarget
-                    torque = σLTarget*Uniform(-1,1)
+                    torque = σLTarget*Uniform(-σTorqueDivision,σTorqueDivision)
                     addAgent(
                             x=(l+d)/4*cos(theta)+x,
                             y=(l+d)/4*sin(theta)+y,
