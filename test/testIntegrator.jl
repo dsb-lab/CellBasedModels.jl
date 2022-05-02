@@ -1,6 +1,6 @@
 @testset "integrators" begin
 
-    for integrator in ["Euler","Heun","RungeKutta4"]#,"ImplicitEuler"]
+    for integrator in ["Euler","Heun","RungeKutta4"]
         for platform in testplatforms
 
             #Declare
@@ -95,4 +95,42 @@
         end
     end
 
+    for integrator in ["VerletVelocity"]
+        for platform in testplatforms
+
+            #Declare
+            @test_nowarn begin
+                m = @agent(
+                    3,
+                    v::Local,
+                    
+                    UpdateVariable = 
+                    begin
+                        d(x) = x*dt 
+                        d(y) = 0*dt 
+                        d(z) = 1*dt
+                    end
+                )
+                m = compile(m, integrator=integrator, platform=platform, velocities=Dict([:x=>:v]))
+            end
+
+            #ODE
+            m = @agent(
+                1,
+                v::Local,
+                UpdateVariable = 
+                begin
+                    d(x) = v*dt 
+                    d(v) = -v*dt
+                end
+            )
+            m = compile(m, integrator=integrator, platform=platform, velocities=Dict([:x=>:v]))
+            # println(m.program)
+            com = Community(m,N = 10)
+            com.x .= 1.
+            com.v .= 10.
+            comt = m.evolve(com,dt=0.01,tMax=5)
+            @test all(abs.(comt.v[1:end,1] .- 10*exp.(-comt.t)) .< 0.02)
+        end
+    end
 end
