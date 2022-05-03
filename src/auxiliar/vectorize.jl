@@ -116,8 +116,17 @@ function vectorize_(abm::Agent,code::Expr,p::Program_;interaction=false)
             pos = i
         end
 
-        code = postwalk(x->@capture(x, $v.new) ? :($bsnew[$pos]) : x, code)
-        code = postwalk(x->@capture(x, $v) ? :($bs[$i]) : x, code)
+        code = postwalk(x->@capture(x, vAux_.new) && vAux == v ? :($bsnew[$pos]) : x, code)
+        code = postwalk(x->@capture(x, vAux_) && vAux == v ? :($bs[$i]) : x, code)
+
+    end
+
+    for (i,v) in enumerate(abm.declaredSymbols["GlobalInteraction"])
+
+        bs = :globalInteractionV
+
+        code = postwalk(x->@capture(x, vAux_.new) && vAux == v ? :($bs[$i]) : x, code)
+        code = postwalk(x->@capture(x, vAux_) && vAux == v ? :($bs[$i]) : x, code)
 
     end
 

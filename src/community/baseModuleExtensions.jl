@@ -29,6 +29,9 @@ function Base.getproperty(a::Community,var::Symbol)
         elseif var in a.declaredSymbols_["Global"]
             pos = findfirst(a.declaredSymbols_["Global"].==var) 
             return @views a.global_[pos]
+        elseif var in a.declaredSymbols_["GlobalInteraction"]
+            pos = findfirst(a.declaredSymbols_["GlobalInteraction"].==var) 
+            return @views a.globalInteraction_[pos]
         elseif var in a.declaredSymbols_["GlobalArray"]
             pos = findfirst(a.declaredSymbols_["GlobalArray"].==var) 
             return a.globalArray_[pos]
@@ -78,6 +81,9 @@ function Base.getindex(a::Community,var::Symbol)
         elseif var in a.declaredSymbols_["Global"]
             pos = findfirst(a.declaredSymbols_["Global"].==var) 
             return @views a.global_[pos]
+        elseif var in a.declaredSymbols_["GlobalInteraction"]
+            pos = findfirst(a.declaredSymbols_["GlobalInteraction"].==var) 
+            return @views a.globalInteraction_[pos]
         elseif var in a.declaredSymbols_["GlobalArray"]
             pos = findfirst(a.declaredSymbols_["GlobalArray"].==var) 
             return a.globalArray_[pos]
@@ -160,6 +166,10 @@ function Base.setproperty!(a::Community,var::Symbol,v::Array{<:Number})
         vec = a.identity_
         vec[:,pos] = v
         setfield!(a,:identity_,vec)
+    elseif var in a.declaredSymbols_["Global"]
+        error("Global ", var, " cannot be assigned with an array.")
+    elseif var in a.declaredSymbols_["GlobalInteraction"]
+        error("GlobalInteraction ", var, " cannot be assigned with a scalar.")
     elseif var in a.declaredSymbols_["GlobalArray"]
         pos = findfirst(a.declaredSymbols_["GlobalArray"].==var) 
         a.globalArray_[pos] = v
@@ -206,6 +216,9 @@ function Base.setproperty!(a::Community,var::Symbol,v::Number)
     elseif var in a.declaredSymbols_["Global"]
         pos = findfirst(a.declaredSymbols_["Global"].==var) 
         a.global_[pos] = v
+    elseif var in a.declaredSymbols_["GlobalInteraction"]
+        pos = findfirst(a.declaredSymbols_["GlobalInteraction"].==var) 
+        a.globalInteraction_[pos] = v
     elseif var in a.declaredSymbols_["GlobalArray"]
         error("GlobalArray ", var, " cannot be assigned with a scalar.")
     else
@@ -278,6 +291,10 @@ function Base.setindex!(a::Community,v::Array{<:Number},var::Symbol)
         vec = a.identity_
         vec[:,pos] = v
         setfield!(a,:identity_,vec)
+    elseif var in a.declaredSymbols_["Global"]
+        error("Global parameter ", var, " cannot be assigned with a vector. Use = instead.")
+    elseif var in a.declaredSymbols_["GlobalInteraction"]
+        error("GlobalInteraction parameter ", var, " cannot be assigned with a vector. Use = instead.")
     elseif var in a.declaredSymbols_["GlobalArray"]
         pos = findfirst(a.declaredSymbols_["GlobalArray"].==var) 
         a.globalArray_[pos] = v
@@ -324,6 +341,9 @@ function Base.setindex!(a::Community,v::Number,var::Symbol)
     elseif var in a.declaredSymbols_["Global"]
         pos = findfirst(a.declaredSymbols_["Global"].==var) 
         a.global_[pos] = v
+    elseif var in a.declaredSymbols_["GlobalInteraction"]
+        pos = findfirst(a.declaredSymbols_["GlobalInteraction"].==var) 
+        a.globalInteraction_[pos] = v
     elseif var in a.declaredSymbols_["GlobalArray"]
         error("GlobalArray ", var, " cannot be assigned with a scalar.")
     else

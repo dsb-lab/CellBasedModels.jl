@@ -73,7 +73,6 @@
             end
         end
 
-
         #Update Global
         m = @agent(
             3,
@@ -108,7 +107,6 @@
             end
         end
 
-
         #Update Local Interaction
         m = @agent(
             3,
@@ -141,6 +139,58 @@
                 if comt[i].d != 20*ones(10) println("d ", i, " ", comt[i].d);error() end 
             end
         end
+
+        #Update GlobalInteraction
+        m = @agent(
+            3,
+            [a,b]::GlobalInteraction,
+            
+            UpdateGlobalInteraction = 
+            begin
+                b += 1
+            end
+        )
+        mo = compile(m, platform = i)
+        # println(mo.program)
+
+        @test_nowarn begin
+
+            com = Community(mo,N=10)
+            comt = mo.evolve(com,dt=1.,tMax=15)#,t=0.,N=com.N,nMax=com.N)
+
+            # println(comt.b)
+            for i in 2:length(comt)
+                if comt[i].b != 10 println("b ", i, " ", comt[i].b);error() end 
+            end
+        end
+
+        m = @agent(
+            3,
+            [a,b]::GlobalInteraction,
+            [g]::LocalInteraction,
+
+            UpdateInteraction = begin
+                g.i = 0
+            end,
+            
+            UpdateGlobalInteraction = 
+            begin
+                b += 1
+            end
+        )
+        mo = compile(m, platform = i)
+        # println(mo.program)
+
+        @test_nowarn begin
+
+            com = Community(mo,N=10)
+            comt = mo.evolve(com,dt=1.,tMax=15)#,t=0.,N=com.N,nMax=com.N)
+
+            for i in 2:length(comt)
+                if comt[i].b != 10 println("b ", i, " ", comt[i].b);error() end 
+            end
+        end
+
 
     end
 

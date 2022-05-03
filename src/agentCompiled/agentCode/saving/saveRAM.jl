@@ -45,6 +45,12 @@ function addSavingRAM_!(p::Program_,platform::String)
         push!(l,:(Core.Array{Float64,1}()))
     end
 
+    if length(keys(p.agent.declaredSymbols["GlobalInteraction"]))>0
+        push!(l,:(Core.Array(globalInteractionV)))
+    else
+        push!(l,:(Core.Array{Float64,1}()))
+    end
+
     if length(p.agent.declaredSymbols["GlobalArray"]) > 0
         list = string("[","copy(",p.agent.declaredSymbols["GlobalArray"][1],")")
         for i in p.agent.declaredSymbols["GlobalArray"][2:end]

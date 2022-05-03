@@ -11,6 +11,7 @@ Basic structure keeping the parameters of all the agents in the current simulati
  - **loc**::Array{<:AbstractFloat,2} 2D Array with all the agents in rows and all the corresponding values of the local parameters in columns.
  - **locInter**::Array{<:AbstractFloat,2} 2D Array with all the agents in rows and all the corresponding values of the local interaction parameters in columns.
  - **glob**::Array{<:AbstractFloat,1} 1D Array with all the corresponding values of the global parameters in rows.
+ - **globInter**::Array{<:AbstractFloat,1} 1D Array with all the corresponding values of the global interaction parameters in rows.
  - **globArray**::Array{Array{AbstractFloat},1} 1D Array with all the corresponding global arrays in rows.
  - **ids**::Array{Int,2} 2D Array with all the agents in rows and all the corresponding values of the identities in columns
 
@@ -106,6 +107,7 @@ mutable struct Community
     identity_::Array{Int,2}
     identityInteraction_::Array{Int,2}
     global_::Array{<:AbstractFloat,1}
+    globalInteraction_::Array{<:AbstractFloat,1}
     globalArray_::Array{Array{Float64},1}
     medium_::Union{Array{<:AbstractFloat,1},Array{<:AbstractFloat,2},Array{<:AbstractFloat,3},Array{<:AbstractFloat,4}}
 end
@@ -128,6 +130,7 @@ function Community(abm::AgentCompiled; N::Int=1, t::AbstractFloat=0., mediumN::A
     idsInter = ones(INT,N,length(abm.agent.declaredSymbols["IdentityInteraction"]))
     ids[:,1] .= 1:N
     glob = zeros(FLOAT,length(abm.agent.declaredSymbols["Global"]))
+    globInter = zeros(FLOAT,length(abm.agent.declaredSymbols["GlobalInteraction"]))
     globArray = []
     medium = zeros(FLOAT,mediumN...,length(abm.agent.declaredSymbols["Medium"]))
     for i in abm.agent.declaredSymbols["GlobalArray"]
@@ -136,7 +139,7 @@ function Community(abm::AgentCompiled; N::Int=1, t::AbstractFloat=0., mediumN::A
 
     declaredSymbols = abm.agent.declaredSymbols
 
-    return Community(dims,t,N,mediumN,simulationBox,radiusInteraction,declaredSymbols,loc,locInter,ids,idsInter,glob,globArray,medium)
+    return Community(dims,t,N,mediumN,simulationBox,radiusInteraction,declaredSymbols,loc,locInter,ids,idsInter,glob,globInter,globArray,medium)
 end
 
 function Base.show(io::IO,com::Community)

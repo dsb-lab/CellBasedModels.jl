@@ -34,15 +34,7 @@ function addIntegratorEuler_!(p::Program_, platform::String)
 
         #Create wrapped integration step function
         if "UpdateInteraction" in keys(p.agent.declaredUpdates)
-            cleanLocal = :()
-            if !isempty(p.agent.declaredSymbols["LocalInteraction"])
-                cleanLocal = :(localInteractionV .= 0)
-            end
-            cleanInteraction = :()
-            if !isempty(p.agent.declaredSymbols["IdentityInteraction"])
-                cleanInteraction = :(identityInteractionV .= 0)
-            end
-            addInteraction = [:($cleanLocal; $cleanInteraction ;@platformAdapt interactionCompute_!(ARGS_))]
+            addInteraction = [:(interactionCompute_!(ARGS_))]
         else
             addInteraction = []
         end
