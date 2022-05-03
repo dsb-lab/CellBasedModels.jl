@@ -14,11 +14,6 @@ function addUpdateLocal_!(p::Program_,platform::String)
 
     if "UpdateLocal" in keys(p.agent.declaredUpdates)
 
-        if "UpdateInteraction" in keys(p.agent.declaredUpdates) && !("UpdateVariable" in keys(p.agent.declaredUpdates))
-            push!(p.execInloop.args,
-                :(interactionCompute_!(ARGS_)) 
-            )        
-        end
         push!(p.execInloop.args,
             :(@platformAdapt locStep_!(ARGS_)) 
         )
