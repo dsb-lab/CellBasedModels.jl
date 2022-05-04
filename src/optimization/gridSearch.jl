@@ -42,9 +42,9 @@ function gridSearch(evalFunction::Function,
         Threads.lock(lock)
         if saveFileName !== nothing
             if line == 1
-                CSV.write(string(saveFileName,".csv"),m[line,:])
+                CSV.write(string(saveFileName,".csv"),m[line:line,:])
             else
-                CSV.write(string(saveFileName,".csv"),m[line,:],append=true)
+                CSV.write(string(saveFileName,".csv"),m[line:line,:],append=true)
             end
         end
         Threads.unlock(lock)

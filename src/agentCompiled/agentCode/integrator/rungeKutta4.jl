@@ -117,7 +117,6 @@ function addIntegratorRungeKutta4_!(p::Program_, platform::String)
         push!(p.declareF.args,
             :(begin
                 function integrationStep_!(ARGS_)
-                    $(addInteraction...)
                     @platformAdapt integrationStep1_!(ARGS_)
                     $(addInteraction...)
                     @platformAdapt integrationStep2_!(ARGS_)

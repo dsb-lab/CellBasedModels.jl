@@ -385,8 +385,25 @@ function Base.getproperty(a::CommunityInTime,var::Symbol)
 
             return out
 
-        else
+        if var in a.com[1].declaredSymbols_["Medium"]
 
+            out = []
+            for i in 1:length(a)
+                push!(out,getproperty(a.com[i],var))
+            end
+
+            return out
+
+        elseif var in a.com[1].declaredSymbols_["Global"]
+
+            return [getproperty(a.com[i],var) for i in 1:length(a)]
+
+        elseif var in a.com[1].declaredSymbols_["GlobalInteraction"]
+
+            return [getproperty(a.com[i],var) for i in 1:length(a)]
+
+        else
+            
             nMax = maximum(a.com[end].id)
             #Create array
             out = fill(NaN,length(a),nMax)
