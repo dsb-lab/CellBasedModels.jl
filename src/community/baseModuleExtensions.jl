@@ -385,7 +385,7 @@ function Base.getproperty(a::CommunityInTime,var::Symbol)
 
             return out
 
-        if var in a.com[1].declaredSymbols_["Medium"]
+        elseif var in a.com[1].declaredSymbols_["Medium"]
 
             out = []
             for i in 1:length(a)
@@ -403,7 +403,7 @@ function Base.getproperty(a::CommunityInTime,var::Symbol)
             return [getproperty(a.com[i],var) for i in 1:length(a)]
 
         else
-            
+
             nMax = maximum(a.com[end].id)
             #Create array
             out = fill(NaN,length(a),nMax)
