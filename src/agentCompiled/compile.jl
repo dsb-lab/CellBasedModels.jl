@@ -89,7 +89,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
 
     program = quote
         function (com::Community;
-                dt::Real, tMax::Real,
+                dt::Real, tMax::Real, nStop::Real=Inf,
                 nMax::Integer=com.N, 
                 dtSave::Real=dt, 
                 saveFile::String="",
@@ -119,6 +119,10 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
                 t += dt
 
                 if !($checkNMax)
+                    break
+                end
+
+                if N > nStop
                     break
                 end
             end
