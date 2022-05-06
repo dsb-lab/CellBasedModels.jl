@@ -78,8 +78,10 @@ function swarmAlgorithm(evalFunction::Function,
     m[:,:_generation_] .= 1
 
     #Start first simulations
+    prog = Progress(population,string("Generation ",1,"/",stopMaxGenerations))
     Threads.@threads for i in 1:population
         m[i,:_score_] = evalFunction(m[i,:],args...)
+        next!(prog)
     end
     mTotal = copy(m)
     mPBest = m[argmin(m._score_),:]
@@ -90,7 +92,7 @@ function swarmAlgorithm(evalFunction::Function,
     end
 
     count = 2
-    @showprogress "Generations..." for k in 2:stopMaxGenerations
+    for k in 2:stopMaxGenerations
         #Update rule
         mNew = DataFrame([i=>zeros(population) for i in keys(searchList)]...)
         for param in keys(searchList)
@@ -117,8 +119,10 @@ function swarmAlgorithm(evalFunction::Function,
         m[:,:_generation_] .= count
 
         #Simulations
+        prog = Progress(population,string("Generation ",k,"/",stopMaxGenerations))
         Threads.@threads for i in 1:population
             m[i,:_score_] = evalFunction(m[i,:],args...)
+            next!(prog)
         end
         append!(mTotal,m)
 
