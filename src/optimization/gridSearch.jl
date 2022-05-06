@@ -36,6 +36,7 @@ function gridSearch(evalFunction::Function,
     m[!,:_score_] .= -Inf
 
     lock = Threads.SpinLock()
+    prog = Progress(size(m)[1],string("Evaluating grid points..."))
     Threads.@threads for line in 1:size(m)[1]
         m[line,:_score_] = evalFunction(m[line,:],args...)
 
@@ -48,6 +49,7 @@ function gridSearch(evalFunction::Function,
             end
         end
         Threads.unlock(lock)
+        next!(prog)
     end
 
     if returnAll
