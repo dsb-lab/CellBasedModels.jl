@@ -15,11 +15,11 @@ import ...AgentBasedModels: rand
 
 Optimization of the parameter space of a model that uses the [Swarm Algorithm](https://en.wikipedia.org/wiki/Particle_swarm_optimization).
 
-Args:
+# Args
 - **evalFunction:: Function** : Function that takes a DataFrame with parameters, generates the simulations and returns a score of the fit.
 - **searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
 
-kArgs:
+# KwArgs:
  - **population::Int = 100** : Size of the colony used at each generation for the optimization.
  - **weightInertia::Number = .1** : Hyperparameter of the colony weighting the current velocity.
  - **weightGlobalBest::Number = .1** : Hyperparameter of the colony weighting the global best solution.

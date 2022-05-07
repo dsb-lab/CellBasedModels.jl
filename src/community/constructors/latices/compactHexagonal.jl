@@ -1,10 +1,15 @@
 """
-    function latticeCompactHexagonal(box,r)
+    compactHexagonal(box::Array{<:Real,2},r::Number)
 
-Make a lattice with compact hexagonal structure in box with spheres of radius r.
+Make a 3D lattice with hexagonal structure.
 
-# Returns
-[posX,posY,posZ] Where pos are arrays with the positions of the cells for each component.
+# Args
+
+ - **box::Array{<:Real,2}**: 3D Box to be filled with spheres of radius r. e.g. [[0,1],[1,2],[0,4]]
+ - **r::Number**: Radius of the sphere
+
+# Return
+    `Comunnity` object with the spheres
 """
 function compactHexagonal(box::Array{<:Real,2},r::Number)
 

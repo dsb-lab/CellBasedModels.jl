@@ -1,15 +1,15 @@
 """
     cubic(box::Array{<:Real,2},r::Number)
 
-Make a lattice with cubic structure.
+Make a 3D lattice with cubic structure.
 
-# Arguments
+# Args
 
- - **box** (Array) 3D Box to be filled with spheres of radius r. e.g. [[0,1],[1,2],[0,4]]
- - **r** (Number) Radius of the sphere
+ - **box::Array{<:Real,2}**: 3D Box to be filled with spheres of radius r. e.g. [[0,1],[1,2],[0,4]]
+ - **r::Number**: Radius of the sphere
 
-# Returns
-Community with the spheres
+# Return
+    `Comunnity` object with the spheres
 """
 function cubic(box::Array{<:Real,2},r::Number)
 

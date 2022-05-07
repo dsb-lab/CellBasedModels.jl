@@ -7,11 +7,11 @@
 
 Function that evaluates a grid of parameter configurations for a model.
 
-Args:
+# Args
 - **evalFunction:: Function** : Function that takes a DataFrame with parameters, generates the simulations and returns a score of the fit.
 - **searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
 
-kArgs:
+# KwArgs
  - **returnAll::Bool = false** : If return the hole list of parameters explored or the just the most fit.
  - **saveFileName::Union{Nothing,String} = nothing** : If given a string, it saves the parameters explored in a file with the corresponding name.
  - **args::Vector{<:Any} = Any[]** : Additional arguments to give to `evalFunction`.
