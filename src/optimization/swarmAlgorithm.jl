@@ -15,11 +15,11 @@ import ...AgentBasedModels: rand
 
 Optimization of the parameter space of a model that uses the [Swarm Algorithm](https://en.wikipedia.org/wiki/Particle_swarm_optimization).
 
-Args:
+# Args
 - **evalFunction:: Function** : Function that takes a DataFrame with parameters, generates the simulations and returns a score of the fit.
 - **searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
 
-kArgs:
+# KwArgs:
  - **population::Int = 100** : Size of the colony used at each generation for the optimization.
  - **weightInertia::Number = .1** : Hyperparameter of the colony weighting the current velocity.
  - **weightGlobalBest::Number = .1** : Hyperparameter of the colony weighting the global best solution.
@@ -78,8 +78,10 @@ function swarmAlgorithm(evalFunction::Function,
     m[:,:_generation_] .= 1
 
     #Start first simulations
-    for i in 1:population
+    prog = Progress(population,string("Generation ",1,"/",stopMaxGenerations))
+    Threads.@threads for i in 1:population
         m[i,:_score_] = evalFunction(m[i,:],args...)
+        next!(prog)
     end
     mTotal = copy(m)
     mPBest = m[argmin(m._score_),:]
@@ -90,7 +92,7 @@ function swarmAlgorithm(evalFunction::Function,
     end
 
     count = 2
-    while count <= stopMaxGenerations
+    for k in 2:stopMaxGenerations
         #Update rule
         mNew = DataFrame([i=>zeros(population) for i in keys(searchList)]...)
         for param in keys(searchList)
@@ -117,8 +119,10 @@ function swarmAlgorithm(evalFunction::Function,
         m[:,:_generation_] .= count
 
         #Simulations
-        for i in 1:population
+        prog = Progress(population,string("Generation ",k,"/",stopMaxGenerations))
+        Threads.@threads for i in 1:population
             m[i,:_score_] = evalFunction(m[i,:],args...)
+            next!(prog)
         end
         append!(mTotal,m)
 

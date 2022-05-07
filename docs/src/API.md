@@ -1,4 +1,4 @@
-# API
+# [**API**](@id API)
 
 ```@meta
 CurrentModule = AgentBasedModels
@@ -27,7 +27,7 @@ Community
 CommunityInTime
 ```
 
-### Constructors
+### [**Constructors**](@id APICommunityConstructors)
 
 Handy functions to construct starting communities with different geometries.
 
@@ -36,7 +36,7 @@ initialiseCommunityCompactCubic
 initialiseCommunityCompactHexagonal
 ```
 
-## Optization
+## Optimization
 
 Functions to optimize the parameters of the model.
 

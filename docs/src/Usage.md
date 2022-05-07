@@ -30,14 +30,15 @@ For now, the following methods are included:
 |:---|:---|:---|:---|:---|
 |[**Parameters**](@ref parameters)|Local||||
 ||Identity||||
+||Interaction||||
 ||Global||||
+||GlobalInteraction||||
 ||GlobalArray||||
 ||Medium||||
 ||MediumBoundary||||
 |[**Updates**](@ref updates)|[UpdateLocal](@ref updateLocal)||`addAgent`,`removeAgent`||
 ||[UpdateGlobal](@ref updateGlobal)||||
 ||[UpdateVariable](@ref equation)|`dt`,`dW`|`d`||
-||[UpdateLocalInteraction](@ref updateLocalInteraction)|||`.i`,`.j`|
 ||[UpdateInteraction](@ref updateInteraction)|||`.i`,`.j`|
 ||[UpdateMedium](@ref updateMedium)||`∂t`,`∇x`,`∇y`,`∇z`,`Δx`,`Δy`,`Δz`,`δx`,`δy`,`δz`,
 ||||`periodicX`,`periodicY`,`periodicZ`,||
@@ -53,7 +54,9 @@ With this special characters, we define all the parameters that a model may have
 
  - **Local**: These are continuous parameters that are assigned independently to each agent.
  - **Identity**: These parameters are discrete parameters that are assigned to a each agent.
+ - **Interaction**: These parameters are local continuous parameters that are set to zero before each iteration.
  - **Global**: Parameters that are shared by all the agents.
+ - **GlobalInteraction**: These parameters are globalcontinuous parameters that are set to zero before each iteration.
  - **GlobalArray**: Parameters in terms of array formats that are shared by all agents.
  - **Medium**: Parameters that form part of a continuous medium the agents are emdedded in.
  - **MediumBoundary**: Properties that define how the boundary behaves during the simulation.
@@ -204,34 +207,6 @@ m = @agent(2,
     end
 )
 ```
-#### [**UpdateLocalInteraction**](@id updateLocalInteraction)
-Define the rules for interacting agents one in each integration step. In these rules, local and identity parameters of two agents will be used. To differentiate the parameters of which agent we are using, we use the notation `.i` to indicate the agent we are updating the rules and `.j` for the other agents interacting with the agent being updated. This notation resembles the notation of a contracting index $x_i=\sum_jx_{ij}$.
-
-Example, consider that an agent flips between an stressed or an unstressed state depending on the number of neighbours that it has around. We will define such a rule as,
-
-```julia
-m = @agent(1,
-    n::Identity, #Keep the number of neighbours
-    stressed::Identity #0 not stressed, 1 stressed 
-
-    UpdateLocalInteraction = begin
-        if abs(x.i - x.j) < 3. #If agent j is in some neighbourhood of i
-            n += 1
-            if n > 5
-                stressed = 1
-            else
-                stressed = 0
-            end
-        end
-    end
-)
-```
-
-!!! warning "Interaction Parameter Erasing Behaviour"
-    By default, all local and identity **parameters that are modified using an [updating operator](https://docs.julialang.org/en/v1/manual/mathematical-operations/#Updating-operators) are set to zero** before the UpdateLocalInteraction and the UpdateInteraction rules happen.** This is intended as, in most part of the cases, want an continuous increase of the operator. In the example above, for example, we want to count every step how many neighbours we have with the parameter `n`, not that this increases every time.
-
-    In case that we would like to not erase the parameter before the update rule, use instead the expanded version of the update operator** : `n = n + 1`. This will prevent the program to detect it as an interacting operator and will not erase it before the computation.
-
 
 #### [**UpdateInteraction**](@id updateInteraction)
 Define the rules of interacting terms and other rules of interaction between agents. The difference with the UpdateLocalInteraction rules is that these interactions will be computed for every intermediate step of the integrtion rule (Euler integration a one step integrator, Heun's method uses two evaluations before computing the final step). The same notation as for the UpdateLocalInteraction applies here.
@@ -243,7 +218,8 @@ where $x$ is a variable, $g$ a global parameter, $l$ is a local parameter, and $
 
 ```julia
 m = @agent(1,
-    [l,int]::Local,
+    [l]::Local,
+    [int]::Interaction
     [g]::Global,
 
     UpdateVariable = begin
@@ -294,7 +270,7 @@ m = @agent(3,
 
 ## Compilation
 
-Once defined the model and the space, the model is ready to be compiled into the full model program. For that we use the function 'compile' which will take all the pieces of information of the Agent and Space and the model and construct a compiled model with an evolution function ready to be used. The optional arguments can be checked at the [API documentation](@ref APIcompilation).
+Once defined the model and the space, the model is ready to be compiled into the full model program. For that we use the function 'compile' which will take all the pieces of information of the Agent and Space and the model and construct a compiled model with an evolution function ready to be used. The optional arguments can be checked at the [API](@ref API).
 
 The outcome of `compile` is a compiled model with the specifications indicated that can be used for constructing initial conditions of the model (Communities) and evolving the system.
 
@@ -313,7 +289,7 @@ Depending of the type of simulation we can sum over the interacting agents in di
     **SimualtionGrid** bases considers that only agents in a neighbourhood of each agent are interacting at each time. For that purpose, the algorithms assigns each agent to a grid cell in a first step, and in a second step, it only computes the pairwise interactions of each agent with the agents in surrounding grid cells (see orange and green grid regions in the image below). When the system if big and many agents are not interacting with each other, this algorithm highly reduces the complexity of the interaction computation as $~N$ at the cost of an additional step of assigning to a cell. The algorithm requires additional memory as it has to keep trtack of the agent cell positions. Because of how the algorithm works, although the algorithm works in unbounded spaces, the methods is only efficient when the simulation happens in a limited region of a space where the simulation grid is defined (see difference between inefficient and efficient grid regions), returning to $N^2$ computations outside the grid.\
     ![SimulationGrid](./assets/SimulationGrid.png)
 
-### Integrator
+### [**Integrator**](@id Integrators)
 
 The equations of motion defined in `UpdateVariable` can be integrated with for the moment with two different explicit methods.
 
@@ -324,7 +300,7 @@ The equations of motion defined in `UpdateVariable` can be integrated with for t
 | `ImplicitEuler` | $\mathcal{O}(\Delta t)$ | unconditionally stable* | 
 
 *Because the method is implicit, a solver has to be used to solve the implicit system of equations. A iterative algorithm is used for that purpose that has a conditional convergence to the solution. This efectively adds some constraint to the stability regime. To control the convergence properties, you can tune the learning rate of the algorithm when running the algorithm with the parameter `learningRateIntegrator` in the `kwargs` of the model's `evolve` function.
-### MediumIntegrator
+### [**MediumIntegrator**](@id MediumIntegrators)
 
 The equations of motion defined in `UpdateMedium` can be integrated with for the moment with two different explicit methods.
 
@@ -333,7 +309,6 @@ The equations of motion defined in `UpdateMedium` can be integrated with for the
 | `FTCS` | Diffussion and advection-diffusion equations of the form $$\partial_t u(x,t) =  \alpha(u) \partial_{xx} u(x,t) + f(u,t) $$ $$\partial_t u(x,t) = \beta(u) \partial_{x} u(x,t) +  \alpha(u) \partial_{xx} u(x,t) + f(u,t) $$ | $$\alpha(u) \Delta t/\Delta x^2 \leq 1/2$$ | $\mathcal{O}(\Delta t) + \mathcal{O}(\Delta x^2)$ | Unconditionaly unstable for advection-only equations. |
 | `Lax` | Advection equations of the form $$\partial_t u(x,t) = \alpha(u) \partial_{x} u(x,t) + f(u,t)$$ | $$\|\alpha(u) \Delta t/\Delta x\| \leq 1$$ | $\mathcal{O}(\Delta t)+\mathcal{O}(\Delta x^2/\Delta t)$  | The stability makes the colution to be diffusive. |
 
-See [Small Example](@ref simulationSpaceExample) for an illustrative example of how to define complex simulation spaces.
 ### Platform
 
 Choose between running the model in `cpu` or `gpu`. For small systems, the cpu can give better results, giving a increased speed of for big models in the gpu.
@@ -375,7 +350,7 @@ com.simulationBox = [-10 10;-10 10] #Define a square space
 ```
 
 !!! tip "predefined initializations"
-    Appart from the community, there are some initialization functions that create communities with already declared positions. Check [Community Constructors](@ref APICommunity)
+    Appart from the community, there are some initialization functions that create communities with already declared positions. Check [API Community Constructors](@ref APICommunityConstructors)
 
 !!! warning "mediumN declaration"
     When a medium is declared, it is necessary to declare the parameter `mediumN` specifying the size of the grid.

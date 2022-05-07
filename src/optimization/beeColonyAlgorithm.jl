@@ -14,11 +14,11 @@ import ...AgentBasedModels: rand, Categorical, Uniform
 
 Optimization of the parameter space of a model that uses the [Bee Colony Algorithm](https://en.wikipedia.org/wiki/Artificial_bee_colony_algorithm).
 
-Args:
+# Args
  - **evalFunction:: Function** : Function that takes a DataFrame with parameters, generates the simulations and returns a score of the fit.
  - **searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
 
-kArgs:
+# KwArgs
  - **population::Int=100** : Size of the colony used at each generation for the optimization.
  - **limitCycles::Int = 10** : Hyperparameter of the algorithm that says how many generations without update are waited until jump to other position.
  - **stopMaxGenerations::Int = 100** : How many generations do before stopping the algorithm. 
@@ -64,8 +64,10 @@ function beeColonyAlgorithm(
     m[:,:_cycles_] .= 0
 
     #Start first simulations
-    for i in 1:population
+    prog = Progress(population,string("Generation ",1,"/",stopMaxGenerations))
+    Threads.@threads for i in 1:population
         m[i,:_score_] = evalFunction(m[i,:],args...)
+        next!(prog)
     end
     mTotal = copy(m)
 
@@ -74,7 +76,7 @@ function beeColonyAlgorithm(
     end
 
     count = 2
-    while count <= stopMaxGenerations
+    for k in 2:stopMaxGenerations
         #Update rule
         mNew = DataFrame([i=>zeros(population) for i in keys(searchList)]...)
         mNew[:,:_score_] .= 0.
@@ -87,7 +89,8 @@ function beeColonyAlgorithm(
         else
             p .= 1/population
         end
-        for i in 1:population
+        prog = Progress(population,string("Generation ",k,"/",stopMaxGenerations))
+        Threads.@threads for i in 1:population
             candidate = rand(Categorical(p))
             for param in keys(searchList)
                 #Computing new positions
@@ -105,6 +108,7 @@ function beeColonyAlgorithm(
             if m[i,:_cycles_] < limitCycles
                 mNew[i,:_cycles_] = 0
             end
+            next!(prog)
         end
         mOld = copy(m)
         m = copy(mNew)

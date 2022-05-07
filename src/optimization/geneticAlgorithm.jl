@@ -16,11 +16,11 @@ import ...AgentBasedModels: rand, Categorical, Uniform
 
 Optimization of the parameter space of a model that uses the [Particle Swarm Algorithm](https://en.wikipedia.org/wiki/Particle_swarm_optimization).
 
-Args:
+# Args
 - **evalFunction:: Function** : Function that takes a DataFrame with parameters, generates the simulations and returns a score of the fit.
 - **searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
 
-kArgs:
+# KwArgs
  - **population::Int=100** : Size of the colony used at each generation for the optimization.
  - **parentSelectionAlg::String = "weighted"** : Weigthing method of the population ot chose descendants. 
  - **parentSelectionP::Number = .1** : Hyperparameter of the algorithm indicating the proportion of parameters exchanged between parents.
@@ -69,8 +69,10 @@ function geneticAlgorithm(
     m[:,:_generation_] .= 1
 
     #Start first simulations
-    for i in 1:population
+    prog = Progress(population,string("Generation ",1,"/",stopMaxGenerations))
+    Threads.@threads for i in 1:population
         m[i,:_score_] = evalFunction(m[i,:],args...)
+        next!(prog)
     end
     mTotal = copy(m)
 
@@ -79,7 +81,7 @@ function geneticAlgorithm(
     end
 
     count = 2
-    while count <= stopMaxGenerations
+    for k in 2:stopMaxGenerations
         #Selective Breading and mutation
         mNew = DataFrame([i=>zeros(population) for i in keys(searchList)]...)
         #Weighted probability
@@ -89,7 +91,8 @@ function geneticAlgorithm(
         else
             p .= 1/population
         end
-        for i in 1:2:population
+        prog = Progress(population,string("Generation ",k,"/",stopMaxGenerations))
+        Threads.@threads for i in 1:2:population
             parents = rand(Categorical(p),2)
             for param in keys(searchList)
                 #Crossing
@@ -116,6 +119,7 @@ function geneticAlgorithm(
                     end
                 end
             end
+            next!(prog)
         end
         m = copy(mNew)
         m[:,:_score_] .= 0.

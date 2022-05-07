@@ -24,6 +24,7 @@
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
+        UpdateGlobalInteraction = gi += 1
     )
 
     m = @agent(
@@ -32,6 +33,7 @@
         l::LocalInteraction,
         l1::IdentityInteraction,
         g::Global,
+        gi::GlobalInteraction,
         ga::GlobalArray,
         m::Medium,
 
@@ -39,6 +41,7 @@
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
+        UpdateGlobalInteraction = gi += 1
     )
     for i in keys(m.declaredSymbols)
         @test length(m.declaredSymbols[i]) == 1
@@ -51,14 +54,20 @@
         0,
 
         [id2]::Identity,
+        [li,li2]::LocalInteraction,
+        [idi,idi2]::IdentityInteraction,
         [l,l2]::Local,
         [g,g2]::Global,
+        [gi,gi2]::GlobalInteraction,
         [ga,ga2]::GlobalArray,
+        [m1,m2]::Medium,
 
         UpdateVariable = d(v) = 34*dt ,
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
+        UpdateGlobalInteraction = gi += 1,
+        UpdateMedium = ∂t(x) = x
     )
 
     m = @agent(
@@ -68,6 +77,7 @@
         [li,li2]::LocalInteraction,
         [idi,idi2]::IdentityInteraction,
         [g,g2]::Global,
+        [gi,gi2]::GlobalInteraction,
         [ga,ga2]::GlobalArray,
         [m1,m2]::Medium,
 
@@ -75,6 +85,8 @@
         UpdateLocal = l += 1,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
+        UpdateGlobalInteraction = gi += 1,
+        UpdateMedium = ∂t(x) = x
     )
     for i in keys(m.declaredSymbols)
         @test length(m.declaredSymbols[i]) == 2

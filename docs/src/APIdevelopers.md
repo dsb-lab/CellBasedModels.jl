@@ -20,7 +20,7 @@ Program_
 ### Auxiliar functions
 ```@docs
 addMediumCode
-cudaAdapt
+cudaAdapt_
 updates_!
 vectorize_
 simpleFirstLoop_

@@ -20,7 +20,7 @@ mutable struct Agent
     function Agent()
         new(0,
             Dict{String,Array{Symbol}}("Local"=>Symbol[],"Identity"=>Symbol[],"LocalInteraction"=>Symbol[],"IdentityInteraction"=>Symbol[],
-                                        "Global"=>Symbol[],"GlobalArray"=>Symbol[],"Medium"=>Symbol[]),
+                                        "Global"=>Symbol[],"GlobalInteraction"=>Symbol[],"GlobalArray"=>Symbol[],"Medium"=>Symbol[]),
             Dict{String,Expr}()
             )
     end
@@ -42,7 +42,7 @@ function Base.show(io::IO,abm::Agent)
     for i in keys(abm.declaredUpdates)
         if [i for i in abm.declaredUpdates[i].args if typeof(i) != LineNumberNode] != []
             print(i,"\n")
-            print(" ",clean(copy(abm.declaredUpdates[i])),"\n\n")
+            print(" ",prettify(copy(abm.declaredUpdates[i])),"\n\n")
         end
     end
 end

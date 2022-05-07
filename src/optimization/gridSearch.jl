@@ -7,11 +7,11 @@
 
 Function that evaluates a grid of parameter configurations for a model.
 
-Args:
+# Args
 - **evalFunction:: Function** : Function that takes a DataFrame with parameters, generates the simulations and returns a score of the fit.
 - **searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
 
-kArgs:
+# KwArgs
  - **returnAll::Bool = false** : If return the hole list of parameters explored or the just the most fit.
  - **saveFileName::Union{Nothing,String} = nothing** : If given a string, it saves the parameters explored in a file with the corresponding name.
  - **args::Vector{<:Any} = Any[]** : Additional arguments to give to `evalFunction`.
@@ -35,16 +35,21 @@ function gridSearch(evalFunction::Function,
 
     m[!,:_score_] .= -Inf
 
-    for line in 1:size(m)[1]
+    lock = Threads.SpinLock()
+    prog = Progress(size(m)[1],string("Evaluating grid points..."))
+    Threads.@threads for line in 1:size(m)[1]
         m[line,:_score_] = evalFunction(m[line,:],args...)
 
+        Threads.lock(lock)
         if saveFileName !== nothing
             if line == 1
-                CSV.write(string(saveFileName,".csv"),m[line,:])
+                CSV.write(string(saveFileName,".csv"),m[line:line,:])
             else
-                CSV.write(string(saveFileName,".csv"),m[line,:],append=true)
+                CSV.write(string(saveFileName,".csv"),m[line:line,:],append=true)
             end
         end
+        Threads.unlock(lock)
+        next!(prog)
     end
 
     if returnAll

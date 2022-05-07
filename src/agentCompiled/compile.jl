@@ -6,6 +6,7 @@
                     integrator::String = "Euler", 
                     integratorMedium::String = "FTCS", 
                     save::String = "RAM", 
+                    showPorgress::Bool = false,
                     checkInBounds::Bool=true)
 
 Function that takes an Agent and creates the code to use for evolving the model.
@@ -20,6 +21,7 @@ Function that takes an Agent and creates the code to use for evolving the model.
  - **integrator::String = "Euler"** : Integrator used for agent based models equation sdeclared in UpdateVariable.
  - **integratorMedium::String = "FTCS"** : Integrator used for agent based models declared in UpdateMedium.
  - **save::String = "RAM"** : Place to save the outcome of the simulations. Choose between "RAM", "JLD" (julia datafile format) and "CSV" (not recomended).
+ - **showPorgress::Bool = false**: Wheter to show a progress bar of the evolution.
  - **checkInBounds::Bool=true** : Wheter to add @checkinbounds to all the for loops in the functions.
 
 # Returns
@@ -33,6 +35,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
     neighbors::String="full",
     periodic::Vector{Bool}=[false,false,false],
     save::String = "RAM", 
+    showProgress::Bool = false,
     checkInBounds::Bool=true)
 
     abm = deepcopy(abmOriginal)
@@ -86,7 +89,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
 
     program = quote
         function (com::Community;
-                dt::Real, tMax::Real,
+                dt::Real, tMax::Real, nStop::Real=Inf,
                 nMax::Integer=com.N, 
                 dtSave::Real=dt, 
                 saveFile::String="",
@@ -108,12 +111,20 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
             #Execution of the program
             
             $(p.execInit)
-            while t <= (tMax-dt) && $checkNMax
+            for i in 1:Int(ceil(tMax/dt))
                 $cleanLocal
                 $cleanInteraction
                 $(p.execInloop)
 
                 t += dt
+
+                if !($checkNMax)
+                    break
+                end
+
+                if N > nStop
+                    break
+                end
             end
 
             if $checkNMax
@@ -123,6 +134,11 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
             end            
             return $(p.returning)
         end
+    end
+
+    if showProgress
+        program = postwalk(x->@capture(x,for i in 1:Int(round(tMax-dt)/dt) v__ end) ? 
+        :(AgentBasedModels.@showprogress(for i in 1:Int(round(tMax-dt)/dt); $(v...) end)) : x, program)
     end
 
     if platform == "cpu"

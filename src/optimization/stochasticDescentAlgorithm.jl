@@ -14,11 +14,11 @@ import ...AgentBasedModels: rand, MultivariateNormal
 
 Optimization of the parameter space of a model that uses [Stochastic Gradient Descent](https://en.wikipedia.org/wiki/Stochastic_gradient_descent).
 
-Args:
+# Args
 - **evalFunction:: Function** : Function that takes a DataFrame with parameters, generates the simulations and returns a score of the fit.
 - **searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
 
-kArgs:
+# KwArgs
  - **population::Int=100** : Size of the colony used at each generation for the optimization.
  - **jumpVarianceStart::Union{<:Number,Matrix{<:Number}} = .1** : Initial variance of the multivariate normal used to compute the jump. This parameter is updates if the rejection ratio is very high.
  - **stopMaxGenerations::Int = 10** : How many generations do before stopping the algorithm. 
@@ -63,8 +63,10 @@ function stochasticDescentAlgorithm(evalFunction::Function,
     m[:,:_rejection_] .= 0
 
     #Start simulation
-    for i in 1:population
+    prog = Progress(population,string("Generation ",1,"/",stopMaxGenerations))
+    Threads.@threads for i in 1:population
         m[i,:_score_] = evalFunction(m[i,:],args...)
+        next!(prog)
     end
     mTotal = copy(m)
 
@@ -73,7 +75,7 @@ function stochasticDescentAlgorithm(evalFunction::Function,
     end
 
     count = 2
-    while count <= stopMaxGenerations
+    for k in 2:stopMaxGenerations
         
         mNew = DataFrame([i=>zeros(population) for i in keys(searchList)]...)
         mNew[:,:_score_] .= 0.
@@ -82,7 +84,8 @@ function stochasticDescentAlgorithm(evalFunction::Function,
         mNew[:,:_rejection_] .= m[:,:_rejection_]
 
         #New jumps
-        for i in 1:population
+        prog = Progress(population,string("Generation ",k,"/",stopMaxGenerations))
+        Threads.@threads for i in 1:population
             #Make the distribution matrix
             if mNew[i,:_generation_] % nStatistics == 0
                 if mNew[i,:_rejection_] > .6*nStatistics
@@ -101,6 +104,7 @@ function stochasticDescentAlgorithm(evalFunction::Function,
                     mNew[i,param] = searchList[Symbol(param)][2]
                 end
             end
+            next!(prog)
         end
         mOld = copy(m)
         m = copy(mNew)

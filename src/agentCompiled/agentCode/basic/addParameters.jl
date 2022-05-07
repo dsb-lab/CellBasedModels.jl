@@ -98,7 +98,16 @@ function addParameters_!(p::Program_,platform::String)
             push!(p.args,:globalVCopy)
         end    
     end
-    
+
+    if length(p.agent.declaredSymbols["GlobalInteraction"])>0
+        append!(p.declareVar.args, 
+            (quote
+                globalInteractionV = Array($FLOAT.(com.globalInteraction_))
+            end).args
+        )
+
+    end
+
     if length(p.agent.declaredSymbols["GlobalArray"])>0
         for (j,i) in enumerate(p.agent.declaredSymbols["GlobalArray"])
             append!(p.declareVar.args, 

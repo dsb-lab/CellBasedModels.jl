@@ -7,6 +7,9 @@ makedocs(sitename="AgentBasedModel.jl",
 pages = [
     "Home" => "index.md",
     "Usage.md",
+    "Examples" => [
+        "ExampleDevelopment.md"
+    ], 
     "ImplementedModels.md",
     "API.md",
     "APIdevelopers.md"

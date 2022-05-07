@@ -10,6 +10,7 @@
             [vint,lint,iint]::LocalInteraction,
             [vidint,lidint,iidint]::IdentityInteraction,
             g::Global,
+            gi::GlobalInteraction,
             ga::GlobalArray,
             
             UpdateVariable = d(v) = 34*dt ,
@@ -37,6 +38,7 @@
             [id1int,id2int,id3int]::IdentityInteraction,
             [l1int,l2int,l3int]::LocalInteraction,
             [g1,g2,g3]::Global,
+            [gi1,gi2,gi3]::GlobalInteraction,
             [ga1,ga2,ga3]::GlobalArray,
             [m1,m2]::Medium,
         )                
@@ -63,6 +65,9 @@
         com.g1
         com.g2
         com.g3
+        com.gi1
+        com.gi2
+        com.gi3
         com.ga1
         com.ga2
         com.ga3
@@ -80,6 +85,7 @@
             [id1int,id2int,id3int]::IdentityInteraction,
             [l1int,l2int,l3int]::LocalInteraction,
             [g1,g2,g3]::Global,
+            [gi1,gi2,gi3]::GlobalInteraction,
             [ga1,ga2,ga3]::GlobalArray,
             [m1,m2,m3]::Medium,
         )                
@@ -106,6 +112,9 @@
         com.g1 = 1
         com.g2 = 2
         com.g3 = 3
+        com.gi1 = 1
+        com.gi2 = 2
+        com.gi3 = 3
         com.m1[1,1] = 1
         com.m2[1,1] = 2
         com.m3[1,1] = 3
@@ -131,6 +140,9 @@
         if com.g1 != 1. error() end
         if com.g2 != 2. error() end
         if com.g3 != 3. error() end
+        if com.gi1 != 1. error() end
+        if com.gi2 != 2. error() end
+        if com.gi3 != 3. error() end
         if com.m1[1,1] != 1. error() end
         if com.m2[1,1] != 2. error() end
         if com.m3[1,1] != 3. error() end

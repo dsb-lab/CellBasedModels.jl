@@ -1,23 +1,19 @@
 acceptAll(x) = true
 
 """
-Fill volume with spheres of certain radius in hexagonal packing. 
+    function initialiseCommunityCompactHexagonal(model,box,r;fExtrude=acceptAll,N=NaN,mediumN::Array{Int,1}=Array{Int,1}([]))
 
-In brief, the model generates a box with spheres in hexagonal packaging, removes the ones outside the volume. 
-The positions are perturbed by the noise term.
+Create Community object with the positions of the agents in positioned in volume in hexagonal packing.
 
-# Parameters 
- - **model** (Model) Compiled agent based model
- - **box** (Array{Float,2}) Maximum box where to fill the spheres.
- - **r** (Number) Radius of the spheres
+# Args 
+ - **model** Compiled agent based model
+ - **box** Maximum box where to fill the spheres.
+ - **r** Radius of the spheres
 
-# Optional keyword parameters
-    - **fExtrude** (Function) Function that returns true if center of the sphere is inside the volume. Helpts to define non-cubic shapes
-    - **N** (Int) Maximum number of particles inside the volume. If NaN (default), there is not upper bound.
-    - **mediumN** (Array{Int,1) Grid dimensions of medium if Medium is declared.
-
-![Figure](assets/FillVolumeSpheres.png)
-Figure rendered with [Makie.jl](https://github.com/JuliaPlots/Makie.jl) using meshscatter function.
+# KwArgs
+ - **fExtrude=acceptAll** Function that returns true if center of the sphere is inside the volume. Helpts to define non-cubic shapes
+ - **N=NaN** Maximum number of particles inside the volume. If NaN, there is not upper bound.
+ - **mediumN::Array{Int,1}=Array{Int,1}([])** Grid dimensions of medium if Medium is declared.
 """
 function initialiseCommunityCompactHexagonal(model,box,r;fExtrude::Function=acceptAll,N=NaN,mediumN::Array{Int,1}=Array{Int,1}([]))
 
@@ -51,23 +47,19 @@ function initialiseCommunityCompactHexagonal(model,box,r;fExtrude::Function=acce
 end
 
 """
-Fill volume with spheres of certain radius in cubic packing. 
+    function initialiseCommunityCompactCubic(model,box,r;fExtrude=acceptAll,N=NaN,mediumN::Array{Int,1}=Array{Int,1}([]))
 
-In brief, the model generates a box with spheres in hexagonal packaging, removes the ones outside the volume. 
-The positions are perturbed by the noise term.
+Create Community object with the positions of the agents in positioned in volume in cubic packing.
 
-# Parameters 
- - **model** (Model) Compiled agent based model
- - **box** (Array{Float,2}) Maximum box where to fill the spheres.
- - **r** (Number) Radius of the spheres
+# Args 
+ - **model** Compiled agent based model
+ - **box** Maximum box where to fill the spheres.
+ - **r** Radius of the spheres
 
-# Optional keyword parameters
-    - **fExtrude** (Function) Function that returns true if center of the sphere is inside the volume. Helpts to define non-cubic shapes
-    - **N** (Int) Maximum number of particles inside the volume. If NaN (default), there is not upper bound.
-    - **mediumN** (Array{Int,1) Grid dimensions of medium if Medium is declared.
-
-![Figure](assets/FillVolumeSpheres.png)
-Figure rendered with [Makie.jl](https://github.com/JuliaPlots/Makie.jl) using meshscatter function.
+# KwArgs
+ - **fExtrude=acceptAll** Function that returns true if center of the sphere is inside the volume. Helpts to define non-cubic shapes
+ - **N=NaN** Maximum number of particles inside the volume. If NaN, there is not upper bound.
+ - **mediumN::Array{Int,1}=Array{Int,1}([])** Grid dimensions of medium if Medium is declared.
 """
 function initialiseCommunityCompactCubic(model,box,r;fExtrude=acceptAll,N=NaN,mediumN::Array{Int,1}=Array{Int,1}([]))
 
