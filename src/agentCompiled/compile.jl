@@ -100,8 +100,10 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
             dt = $FLOAT(dt)
             tMax = $FLOAT(tMax)
             t = $FLOAT(com.t)
-            tSave = t
             N = $INT(com.N)
+            nSteps_ = Int(round((tMax-t)/dt))
+            nSave_ = max(Int(round(dtSave/dt)),1)
+            countSave_ = 1
             $declareCheckNMax
             #Declaration of variables
             $(p.declareVar)
@@ -111,10 +113,13 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
             #Execution of the program
             
             $(p.execInit)
-            for i in 1:Int(ceil(tMax/dt))
+            println(nSteps_," ",nSave_)
+            for i in 1:nSteps_
                 $cleanLocal
                 $cleanInteraction
                 $(p.execInloop)
+
+                t += dt
 
                 if !($checkNMax)
                     break

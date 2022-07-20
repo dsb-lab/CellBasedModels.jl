@@ -91,12 +91,12 @@ function addSavingRAM_!(p::Program_,platform::String)
 
     push!(p.execInloop.args,
         :(begin
-            t += dt
-
-            if t >= tSave && $checkNMax
-                tSave += dtSave
+            if countSave_ == nSave_ && $checkNMax
+                countSave_ = 1
                 ob = Community($(p.agent.dims),t+dt,N,com.mediumN,com.simulationBox,com.radiusInteraction,com.declaredSymbols_,$(l...))
                 push!(commRAM_,ob)
+            else
+                countSave_ += 1
             end
         end)
     )
