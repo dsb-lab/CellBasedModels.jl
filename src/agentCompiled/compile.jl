@@ -116,8 +116,6 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
                 $cleanInteraction
                 $(p.execInloop)
 
-                t += dt
-
                 if !($checkNMax)
                     break
                 end

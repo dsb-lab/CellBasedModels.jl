@@ -91,6 +91,8 @@ function addSavingRAM_!(p::Program_,platform::String)
 
     push!(p.execInloop.args,
         :(begin
+            t += dt
+
             if t >= tSave && $checkNMax
                 tSave += dtSave
                 ob = Community($(p.agent.dims),t+dt,N,com.mediumN,com.simulationBox,com.radiusInteraction,com.declaredSymbols_,$(l...))
