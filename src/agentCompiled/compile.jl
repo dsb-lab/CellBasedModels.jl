@@ -111,7 +111,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
             #Execution of the program
             
             $(p.execInit)
-            for i in 1:Int(ceil(tMax/dt))
+            for i in 1:Int(round((tMax-t)/dt))
                 $cleanLocal
                 $cleanInteraction
                 $(p.execInloop)
