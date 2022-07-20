@@ -113,7 +113,6 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
             #Execution of the program
             
             $(p.execInit)
-            println(nSteps_," ",nSave_)
             for i in 1:nSteps_
                 $cleanLocal
                 $cleanInteraction
