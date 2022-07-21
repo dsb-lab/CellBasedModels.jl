@@ -99,6 +99,7 @@ function addSavingRAM_!(p::Program_,platform::String)
                 timeEnd_ = time()
                 println("Iteration: ",step_,"/",nSteps_)
                 println("Elapsed time: ",timeEnd_ - timeStart_, " seconds. Nunber of agents: ", N, ".\n")
+                timeStart_ = timeEnd_
             else
                 countSave_ += 1
             end
