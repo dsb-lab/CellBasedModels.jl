@@ -117,9 +117,7 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
             for step_ in 1:nSteps_
                 $cleanLocal
                 $cleanInteraction
-                @time begin
                 $(p.execInloop)
-                end
 
                 t += dt
 
