@@ -113,7 +113,8 @@ function compile(abmOriginal::Union{Agent,Array{Agent}};
             #Execution of the program
             
             $(p.execInit)
-            for i in 1:nSteps_
+            timeStart_ = time()
+            for step_ in 1:nSteps_
                 $cleanLocal
                 $cleanInteraction
                 $(p.execInloop)

@@ -95,6 +95,10 @@ function addSavingRAM_!(p::Program_,platform::String)
                 countSave_ = 1
                 ob = Community($(p.agent.dims),t+dt,N,com.mediumN,com.simulationBox,com.radiusInteraction,com.declaredSymbols_,$(l...))
                 push!(commRAM_,ob)
+
+                timeEnd_ = time()
+                println("Iteration: ",step_,"/",nSteps_)
+                println("Elapsed time: ",timeEnd_ - timeStart_, " seconds. Nunber of agents: ", N, ".\n")
             else
                 countSave_ += 1
             end

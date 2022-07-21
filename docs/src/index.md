@@ -26,7 +26,7 @@ or from the Pkg REPL
 
 ## Examples
 
-|Embryogenesys|Medium|
+|Embryogenesys/Optimization|Medium|
 |:---:|:---:|
 |[![Embryogenesis](./assets/development.gif)](https://github.com/dsb-lab/AgentBasedModels.jl/blob/master/examples/Saiz_2020.ipynb)|[![Medium](./assets/example_medium_video.gif)](https://github.com/dsb-lab/AgentBasedModels.jl/blob/master/examples/Medium.ipynb)|
 
