@@ -94,7 +94,7 @@ function addSavingRAM_!(p::Program_,platform::String)
             if countSave_ == nSave_ && $checkNMax
                 countSave_ = 1
                 ob = Community($(p.agent.dims),t+dt,N,com.mediumN,com.simulationBox,com.radiusInteraction,com.declaredSymbols_,$(l...))
-                @time push!(commRAM_,ob)
+                push!(commRAM_,ob)
 
                 timeEnd_ = time()
                 println("Iteration: ",step_,"/",nSteps_)
