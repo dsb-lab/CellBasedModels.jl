@@ -10,56 +10,39 @@
     @test_throws ErrorException try @eval @agent 0 sin::Local catch err; throw(err.error) end
     @test_throws ErrorException try @eval @agent 0 Normal::Local catch err; throw(err.error) end
 
-    @test_nowarn @agent(
+    @test_nowarn print(@agent(
         0,
         
-        l::Local,
-        li::LocalInteraction,
-        id2::Identity,
-        id3::IdentityInteraction,
-        g::Global,
-        ga::GlobalArray,
+        v::LocalFloat,
+        l::LocalFloat,
+        li::LocalFloatInteraction,
+        id2::LocalInt,
+        id3::LocalIntInteraction,
+        g::GlobalFloat,
+        ga::GlobalInt,
 
         UpdateVariable = d(v) = 34*dt ,
-        UpdateLocal = l += 1,
+        UpdateLocal = begin l += 1; v += 1 end,
         UpdateGlobal = g += 1,
         UpdateInteraction = i += 1,
-        UpdateGlobalInteraction = gi += 1
-    )
+        UpdateGlobalInteraction = gi += 1,
 
-    m = @agent(
-        1,
-
-        l::LocalInteraction,
-        l1::IdentityInteraction,
-        g::Global,
-        gi::GlobalInteraction,
-        ga::GlobalArray,
-        m::Medium,
-
-        UpdateVariable = d(v) = 34*dt ,
-        UpdateLocal = l += 1,
-        UpdateGlobal = g += 1,
-        UpdateInteraction = i += 1,
-        UpdateGlobalInteraction = gi += 1
-    )
-    for i in keys(m.declaredSymbols)
-        @test length(m.declaredSymbols[i]) == 1
-    end
-    for i in keys(m.declaredUpdates)
-        @test [i for i in m.declaredUpdates[i].args if typeof(i) != LineNumberNode] != []
-    end
+        NeighborsFull::NeighborsAlgorithm,
+        Euler::IntegrationAlgorithm,
+        RAM::SavingPlatform,
+        CPU::ComputingPlaform,
+    ))
     
     @test_nowarn @agent(
         0,
 
-        [id2]::Identity,
-        [li,li2]::LocalInteraction,
-        [idi,idi2]::IdentityInteraction,
-        [l,l2]::Local,
-        [g,g2]::Global,
-        [gi,gi2]::GlobalInteraction,
-        [ga,ga2]::GlobalArray,
+        [id2]::LocalInt,
+        [li,li2]::LocalFloatInteraction,
+        [idi,idi2]::LocalIntInteraction,
+        [l,l2]::LocalFloat,
+        [g,g2]::GlobalFloat,
+        [gi,gi2]::GlobalFloatInteraction,
+        [ga,ga2]::GlobalInt,
         [m1,m2]::Medium,
 
         UpdateVariable = d(v) = 34*dt ,
@@ -70,41 +53,14 @@
         UpdateMedium = ∂t(x) = x
     )
 
-    m = @agent(
-        2,
+    @test_throws ErrorException try @eval @agent(0, [l,l]::LocalFloat) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(0, [l,l]::LocalFloatInteraction) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(0, [l,l]::LocalInt) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(0, [l,l]::LocalIntInteraction) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(0, [l,l]::GlobalFloat) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(0, [l,l]::GlobalInt) catch err; throw(err.error) end
 
-        [id2]::Identity,
-        [li,li2]::LocalInteraction,
-        [idi,idi2]::IdentityInteraction,
-        [g,g2]::Global,
-        [gi,gi2]::GlobalInteraction,
-        [ga,ga2]::GlobalArray,
-        [m1,m2]::Medium,
-
-        UpdateVariable = d(v) = 34*dt ,
-        UpdateLocal = l += 1,
-        UpdateGlobal = g += 1,
-        UpdateInteraction = i += 1,
-        UpdateGlobalInteraction = gi += 1,
-        UpdateMedium = ∂t(x) = x
-    )
-    for i in keys(m.declaredSymbols)
-        @test length(m.declaredSymbols[i]) == 2
-    end
-    for i in keys(m.declaredUpdates)
-        @test [i for i in m.declaredUpdates[i].args if typeof(i) != LineNumberNode] != []
-    end
-
-    @test_throws ErrorException try @eval @agent(0, [l,l]::Local) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(0, [l,l]::LocalInteraction) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(0, [l,l]::Identity) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(0, [l,l]::IdentityInteraction) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(0, [l,l]::Global) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(0, [l,l]::Variable) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(0, [l,l]::GlobalArray) catch err; throw(err.error) end
-
-    @test_throws ErrorException try @eval @agent(0, l::Local, l::Global) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(0, l::Local, l::Variable) catch err; throw(err.error) end
-    @test_throws ErrorException try @eval @agent(0, l::Local, l::GlobalArray) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(0, l::Local, l::GlobalFloat) catch err; throw(err.error) end
+    @test_throws ErrorException try @eval @agent(0, l::Local, l::GlobalInt) catch err; throw(err.error) end
 
 end

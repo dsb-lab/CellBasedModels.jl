@@ -17,7 +17,7 @@
         g::Global,
         h::GlobalArray
     )
-    p = AgentBasedModels.Program_(m);
+    p = AgentBasedModels.AgentCompiled(m);
     AgentBasedModels.updates_!(p)
     @test AgentBasedModels.vectorize_(m,:(l = 1), p) == :(localV[ic1_,1]=1)
     @test AgentBasedModels.vectorize_(m,:(l.i = 1), p) == :(localV[ic1_,1]=1)
@@ -137,7 +137,7 @@
                 ga1[1,2].new += 1
             end
         )
-        p = AgentBasedModels.Program_(abm); 
+        p = AgentBasedModels.AgentCompiled(abm); 
 
         AgentBasedModels.updates_!(p)
 

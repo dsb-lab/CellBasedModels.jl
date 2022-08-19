@@ -1,23 +1,34 @@
-FLOAT = Float64
-INT = Int
-FLOATCUDA = Float32
-INTCUDA = Int32
+FLOAT = Dict(["cpu"=>Float64,"gpu"=>Float64])
+INT = Dict(["cpu"=>Int,"gpu"=>Int32])
+ZEROS =  Dict(["cpu"=>zeros,"gpu"=>CUDA.zeros])
+ARRAY = Dict(["cpu"=>Array,"gpu"=>CuArray])
 
-VALID_TYPES = [
-    :Identity,
-    :IdentityInteraction,
-    :Local,
-    :LocalInteraction,
-    :Global,
-    :GlobalInteraction,
-    :GlobalArray,
+#Types accepted by agent
+VALIDTYPES = [
+    :LocalInt,
+    :LocalIntInteraction,
+    :LocalFloat,
+    :LocalFloatInteraction,
+    :GlobalFloat,
+    :GlobalInt,
+    :GlobalFloatInteraction,
+    :GlobalIntInteraction,
     :Medium,
-    :BaseModel
+    :BaseModel,
+    :NeighborsAlgorithm,
+    :IntegrationAlgorithm,
+    :ComputingPlaform,
+    :SavingPlatform,
 ]
 
-UPDATINGTYPES = ["Local","Identity","Global","GlobalArray","Medium"]
+UPDATINGTYPES = [
+    :LocalInt,
+    :LocalFloat,
+    :GlobalFloat,
+    :GlobalInt,
+]
 
-VALID_UPDATES = [
+VALIDUPDATES = [
     :UpdateGlobal,
     :UpdateLocal,
     :UpdateInteraction,
@@ -27,13 +38,24 @@ VALID_UPDATES = [
     :UpdateVariable,
 ]
 
+#Parameters
+BASESYMBOLS = DataFrame(
+  name = [:t,:dt,:N,:id],
+  type = [:GlobalFloat,:GlobalFloat,:GlobalInt,:LocalInt],
+  use = [:General,:General,:General,:General]
+)
+
+POSITIONSYMBOLS = DataFrame(
+    name = [:x,:y,:z],
+    type = [:LocalFloat,:LocalFloat,:LocalFloat],
+    use = [:Position,:Position,:Position]
+  )
+
+PLATFORMS = [:CPU,:GPU]
+
+SAVING = [:RAM,:JLD]
+
 MACROFUNCTIONS = [:addAgent,:removeAgent]
-
-POSITIONSYMBOLS = [:x,:y,:z]
-
-BASICARGS=[:t,:N,:dt,:simulationBox]
-
-PREDECLAREDPARAMETERS = Dict("Local"=>[:x,:y,:z],"Identity"=>:id,"Integration"=>[:dt,:dW],"Community"=>[:N],"Evolve"=>[:nMax])
 
 UPDATINGOPERATORS = [:(=),:+= ,:-=,:*=,:/=,:\=,:÷=,:%=,:^=,:&=,:|=,:⊻=,:>>>=,:>>=,:<<=]
 
@@ -53,9 +75,16 @@ RESERVEDSYMBOLS = [:x,:y,:z,:id,:t,:N,:dt,:dW,:nMax,
                     :predV,:learningRateIntegrator,:relativeErrorIntegrator,:maxLearningStepsIntegrator,
                     :K1_,:K2_,:K3_,:K4_];
 
-GLOBALARRAYCOPY = "_Copy"
+BASEARGS = [:(t),:(dt),:(N),:(NMax)]
+VARARGS = [:(localV),:(identityV),:(globalV),:(globalInteractionV),:(localInteractionV)]
+VARARGSCOPY = [:(localVCopy),:(identityVCopy),:(globalVCopy)]
+MEDIUMARGS = [:NMedium,:dMedium,:(mediumV)]
+MEDIUMARGSCOPY = [:(mediumVCopy)]
+ARGS = [BASEARGS; VARARGS; VARARGSCOPY; MEDIUMARGS; MEDIUMARGS; MEDIUMARGSCOPY]
 
-UPDATEOPERATORS = [:(=),:(+=),:(-=),:(*=),:(/=),:(\=),:(÷=),:(%=),:(^=),:(&=),:(|=),:(⊻=),:(>>>=),:(>>=),:(<<=)]
+COMARGS = [:(com.t),:(com.dt),:(com.N),:(com.NMax),:(com.localV),:(com.identityV),:(com.globalV),
+        :(com.globalInteractionV),:(com.localInteractionV),
+        :(com.localVCopy),:(com.identityVCopy),:(com.globalVCopy),:(com.medium.NMedium),:(com.medium.dMedium),:(com.medium.mediumV),:(com.medium.mediumVCopy)]
 
 DIFFSYMBOL = :d
 DIFFSYMBOL2 = :d2
