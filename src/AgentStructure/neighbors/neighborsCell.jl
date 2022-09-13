@@ -1,33 +1,3 @@
-mutable struct NeighborsGrid <: Neighbors
-
-    n
-    nnPosIdCell
-    nnGridCounts
-    nnGridCountsAux
-    nnGridCountsCum
-    nnCellIdPos
-    radiusInteraction
-
-    function NeighborsGrid(agent::AgentCompiled, simulationBox, radiusInteraction)
-
-        n_ = AgentBasedModels.gridShape(agent.agent.dims,simulationBox,radiusInteraction)
-        nnPosIdCell_ = ZEROS[agent.platform](INT[agent.platform],nMax)
-        nnGridCounts_ =  ZEROS[agent.platform](INT[agent.platform],prod(n_))
-        nnGridCountsAux_ =  ZEROS[agent.platform](INT[agent.platform],prod(n_))
-        nnGridCountsCum_ =  ZEROS[agent.platform](INT[agent.platform],prod(n_))
-        nnCellIdPos_ =  ZEROS[agent.platform](INT[agent.platform],nMax)
-        if typeof(radiusInteraction) <: Real
-            radiusInteraction = radiusInteraction.*ones(INT[agent.platform],agent.agent.dims)
-        else
-            radiusInteraction = Array(radiusInteraction)
-        end
-        n_ = Array(n_)
-
-        new(n_,nnPosIdCell_,nnGridCounts_,nnGridCountsAux_,nnGridCountsCum_,nnCellIdPos_,radiusInteraction)    
-
-    end
-end
-
 ###################################################################################################################
 #Auxiliar functions
 ###################################################################################################################
@@ -471,17 +441,17 @@ end
 ###################################################################################################################
 
 """
-    function neighborsGrid_!(program::AgentCompiled)
+    function neighborsGrid_!(program::Agent)
 
 Function that returns the arguments of the Grid connected neighbors.
 
 # Args
- - **p::AgentCompiled**:  Program_ structure containing all the created code when compiling.
+ - **p::Agent**:  Program_ structure containing all the created code when compiling.
 
 # Return
  - `Vector{Symbols}` of additional arguments required y this neighborhood algorithm.
 """
-function neighborsGrid!(program::AgentCompiled)
+function neighborsCell!(program::Agent)
 
     aux = Meta.parse(string("AgentBasedModels.gridComputeNN",program.agent.dims,"D_",program.platform,"!(com.N,com.localV,com.simulationBox,com.radiusInteraction,n_,com.neighbors.nnPosIdCell_,com.neighbors.nnGridCounts_,com.neighbors.nnGridCountsCum_,com.neighbors.nnGridCountsAux_,com.neighbors.nnCellIdPos_)"))
 
@@ -497,19 +467,19 @@ function neighborsGrid!(program::AgentCompiled)
 end
 
 """
-    function loopGrid_(program::AgentCompiled, code::Expr, platform::String)
+    function loopGrid_(program::Agent, code::Expr, platform::String)
 
 Function that returns the code in a loop adapted to the Grid connected neighbors algorithm.
 
 # Args
- - **p::AgentCompiled**:  AgentCompiled structure containing all the created code when compiling.
+ - **p::Agent**:  Agent structure containing all the created code when compiling.
  - **code::Expr**:  Bock of code to be included in the loop.
  - **platform::String**: Platform to adapt the code.
 
 # Return
  - `Vector{Symbols}` of additional arguments required y this neighborhood algorithm. (None in this case.) 
 """
-function loopGrid(program::AgentCompiled, code::Expr, platform::String)
+function loopCell(program::Agent, code::Expr, platform::String)
 
     code = vectorize_(program.agent, code, program, interaction=true)
 
@@ -569,3 +539,13 @@ function loopGrid(program::AgentCompiled, code::Expr, platform::String)
 
     return loop
 end
+
+NeighborsCell = Neighbors(
+    DataFrame(
+        name = [:nCellsX_,:nCellsY_,:nCellsZ_,:nnPosIdCell_,:nnGridCounts_,:nnGridCountsAux_,:nnGridCountsCum_,:nnCellIdPos_],
+        type = [:GlobalInt,:GlobalInt,:GlobalInt,:LocalInt,:LocalInt,:LocalInt,:LocalInt,:LocalInt],
+        use = [:NeighborsAuxiliar,:NeighborsAuxiliar,:NeighborsAuxiliar,:NeighborsAuxiliar,:NeighborsAuxiliar,:NeighborsAuxiliar,:NeighborsAuxiliar,:NeighborsAuxiliar]
+    ),
+    loopCell,
+    neighborsCell!
+)

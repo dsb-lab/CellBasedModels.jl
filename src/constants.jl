@@ -17,7 +17,7 @@ VALIDTYPES = [
     :BaseModel,
     :NeighborsAlgorithm,
     :IntegrationAlgorithm,
-    :ComputingPlaform,
+    :ComputingPlatform,
     :SavingPlatform,
 ]
 
@@ -40,9 +40,9 @@ VALIDUPDATES = [
 
 #Parameters
 BASESYMBOLS = DataFrame(
-  name = [:t,:dt,:N,:id],
-  type = [:GlobalFloat,:GlobalFloat,:GlobalInt,:LocalInt],
-  use = [:General,:General,:General,:General]
+  name = [:t,:dt,:N,:id,:simulationBox,:interactionRadius],
+  type = [:GlobalFloat,:GlobalFloat,:GlobalInt,:LocalInt,:SimulationVolume,:SimulationVolume],
+  use = [:General,:General,:General,:General,:SimulationVolume,:SimulationVolume]
 )
 
 POSITIONSYMBOLS = DataFrame(

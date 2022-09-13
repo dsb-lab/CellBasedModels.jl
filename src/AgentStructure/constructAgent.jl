@@ -174,14 +174,15 @@ macro agent(dims, varargs...)
                     end
 
                 elseif type == :NeighborsAlgorithm
+
                     if typeof(name) != Symbol
-                        error("Neighbors algorithm can only be one method.")
+                        error("Neighbors algorithm can only be one.")
                     end
 
                     try 
                         name = eval(name)
                     catch
-                        error("Neighbor algorithm not known.")
+                        error("Neighbors algorithm not known.")
                     end
 
                     if typeof(name)<:Integrator
@@ -189,8 +190,9 @@ macro agent(dims, varargs...)
                     end
 
                 elseif type == :IntegrationAlgorithm
+
                     if typeof(name) != Symbol
-                        error("Integration algorithm can only be one method.")
+                        error("Integration algorithm can only be one.")
                     end
 
                     try 
@@ -203,25 +205,32 @@ macro agent(dims, varargs...)
                         m.integrator = name
                     end
 
-                elseif type == :ComputingPlaform
+                elseif type == :ComputingPlatform
+
                     if typeof(name) != Symbol
                         error("Computational platform can only be one.")
                     end
 
                     if name in PLATFORMS
                         m.platform = name
+                    else
+                        error(name, " not a valid computing platform. Valid computing platforms are: ", PLATFORMS)
                     end
 
                 elseif type == :SavingPlatform
+
                     if typeof(name) != Symbol
                         error("Saving platform can only be one.")
                     end
 
                     if name in SAVING
                         m.saving = name
+                    else
+                        error(name, " not a valid saving platform. Valid saving platforms are: ", SAVING)
                     end
 
                 else
+
                     checkDeclared(m,name)
                     if typeof(name) <: Array
                         for symb in name
@@ -230,6 +239,7 @@ macro agent(dims, varargs...)
                     else
                         push!(m.declaredSymbols,[name,type,:General])
                     end
+
                 end
 
             elseif i.head == :(=)

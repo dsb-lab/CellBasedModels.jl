@@ -25,7 +25,7 @@ Basic structure keeping the parameters of all the agents in the current simulati
 ### Additional keyword arguments
  - **N::Int** Number of Agent with wich start the model. N=1 by default.
  - **t::AbstractFloat** Time of the community at creation. t=1. by default
- - **mediumN::Array{Int,1}** Size of the medium grid. (Default [])
+ - **NMedium::Array{Int,1}** Size of the medium grid. (Default [])
 
 ### Example
 ```@julia
@@ -95,55 +95,31 @@ julia> community[:x]
 ```
 """
 mutable struct Community
+
     dims::Int
-    t::AbstractFloat
     N::Int
-    mediumN::Array{Int,1}
-    simulationBox::Array{<:AbstractFloat,2}
-    radiusInteraction::Union{Real,Array{<:AbstractFloat,1}}
-    declaredSymbols_::Dict{String,Array{Symbol}}
-    local_::Array{<:AbstractFloat,2}
-    localInteraction_::Array{<:AbstractFloat,2}
-    identity_::Array{Int,2}
-    identityInteraction_::Array{Int,2}
-    global_::Array{<:AbstractFloat,1}
-    globalInteraction_::Array{<:AbstractFloat,1}
-    globalArray_::Array{Array{Float64},1}
-    medium_::Union{Array{<:AbstractFloat,1},Array{<:AbstractFloat,2},Array{<:AbstractFloat,3},Array{<:AbstractFloat,4}}
+    NMedium
+    declaredSymbols::DataFrame
+
 end
 
-function Community(abm::AgentCompiled; N::Int=1, t::AbstractFloat=0., mediumN::Array{Int,1}=Array{Int,1}([]))
+function Community(abm::Agent; N::Int=1, NMedium::Array{Int,1}=Array{Int,1}([]))
 
-    if !isempty(abm.agent.declaredSymbols["Medium"])
-        if length(mediumN) != abm.agent.dims
-            error("mediumN has to be an array with the same length as AgentCompiled dimensions specifing the number of points in the grid.")
+    if sum(abm.declaredSymbols.type .== :Medium)
+        if length(NMedium) != abm.dims
+            error("NMedium has to be an array with the same length as AgentCompiled dimensions specifing the number of points in the grid.")
         end
     end
 
-    dims = abm.agent.dims
-    mediumN = mediumN
-    simulationBox = zeros(FLOAT,dims,2)
-    radiusInteraction = 0.
-    loc = zeros(FLOAT,N,length(abm.agent.declaredSymbols["Local"]))
-    locInter = zeros(FLOAT,N,length(abm.agent.declaredSymbols["LocalInteraction"]))
-    ids = ones(INT,N,length(abm.agent.declaredSymbols["Identity"]))
-    idsInter = ones(INT,N,length(abm.agent.declaredSymbols["IdentityInteraction"]))
-    ids[:,1] .= 1:N
-    glob = zeros(FLOAT,length(abm.agent.declaredSymbols["Global"]))
-    globInter = zeros(FLOAT,length(abm.agent.declaredSymbols["GlobalInteraction"]))
-    globArray = []
-    medium = zeros(FLOAT,mediumN...,length(abm.agent.declaredSymbols["Medium"]))
-    for i in abm.agent.declaredSymbols["GlobalArray"]
-        push!(globArray,[])
-    end
-
-    declaredSymbols = abm.agent.declaredSymbols
+    dims = abm.dims
+    N = N
+    NMedium = NMedium
 
     return Community(
         dims,
         t,
         N,
-        mediumN,
+        NMedium,
         simulationBox,
         radiusInteraction,
         declaredSymbols,
@@ -251,7 +227,7 @@ mutable struct CompiledCommunity
         globalVCopy = ZEROS[agent.platform](FLOAT[agent.platform],length(agent.update["Global"]))
         globalInteractionV = ARRAY[agent.platform](FLOAT[agent.platform].(com.globalInteraction_))   
 
-        medium = Medium(com.simulationBox,com.mediumN)
+        medium = Medium(com.simulationBox,com.NMedium)
         neighbors = NEIGHBORS[agent.neighbors]
 
         new(            
