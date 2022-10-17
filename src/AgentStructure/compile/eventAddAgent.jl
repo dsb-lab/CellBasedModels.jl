@@ -9,7 +9,7 @@ function addAgentCode(g,p;rem=false)
     args = []
     for i in g
         if i.head == :kw
-            if !(i.args[1] in [:($i.new) for i in p.agent.declaredSymbols["Local"]] || i.args[1] in [:($i.new) for i in p.agent.declaredSymbols["Identity"]])
+            if !(i.args[1] in [:($i.new) for i in p.declaredSymbols[p.declaredSymbols[:,:scope].==:Local,:name]])
                 error(i.args[1], "is not a Local or Identity parameter of the agent.")
             end
         else
@@ -27,64 +27,62 @@ function addAgentCode(g,p;rem=false)
         push!(args,i.args[1].args[1])
     end
 
-    for i in p.agent.declaredSymbols["Local"]
+    for i in p.declaredSymbols[p.declaredSymbols[:,:scope].==:Local,:name]
         if !(i in args)
-            error(i, " has not been assigned in new agent of addAgent.")
+            push!(code.args,:($i.new=$i))
         end
     end
 
-    for i in p.agent.declaredSymbols["Identity"]
-        if !(i in args)  && (i != :id)
-            error(i, " has not been assigned in new agent declared by addAgent in UpdateLocal.")
-        end
-    end
-
-    if p.platform == "cpu" 
+    if p.platform == :CPU 
         code = quote
                 ic1New_ = N+Threads.atomic_add!(NV,$INT(1)) + 1
+                Threads.atomic_add!(N,$INT(1))
                 idNew_ = Threads.atomic_add!(agentIdMax,$INT(1)) + 1
                 if nMax >= ic1New_
                     id = idNew_
                     $code
                 else
                     Threads.atomic_add!(NV,$INT(-1))
+                    Threads.atomic_add!(N,$INT(-1))
                     limNMax_[] = 0
                 end
             end
-    else
+    elseif p.platform == :GPU
         code = quote
-            ic1New_ = N+CUDA.atomic_add!(CUDA.pointer(NV,1),$INTCUDA(1)) + 1
-            idNew_ = CUDA.atomic_add!(CUDA.pointer(agentIdMax,1),$INTCUDA(1)) + 1
+            ic1New_ = N+CUDA.atomic_add!(CUDA.pointer(NV,1),$(INT["gpu"])(1)) + 1
+            CUDA.atomic_add!(CUDA.pointer(N,1),$(INT["gpu"])(1))
+            idNew_ = CUDA.atomic_add!(CUDA.pointer(agentIdMax,1),$(INT["gpu"])(1)) + 1
             if nMax >= ic1New_
                 id = idNew_
                 $code
             else
-                CUDA.atomic_add!(CUDA.pointer(NV,1),$INTCUDA(-1))
+                CUDA.atomic_add!(CUDA.pointer(NV,1),$(INT["gpu"])(-1))
+                CUDA.atomic_add!(CUDA.pointer(N,1),$(INT["gpu"])(-1))
                 limNMax_[1] = 0
             end
         end
     end
 
-    code = vectorize_(p.agent,code,p)
+    code = vectorize(code,p)
 
-    code = postwalk(x->@capture(x,g0_[g1_,g2_] = g3_) && g1 == :ic1_ ? :($g0[ic1New_,$g2] = $g3) : x , code)
+    code = postwalk(x->@capture(x,g0_[g1_] = g3_) && g1 == :ic1_ ? :($g0[ic1New_] = $g3) : x , code)
 
     return code
 end
 
 """
-    function addEventAddAgent(code::Expr,p::AgentCompiled)
+    function addEventAddAgent(code::Expr,p::Agent)
 
 Substitute a declaration of `addAgent` by the corresponding code.
 
 # Args
  - **code::Expr**:  Code to be changed by agents.
- - **p::AgentCompiled**:  AgentCompiled structure containing all the created code when compiling.
+ - **p::Agent**:  Agent structure containing all the created code when compiling.
 
 # Returns
  - `Expr` with the modified code.
 """
-function addEventAddAgent(code::Expr,p::AgentCompiled)
+function addEventAddAgent(code::Expr,p::Agent)
 
     if inexpr(code,:addAgent)
         
@@ -94,23 +92,8 @@ function addEventAddAgent(code::Expr,p::AgentCompiled)
             code = postwalk(x->@capture(x,addAgent(g__)) ? addAgentCode(g,p) : x , code)
         end
 
-        if p.platform == "cpu"
-
-            push!(p.declareVar.args,:(NV = Threads.Atomic{$INT}(0)))
-            push!(p.declareVar.args,:(agentIdMax = Threads.Atomic{$INT}(N)))
-
-            push!(p.execInloop.args,:(N += NV[]; NV[] = 0))
-
-        elseif p.platform == "gpu"
-
-            push!(p.declareVar.args,:(NV = CUDA.zeros($INTCUDA,1)))
-            push!(p.declareVar.args,:(agentIdMax = N .*CUDA.ones($INTCUDA,1)))
-
-            push!(p.execInloop.args,:(N += Core.Array(NV)[1]; NV .= 0))
-
-        end
-
-        push!(p.args,:(NV),:(agentIdMax),:(limNMax_),:(nMax))
+        push!(p.declaredSymbols,[:NV,:AtomicInt,:Atomic,:Int,false,:Inner])
+        push!(p.declaredSymbols,[:agentIdMax,:AtomicInt,:Atomic,:Int,false,:Inner])
 
     end
 

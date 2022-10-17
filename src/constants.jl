@@ -1,7 +1,7 @@
-FLOAT = Dict(["cpu"=>Float64,"gpu"=>Float64])
-INT = Dict(["cpu"=>Int,"gpu"=>Int32])
-ZEROS =  Dict(["cpu"=>zeros,"gpu"=>CUDA.zeros])
-ARRAY = Dict(["cpu"=>Array,"gpu"=>CuArray])
+FLOAT = Dict([:CPU=>Float64,:GPU=>Float64])
+INT = Dict([:CPU=>Int,:GPU=>Int32])
+ZEROS =  Dict([:CPU=>zeros,:GPU=>CUDA.zeros])
+ARRAY = Dict([:CPU=>Array,:GPU=>CuArray])
 
 #Types accepted by agent
 VALIDTYPES = [
@@ -21,17 +21,10 @@ VALIDTYPES = [
     :SavingPlatform,
 ]
 
-UPDATINGTYPES = [
-    :LocalInt,
-    :LocalFloat,
-    :GlobalFloat,
-    :GlobalInt,
-]
-
-VALIDUPDATES = [
+UPDATES = [
     :UpdateGlobal,
     :UpdateLocal,
-    :UpdateInteraction,
+    :updateLocalInteraction,
     :UpdateGlobalInteraction,
     :UpdateMedium,
     :UpdateMediumInteraction,
@@ -39,21 +32,29 @@ VALIDUPDATES = [
 ]
 
 #Parameters
-BASESYMBOLS = DataFrame(
-  name = [:t,:dt,:N,:id,:simulationBox,:interactionRadius],
-  type = [:GlobalFloat,:GlobalFloat,:GlobalInt,:LocalInt,:SimulationVolume,:SimulationVolume],
-  use = [:General,:General,:General,:General,:SimulationVolume,:SimulationVolume]
-)
-
-POSITIONSYMBOLS = DataFrame(
-    name = [:x,:y,:z],
-    type = [:LocalFloat,:LocalFloat,:LocalFloat],
-    use = [:Position,:Position,:Position]
+BASESYMBOLS = Dict(
+  :t=>[:Float,:Global,:Base],
+  :dt=>[:Float,:Global,:Base],
+  :N=>[:Int,:Global,:Base],
+  :id=>[:Int,:Local,:Base],
+  :simulationBox=>[:Float,:SimulationBox,:Base],
+  :interactionRadius=>[:Float,:Radius,:Base],
+  :nMax=>[:Float,:Global,:Base]
   )
+
+POSITIONSYMBOLS = [(:x,[:Float,:Local,:Position]),
+                    (:y,[:Float,:Local,:Position]),
+                    (:z,[:Float,:Local,:Position])]
 
 PLATFORMS = [:CPU,:GPU]
 
 SAVING = [:RAM,:JLD]
+
+NEIGHBORS = [:Full,:Grid]
+
+INTEGRATOR = [:Euler]
+
+PLATFORM = [:CPU,:GPU]
 
 MACROFUNCTIONS = [:addAgent,:removeAgent]
 
@@ -75,22 +76,9 @@ RESERVEDSYMBOLS = [:x,:y,:z,:id,:t,:N,:dt,:dW,:nMax,
                     :predV,:learningRateIntegrator,:relativeErrorIntegrator,:maxLearningStepsIntegrator,
                     :K1_,:K2_,:K3_,:K4_];
 
-BASEARGS = [:(t),:(dt),:(N),:(NMax)]
-VARARGS = [:(localV),:(identityV),:(globalV),:(globalInteractionV),:(localInteractionV)]
-VARARGSCOPY = [:(localVCopy),:(identityVCopy),:(globalVCopy)]
-MEDIUMARGS = [:NMedium,:dMedium,:(mediumV)]
-MEDIUMARGSCOPY = [:(mediumVCopy)]
-ARGS = [BASEARGS; VARARGS; VARARGSCOPY; MEDIUMARGS; MEDIUMARGS; MEDIUMARGSCOPY]
-
-COMARGS = [:(com.t),:(com.dt),:(com.N),:(com.NMax),:(com.localV),:(com.identityV),:(com.globalV),
-        :(com.globalInteractionV),:(com.localInteractionV),
-        :(com.localVCopy),:(com.identityVCopy),:(com.globalVCopy),:(com.medium.NMedium),:(com.medium.dMedium),:(com.medium.mediumV),:(com.medium.mediumVCopy)]
-
 DIFFSYMBOL = :d
-DIFFSYMBOL2 = :d2
 
 INTERACTIONSYMBOLS = [:i,:j]
-INTERACTIONSYMBOLSDICT = Dict([:i=>"[ic1_,VAR]",:j=>"[nnic2_,VAR]"])
 
 DIFFMEDIUMSYMBOL = :∂t
 DIFFMEDIUM = [:dxₘ_,:dyₘ_,:dzₘ_]
@@ -127,31 +115,3 @@ MEDIUMAUXILIAR = [Dict([
                     ]),
                   :INNERMEDIUM_
                   ]
-
-#Adaptation functions
-GPUINFUNCTION = 
-"index_ = (threadIdx().x) + (blockIdx().x - 1) * blockDim().x
-stride_ = blockDim().x * gridDim().x
-"
-CPUINFUNCTION =
-"Threads.@threads"
-
-GPUOUTFUNCTION = 
-"CUDA.@cuda threads=threads_ blocks=nBlocks_ "
-CPUOUTFUNCTION = 
-""
-
-GPUARRAY = 
-"CUDA."
-CPUARRAY = 
-""
-
-GPUARRAYEMPTY = 
-"CUDA.CuArray{Float32}"
-CPUARRAYEMPTY = 
-"Array{Float64}"
-
-GPUARRAYEMPTYINT = 
-"CUDA.CuArray{Int32}"
-CPUARRAYEMPTYINT = 
-"Array{Int64}"

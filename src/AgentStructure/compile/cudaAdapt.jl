@@ -30,7 +30,7 @@ function cudaAdapt_(code::Expr)
     return code
 end
 
-function platformAdapt(agent::AgentCompiled,code::Expr)
+function platformAdapt(agent::Agent,code::Expr)
     if agent.platform == "cpu"
         code = postwalk(x->@capture(x,@platformAdapt v_(ARGS__)) ? :($v($(ARGS...))) : x, code)
         code = postwalk(x->@capture(x,@platformAdapt1 v_(ARGS__)) ? :($v($(ARGS...))) : x, code)

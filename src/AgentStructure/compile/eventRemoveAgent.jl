@@ -215,18 +215,18 @@ function removeDeadAgents_gpu!(remV_,keepList_,removeList_,N,localV,nLocal,ident
 end
 
 """
-    function addEventRemoveAgent(code::Expr,p::AgentCompiled)
+    function addEventRemoveAgent(code::Expr,p::Agent)
 
 Substitute a declaration of `removeAgent` by the corresponding code.
 
 # Args
  - **code::Expr**:  Code to be changed by agents.
- - **p::AgentCompiled**:  AgentCompiled structure containing all the created code when compiling.
+ - **p::Agent**:  Agent structure containing all the created code when compiling.
 
 # Returns
  -  `Expr` with the modified code.
 """
-function addEventRemoveAgent(code::Expr,p::AgentCompiled)
+function addEventRemoveAgent(code::Expr,p::Agent)
 
     #Add remove event if declared
     if inexpr(code,:removeAgent)

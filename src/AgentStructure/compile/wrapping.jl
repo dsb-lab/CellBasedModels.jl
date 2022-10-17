@@ -10,16 +10,16 @@ Returns the sent code wrapped in parallelized in the specified platform loop ove
  # Returns
  - `Expr` with the code of the created loop.
 """
-function simpleFirstLoop(code::Expr,platform::String)
+function simpleFirstLoop(code::Expr,platform::Symbol)
 
-    if platform == "cpu"
+    if platform == :CPU
         code = 
             quote
                 Threads.@threads for ic1_ in 1:1:N
                     $code                    
                 end
             end
-    elseif platform == "gpu"
+    elseif platform == :GPU
         code = 
             quote
                 index_ = (threadIdx().x) + (blockIdx().x - 1) * blockDim().x
@@ -182,7 +182,7 @@ function wrapInFunction(code::Expr, args::Array)
 end
 
 """
-    function simpleLoopWrapInFunction(code::Expr,platform::String, name::Symbol)
+    function simpleLoopWrapInFunction(code::Expr,platform::Symbol, name::Symbol)
 
 Return **code** wrapped in a loop, wrapped in a anonymous function and which returns nothing.
 
@@ -194,7 +194,7 @@ Return **code** wrapped in a loop, wrapped in a anonymous function and which ret
 # Returns
  - `Expr` with the code of the created function.
 """
-function simpleFirstLoopWrapInFunction(code::Expr, platform::String, args::Array)
+function simpleFirstLoopWrapInFunction(code::Expr, platform::Symbol, args::Array)
     code = simpleFirstLoop(code,platform)
     code = 
         :(function ($(args...),)

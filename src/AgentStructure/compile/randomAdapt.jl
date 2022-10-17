@@ -7,18 +7,18 @@ UniformCUDA(x,l0,l1) = (l1-l0)*x+l0
 ExponentialCUDA(x,θ) = -CUDA.log(1-x)*θ
 
 """
-    function randomAdapt_(code::Expr, p::AgentCompiled)
+    function randomAdapt_(code::Expr, p::Agent)
 
 Function that adapt the random function invocations of the code to be executable in the different platforms.
 
 # Args
- - **p::AgentCompiled**: AgentCompiled structure containing all the created code when compiling.
+ - **p::Agent**: Agent structure containing all the created code when compiling.
  - **code::Expr**:  Code to be adapted.
 
 # Returns
  - `Expr` with the code adapted.
 """
-function randomAdapt(code::Expr, p::AgentCompiled)
+function randomAdapt(code::Expr, p::Agent)
 
     if p.platform == "cpu"
         for i in VALIDDISTRIBUTIONS

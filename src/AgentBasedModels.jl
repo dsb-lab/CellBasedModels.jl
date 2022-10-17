@@ -14,92 +14,86 @@ import GeometryBasics, GLMakie
 import MacroTools: postwalk, prewalk, @capture, inexpr, prettify, gensym, flatten, unblock, isexpr
 import SpecialFunctions
 using ProgressMeter
+using Test
 #using WriteVTK
-
-export MediumFlat, δMedium_
-export configurator_
 
 #Constants
 include("./constants.jl")
 include("./baseStructs.jl")
 
 #Agent
-export @agent, Agent
+export Agent
 include("./AgentStructure/agentStructure.jl")
-include("./AgentStructure/checkDeclared.jl")
-include("./AgentStructure/constructAgent.jl")
-include("./AgentStructure/updates.jl")
     #Neighbors
 export NeighborsFull, NeighborsCell
 include("./AgentStructure/neighbors/neighborsFull.jl")
-include("./AgentStructure/neighbors/neighborsCell.jl")
-include("./AgentStructure/neighbors/neighbors.jl")
-    #Integrators
+# include("./AgentStructure/neighbors/neighborsCell.jl")
+# include("./AgentStructure/neighbors/neighbors.jl")
+#     #Integrators
 export Euler
-include("./AgentStructure/integrator/integrators.jl")
-include("./AgentStructure/integrator/euler.jl")
-# include("./AgentStructure/AgentCompiled/integrator/heun.jl")
-# include("./AgentStructure/AgentCompiled/integrator/rungeKutta4.jl")
-# include("./AgentStructure/AgentCompiled/integrator/implicitEuler.jl")
-# include("./AgentStructure/AgentCompiled/integrator/verletVelocity.jl")
+include("./AgentStructure/compile/integrator/integrators.jl")
+include("./AgentStructure/compile/integrator/euler.jl")
+# include("./AgentStructure/compile/integrator/heun.jl")
+# include("./AgentStructure/compile/integrator/rungeKutta4.jl")
+# include("./AgentStructure/compile/integrator/implicitEuler.jl")
+# include("./AgentStructure/compile/integrator/verletVelocity.jl")
 
 #CompiledAgent
     #Base
-export Model, AgentCompiled, compile
-include("./AgentStructure/AgentCompiled/agentCompiled.jl")
-include("./AgentStructure/AgentCompiled/base/addMediumCode.jl")
-include("./AgentStructure/AgentCompiled/base/addParameters.jl")
-include("./AgentStructure/AgentCompiled/base/cudaAdapt.jl")
-include("./AgentStructure/AgentCompiled/base/eventAddAgent.jl")
-include("./AgentStructure/AgentCompiled/base/eventRemoveAgent.jl")
-include("./AgentStructure/AgentCompiled/base/randomAdapt.jl")
-include("./AgentStructure/AgentCompiled/base/vectorize.jl")
-include("./AgentStructure/AgentCompiled/base/wrapping.jl")
-include("./AgentStructure/AgentCompiled/base/createFunction.jl")
+# include("./AgentStructure/compile/addMediumCode.jl")
+# include("./AgentStructure/compile/addParameters.jl")
+# include("./AgentStructure/compile/cudaAdapt.jl")
+# include("./AgentStructure/compile/eventAddAgent.jl")
+# include("./AgentStructure/compile/eventRemoveAgent.jl")
+# include("./AgentStructure/compile/randomAdapt.jl")
+# include("./AgentStructure/compile/vectorize.jl")
+# include("./AgentStructure/compile/wrapping.jl")
+# include("./AgentStructure/compile/createFunction.jl")
     #Updates
-include("./AgentStructure/AgentCompiled/updates/updateGlobal.jl")
-include("./AgentStructure/AgentCompiled/updates/updateInteraction.jl")
-include("./AgentStructure/AgentCompiled/updates/updateLocal.jl")
-include("./AgentStructure/AgentCompiled/updates/updateMediumBoundaries.jl")
-include("./AgentStructure/AgentCompiled/updates/updateMediumInteraction.jl")
+# include("./AgentStructure/compile/updates/updateGlobal.jl")
+# include("./AgentStructure/compile/updates/updateInteraction.jl")
+# include("./AgentStructure/compile/updates/updateLocal.jl")
+# include("./AgentStructure/compile/updates/updateMediumBoundaries.jl")
+# include("./AgentStructure/compile/updates/updateMediumInteraction.jl")
     #Integrators Medium
-include("./AgentStructure/AgentCompiled/medium/integratorMedium/ftcs.jl")
-include("./AgentStructure/AgentCompiled/medium/integratorMedium/lax.jl")
-include("./AgentStructure/AgentCompiled/medium/integratorMedium/implicitEuler.jl")
-include("./AgentStructure/AgentCompiled/medium/integratorMedium/integratorsMedium.jl")
-include("./AgentStructure/AgentCompiled/medium/medium.jl")
+# include("./AgentStructure/compile/medium/integratorMedium/ftcs.jl")
+# include("./AgentStructure/compile/medium/integratorMedium/lax.jl")
+# include("./AgentStructure/compile/medium/integratorMedium/implicitEuler.jl")
+# include("./AgentStructure/compile/medium/integratorMedium/integratorsMedium.jl")
+# include("./AgentStructure/compile/medium/medium.jl")
     #Saving
-include("./AgentStructure/AgentCompiled/saving/saveRAM.jl")
-include("./AgentStructure/AgentCompiled/saving/saveCSV.jl")
-include("./AgentStructure/AgentCompiled/saving/saveJLD.jl")
-include("./AgentStructure/AgentCompiled/saving/saving.jl")
+# include("./AgentStructure/compile/saving/saveRAM.jl")
+# include("./AgentStructure/compile/saving/saveCSV.jl")
+# include("./AgentStructure/compile/saving/saveJLD.jl")
+# include("./AgentStructure/compile/saving/saving.jl")
 
 #Community
-export setParameters!
-export Community, CommunityInTime, saveCSV, loadCommunityFromCSV, loadCommunityInTimeFromCSV, loadCommunityInTimeFromJLD
-export initialiseCommunityCompactHexagonal, initialiseCommunityCompactCubic
-include("./CommunityStructures/community.jl")
-include("./CommunityStructures/baseModuleExtensions.jl")
-include("./CommunityStructures/setParameters.jl")
-include("./CommunityStructures/constructors/latices/compactHexagonal.jl")
-include("./CommunityStructures/constructors/latices/cubic.jl")
-include("./CommunityStructures/constructors/extrude.jl")
-include("./CommunityStructures/constructors/initialisers.jl")
-include("./CommunityStructures/IO/save.jl")
-include("./CommunityStructures/IO/load.jl")
+# export setParameters!
+export Community, loadToPlatform!
+# export Community, CommunityInTime, saveCSV, loadCommunityFromCSV, loadCommunityInTimeFromCSV, loadCommunityInTimeFromJLD
+# export initialiseCommunityCompactHexagonal, initialiseCommunityCompactCubic
+include("./CommunityStructure/communityStructure.jl")
+# include("./CommunityStructure/baseModuleExtensions.jl")
+# include("./CommunityStructure/setParameters.jl")
+# include("./CommunityStructure/constructors/latices/compactHexagonal.jl")
+# include("./CommunityStructure/constructors/latices/cubic.jl")
+# include("./CommunityStructure/constructors/extrude.jl")
+# include("./CommunityStructure/constructors/initialisers.jl")
+# include("./CommunityStructure/IO/save.jl")
+# include("./CommunityStructure/IO/load.jl")
 
 # #Visualization functions
-export plotSpheres, plotRods, videoRods
-include("./plotting/rods.jl")
+# export plotSpheres, plotRods, videoRods
+# include("./plotting/rods.jl")
 # include("./plotting/spheres.jl")
 
 #Cuda
-include("./cuda/cudaConfigurator.jl")
+# include("./cuda/cudaConfigurator.jl")
 
 #Implemented Models
 # include("./implementedModels/models.jl")
 
 #Optimization tools
-include("./optimization/optimization.jl")
+# include("./optimization/optimization.jl")
 
 end

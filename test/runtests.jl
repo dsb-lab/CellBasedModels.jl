@@ -14,7 +14,9 @@ end
 
 # testplatforms = ["gpu"]
 
-include("testAgent.jl")
+# include("testAgent.jl")
+include("testCommunity.jl")
+# include("testCompile.jl")
 # include("testSubstitution.jl")
 # include("testAuxiliar.jl")
 # include("testAgentCompiled.jl")
