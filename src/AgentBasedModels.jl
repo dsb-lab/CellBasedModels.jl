@@ -25,8 +25,8 @@ include("./baseStructs.jl")
 export Agent
 include("./AgentStructure/agentStructure.jl")
     #Neighbors
-export NeighborsFull, NeighborsCell
-include("./AgentStructure/neighbors/neighborsFull.jl")
+export computeNeighbors!
+include("./AgentStructure/functions/neighbors.jl")
 # include("./AgentStructure/neighbors/neighborsCell.jl")
 # include("./AgentStructure/neighbors/neighbors.jl")
 #     #Integrators

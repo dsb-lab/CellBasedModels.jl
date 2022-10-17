@@ -64,10 +64,10 @@ mutable struct Agent
         agent = Agent()
 
         agent.dims = dims
-        if neighbors in NEIGHBORS
+        if neighbors in keys(NEIGHBORSYMBOLS)
             agent.neighbors = neighbors
         else
-            error("Neighbors algorithm ", neighbors, " not defined. Specify among: ", NEIGHBORS)
+            error("Neighbors algorithm ", neighbors, " not defined. Specify among: ", keys(NEIGHBORSYMBOLS))
         end
         if integrator in INTEGRATOR
             agent.integrator = integrator
@@ -93,6 +93,9 @@ mutable struct Agent
             #Position symbols
         for i in 1:1:dims
             agent.declaredSymbols[POSITIONSYMBOLS[i][1]] = POSITIONSYMBOLS[i][2]
+        end
+        for (i,j) in pairs(NEIGHBORSYMBOLS[neighbors])
+            agent.declaredSymbols[i] = j
         end
         for (i,j) in [(localInt,[:Int,:Local,:NonInteraction]),
                     (localIntInteraction,[:Int,:Local,:Interaction]),
@@ -158,6 +161,7 @@ mutable struct Agent
         end
 
         #Compile code
+        neighborsFunction(agent)
 
         return agent
     end

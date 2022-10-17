@@ -33,24 +33,40 @@ UPDATES = [
 
 #Parameters
 BASESYMBOLS = Dict(
-  :t=>[:Float,:Global,:Base],
-  :dt=>[:Float,:Global,:Base],
-  :N=>[:Int,:Global,:Base],
-  :id=>[:Int,:Local,:Base],
-  :simulationBox=>[:Float,:SimulationBox,:Base],
-  :interactionRadius=>[:Float,:Radius,:Base],
-  :nMax=>[:Float,:Global,:Base]
+    :t=>[:Float,:Global,:Base],
+    :dt=>[:Float,:Global,:Base],
+    :N=>[:Int,:Global,:Base],
+    :id=>[:Int,:Local,:Base],
+    :nMax=>[:Float,:Global,:Base]
   )
 
 POSITIONSYMBOLS = [(:x,[:Float,:Local,:Position]),
                     (:y,[:Float,:Local,:Position]),
                     (:z,[:Float,:Local,:Position])]
 
+NEIGHBORSYMBOLS = Dict(
+  :Full => Dict(),
+  :VerletTime => Dict(
+      :skin => [:Float,:Global,:Neighbor],
+      :dtNeighborRecompute => [:Float,:Global,:Neighbor],
+      :nMaxNeighbors => [:Int,:Global,:Neighbor],
+      :neighborList_ => [:Int,:VerletList,:Neighbor],
+      :neighborN_ => [:Int,:Local,:Neighbor],
+      :neighborTimeLastRecompute_ => [:Float,:Global,:Neighbor]
+    ),
+  :VerletDisplacement => Dict(
+      :skin => [:Float,:Global,:Neighbor],
+      :nMaxNeighbors => [:Int,:Global,:Neighbor],
+      :neighborList_ => [:Int,:VerletList,:Neighbor],
+      :neighborN_ => [:Int,:Local,:Neighbor],
+      :neighborMaxDistance_ => [:Float,:Global,:Neighbor],
+      :neighborFlagRecompute_ => [:Int,:Global,:Neighbor]
+    )
+)
+
 PLATFORMS = [:CPU,:GPU]
 
 SAVING = [:RAM,:JLD]
-
-NEIGHBORS = [:Full,:Grid]
 
 INTEGRATOR = [:Euler]
 

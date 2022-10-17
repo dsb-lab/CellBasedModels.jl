@@ -102,4 +102,20 @@
         loadToPlatform!(com,addAgents=10)
     end
 
+    @testset "neighbors" begin
+        #VerletTime
+        @test begin 
+
+            agent = Agent(1,neighbors=:VerletTime)
+            com = Community(agent,N=3);
+            com.skin = 1
+            com.nMaxNeighbors = 3
+            loadToPlatform!(com,addAgents=10);
+            computeNeighbors!(agent, com);
+
+            println(com.neighborList_)
+            true
+        end
+    end
+
 end

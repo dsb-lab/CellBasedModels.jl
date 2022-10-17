@@ -127,10 +127,10 @@ mutable struct Community
                 values[sym] = zeros(dtype,N)
             elseif :Global in prop
                 values[sym] = zeros(dtype,1)
-            elseif :Atomic in prop
-                values[sym] = Threads.Atomic{dtype}()
             elseif :Medium in prop
                 values[sym] = zeros(dtype,NMedium...)
+            elseif :VerletList in prop
+                values[sym] = zeros(dtype,N,0)
             end
         end
         values[:N] .= N
@@ -226,11 +226,20 @@ end
 function loadToPlatform!(com::Community;addAgents::Int=0)
 
     # Transform to the correct platform
-    for i in keys(com.values)
-        if :Local in com.declaredSymbols[i]
-            com.values[i] = ARRAY[com.platform[1]]([com.values[i]; zeros(addAgents)])
+    for (sym,prop) in pairs(com.declaredSymbols)
+        dtype = Float64
+        if :Float in prop
+            dtype = FLOAT[com.platform[2]]
+        elseif :Int in prop
+            dtype = INT[com.platform[2]]
+        end
+
+        if :Local in prop
+            com.values[sym] = ARRAY[com.platform[1]]([com.values[sym]; zeros(dtype,addAgents)])
+        elseif :VerletList in prop
+            com.values[sym] = ARRAY[com.platform[1]](zeros(dtype,com.nMax[1],com.nMaxNeighbors[1]))
         else
-            com.values[i] = ARRAY[com.platform[1]](com.values[i])
+            com.values[sym] = ARRAY[com.platform[1]](com.values[sym])
         end
     end            
 
