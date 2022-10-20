@@ -24,7 +24,7 @@ VALIDTYPES = [
 UPDATES = [
     :UpdateGlobal,
     :UpdateLocal,
-    :updateLocalInteraction,
+    :UpdateLocalInteraction,
     :UpdateGlobalInteraction,
     :UpdateMedium,
     :UpdateMediumInteraction,
@@ -51,27 +51,27 @@ NEIGHBORSYMBOLS = Dict(
       :skin => [:Float,:Global,:Neighbor],
       :dtNeighborRecompute => [:Float,:Global,:Neighbor],
       :nMaxNeighbors => [:Int,:Global,:Neighbor],
-      :neighborList_ => [:Int,:VerletList,:Neighbor],
-      :neighborN_ => [:Int,:Local,:Neighbor],
+      :neighborList_ => [:Int,:VerletList,:NeighborLoop],
+      :neighborN_ => [:Int,:Local,:NeighborLoop],
       :neighborTimeLastRecompute_ => [:Float,:Global,:Neighbor]
     ),
   :VerletDisplacement => OrderedDict(
       :skin => [:Float,:Global,:Neighbor],
       :nMaxNeighbors => [:Int,:Global,:Neighbor],
-      :neighborList_ => [:Int,:VerletList,:Neighbor],
-      :neighborN_ => [:Int,:Local,:Neighbor],
+      :neighborList_ => [:Int,:VerletList,:NeighborLoop],
+      :neighborN_ => [:Int,:Local,:NeighborLoop],
       :xOld_ => [:Float,:Local,:Neighbor],
       :yOld_ => [:Float,:Local,:Neighbor],
       :zOld_ => [:Float,:Local,:Neighbor],
-      :accumulatedDistance_ => [:Float,:Local,:Neighbors],
+      :accumulatedDistance_ => [:Float,:Local,:Neighbor],
       :neighborFlagRecompute_ => [:Int,:Global,:Neighbor,@eval (com) -> [1]]
     ),
     :CellLinked => OrderedDict(
       :cellEdge => [:Float,:Global,:Neighbor],
       :nCells_ => [:Int,:Dims,:Neighbor,@eval (com) -> ceil.(Int,(com.simulationBox[:,2].-com.simulationBox[:,1])./com.cellEdge .+2)],
       :cellAssignedToAgent_ => [:Int,:Cells,:Neighbor,@eval (com) -> zeros(Int,prod(com.nCells_))],
-      :cellNumAgents_ => [:Int,:Cells,:Neighbors,@eval (com) -> zeros(Int,prod(com.nCells_))],
-      :cellCumSum_ => [:Int,:Cells,:Neighbors,@eval (com) -> zeros(Int,prod(com.nCells_))]
+      :cellNumAgents_ => [:Int,:Cells,:NeighborLoop,@eval (com) -> zeros(Int,prod(com.nCells_))],
+      :cellCumSum_ => [:Int,:Cells,:NeighborLoop,@eval (com) -> zeros(Int,prod(com.nCells_))]
     )
 )
 
@@ -86,6 +86,8 @@ PLATFORM = [:CPU,:GPU]
 MACROFUNCTIONS = [:addAgent,:removeAgent]
 
 UPDATINGOPERATORS = [:(=),:+= ,:-=,:*=,:/=,:\=,:÷=,:%=,:^=,:&=,:|=,:⊻=,:>>>=,:>>=,:<<=]
+
+UPDATINGTERMINAL = "New_"
 
 RESERVEDSYMBOLS = [:x,:y,:z,:id,:t,:N,:dt,:dW,:nMax,
                     :idMediumX,:idMediumY,:idMediumZ,

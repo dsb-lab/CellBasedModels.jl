@@ -97,15 +97,15 @@ mutable struct Agent
         for (i,j) in pairs(NEIGHBORSYMBOLS[neighbors])
             agent.declaredSymbols[i] = j
         end
-        for (i,j) in [(localInt,[:Int,:Local,:NonInteraction]),
-                    (localIntInteraction,[:Int,:Local,:Interaction]),
-                    (localFloat,[:Float,:Local,:NonInteraction]),
-                    (localFloatInteraction,[:Float,:Local,:Interaction]),
-                    (globalFloat,[:Float,:Global,:NonInteraction]),
-                    (globalFloatInteraction,[:Float,:Global,:Interaction]),
-                    (globalInt,[:Int,:Global,:NonInteraction]),
-                    (globalIntInteraction,[:Int,:Global,:Interaction]),
-                    (medium,[:Float,:Medium,:NonInteraction])]
+        for (i,j) in [(localInt,[:Int,:Local,:UserUpdatable]),
+                    (localIntInteraction,[:Int,:Local,:UserResetable]),
+                    (localFloat,[:Float,:Local,:UserUpdatable]),
+                    (localFloatInteraction,[:Float,:Local,:UserResetable]),
+                    (globalFloat,[:Float,:Global,:UserUpdatable]),
+                    (globalFloatInteraction,[:Float,:Global,:UserResetable]),
+                    (globalInt,[:Int,:Global,:UserUpdatable]),
+                    (globalIntInteraction,[:Int,:Global,:UserResetable]),
+                    (medium,[:Float,:Medium,:UserUpdatable])]
             checkDeclared(i,agent)
             for sym in i
                 agent.declaredSymbols[sym] = j
@@ -139,7 +139,7 @@ mutable struct Agent
         end
 
         #Make explicit the updates by adding the .new tag
-        potentiallyUpdatingVars = [var for (var,prop) in pairs(agent.declaredSymbols) if !(:Interaction in prop)]
+        potentiallyUpdatingVars = [var for (var,prop) in pairs(agent.declaredSymbols) if !(:UserResetable in prop)]
         for i in keys(agent.declaredUpdates)
             code = agent.declaredUpdates[i]
             for k in potentiallyUpdatingVars
@@ -152,7 +152,7 @@ mutable struct Agent
         #Add updating variables
         for update in keys(agent.declaredUpdates)
             for sym in keys(agent.declaredSymbols)
-                if inexpr(agent.declaredUpdates[update],:($sym.new)) && agent.declaredSymbols[sym][3] == :NonInteraction
+                if inexpr(agent.declaredUpdates[update],:($sym.new)) && agent.declaredSymbols[sym][3] == :UserUpdatable
                     symUpdate = Meta.parse(string(sym,"New_"))
                     agent.declaredSymbols[symUpdate] = copy(agent.declaredSymbols[sym])
                     agent.declaredSymbols[symUpdate][3] = :Update
@@ -162,6 +162,7 @@ mutable struct Agent
 
         #Compile code
         neighborsFunction(agent)
+        localInteractionsFunction(agent)
 
         return agent
     end
@@ -253,7 +254,7 @@ function addUpdates!(p::Agent)
             code =  postwalk(x->@capture(x, c_.g_.new) && c == par.name && g in INTERACTIONSYMBOLS ? :ARGS_ : x , code)
             
             if inexpr(code,:ARGS_) && !(par in keys(p.declaredSymbols))
-                parNew = Meta.parse(string(par,"New"))
+                parNew = Meta.parse(string(par,"New_"))
                 p.declaredSymbols[parNew] = [p.declaredUpdates[1],p.declaredUpdates[2],:New]
             end
 
@@ -265,7 +266,7 @@ function addUpdates!(p::Agent)
             code =  postwalk(x->@capture(x, g_(c_) = f_) && c == par.name && g == DIFFSYMBOL ? :ARGS_ : x , p.declaredUpdates[up])
             
             if inexpr(code,:ARGS_) && !(par in keys(p.declaredSymbols))
-                parNew = Meta.parse(string(par,"New"))
+                parNew = Meta.parse(string(par,"New_"))
                 p.declaredSymbols[parNew] = [p.declaredUpdates[1],p.declaredUpdates[2],:New]
             end
 

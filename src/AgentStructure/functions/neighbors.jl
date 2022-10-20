@@ -24,43 +24,61 @@ function neighborsFunction(agent)
 
 end
 
-function computeNeighbors!(agent,community)
+function neighborsLoop(code,agent)
+
+    if agent.neighbors == :Full
+        code = neighborsFullLoop(code,agent)
+    elseif agent.neighbors == :VerletTime
+        code = neighborsVerletLoop(code,agent)
+    elseif agent.neighbors == :VerletDisplacement
+        code = neighborsVerletLoop(code,agent)
+    elseif agent.neighbors == :CellLinked
+        code = neighborsCellLinkedLoop(code,agent)
+    elseif agent.neighbors == :VerletGrid
+        error("Not done yet.")
+    else
+        error("Neighbors method is not defined.")
+    end
+
+    return code
+
+end
+
+function computeNeighbors!(community,agent)
 
     agent.declaredUpdatesFunction[:computeNeighbors](community)
 
 end
 
 #Full
-macro neighborsFullLoop(agent,code)
-
-    agent = @eval agent 
+function neighborsFullLoop(code,agent)
 
     if agent.platform == :CPU
-        return :(Threads.@threads for i2_ in 1:1:N[1] $code end)
+        return makeSimpleLoopCpu(:(for i2_ in 1:1:N[1]; if i1_ != i2_; $code; end; end))
     else
-        return :(for i2_ in 1:1:N[1] $code end)    
+        error("Make simple loop Gpu not implemented")
     end
 
 end
 
 #Verlet
-macro neighborsVerletLoop(agent,code) #Macro to create the second loop in functions
-
-    agent = @eval agent
-
-    code = postwalk(x->@capture(x,:i2_) ? :(neighborsList[i2_]) : x, code)
+function neighborsVerletLoop(code,agent) #Macro to create the second loop in functions
     
     if agent.platform == :CPU
-        return :(Threads.@threads for i2_ in 1:1:neighborsN[i1_] $code end)
+
+        code = makeSimpleLoopCpu(:(for i2_ in 1:1:neighborN_[i1_]; $code; end))
+        #Go over the list of neighbors
+        code = postwalk(x->@capture(x,g_[h_]) && h == :i2_ ? :($g[neighborList_[i2_]]) : x, code)
+
+        return code
+
     else
-        return :(for i2_ in 1:1:neighborsN[i1_] $code end)    
+
+        error("Make simple loop Gpu not implemented")
+
     end
 
 end
-
-euclideanMetric(x1,x2) = sqrt((x1-x2)^2)
-euclideanMetric(x1,x2,y1,y2) = sqrt((x1-x2)^2+(y1-y2)^2)
-euclideanMetric(x1,x2,y1,y2,z1,z2) = sqrt((x1-x2)^2+(y1-y2)^2+(z1-z2)^2)
 
 macro verletNeighbors(args...) #Macro to make the verletNeighbor loops
 
@@ -75,7 +93,7 @@ macro verletNeighbors(args...) #Macro to make the verletNeighbor loops
             lk = ReentrantLock()
             for i1_ in 1:1:N[1]
                 for i2_ in (i1_+1):1:N[1]
-                    d = euclideanMetric($(args2...))
+                    d = euclideanDistance($(args2...))
                     if d < skin[1]
                         lock(lk) do
                             neighborN_[i1_] += 1
@@ -128,7 +146,7 @@ macro verletDisplacement(args...)
         function verletDisplacement!(N,$(args...),$(args2...),skin,accumulatedDistance_,neighborFlagRecompute_)
 
             for i1_ in 1:1:N[1]
-                accumulatedDistance_[i1_] = euclideanMetric($(args3...))
+                accumulatedDistance_[i1_] = euclideanDistance($(args3...))
                 if accumulatedDistance_[i1_] >= skin[1]/2
                     neighborFlagRecompute_[1] = 1
                 end
@@ -172,9 +190,15 @@ end
 @neighborsVerletDisplacement x y z
 
 #Grid
-macro neighborsGridLoop(agent,code)
+function neighborsCellLinkedLoop(code,agent)
 
-    error("TO DO")
+    code = postwalk(x->@capture(x,:i2_) ? :(neighborsList[i2_]) : x, code)
+    
+    if agent.platform == :CPU
+        return :(Threads.@threads for i2_ in 1:1:neighborsN[i1_] $code end)
+    else
+        return :(for i2_ in 1:1:neighborsN[i1_] $code end)    
+    end
 
 end
 
@@ -227,7 +251,7 @@ end
 @neighborsCellLinked x y z
 
 #VerletLinkedCell
-macro neighborsVerletGridLoop(agent,code)
+macro neighborsVerletGridLoop(code,agent)
 
     error("TO DO")
 

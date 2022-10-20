@@ -21,15 +21,19 @@ using Test
 #Constants
 include("./constants.jl")
 include("./baseStructs.jl")
+export euclideanDistance, manhattanDistance
+include("./auxiliar.jl")
 
 #Agent
 export Agent
 include("./AgentStructure/agentStructure.jl")
+include("./AgentStructure/functions/vectorize.jl")
     #Neighbors
 export computeNeighbors!
 include("./AgentStructure/functions/neighbors.jl")
-# include("./AgentStructure/neighbors/neighborsCell.jl")
-# include("./AgentStructure/neighbors/neighbors.jl")
+    #Local interactions
+export updateLocalInteractions!
+include("./AgentStructure/functions/interactions.jl")
 #     #Integrators
 export Euler
 include("./AgentStructure/compile/integrator/integrators.jl")

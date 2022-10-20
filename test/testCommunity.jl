@@ -3,7 +3,7 @@ using MacroTools
 macro testAllNeighbors(code,methods...)
 
     codeset = quote end
-    for dim in [1,2,3]
+    for dim in [1]
         for meth in [string(j) for j in methods]
             for plat in TESTPLATFORMS
                 addCode = MacroTools.postwalk(x->@capture(x,NEIGHBOR) ? :(Symbol($meth)) : x, code)
@@ -135,7 +135,7 @@ end
             com.skin = 1
             com.nMaxNeighbors = 2
             loadToPlatform!(com,addAgents=10);
-            computeNeighbors!(agent, com);
+            computeNeighbors!(com, agent);
 
             com.neighborList_ == [2 3;1 3;1 2]
             end), VerletTime, VerletDisplacement
@@ -157,12 +157,59 @@ end
             com.cellEdge = 2.
             com.simulationBox .= [.5 1.5;.5 1.5;.5 1.5][1:DIM,:]
             loadToPlatform!(com,addAgents=10);
-            computeNeighbors!(agent, com);
+            computeNeighbors!(com, agent);
 
             all(com.cellNumAgents_ .== 1)
             end), CellLinked
         )
 
+    end
+
+    @testset "localInteractions" begin
+        @testAllNeighbors(            
+            (@test begin 
+
+                agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM,
+                    localIntInteraction = [:nn],
+                    updateLocalInteraction=quote
+                            if euclideanDistance() < 1.1
+                                nn.i += 1 
+                            end
+                        end
+                )
+                com = Community(agent,N=3^DIM);
+                v = zeros(3,27)
+                v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
+                v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
+                v[3,:] = repeat([repeat([0],9);repeat([1],9);repeat([2],9)],1)
+                for (j,sym) in enumerate([:x,:y,:z][1:DIM])
+                    com.values[sym] .= v[j,1:3^(DIM)]
+                end
+                if agent.neighbors in [:VerletTime,:VerletDisplacement]
+                    com.skin = 2
+                    com.nMaxNeighbors = 27
+                elseif agent.neighbors in [:CellLinked]
+                    com.cellEdge = 2.
+                    com.simulationBox .= [.5 1.5;.5 1.5;.5 1.5][1:DIM,:]
+                end
+                loadToPlatform!(com,addAgents=0);
+                computeNeighbors!(com, agent);
+                updateLocalInteractions!(com, agent);
+
+                result = false
+                if DIM == 1
+                    result = all(com.nn .== [1,2,1])
+                elseif DIM == 2
+                    result = all(com.nn .== [2,3,2,3,4,3,2,3,2])
+                elseif DIM == 2
+                    result = all(com.nn .== [3,4,3,4,5,4,5,4,3,
+                                    4,5,4,5,6,5,4,5,4,
+                                    3,4,3,4,5,4,5,4,3])
+                end
+
+                result
+            end), Full, VerletTime, VerletDisplacement
+        )
     end
 
 end
