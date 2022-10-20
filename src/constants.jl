@@ -32,21 +32,22 @@ UPDATES = [
 ]
 
 #Parameters
-BASESYMBOLS = Dict(
+BASESYMBOLS = OrderedDict(
     :t=>[:Float,:Global,:Base],
     :dt=>[:Float,:Global,:Base],
     :N=>[:Int,:Global,:Base],
     :id=>[:Int,:Local,:Base],
-    :nMax=>[:Float,:Global,:Base]
-  )
+    :nMax=>[:Float,:Global,:Base],
+    :simulationBox => [:Float,:SimulationBox,:Base]
+    )
 
 POSITIONSYMBOLS = [(:x,[:Float,:Local,:Position]),
                     (:y,[:Float,:Local,:Position]),
                     (:z,[:Float,:Local,:Position])]
 
 NEIGHBORSYMBOLS = Dict(
-  :Full => Dict(),
-  :VerletTime => Dict(
+  :Full => OrderedDict(),
+  :VerletTime => OrderedDict(
       :skin => [:Float,:Global,:Neighbor],
       :dtNeighborRecompute => [:Float,:Global,:Neighbor],
       :nMaxNeighbors => [:Int,:Global,:Neighbor],
@@ -54,13 +55,23 @@ NEIGHBORSYMBOLS = Dict(
       :neighborN_ => [:Int,:Local,:Neighbor],
       :neighborTimeLastRecompute_ => [:Float,:Global,:Neighbor]
     ),
-  :VerletDisplacement => Dict(
+  :VerletDisplacement => OrderedDict(
       :skin => [:Float,:Global,:Neighbor],
       :nMaxNeighbors => [:Int,:Global,:Neighbor],
       :neighborList_ => [:Int,:VerletList,:Neighbor],
       :neighborN_ => [:Int,:Local,:Neighbor],
-      :neighborMaxDistance_ => [:Float,:Global,:Neighbor],
-      :neighborFlagRecompute_ => [:Int,:Global,:Neighbor]
+      :xOld_ => [:Float,:Local,:Neighbor],
+      :yOld_ => [:Float,:Local,:Neighbor],
+      :zOld_ => [:Float,:Local,:Neighbor],
+      :accumulatedDistance_ => [:Float,:Local,:Neighbors],
+      :neighborFlagRecompute_ => [:Int,:Global,:Neighbor,@eval (com) -> [1]]
+    ),
+    :CellLinked => OrderedDict(
+      :cellEdge => [:Float,:Global,:Neighbor],
+      :nCells_ => [:Int,:Dims,:Neighbor,@eval (com) -> ceil.(Int,(com.simulationBox[:,2].-com.simulationBox[:,1])./com.cellEdge .+2)],
+      :cellAssignedToAgent_ => [:Int,:Cells,:Neighbor,@eval (com) -> zeros(Int,prod(com.nCells_))],
+      :cellNumAgents_ => [:Int,:Cells,:Neighbors,@eval (com) -> zeros(Int,prod(com.nCells_))],
+      :cellCumSum_ => [:Int,:Cells,:Neighbors,@eval (com) -> zeros(Int,prod(com.nCells_))]
     )
 )
 

@@ -99,7 +99,7 @@ mutable struct Community
     dims::Int
     platform::Tuple{Symbol,Symbol}
     nMax::Int
-    declaredSymbols::Dict{Symbol,Any}
+    declaredSymbols::OrderedDict{Symbol,Any}
     values::Dict{Symbol,Any}
 
     function Community(abm::Agent; N::Int=1, NMedium::Array{Int,1}=Array{Int,1}([]))
@@ -131,7 +131,16 @@ mutable struct Community
                 values[sym] = zeros(dtype,NMedium...)
             elseif :VerletList in prop
                 values[sym] = zeros(dtype,N,0)
+            elseif :SimulationBox in prop
+                values[sym] = zeros(dtype,dims,2)
+            elseif :Dims in prop
+                values[sym] = zeros(dtype,dims)
+            elseif :Cells in prop
+                values[sym] = zeros(dtype,0)
+            else
+                error("Parameter type $(prop[2]) from symbol $sym is not defined.")
             end
+        
         end
         values[:N] .= N
     
@@ -182,7 +191,7 @@ function Base.setproperty!(com::Community,var::Symbol,v::Array{<:Number})
     elseif size(com[var]) == size(v)
         com.values[var] .= v
     else
-        error("Dimensions and type must match. ",var," is ",size(com.var)," and tried to assign a vector of size ",size(v))
+        error("Dimensions and type must match. ",var," is ",size(com.values[var])," and tried to assign a vector of size ",size(v))
     end
 
 end
@@ -225,6 +234,13 @@ end
 
 function loadToPlatform!(com::Community;addAgents::Int=0)
 
+    #Initialize initialized parameters that need to be initialized
+    for (sym,prop) in pairs(com.declaredSymbols)
+        if length(prop) == 4 #Initialization
+            com.values[sym] = prop[4](com)
+        end
+    end
+
     # Transform to the correct platform
     for (sym,prop) in pairs(com.declaredSymbols)
         dtype = Float64
@@ -238,8 +254,18 @@ function loadToPlatform!(com::Community;addAgents::Int=0)
             com.values[sym] = ARRAY[com.platform[1]]([com.values[sym]; zeros(dtype,addAgents)])
         elseif :VerletList in prop
             com.values[sym] = ARRAY[com.platform[1]](zeros(dtype,com.nMax[1],com.nMaxNeighbors[1]))
-        else
+        elseif :SimulationBox in prop
             com.values[sym] = ARRAY[com.platform[1]](com.values[sym])
+        elseif :Global in prop
+            com.values[sym] = ARRAY[com.platform[1]](com.values[sym])
+        elseif :Medium in prop
+            com.values[sym] = ARRAY[com.platform[1]](com.values[sym])
+        elseif :Dims in prop
+            com.values[sym] = ARRAY[com.platform[1]](com.values[sym])
+        elseif :Cells in prop
+            com.values[sym] = ARRAY[com.platform[1]](com.values[sym])
+        else
+            error("Parameter type ",prop[2], " is not defined.")
         end
     end            
 

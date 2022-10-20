@@ -4,6 +4,7 @@ using DataFrames: AbstractAggregate, getiterator
 using CUDA: findfirst, atomic_add!
 using Base: add_with_overflow
 using Random
+using OrderedCollections
 using LinearAlgebra
 using Distributions
 using CUDA

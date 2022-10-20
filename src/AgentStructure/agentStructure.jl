@@ -14,7 +14,7 @@ mutable struct Agent
 
     dims::Int
     
-    declaredSymbols::Dict{Symbol,Array{Symbol}}
+    declaredSymbols::OrderedDict{Symbol,Array{Any}}
     declaredUpdates::Dict{Symbol,Expr}
     declaredUpdatesCode::Dict{Symbol,Expr}
     declaredUpdatesFunction::Dict{Symbol,Function}
@@ -25,7 +25,7 @@ mutable struct Agent
         
     function Agent()
         new(0,
-            Dict{Symbol,Array{Symbol}}(),
+            OrderedDict{Symbol,Array{Symbol}}(),
             Dict{Symbol,Expr}(),
             Dict{Symbol,Expr}(),
             Dict{Symbol,Function}(),

@@ -6,9 +6,9 @@ import MacroTools: prettify
 using JLD
 
 if CUDA.has_cuda()
-    testplatforms = ["cpu","gpu"]
+    TESTPLATFORMS = ["CPU","GPU"]
 else
-    testplatforms = ["cpu"]
+    TESTPLATFORMS = ["CPU"]
     println("CUDA was not found, only checking cpu.")
 end
 
