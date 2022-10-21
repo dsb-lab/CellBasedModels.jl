@@ -54,7 +54,7 @@ end
 function neighborsFullLoop(code,agent)
 
     if agent.platform == :CPU
-        return makeSimpleLoopCpu(:(for i2_ in 1:1:N[1]; if i1_ != i2_; $code; end; end))
+        return makeSimpleLoop(:(for i2_ in 1:1:N[1]; if i1_ != i2_; $code; end; end), agent)
     else
         error("Make simple loop Gpu not implemented")
     end
@@ -66,7 +66,7 @@ function neighborsVerletLoop(code,agent) #Macro to create the second loop in fun
     
     if agent.platform == :CPU
 
-        code = makeSimpleLoopCpu(:(for i2_ in 1:1:neighborN_[i1_]; $code; end))
+        code = makeSimpleLoop(:(for i2_ in 1:1:neighborN_[i1_]; $code; end), agent)
         #Go over the list of neighbors
         code = postwalk(x->@capture(x,g_[h_]) && h == :i2_ ? :($g[neighborList_[i2_]]) : x, code)
 

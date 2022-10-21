@@ -24,8 +24,7 @@ VALIDTYPES = [
 UPDATES = [
     :UpdateGlobal,
     :UpdateLocal,
-    :UpdateLocalInteraction,
-    :UpdateGlobalInteraction,
+    :UpdateInteraction,
     :UpdateMedium,
     :UpdateMediumInteraction,
     :UpdateVariable,
@@ -38,7 +37,9 @@ BASESYMBOLS = OrderedDict(
     :N=>[:Int,:Global,:Base],
     :id=>[:Int,:Local,:Base],
     :nMax=>[:Float,:Global,:Base],
-    :simulationBox => [:Float,:SimulationBox,:Base]
+    :simulationBox => [:Float,:SimulationBox,:Base],
+    :NV => [:Int,:Atomic,:Base],
+    :idMax => [:Int,:Atomic,:Base]
     )
 
 POSITIONSYMBOLS = [(:x,[:Float,:Local,:Position]),

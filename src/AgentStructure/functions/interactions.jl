@@ -26,27 +26,28 @@ function localInteractionsFunction(agent)
         append!(metricArgs,[:($i[i1_]),:($i[i2_])])
     end
 
-    if :UpdateLocalInteraction in keys(agent.declaredUpdates)
-        code = agent.declaredUpdates[:UpdateLocalInteraction]
+    if !all([typeof(i) == LineNumberNode for i in agent.declaredUpdates[:UpdateInteraction].args])
+        code = agent.declaredUpdates[:UpdateInteraction]
 
         code = vectorize(code,agent)
         #Custom functions
         code = postwalk(x->@capture(x,euclideanDistance()) ? :(euclideanDistance($(metricArgs...))) : x, code)
         code = postwalk(x->@capture(x,manhattanDistance()) ? :(manhattanDistance($(metricArgs...))) : x, code)
+        #Put in loop
         code = neighborsLoop(code,agent)
 
-        agent.declaredUpdatesCode[:UpdateLocalInteraction] = code
-        agent.declaredUpdatesFunction[:UpdateLocalInteraction_] = Main.eval(:(($(args...),) -> $code))
-        agent.declaredUpdatesFunction[:UpdateLocalInteraction] = Main.eval(:((community,agent) -> agent.declaredUpdatesFunction[:UpdateLocalInteraction_]($(args2...))))
+        agent.declaredUpdatesCode[:UpdateInteraction] = code
+        agent.declaredUpdatesFunction[:UpdateInteraction_] = Main.eval(:(($(args...),) -> $code))
+        agent.declaredUpdatesFunction[:UpdateInteraction] = Main.eval(:((community,agent) -> agent.declaredUpdatesFunction[:UpdateInteraction_]($(args2...))))
     else
-        agent.declaredUpdatesFunction[:UpdateLocalInteraction] = Main.eval(:((community,agent) -> nothing))
+        agent.declaredUpdatesFunction[:UpdateInteraction] = Main.eval(:((community,agent) -> nothing))
     end
 
 end
 
-function updateLocalInteractions!(community,agent)
+function updateInteractions!(community,agent)
 
-    agent.declaredUpdatesFunction[:UpdateLocalInteraction](community,agent)
+    agent.declaredUpdatesFunction[:UpdateInteraction](community,agent)
 
     return 
 

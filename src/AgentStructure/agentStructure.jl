@@ -54,8 +54,7 @@ mutable struct Agent
         saving::Symbol=:RAM,
         updateGlobal::Expr=quote end,
         updateLocal::Expr=quote end,
-        updateLocalInteraction::Expr=quote end,
-        updateGlobalInteraction::Expr=quote end,
+        updateInteraction::Expr=quote end,
         updateMedium::Expr=quote end,
         updateMediumInteraction::Expr=quote end,
         updateVariable::Expr=quote end
@@ -127,8 +126,8 @@ mutable struct Agent
                 agent.declaredUpdates[update] = a.updates[update]
             end
         end
-        for (update,code) in zip(UPDATES, [updateGlobal, updateLocal, updateLocalInteraction, 
-                                                updateGlobalInteraction, updateMedium, updateMediumInteraction, 
+        for (update,code) in zip(UPDATES, [updateGlobal, updateLocal, updateInteraction, 
+                                                updateMedium, updateMediumInteraction, 
                                                 updateVariable])
             agent.declaredUpdates[update] = code
         end
@@ -152,7 +151,7 @@ mutable struct Agent
         #Add updating variables
         for update in keys(agent.declaredUpdates)
             for sym in keys(agent.declaredSymbols)
-                if inexpr(agent.declaredUpdates[update],:($sym.new)) && agent.declaredSymbols[sym][3] == :UserUpdatable
+                if inexpr(agent.declaredUpdates[update],:($sym.new)) && agent.declaredSymbols[sym][3] in [:UserUpdatable,:Position]
                     symUpdate = Meta.parse(string(sym,"New_"))
                     agent.declaredSymbols[symUpdate] = copy(agent.declaredSymbols[sym])
                     agent.declaredSymbols[symUpdate][3] = :Update
@@ -160,9 +159,11 @@ mutable struct Agent
             end
         end
 
-        #Compile code
+        #Make comiled functions
+        updateFunction(agent)
         neighborsFunction(agent)
         localInteractionsFunction(agent)
+        localFunction(agent)
 
         return agent
     end

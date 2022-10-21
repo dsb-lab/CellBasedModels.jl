@@ -137,6 +137,8 @@ mutable struct Community
                 values[sym] = zeros(dtype,dims)
             elseif :Cells in prop
                 values[sym] = zeros(dtype,0)
+            elseif :Atomic in prop
+                @atomic values[sym] = Threads.Atomic{dtype}(0)
             else
                 error("Parameter type $(prop[2]) from symbol $sym is not defined.")
             end
