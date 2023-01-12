@@ -36,10 +36,10 @@ BASESYMBOLS = OrderedDict(
     :dt=>[:Float,:Global,:Base],
     :N=>[:Int,:Global,:Base],
     :id=>[:Int,:Local,:Base],
-    :nMax=>[:Float,:Global,:Base],
+    :nMax_=>[:Int,:Global,:Base],
     :simulationBox => [:Float,:SimulationBox,:Base],
-    :NV => [:Int,:Atomic,:Base],
-    :idMax => [:Int,:Atomic,:Base]
+    :NV_ => [:Int,:Atomic,:Base],
+    :idMax_ => [:Int,:Atomic,:Base,@eval (com) -> Threads.Atomic{Int}(com.N[1])]
     )
 
 POSITIONSYMBOLS = [(:x,[:Float,:Local,:Position]),

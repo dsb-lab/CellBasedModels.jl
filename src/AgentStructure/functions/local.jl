@@ -41,28 +41,26 @@ function addAgentCode(arguments,agent::Agent;rem=true)
     #Add 
     if agent.platform == :CPU 
         code = quote
-                i1New_ = N+Threads.atomic_add!(NV,$INT(1)) + 1
-                Threads.atomic_add!(N,$INT(1))
-                idNew_ = Threads.atomic_add!(agentIdMax,$INT(1)) + 1
-                if nMax >= i1New_
+                i1New_ = N+Threads.atomic_add!(NV_,$(INT[agent.platform])(1)) + 1
+                idNew_ = Threads.atomic_add!(idMax_,$(INT[agent.platform])(1)) + 1
+                if nMax_ >= i1New_
                     id = idNew_
                     $code
                 else
-                    Threads.atomic_add!(NV,$INT(-1))
-                    Threads.atomic_add!(N,$INT(-1))
-                    limNMax_[] = 0
+                    Threads.atomic_add!(NV_,$(INT[agent.platform])(-nMax_))
                 end
             end
     elseif agent.platform == :GPU
+        error("Not migrated yet.")
         code = quote
-            i1New_ = N+CUDA.atomic_add!(CUDA.pointer(NV,1),$(INT["gpu"])(1)) + 1
+            i1New_ = N+CUDA.atomic_add!(CUDA.pointer(NV_,1),$(INT["gpu"])(1)) + 1
             CUDA.atomic_add!(CUDA.pointer(N,1),$(INT["gpu"])(1))
-            idNew_ = CUDA.atomic_add!(CUDA.pointer(agentIdMax,1),$(INT["gpu"])(1)) + 1
-            if nMax >= i1New_
+            idNew_ = CUDA.atomic_add!(CUDA.pointer(idMax_,1),$(INT["gpu"])(1)) + 1
+            if nMax_ >= i1New_
                 id = idNew_
                 $code
             else
-                CUDA.atomic_add!(CUDA.pointer(NV,1),$(INT["gpu"])(-1))
+                CUDA.atomic_add!(CUDA.pointer(NV_,1),$(INT["gpu"])(-1))
                 CUDA.atomic_add!(CUDA.pointer(N,1),$(INT["gpu"])(-1))
                 limNMax_[1] = 0
             end
@@ -99,6 +97,8 @@ function addEventAddAgent(code::Expr,agent::Agent)
     return code
 end
 
+
+
 ######################################################################################################
 # local function
 ######################################################################################################
@@ -119,13 +119,20 @@ function localFunction(agent)
         # code = remAgentCode(code,agent)
         #Vectorize
         code = vectorize(code,agent)
-        println(prettify(code))
         #Put in loop
         code = makeSimpleLoop(code,agent)
 
         agent.declaredUpdatesCode[:UpdateLocal] = code
         agent.declaredUpdatesFunction[:UpdateLocal_] = Main.eval(:(($(args...),) -> $code))
-        agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(:((community,agent) -> agent.declaredUpdatesFunction[:UpdateLocal_]($(args2...))))
+        agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(
+            :(function (community,agent)
+                agent.declaredUpdatesFunction[:UpdateLocal_]($(args2...))
+                community.N .+= community.NV_[]
+                community.NV_[] = 0
+                return 
+
+            end)
+        )
     else
         agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(:((community,agent) -> nothing))
     end

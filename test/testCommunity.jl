@@ -147,19 +147,20 @@ end
                 agent = Agent(2,platform=PLATFORM,
                             updateLocal = quote
                                 if x == N
-                                    addAgent(x=N)
+                                    addAgent(x=N+1)
                                 end
                             end
                             );
                 com = Community(agent,N=1);
+                com.x .= 1
                 com.y .= 2
-                loadToPlatform!(com,addAgents=10);
+                loadToPlatform!(com,addAgents=9);
                 for i in 1:9
                     localStep!(com,agent)
                     update!(com,agent)
                 end
 
-                all(com.N[1] .== 1)
+                all(com.x .== 1:10) && all(com.nMax_[1] .== 10) && all(com.N[1] .== 10)  && all(com.y .== 2)
             end), Full
         )
     end

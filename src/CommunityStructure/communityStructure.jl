@@ -98,7 +98,6 @@ mutable struct Community
 
     dims::Int
     platform::Tuple{Symbol,Symbol}
-    nMax::Int
     declaredSymbols::OrderedDict{Symbol,Any}
     values::Dict{Symbol,Any}
 
@@ -112,7 +111,6 @@ mutable struct Community
     
         dims = abm.dims
         platform = (abm.platform,:CPU)
-        nMax = N
         declaredSymbols = copy(abm.declaredSymbols)
         values = Dict{Symbol,Any}()
         for (sym,prop) in pairs(declaredSymbols)
@@ -138,15 +136,17 @@ mutable struct Community
             elseif :Cells in prop
                 values[sym] = zeros(dtype,0)
             elseif :Atomic in prop
-                @atomic values[sym] = Threads.Atomic{dtype}(0)
+                values[sym] = Threads.Atomic{dtype}(0)
             else
                 error("Parameter type $(prop[2]) from symbol $sym is not defined.")
             end
         
         end
         values[:N] .= N
+        values[:nMax_] .= N
+        values[:id] .= 1:N
     
-        return new(dims,platform,nMax,declaredSymbols,values)
+        return new(dims,platform,declaredSymbols,values)
     end    
 
 end
@@ -255,7 +255,7 @@ function loadToPlatform!(com::Community;addAgents::Int=0)
         if :Local in prop
             com.values[sym] = ARRAY[com.platform[1]]([com.values[sym]; zeros(dtype,addAgents)])
         elseif :VerletList in prop
-            com.values[sym] = ARRAY[com.platform[1]](zeros(dtype,com.nMax[1],com.nMaxNeighbors[1]))
+            com.values[sym] = ARRAY[com.platform[1]](zeros(dtype,com.nMax_[1],com.nMaxNeighbors[1]))
         elseif :SimulationBox in prop
             com.values[sym] = ARRAY[com.platform[1]](com.values[sym])
         elseif :Global in prop
@@ -266,12 +266,26 @@ function loadToPlatform!(com::Community;addAgents::Int=0)
             com.values[sym] = ARRAY[com.platform[1]](com.values[sym])
         elseif :Cells in prop
             com.values[sym] = ARRAY[com.platform[1]](com.values[sym])
+        elseif :Atomic in prop
+            if com.platform[1] == :CPU
+                com.values[sym] = com.values[sym]
+            else
+                error("Atomic GPU not implemented yet")
+            end
         else
             error("Parameter type ",prop[2], " is not defined.")
+        end
+
+        if :Update in prop #Initialize update paremters
+            sym2 = Meta.parse(string(sym)[1:end-4])
+
+            com.values[sym] = com.values[sym2]
         end
     end            
 
     com.platform = (com.platform[1],com.platform[1])
+    #Add limit of agents
+    com.nMax_ .= com.N .+ addAgents
 
     return 
 end
