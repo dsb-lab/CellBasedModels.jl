@@ -1,7 +1,28 @@
 """
 Basic structure keeping the parameters of all the agents in the current simulation of a model.
 
+# Elements
 
+ - **dims::Int**: Dimensions of the model.
+ - **platform::Tuple{Symbol,Symbol}**: Platform used for evolving the model.
+ - **declaredSymbols::OrderedDict{Symbol,Any}**: Dictionary of parameters of the model and its properties.
+ - **values::Dict{Symbol,Any}**: Dictionary of parameters and the stored data.
+ - **loaded::Bool**: Check if the model has been loaded into platform or not.
+
+# Constructors
+
+    function Community(abm::Agent; N::Int=1, NMedium::Array{Int,1}=Array{Int,1}([]))
+
+Function to construct a Community with a predefined number of agents and medium grid.
+
+# Arguments
+
+ - **abm::Agent**: Agent Based Model that defines the parameters of the agents.
+
+# Keyword Arguments
+
+ - **N::Int=1**: Number of agents in the community.
+ - **NMedium::Array{Int,1}=Array{Int,1}([])**: Grid size of the simulation box for the medium parameters.
 """
 mutable struct Community
 
@@ -9,20 +30,27 @@ mutable struct Community
     platform::Tuple{Symbol,Symbol}
     declaredSymbols::OrderedDict{Symbol,Any}
     values::Dict{Symbol,Any}
+    loaded::Bool
 
+    # Constructors
     function Community(abm::Agent; N::Int=1, NMedium::Array{Int,1}=Array{Int,1}([]))
 
+        #Check approtiate grid is defined is medium variables exist (if model with medium exists)
         if any([:Medium in prop for (i,prop) in pairs(abm.declaredSymbols)])
             if length(NMedium) != abm.dims
                 error("NMedium has to be an array with the same length as AgentCompiled dimensions specifing the number of points in the grid.")
             end
         end
     
+        #Setting up parameters
         dims = abm.dims
         platform = (abm.platform,:CPU)
         declaredSymbols = copy(abm.declaredSymbols)
+
+        #Creating the appropiate data matrices for the different parameters
         values = Dict{Symbol,Any}()
         for (sym,prop) in pairs(declaredSymbols)
+            #Choosing data type
             dtype = Float64
             if :Float in prop
                 dtype = FLOAT[abm.platform]
@@ -30,6 +58,7 @@ mutable struct Community
                 dtype = INT[abm.platform]
             end
     
+            #Chosing correct format depending on type of object
             if :Local in prop
                 values[sym] = zeros(dtype,N)
             elseif :Global in prop
@@ -51,22 +80,22 @@ mutable struct Community
             end
         
         end
+        #Initialize default parameters
         values[:N] .= N
         values[:nMax_] .= N
         values[:id] .= 1:N
     
-        return new(dims,platform,declaredSymbols,values)
+        return new(dims,platform,declaredSymbols,values,false)
     end    
 
 end
 
+# Overload show
 function Base.show(io::IO,com::Community)
-    print("PARAMETERS\n\t")
-    for (sym,prop) in pairs(com.declaredSymbols)
-        print(sym," ",prop,"\n\t")
-    end
+    println("Community with ", com.N[1], " agents.")
 end
 
+# Overload ways of calling and assigning the parameters in community
 function Base.getproperty(com::Community,var::Symbol)
     
     if var in fieldnames(Community)
@@ -99,6 +128,8 @@ function Base.setproperty!(com::Community,var::Symbol,v::Array{<:Number})
 
     if !(var in keys(com.declaredSymbols))
         error(var," is not in community.")
+    elseif var == :N
+        error("Parameter N cannot be reassigned, for that contruct a Community with a different number of agents.")
     elseif size(com[var]) == size(v)
         com.values[var] .= v
     else
@@ -111,6 +142,8 @@ function Base.setproperty!(com::Community,var::Symbol,v::Number)
     
     if !(var in keys(com.declaredSymbols))
         error(var," is not in community.")
+    elseif var == :N
+        error("Parameter N cannot be reassigned, for that contruct a Community with a different number of agents.")
     elseif :Global in com.declaredSymbols[var]
         com.values[var] .= v
     else
@@ -123,6 +156,8 @@ function Base.setindex!(com::Community,v::Array{<:Number},var::Symbol)
     
     if !(var in keys(com.declaredSymbols))
         error(var," is not in community.")
+    elseif var == :N
+        error("Parameter N cannot be reassigned, for that contruct a Community with a different number of agents.")
     elseif size(com[var]) == size(v)
         com.values[var] .= v
     else
@@ -135,6 +170,8 @@ function Base.setindex!(com::Community,v::Number,var::Symbol)
     
     if !(var in keys(com.declaredSymbols))
         error(var," is not in community.")
+    elseif var == :N
+        error("Parameter N cannot be reassigned, for that contruct a Community with a different number of agents.")
     elseif :Global in com.declaredSymbols[var]
         com.values[var] .= v
     else
@@ -143,6 +180,23 @@ function Base.setindex!(com::Community,v::Number,var::Symbol)
 
 end
 
+"""
+    function loadToPlatform!(com::Community;addAgents::Int=0)
+
+Function that converts the Community data into the appropiate format to be executed in the corresponding platform.
+
+# Arguments
+
+ - **com::Community**: Comunity to be transformed.
+ 
+# Keyword arguments
+
+ - **addAgents::Int=0**: Number of preallocated agent positions to add to the Community for situations in which more agents will be introduced in the model during the evolution of the system.
+
+# Returns
+
+Nothing
+"""
 function loadToPlatform!(com::Community;addAgents::Int=0)
 
     #Initialize initialized parameters that need to be initialized
@@ -196,7 +250,21 @@ function loadToPlatform!(com::Community;addAgents::Int=0)
     #Add limit of agents
     com.nMax_ .= com.N .+ addAgents
 
+    setfield!(com,:loaded,true)
+
     return 
+
+end
+
+"""
+    function checkLoaded(com)
+
+Function that give error if the Community has not been loaded. Called before any step function.
+"""
+function checkLoaded(com)
+    if !com.loaded
+        error("Community must be loaded to platform with `loadToPlatform!` before being able to compute any step.")
+    end
 end
 
 """

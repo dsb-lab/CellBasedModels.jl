@@ -6,8 +6,74 @@ Basic structure which contains the high level code specifying the rules of the a
 # Elements
 
  - **dims::Int**: Dimensions of the model.
- - **declaredSymbols::Dict{String,Array{Symbol,1}}**: Dictionary containing all the parameters of the model.
- - **declaredUpdates::Dict{String,Expr}**: Dictionary containing all the code specifying the rules of the agents.
+ - **declaredSymbols::OrderedDict{Symbol,Array{Any}}**: Dictionary of parameters of the model and its properties.
+ - **declaredUpdates::Dict{Symbol,Expr}**:  Dictionary of updating rules.
+ - **declaredUpdatesCode::Dict{Symbol,Expr}**: Dictionary of updating rules after wrapping into code.
+ - **declaredUpdatesFunction::Dict{Symbol,Function}**: Dictionary of updting rules and the compiled functions.
+ - **neighbors::Symbol**: Type of neighbors computation of the model.
+ - **integrator::Symbol**: Type of integrator for the Differential Equations of the model.
+ - **platform::Symbol**: Platform used for evolving the model.
+ - **saving::Symbol**: Saving method.
+
+# Constructors
+
+    function Agent()
+
+Generates an empty instance of Agent to be filled.
+
+    function Agent(dims;
+        localInt::Vector{Symbol}=Symbol[],
+        localIntInteraction::Vector{Symbol}=Symbol[],
+        localFloat::Vector{Symbol}=Symbol[],
+        localFloatInteraction::Vector{Symbol}=Symbol[],
+        globalFloat::Vector{Symbol}=Symbol[],
+        globalInt::Vector{Symbol}=Symbol[],
+        globalFloatInteraction::Vector{Symbol}=Symbol[],
+        globalIntInteraction::Vector{Symbol}=Symbol[],
+        medium::Vector{Symbol}=Symbol[],
+        baseModelInit::Vector{Agent}=Agent[],
+        baseModelEnd::Vector{Agent}=Agent[],
+        neighbors::Symbol=:Full,
+        integrator::Symbol=:Euler,
+        platform::Symbol=:CPU,
+        saving::Symbol=:RAM,
+        updateGlobal::Expr=quote end,
+        updateLocal::Expr=quote end,
+        updateInteraction::Expr=quote end,
+        updateMedium::Expr=quote end,
+        updateMediumInteraction::Expr=quote end,
+        updateVariable::Expr=quote end
+        )
+
+Generates an agent based model with defined parameters and rules.
+
+## Arguments
+ - **dims**: Dimensions of the system.
+
+## Keyword arguments
+ - **localInt::Vector{Symbol}=Symbol[]**: User defined local integer parameters.
+ - **localIntInteraction::Vector{Symbol}=Symbol[]**: User defined local integer interacting parameters.
+ - **localFloat::Vector{Symbol}=Symbol[]**: User defined local float parameters.
+ - **localFloatInteraction::Vector{Symbol}=Symbol[]**: User defined local float interacting parameters.
+ - **globalFloat::Vector{Symbol}=Symbol[]**: User defined global float parameters.
+ - **globalInt::Vector{Symbol}=Symbol[]**: User defined global integer parameters.
+ - **globalFloatInteraction::Vector{Symbol}=Symbol[]**: User defined global float interacting parameters.
+ - **globalIntInteraction::Vector{Symbol}=Symbol[]**: User defined global integer interacting parameters.
+ - **medium::Vector{Symbol}=Symbol[]**: User defined medium (float) parameters.
+ - **baseModelInit::Vector{Agent}=Agent[]**: Models inherited to construct this model and which rules apply before this one.
+ - **baseModelEnd::Vector{Agent}=Agent[]**: Models inherited to construct this model and which rules apply after this one.
+ - **neighbors::Symbol=:Full**: Type of neighbor method used.
+ - **integrator::Symbol=:Euler**: Type of integrator used.
+ - **platform::Symbol=:CPU**: Platform in which the agent will run.
+ - **saving::Symbol=:RAM**: Saving platform.
+ - **updateGlobal::Expr=quote end**: Update rule for global parameters.
+ - **updateLocal::Expr=quote end**: Update rule for local parameters.
+ - **updateInteraction::Expr=quote end**: Update rule for interacting parameters.
+ - **updateMedium::Expr=quote end**: Update rule for medium parameters.
+ - **updateMediumInteraction::Expr=quote end**: Update rule for medium interaction parameters.
+ - **updateVariable::Expr=quote end**: Update rule for diferential equation defining evolution of parameters.
+
+For a more extense explanation of how to define rules and parameters, read `Usage` in the documentation.
 """
 mutable struct Agent
 
@@ -160,9 +226,9 @@ mutable struct Agent
 
         #Make compiled functions
         # neighborsFunction(agent)
-        # updateFunction(agent)
+        updateFunction(agent)
         # localInteractionsFunction(agent)
-        # localFunction(agent)
+        localFunction(agent)
 
         return agent
     end
@@ -172,8 +238,8 @@ end
 function Base.show(io::IO,abm::Agent)
     print("PARAMETERS\n")
     for (i,j) in pairs(abm.declaredSymbols)
-        if string(i)[end] != "_" #Only print parameters used by the user 
-            print("\t",i)
+        if string(i)[end] != '_' #Only print parameters used by the user 
+            println("\t",i," (",j[2]," ",j[1],")")
         end
     end
 

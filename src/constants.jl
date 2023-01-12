@@ -1,4 +1,4 @@
-FLOAT = Dict([:CPU=>Float64,:GPU=>Float64])
+FLOAT = Dict([:CPU=>Float64,:GPU=>Float32])
 INT = Dict([:CPU=>Int,:GPU=>Int32])
 ZEROS =  Dict([:CPU=>zeros,:GPU=>CUDA.zeros])
 ARRAY = Dict([:CPU=>Array,:GPU=>CuArray])

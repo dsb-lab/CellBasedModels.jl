@@ -5,3 +5,4 @@ build
 .*
 examples/.*
 examples/data
+examples/make_docs.sh
