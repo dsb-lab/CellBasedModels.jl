@@ -2,7 +2,6 @@
     mutable struct Agent
 
 Basic structure which contains the high level code specifying the rules of the agents. 
-For constructing such agents, it is advised to use the macro function `@agent`.
 
 # Elements
 
@@ -159,11 +158,11 @@ mutable struct Agent
             end
         end
 
-        #Make comiled functions
-        updateFunction(agent)
-        neighborsFunction(agent)
-        localInteractionsFunction(agent)
-        localFunction(agent)
+        #Make compiled functions
+        # neighborsFunction(agent)
+        # updateFunction(agent)
+        # localInteractionsFunction(agent)
+        # localFunction(agent)
 
         return agent
     end
@@ -173,7 +172,9 @@ end
 function Base.show(io::IO,abm::Agent)
     print("PARAMETERS\n")
     for (i,j) in pairs(abm.declaredSymbols)
-        print("\t",i)
+        if string(i)[end] != "_" #Only print parameters used by the user 
+            print("\t",i)
+        end
     end
 
     print("\n\nUPDATE RULES\n")
