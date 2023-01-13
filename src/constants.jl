@@ -39,6 +39,9 @@ BASESYMBOLS = OrderedDict(
     :nMax_=>[:Int,:Global,:Base],
     :simulationBox => [:Float,:SimulationBox,:Base],
     :NV_ => [:Int,:Atomic,:Base],
+    :NRem_ => [:Int,:Atomic,:Base],
+    :remPos_ => [:Int,Local,:Base],
+    :reorgPos_ => [:Int,Local,:Base],
     :idMax_ => [:Int,:Atomic,:Base,@eval (com) -> Threads.Atomic{Int}(com.N[1])]
     )
 

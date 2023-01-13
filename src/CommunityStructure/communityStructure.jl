@@ -226,7 +226,7 @@ function loadToPlatform!(com::Community;addAgents::Int=0)
             if com.agent.platform == :CPU
                 com.values[sym] = com.values[sym]
             else
-                com.values[sym] = ARRAY[com.agent.platform]([com.values[sym][]])
+                com.values[sym] = ARRAY[com.agent.platform](dtype[com.values[sym][]])
             end
         else
             error("Parameter type ",prop[2], " is not defined.")

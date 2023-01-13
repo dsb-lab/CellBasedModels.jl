@@ -15,7 +15,7 @@ function makeSimpleLoop(code,agent)
 
     else agent.platform == :GPU
 
-        return :($CUDATHREADS1D; for i1_ in 1:1:N[1]; $code; end)
+        return :($CUDATHREADS1D; for i1_ in index:stride:N[1]; $code; end)
 
     end
 end

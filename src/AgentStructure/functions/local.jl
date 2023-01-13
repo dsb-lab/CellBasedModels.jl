@@ -1,7 +1,7 @@
 ######################################################################################################
 # add agent code
 ######################################################################################################
-function addAgentCode(arguments,agent::Agent;rem=true)
+function addAgentCode(arguments,agent::Agent)
 
     code = quote end
 
@@ -19,11 +19,11 @@ function addAgentCode(arguments,agent::Agent;rem=true)
         end
 
         if g in args
-           error(string(i.args[1])[1:end-4]," has been declared more than once for the same agent.") 
+           error(string(i.args[1])[1:end-4]," has been declared more than once in addAgent.") 
         end
 
         if i.args[1] == :id
-            error("id should not be declared when calling addAgent, it is assigned automatically.")
+            error("id must not be declared when calling addAgent. It is assigned automatically.")
         end
 
         push!(code.args,:($(i.args[1]).addCell=$(i.args[2])))
@@ -47,22 +47,18 @@ function addAgentCode(arguments,agent::Agent;rem=true)
                     id = idNew_
                     $code
                 else
-                    Threads.atomic_add!(NV_,$(INT[agent.platform])(-nMax_))
+                    Threads.atomic_add!(NV_,$(INT[agent.platform])(-1))
                 end
             end
     elseif agent.platform == :GPU
-        error("Not migrated yet.")
         code = quote
-            i1New_ = N+CUDA.atomic_add!(CUDA.pointer(NV_,1),$(INT["gpu"])(1)) + 1
-            CUDA.atomic_add!(CUDA.pointer(N,1),$(INT["gpu"])(1))
-            idNew_ = CUDA.atomic_add!(CUDA.pointer(idMax_,1),$(INT["gpu"])(1)) + 1
+            i1New_ = N+CUDA.atomic_add!(CUDA.pointer(NV_,1),$(INT[agent.platform])(1)) + 1
+            idNew_ = CUDA.atomic_add!(CUDA.pointer(idMax_,1),$(INT[agent.platform])(1)) + 1
             if nMax_ >= i1New_
                 id = idNew_
                 $code
             else
-                CUDA.atomic_add!(CUDA.pointer(NV_,1),$(INT["gpu"])(-1))
-                CUDA.atomic_add!(CUDA.pointer(N,1),$(INT["gpu"])(-1))
-                limNMax_[1] = 0
+                CUDA.atomic_add!(CUDA.pointer(NV_,1),$(INT[agent.platform])(-1))
             end
         end
     end
@@ -70,34 +66,70 @@ function addAgentCode(arguments,agent::Agent;rem=true)
     return code
 end
 
-"""
-    function addEventAddAgent(code::Expr,p::Agent)
-
-Substitute a declaration of `addAgent` by the corresponding code.
-
-# Args
- - **code::Expr**:  Code to be changed by agents.
- - **p::Agent**:  Agent structure containing all the created code when compiling.
-
-# Returns
- - `Expr` with the modified code.
-"""
 function addEventAddAgent(code::Expr,agent::Agent)
 
     if inexpr(code,:addAgent)
         
-        if inexpr(code,:removeAgent) #In case of removal, add new people to the list
-            code = postwalk(x->@capture(x,addAgent(g__)) ? addAgentCode(g,agent,rem=true) : x , code)
-        else
-            code = postwalk(x->@capture(x,addAgent(g__)) ? addAgentCode(g,agent) : x , code)
-        end
+        code = postwalk(x->@capture(x,addAgent(g__)) ? addAgentCode(g,agent) : x , code)
 
     end
 
     return code
 end
 
+######################################################################################################
+# remove agent code
+######################################################################################################
+function reorganizeCells(agent::Agent)
 
+    updateargs = [sym for (sym,prop) in pairs(agent.declaredSymbols) if prop[3] in [:UserUpdatable,:Position]]
+
+    code = quote 
+        iNew_ = remPos_[ic1_]
+        iNew_ = remPos_[ic1_]
+    end
+    for sym in updateargs
+        push!(code.args,:($sym.new[iNew_] = $sym.new[]))
+    end
+
+    if agent.platform == :CPU
+        code = quote end
+
+        if
+
+    elseif agent.platform == :gpu
+    
+    end
+
+end
+
+function removeAgentCode(agent::Agent)
+
+    code = quote end
+
+    if agent.platform == :CPU 
+        code = quote
+                idNew_ = Threads.atomic_add!(NRem_,$(INT[agent.platform])(1)) + 1
+                remPos_[idNew_] = ic1_ 
+            end
+    elseif agent.platform == :GPU
+        code = quote
+                i1New_ = CUDA.atomic_add!(CUDA.pointer(NRem_,1),$(INT[agent.platform])(1)) + 1
+                remPos_[idNew_] = ic1_ 
+            end
+    end
+
+    return code
+
+end
+
+function addEventRemoveAgent(code::Expr,agent::Agent)
+
+    code = postwalk(x->@capture(x,removeAgent()) ? removeAgentCode(agent) : x , code)
+
+    return code
+
+end
 
 ######################################################################################################
 # local function
@@ -116,7 +148,7 @@ function localFunction(agent)
 
         #Custom functions
         code = addEventAddAgent(code,agent)
-        # code = remAgentCode(code,agent)
+        code = removeEventAgent(code,agent)
         #Vectorize
         code = vectorize(code,agent)
         #Put in loop
@@ -128,7 +160,7 @@ function localFunction(agent)
         if agent.platform == :CPU
             agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(
                 :(function (community)
-                
+
                     community.agent.declaredUpdatesFunction[:UpdateLocal_]($(args2...))
                     community.N .+= community.NV_[]
                     community.NV_[] = 0
