@@ -13,9 +13,14 @@ function makeSimpleLoop(code,agent)
 
         return :(Threads.@threads for i1_ in 1:1:N[1]; $code; end)
 
-    else
+    else agent.platform == :GPU
 
-        error("Simple loop in GPU not implemented yet.")
+        return :($CUDATHREADS1D; for i1_ in 1:1:N[1]; $code; end)
 
     end
+end
+
+CUDATHREADS1D = quote
+    index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    stride = gridDim().x * blockDim().x
 end

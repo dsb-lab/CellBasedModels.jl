@@ -3,8 +3,7 @@ Basic structure keeping the parameters of all the agents in the current simulati
 
 # Elements
 
- - **dims::Int**: Dimensions of the model.
- - **platform::Tuple{Symbol,Symbol}**: Platform used for evolving the model.
+ - **agent::Agent**: Agent model dealing with the rule of the model.
  - **declaredSymbols::OrderedDict{Symbol,Any}**: Dictionary of parameters of the model and its properties.
  - **values::Dict{Symbol,Any}**: Dictionary of parameters and the stored data.
  - **loaded::Bool**: Check if the model has been loaded into platform or not.
@@ -26,11 +25,10 @@ Function to construct a Community with a predefined number of agents and medium 
 """
 mutable struct Community
 
-    dims::Int
-    platform::Tuple{Symbol,Symbol}
-    declaredSymbols::OrderedDict{Symbol,Any}
+    agent::Agent
     values::Dict{Symbol,Any}
     loaded::Bool
+    platform::Platform
 
     # Constructors
     function Community(abm::Agent; N::Int=1, NMedium::Array{Int,1}=Array{Int,1}([]))
@@ -41,15 +39,10 @@ mutable struct Community
                 error("NMedium has to be an array with the same length as AgentCompiled dimensions specifing the number of points in the grid.")
             end
         end
-    
-        #Setting up parameters
-        dims = abm.dims
-        platform = (abm.platform,:CPU)
-        declaredSymbols = copy(abm.declaredSymbols)
 
         #Creating the appropiate data matrices for the different parameters
         values = Dict{Symbol,Any}()
-        for (sym,prop) in pairs(declaredSymbols)
+        for (sym,prop) in pairs(abm.declaredSymbols)
             #Choosing data type
             dtype = Float64
             if :Float in prop
@@ -68,9 +61,9 @@ mutable struct Community
             elseif :VerletList in prop
                 values[sym] = zeros(dtype,N,0)
             elseif :SimulationBox in prop
-                values[sym] = zeros(dtype,dims,2)
+                values[sym] = zeros(dtype,abm.dims,2)
             elseif :Dims in prop
-                values[sym] = zeros(dtype,dims)
+                values[sym] = zeros(dtype,abm.dims)
             elseif :Cells in prop
                 values[sym] = zeros(dtype,0)
             elseif :Atomic in prop
@@ -85,7 +78,7 @@ mutable struct Community
         values[:nMax_] .= N
         values[:id] .= 1:N
     
-        return new(dims,platform,declaredSymbols,values,false)
+        return new(abm,values,false,Platform(256,10))
     end    
 
 end
@@ -126,7 +119,7 @@ end
 
 function Base.setproperty!(com::Community,var::Symbol,v::Array{<:Number})
 
-    if !(var in keys(com.declaredSymbols))
+    if !(var in keys(com.agent.declaredSymbols))
         error(var," is not in community.")
     elseif var == :N
         error("Parameter N cannot be reassigned, for that contruct a Community with a different number of agents.")
@@ -140,11 +133,11 @@ end
 
 function Base.setproperty!(com::Community,var::Symbol,v::Number)
     
-    if !(var in keys(com.declaredSymbols))
+    if !(var in keys(com.agent.declaredSymbols))
         error(var," is not in community.")
     elseif var == :N
         error("Parameter N cannot be reassigned, for that contruct a Community with a different number of agents.")
-    elseif :Global in com.declaredSymbols[var]
+    elseif :Global in com.agent.declaredSymbols[var]
         com.values[var] .= v
     else
         error("Only Global parameters can be assigned with a number.")
@@ -154,7 +147,7 @@ end
 
 function Base.setindex!(com::Community,v::Array{<:Number},var::Symbol)
     
-    if !(var in keys(com.declaredSymbols))
+    if !(var in keys(com.agent.declaredSymbols))
         error(var," is not in community.")
     elseif var == :N
         error("Parameter N cannot be reassigned, for that contruct a Community with a different number of agents.")
@@ -168,11 +161,11 @@ end
 
 function Base.setindex!(com::Community,v::Number,var::Symbol)
     
-    if !(var in keys(com.declaredSymbols))
+    if !(var in keys(com.agent.declaredSymbols))
         error(var," is not in community.")
     elseif var == :N
         error("Parameter N cannot be reassigned, for that contruct a Community with a different number of agents.")
-    elseif :Global in com.declaredSymbols[var]
+    elseif :Global in com.agent.declaredSymbols[var]
         com.values[var] .= v
     else
         error("Only Global parameters can be assigned with a number.")
@@ -200,40 +193,40 @@ Nothing
 function loadToPlatform!(com::Community;addAgents::Int=0)
 
     #Initialize initialized parameters that need to be initialized
-    for (sym,prop) in pairs(com.declaredSymbols)
+    for (sym,prop) in pairs(com.agent.declaredSymbols)
         if length(prop) == 4 #Initialization
             com.values[sym] = prop[4](com)
         end
     end
 
     # Transform to the correct platform
-    for (sym,prop) in pairs(com.declaredSymbols)
+    for (sym,prop) in pairs(com.agent.declaredSymbols)
         dtype = Float64
         if :Float in prop
-            dtype = FLOAT[com.platform[2]]
+            dtype = FLOAT[com.agent.platform]
         elseif :Int in prop
-            dtype = INT[com.platform[2]]
+            dtype = INT[com.agent.platform]
         end
 
         if :Local in prop
-            com.values[sym] = ARRAY[com.platform[1]]([com.values[sym]; zeros(dtype,addAgents)])
+            com.values[sym] = ARRAY[com.agent.platform]([com.values[sym]; zeros(dtype,addAgents)])
         elseif :VerletList in prop
-            com.values[sym] = ARRAY[com.platform[1]](zeros(dtype,com.nMax_[1],com.nMaxNeighbors[1]))
+            com.values[sym] = ARRAY[com.agent.platform](zeros(dtype,com.nMax_[1],com.nMaxNeighbors[1]))
         elseif :SimulationBox in prop
-            com.values[sym] = ARRAY[com.platform[1]](com.values[sym])
+            com.values[sym] = ARRAY[com.agent.platform](com.values[sym])
         elseif :Global in prop
-            com.values[sym] = ARRAY[com.platform[1]](com.values[sym])
+            com.values[sym] = ARRAY[com.agent.platform](com.values[sym])
         elseif :Medium in prop
-            com.values[sym] = ARRAY[com.platform[1]](com.values[sym])
+            com.values[sym] = ARRAY[com.agent.platform](com.values[sym])
         elseif :Dims in prop
-            com.values[sym] = ARRAY[com.platform[1]](com.values[sym])
+            com.values[sym] = ARRAY[com.agent.platform](com.values[sym])
         elseif :Cells in prop
-            com.values[sym] = ARRAY[com.platform[1]](com.values[sym])
+            com.values[sym] = ARRAY[com.agent.platform](com.values[sym])
         elseif :Atomic in prop
-            if com.platform[1] == :CPU
+            if com.agent.platform == :CPU
                 com.values[sym] = com.values[sym]
             else
-                error("Atomic GPU not implemented yet")
+                com.values[sym] = ARRAY[com.agent.platform]([com.values[sym][]])
             end
         else
             error("Parameter type ",prop[2], " is not defined.")
@@ -242,11 +235,10 @@ function loadToPlatform!(com::Community;addAgents::Int=0)
         if :Update in prop #Initialize update paremters
             sym2 = Meta.parse(string(sym)[1:end-4])
 
-            com.values[sym] = com.values[sym2]
+            com.values[sym] .= com.values[sym2]
         end
     end            
 
-    com.platform = (com.platform[1],com.platform[1])
     #Add limit of agents
     com.nMax_ .= com.N .+ addAgents
 

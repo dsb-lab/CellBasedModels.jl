@@ -9,3 +9,8 @@ struct Integrator
     args
     createFunction
 end
+
+struct Platform
+    threads
+    blocks
+end

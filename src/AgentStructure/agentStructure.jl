@@ -225,10 +225,10 @@ mutable struct Agent
         end
 
         #Make compiled functions
-        # neighborsFunction(agent)
         updateFunction(agent)
-        # localInteractionsFunction(agent)
         localFunction(agent)
+        # neighborsFunction(agent)
+        # localInteractionsFunction(agent)
 
         return agent
     end
