@@ -4,9 +4,9 @@ Basic structure keeping the parameters of all the agents in the current simulati
 # Elements
 
  - **agent::Agent**: Agent model dealing with the rule of the model.
- - **declaredSymbols::OrderedDict{Symbol,Any}**: Dictionary of parameters of the model and its properties.
  - **values::Dict{Symbol,Any}**: Dictionary of parameters and the stored data.
  - **loaded::Bool**: Check if the model has been loaded into platform or not.
+ - **platform::Platform**: Parameters needed to execute the code in specific platforms.
 
 # Constructors
 

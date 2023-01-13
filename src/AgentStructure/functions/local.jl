@@ -124,24 +124,39 @@ function localFunction(agent)
 
         agent.declaredUpdatesCode[:UpdateLocal] = code
         agent.declaredUpdatesFunction[:UpdateLocal_] = Main.eval(:(($(args...),) -> $code))
-        agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(
-            :(function (community,agent)
-                agent.declaredUpdatesFunction[:UpdateLocal_]($(args2...))
-                community.N .+= community.NV_[]
-                community.NV_[] = 0
-                return 
 
-            end)
-        )
+        if agent.platform == :CPU
+            agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(
+                :(function (community)
+                
+                    community.agent.declaredUpdatesFunction[:UpdateLocal_]($(args2...))
+                    community.N .+= community.NV_[]
+                    community.NV_[] = 0
+                    return 
+
+                end)
+            )
+        elseif agent.platform == :GPU
+            agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(
+                :(function (community)
+
+                    @cuda threads=community.platform.threads blocks=community.platform.blocks community.agent.declaredUpdatesFunction[:UpdateLocal_]($(args2...))
+                    community.N .+= community.NV_
+                    community.NV_ .= 0
+                    return 
+
+                end)
+            )
+        end
     else
-        agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(:((community,agent) -> nothing))
+        agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(:((community) -> nothing))
     end
 
 end
 
-function localStep!(community,agent)
+function localStep!(community)
 
-    agent.declaredUpdatesFunction[:UpdateLocal](community,agent)
+    community.agent.declaredUpdatesFunction[:UpdateLocal](community)
 
     return 
 
