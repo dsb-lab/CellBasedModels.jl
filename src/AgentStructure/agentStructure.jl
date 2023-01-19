@@ -79,7 +79,7 @@ mutable struct Agent
 
     dims::Int
     
-    declaredSymbols::OrderedDict{Symbol,Array{Any}}
+    declaredSymbols::OrderedDict{Symbol,UserParameter}
     declaredUpdates::Dict{Symbol,Expr}
     declaredUpdatesCode::Dict{Symbol,Expr}
     declaredUpdatesFunction::Dict{Symbol,Function}
@@ -87,6 +87,8 @@ mutable struct Agent
     integrator::Symbol
     platform::Symbol
     saving::Symbol
+    removalOfAgents_::Bool
+    posUpdated_::Vector{Bool}
         
     function Agent()
         new(0,
@@ -97,7 +99,9 @@ mutable struct Agent
             :Full,
             :Euler,
             :CPU,
-            :RAM
+            :RAM,
+            false,
+            [false,false,false]
             )
     end
 
@@ -149,36 +153,26 @@ mutable struct Agent
             error("Neighbors algorithm ", saving, " not defined. Specify among: ", SAVING)
         end
 
-        #Add Symbols
-            #Base symbols
-        for (i,j) in pairs(BASESYMBOLS)
-            agent.declaredSymbols[i] = j
-        end
-            #Position symbols
-        for i in 1:1:dims
-            agent.declaredSymbols[POSITIONSYMBOLS[i][1]] = POSITIONSYMBOLS[i][2]
-        end
-        for (i,j) in pairs(NEIGHBORSYMBOLS[neighbors])
-            agent.declaredSymbols[i] = j
-        end
-        for (i,j) in [(localInt,[:Int,:Local,:UserUpdatable]),
-                    (localIntInteraction,[:Int,:Local,:UserResetable]),
-                    (localFloat,[:Float,:Local,:UserUpdatable]),
-                    (localFloatInteraction,[:Float,:Local,:UserResetable]),
-                    (globalFloat,[:Float,:Global,:UserUpdatable]),
-                    (globalFloatInteraction,[:Float,:Global,:UserResetable]),
-                    (globalInt,[:Int,:Global,:UserUpdatable]),
-                    (globalIntInteraction,[:Int,:Global,:UserResetable]),
-                    (medium,[:Float,:Medium,:UserUpdatable])]
+        #User defined symbols
+        for (i,j) in [                                        #dtype #scope #reset #basePar #pos
+                    (localInt,                  UserParameter(:Int,     :Local,      false,    :liNM_,      1)),
+                    (localIntInteraction,       UserParameter(:Int,     :Local,      true,     :lii_,       1)),
+                    (localFloat,                UserParameter(:Float,   :Local,      false,    :lfNM_,      1)),
+                    (localFloatInteraction,     UserParameter(:Float,   :Local,      true,     :lfi_,       1)),
+                    (globalFloat,               UserParameter(:Float,   :Global,     false,    :gfNM_,      1)),
+                    (globalFloatInteraction,    UserParameter(:Float,   :Global,     true,     :gfi_,       1)),
+                    (globalInt,                 UserParameter(:Int,     :Global,     false,    :giNM_,      1)),
+                    (globalIntInteraction,      UserParameter(:Int,     :Global,     true,     :gii_,       1)),
+                    (medium,                    UserParameter(:Float,   :Medium,     false,    :medium_,    1))]
             checkDeclared(i,agent)
             for sym in i
-                agent.declaredSymbols[sym] = j
+                agent.declaredSymbols[sym] = deepcopy(j)
             end
         end
-            #Add symbols from base objects
+        #Add symbols from base objects
         for base in [baseModelInit; baseModelEnd]
             for (i,j) in pairs(base.declaredSymbols)
-                if !(i in keys(POSITIONSYMBOLS)) || !(i in keys(BASESYMBOLS))
+                if !(i in keys(BASEPARAMETERS))
                     checkDeclared(i,agent)
                     agent.declaredSymbols[i] = j
                 end
@@ -191,9 +185,12 @@ mutable struct Agent
                 agent.declaredUpdates[update] = a.updates[update]
             end
         end
-        for (update,code) in zip(UPDATES, [updateGlobal, updateLocal, updateInteraction, 
-                                                updateMedium, updateMediumInteraction, 
-                                                updateVariable])
+        for (update,code) in zip(UPDATES, [updateGlobal, 
+                                            updateLocal, 
+                                            updateInteraction, 
+                                            updateMedium, 
+                                            updateMediumInteraction, 
+                                            updateVariable])
             agent.declaredUpdates[update] = code
         end
         for a in baseModelEnd
@@ -203,7 +200,7 @@ mutable struct Agent
         end
 
         #Make explicit the updates by adding the .new tag
-        potentiallyUpdatingVars = [var for (var,prop) in pairs(agent.declaredSymbols) if !(:UserResetable in prop)]
+        potentiallyUpdatingVars = [var for (i,var) in pairs(agent.declaredSymbols) if !(var.reset)]
         for i in keys(agent.declaredUpdates)
             code = agent.declaredUpdates[i]
             for k in potentiallyUpdatingVars
@@ -213,20 +210,48 @@ mutable struct Agent
             agent.declaredUpdates[i] = code
         end
 
-        #Add updating variables
+        #Change variables updated to modiafiable
         for update in keys(agent.declaredUpdates)
-            for sym in keys(agent.declaredSymbols)
-                if inexpr(agent.declaredUpdates[update],:($sym.new)) && agent.declaredSymbols[sym][3] in [:UserUpdatable,:Position]
-                    symUpdate = Meta.parse(string(sym,"New_"))
-                    agent.declaredSymbols[symUpdate] = copy(agent.declaredSymbols[sym])
-                    agent.declaredSymbols[symUpdate][3] = :Update
+            for (sym,var) in pairs(agent.declaredSymbols)
+                if inexpr(agent.declaredUpdates[update],:($sym.new)) && !(var.reset)
+                    @set var.basePar = Meta.parse(string(string(sym)[1:end-3],"M_"))
                 end
             end
         end
 
+        #Make list of positions of user parameters
+        for find in unique([j.basePar for (i,j) in pairs(agent.declaredSymbols)])
+            vars = [j for (i,j) in pairs(agent.declaredSymbols) if j.basePar == find]
+            for (count,var) in enumerate(vars)
+                @set var.position = count
+            end
+        end
+
+        #Check if there is removed agents
+        for update in keys(agent.declaredUpdates)
+            for (sym,var) in pairs(agent.declaredSymbols)
+                if inexpr(agent.declaredUpdates[update],:removeAgent)
+                    agent.removalOfAgents_ = true
+                end
+            end
+        end        
+
+        #Check which position vectors are updated
+        for update in keys(agent.declaredUpdates)
+            if inexpr(agent.declaredUpdates[update],:(x.new))
+                agent.removalOfAgents_[1] = true
+            end
+            if inexpr(agent.declaredUpdates[update],:(y.new))
+                agent.removalOfAgents_[2] = true
+            end
+            if inexpr(agent.declaredUpdates[update],:(z.new))
+                agent.removalOfAgents_[3] = true
+            end
+        end    
+
         #Make compiled functions
-        updateFunction(agent)
-        localFunction(agent)
+        # updateFunction(agent)
+        # localFunction(agent)
         # neighborsFunction(agent)
         # localInteractionsFunction(agent)
 
@@ -239,7 +264,7 @@ function Base.show(io::IO,abm::Agent)
     print("PARAMETERS\n")
     for (i,j) in pairs(abm.declaredSymbols)
         if string(i)[end] != '_' #Only print parameters used by the user 
-            println("\t",i," (",j[2]," ",j[1],")")
+            println("\t",i," (",j.dtype," ",j.scope,")")
         end
     end
 
@@ -276,7 +301,7 @@ function change(x,code)
     if code.args[1] == x
         code.args[1] = :($x.new)
     end
-    for op in INTERACTIONSYMBOLS
+    for op in getSymbolsThat(BASESYMBOLS,:scope,[:Interaction1,:Interaction2])
         if code.args[1] == :($x.$op)
             code.args[1] = :($x.new.$op)
         end
@@ -289,7 +314,7 @@ end
 Function called by update that checks that a function is a macro functions before adding the .new
 """
 function updateMacroFunctions(s,code)
-    if code.args[1] in MACROFUNCTIONS
+    if code.args[1] in getSymbolsThat(BASESYMBOLS,:scope,:Macro)
         code = postwalk(x-> isexpr(x,:kw) ? change(s,x) : x, code)
     end
 

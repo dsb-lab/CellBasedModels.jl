@@ -1,6 +1,6 @@
 function neighborsFunction(agent)
 
-    args = [:(community.t),:(community.N),:(community.simulationBox)]
+    args = [:(community.$i) for (i,j) in pairs(agent.declaredSymbols) if j[3] == :Base]
     for i in [:x,:y,:z][1:agent.dims]
         push!(args,:(community.$i))
     end
@@ -74,7 +74,7 @@ function neighborsVerletLoop(code,agent) #Macro to create the second loop in fun
 
     else
 
-        error("Make simple loop Gpu not implemented")
+        error("Make simple loop GPU not implemented")
 
     end
 
@@ -115,13 +115,19 @@ end
 
     #Verlet Time
 macro neighborsVerletTime(args...)
+
     return :(
-        function neighborsVerletTime!(t,N,simulationBox,$(args...),$(keys(NEIGHBORSYMBOLS[:VerletTime])...))
+        function neighborsVerletTime!($(keys(BASESYMBOLS)...),$(args...),$(keys(NEIGHBORSYMBOLS[:VerletTime])...))
 
             if neighborTimeLastRecompute_ <= t
                 neighborN_ .= 0
                 verletNeighbors!(N,$(args...),skin,neighborList_,neighborN_)
                 neighborTimeLastRecompute_ .+= dtNeighborRecompute
+            elseif flagRecomputeNeighbors_ .== 1
+                neighborN_ .= 0
+                verletNeighbors!(N,$(args...),skin,neighborList_,neighborN_)
+                neighborTimeLastRecompute_ .= t + dtNeighborRecompute
+                flagRecomputeNeighbors_ .= 0
             end
 
         end
@@ -143,12 +149,12 @@ macro verletDisplacement(args...)
     end
 
     return :(
-        function verletDisplacement!(N,$(args...),$(args2...),skin,accumulatedDistance_,neighborFlagRecompute_)
+        function verletDisplacement!($(keys(BASESYMBOLS)...),$(args...),$(args2...),skin,accumulatedDistance_)
 
             for i1_ in 1:1:N[1]
                 accumulatedDistance_[i1_] = euclideanDistance($(args3...))
                 if accumulatedDistance_[i1_] >= skin[1]/2
-                    neighborFlagRecompute_[1] = 1
+                    flagRecomputeNeighbors_[1] = 1
                 end
             end
 
@@ -169,13 +175,13 @@ macro neighborsVerletDisplacement(args...)
     up = [:(i .= j) for (i,j) in zip(args,args2)]
 
     return :(
-        function neighborsVerletDisplacement!(t,N,simulationBox,$(args...),$(keys(NEIGHBORSYMBOLS[:VerletDisplacement])...))
+        function neighborsVerletDisplacement!($(keys(BASESYMBOLS)...),$(args...),$(keys(NEIGHBORSYMBOLS[:VerletDisplacement])...))
 
-            verletDisplacement!(N,$(args...),$(args2...),skin,accumulatedDistance_,neighborFlagRecompute_)
-            if neighborFlagRecompute_[1] == 1
+            verletDisplacement!($(keys(BASESYMBOLS)...),$(args...),$(args2...),skin,accumulatedDistance_)
+            if flagRecomputeNeighbors_[1] == 1
                 neighborN_ .= 0
                 accumulatedDistance_ .= 0.
-                neighborFlagRecompute_ .= 0
+                flagRecomputeNeighbors_ .= 0
                 $up
                 verletNeighbors!(N,$(args...),skin,neighborList_,neighborN_)
             end

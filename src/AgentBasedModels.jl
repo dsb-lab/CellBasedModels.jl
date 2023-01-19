@@ -7,6 +7,7 @@ using Random
 using OrderedCollections
 using LinearAlgebra
 using Distributions
+using Accessors
 using CUDA
 using DataFrames
 using CSV
@@ -19,8 +20,8 @@ using Test
 #using WriteVTK
 
 #Constants
-include("./constants.jl")
 include("./baseStructs.jl")
+include("./constants.jl")
 export euclideanDistance, manhattanDistance
 include("./auxiliar.jl")
 
@@ -28,22 +29,22 @@ include("./auxiliar.jl")
 export Agent
 include("./AgentStructure/agentStructure.jl")
 include("./AgentStructure/functions/vectorize.jl")
-    #Local update
-export update!
-include("./AgentStructure/functions/update.jl")
-    #Local
-export localStep!
-include("./AgentStructure/functions/local.jl")
-    #Neighbors
-export computeNeighbors!
-include("./AgentStructure/functions/neighbors.jl")
-    #Local interactions
-export updateInteractions!
-include("./AgentStructure/functions/interactions.jl")
-    #Integrators
-export Euler
-include("./AgentStructure/compile/integrator/integrators.jl")
-include("./AgentStructure/compile/integrator/euler.jl")
+#     #Local update
+# export update!
+# include("./AgentStructure/functions/update.jl")
+#     #Local
+# export localStep!
+# include("./AgentStructure/functions/local.jl")
+#     #Neighbors
+# export computeNeighbors!
+# include("./AgentStructure/functions/neighbors.jl")
+#     #Local interactions
+# export updateInteractions!
+# include("./AgentStructure/functions/interactions.jl")
+#     #Integrators
+# export Euler
+# include("./AgentStructure/compile/integrator/integrators.jl")
+# include("./AgentStructure/compile/integrator/euler.jl")
 # include("./AgentStructure/compile/integrator/heun.jl")
 # include("./AgentStructure/compile/integrator/rungeKutta4.jl")
 # include("./AgentStructure/compile/integrator/implicitEuler.jl")

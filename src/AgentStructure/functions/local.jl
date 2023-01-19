@@ -3,11 +3,12 @@
 ######################################################################################################
 function addAgentCode(arguments,agent::Agent)
 
-    code = quote end
-
-    updateargs = [sym for (sym,prop) in pairs(agent.declaredSymbols) if prop[3] in [:UserUpdatable,:Position]]
+    #List parameters that can be updated by the user
+    updateargs = [sym for (sym,prop) in pairs(agent.declaredSymbols) if (prop[3] in [:UserUpdatable,:Position]) && (prop[2] in [:Local])]
     
+    #Checks that the correct parameters has been declared and not others
     args = []
+    code = quote end
     for i in arguments
         found = @capture(i,g_.h_ = f_)
         if found
@@ -31,37 +32,29 @@ function addAgentCode(arguments,agent::Agent)
 
     end
 
-    #Add parameters to agent
+    #Add parameters to agent that have not been user defined
     for i in updateargs
         if !(i in args) && i != :id
             push!(code.args,:($i.addCell=$i))
         end
     end
 
-    #Add 
-    if agent.platform == :CPU 
-        code = quote
-                i1New_ = N+Threads.atomic_add!(NV_,$(INT[agent.platform])(1)) + 1
-                idNew_ = Threads.atomic_add!(idMax_,$(INT[agent.platform])(1)) + 1
-                if nMax_ >= i1New_
-                    id = idNew_
-                    $code
-                else
-                    Threads.atomic_add!(NV_,$(INT[agent.platform])(-1))
-                end
-            end
-    elseif agent.platform == :GPU
-        code = quote
-            i1New_ = N+CUDA.atomic_add!(CUDA.pointer(NV_,1),$(INT[agent.platform])(1)) + 1
-            idNew_ = CUDA.atomic_add!(CUDA.pointer(idMax_,1),$(INT[agent.platform])(1)) + 1
+    #Make code
+    code = quote
+            i1New_ = N+Threads.atomic_add!(NAdd_,$(INT[agent.platform])(1)) + 1
+            idNew_ = Threads.atomic_add!(idMax_,$(INT[agent.platform])(1)) + 1
             if nMax_ >= i1New_
-                id = idNew_
+                flagNeighbors_[i1New_] = 1
+                id[i1New_] = idNew_
+                flagRecomputeNeighbors_[] = 1
                 $code
             else
-                CUDA.atomic_add!(CUDA.pointer(NV_,1),$(INT[agent.platform])(-1))
+                Threads.atomic_add!(NAdd_,$(INT[agent.platform])(-1))
             end
         end
-    end
+
+    #Adapt code to platform
+    code = cudaAdapt(code,agent)
 
     return code
 end
@@ -70,7 +63,10 @@ function addEventAddAgent(code::Expr,agent::Agent)
 
     if inexpr(code,:addAgent)
         
+        #Substitute code
         code = postwalk(x->@capture(x,addAgent(g__)) ? addAgentCode(g,agent) : x , code)
+
+        return code
 
     end
 
@@ -80,44 +76,22 @@ end
 ######################################################################################################
 # remove agent code
 ######################################################################################################
-function reorganizeCells(agent::Agent)
-
-    updateargs = [sym for (sym,prop) in pairs(agent.declaredSymbols) if prop[3] in [:UserUpdatable,:Position]]
-
-    code = quote 
-        iNew_ = remPos_[ic1_]
-        iNew_ = remPos_[ic1_]
-    end
-    for sym in updateargs
-        push!(code.args,:($sym.new[iNew_] = $sym.new[]))
-    end
-
-    if agent.platform == :CPU
-        code = quote end
-
-        if
-
-    elseif agent.platform == :gpu
-    
-    end
-
-end
-
 function removeAgentCode(agent::Agent)
 
     code = quote end
 
-    if agent.platform == :CPU 
-        code = quote
-                idNew_ = Threads.atomic_add!(NRem_,$(INT[agent.platform])(1)) + 1
-                remPos_[idNew_] = ic1_ 
-            end
-    elseif agent.platform == :GPU
-        code = quote
-                i1New_ = CUDA.atomic_add!(CUDA.pointer(NRem_,1),$(INT[agent.platform])(1)) + 1
-                remPos_[idNew_] = ic1_ 
-            end
-    end
+    #Add 1 to the number of removed
+    #Add the cell position to the list of removed
+    #Set survived to 0
+    code = quote
+            idNew_ = Threads.atomic_add!(NRemove_,$(INT[agent.platform])(1)) + 1
+            holeFromRemoveAt_[idNew_] = i1_ 
+            flagSurvive_[i1_] = 0
+            flagRecomputeNeighbors_[] = 1
+        end
+
+    #Adapt to platform
+    code = cudaAdapt(code,agent)
 
     return code
 
@@ -125,7 +99,14 @@ end
 
 function addEventRemoveAgent(code::Expr,agent::Agent)
 
-    code = postwalk(x->@capture(x,removeAgent()) ? removeAgentCode(agent) : x , code)
+    if inexpr(code,:removeAgent)
+
+        #Make true indicator of survival at the beginning of the code
+        pushfirst!(code.args,:(flagSurvive_[i1_] = 1))
+        #Transform code removeAgent
+        code = postwalk(x->@capture(x,removeAgent()) ? removeAgentCode(agent) : x , code)
+
+    end
 
     return code
 
@@ -148,7 +129,7 @@ function localFunction(agent)
 
         #Custom functions
         code = addEventAddAgent(code,agent)
-        code = removeEventAgent(code,agent)
+        code = addEventRemoveAgent(code,agent)
         #Vectorize
         code = vectorize(code,agent)
         #Put in loop
@@ -157,29 +138,14 @@ function localFunction(agent)
         agent.declaredUpdatesCode[:UpdateLocal] = code
         agent.declaredUpdatesFunction[:UpdateLocal_] = Main.eval(:(($(args...),) -> $code))
 
-        if agent.platform == :CPU
-            agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(
-                :(function (community)
+        aux = addCuda(:(community.agent.declaredUpdatesFunction[:UpdateLocal_]($(args2...))),agent) #Add code to execute kernel in cuda if GPU
+        agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(
+            :(function (community)
+                $aux
+                return 
+            end)
+        )
 
-                    community.agent.declaredUpdatesFunction[:UpdateLocal_]($(args2...))
-                    community.N .+= community.NV_[]
-                    community.NV_[] = 0
-                    return 
-
-                end)
-            )
-        elseif agent.platform == :GPU
-            agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(
-                :(function (community)
-
-                    @cuda threads=community.platform.threads blocks=community.platform.blocks community.agent.declaredUpdatesFunction[:UpdateLocal_]($(args2...))
-                    community.N .+= community.NV_
-                    community.NV_ .= 0
-                    return 
-
-                end)
-            )
-        end
     else
         agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(:((community) -> nothing))
     end
@@ -187,6 +153,8 @@ function localFunction(agent)
 end
 
 function localStep!(community)
+
+    checkLoaded(community)
 
     community.agent.declaredUpdatesFunction[:UpdateLocal](community)
 

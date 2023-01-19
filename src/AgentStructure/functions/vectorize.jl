@@ -9,6 +9,7 @@ function vectorize(code,agent)
                 code = postwalk(x->@capture(x,g_.new.j) && g == sym ? :($symNew[i2_]) : x, code)
                 code = postwalk(x->@capture(x,g_.new) && g == sym ? :($symNew[i1_]) : x, code)
                 code = postwalk(x->@capture(x,g_) && g == sym ? :($sym[i1_]) : x, code)
+                code = postwalk(x->@capture(x,g_[p1_][p2_]) && g == sym ? :($sym[$p2]) : x, code) #Undo if it was already vectorized
                 code = postwalk(x->@capture(x,g_[h_].i) && g == sym ? :($sym[i1_]) : x, code)
                 code = postwalk(x->@capture(x,g_[h_].j) && g == sym ? :($sym[i2_]) : x, code)
                 code = postwalk(x->@capture(x,g_[h_].addCell) && g == :($symNew) ? :($symNew[i1New_]) : x, code)

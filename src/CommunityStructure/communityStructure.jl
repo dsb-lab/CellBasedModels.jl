@@ -4,13 +4,12 @@ Basic structure keeping the parameters of all the agents in the current simulati
 # Elements
 
  - **agent::Agent**: Agent model dealing with the rule of the model.
- - **values::Dict{Symbol,Any}**: Dictionary of parameters and the stored data.
  - **loaded::Bool**: Check if the model has been loaded into platform or not.
- - **platform::Platform**: Parameters needed to execute the code in specific platforms.
+ - **Other parameters described in API**.
 
 # Constructors
 
-    function Community(abm::Agent; N::Int=1, NMedium::Array{Int,1}=Array{Int,1}([]))
+    function Community(abm::Agent; args...)
 
 Function to construct a Community with a predefined number of agents and medium grid.
 
@@ -20,66 +19,95 @@ Function to construct a Community with a predefined number of agents and medium 
 
 # Keyword Arguments
 
- - **N::Int=1**: Number of agents in the community.
- - **NMedium::Array{Int,1}=Array{Int,1}([])**: Grid size of the simulation box for the medium parameters.
+ - **keyword arguments defined in API**
+
 """
 mutable struct Community
 
     agent::Agent
-    values::Dict{Symbol,Any}
     loaded::Bool
-    platform::Platform
+    t
+    dt
+    N
+    NMedium
+    nMax_
+    id
+    idMax_
+    simulationBox
+    NAdd_
+    NRemove_
+    NSurvive_
+    flagSurvive_
+    holeFromRemoveAt_
+    repositionAgentInPos_
+    skin
+    dtNeighborRecompute
+    nMaxNeighbors
+    cellEdge
+    flagRecomputeNeighbors_
+    neighborN_
+    neighborList_
+    neighborTimeLastRecompute_
+    posOld_
+    accumulatedDistance_
+    nCells_
+    cellAssignedToAgent_
+    cellNumAgents_
+    cellCumSum_
+    x
+    y
+    z
+    xNew_
+    yNew_
+    zNew_
+    liNM_
+    liM_
+    liMNew_
+    lii_
+    lfNM_
+    lfM_
+    lfMNew_
+    lfi_
+    gfNM_
+    gfM_
+    gfMNew_
+    gfi_
+    giNM_
+    giM_
+    giMNew_
+    gii_
+    mediumNM_
+    mediumM_
+    mediumMNew_
 
     # Constructors
-    function Community(abm::Agent; N::Int=1, NMedium::Array{Int,1}=Array{Int,1}([]))
+    function Community(agent::Agent; args...)
 
-        #Check approtiate grid is defined is medium variables exist (if model with medium exists)
-        if any([:Medium in prop for (i,prop) in pairs(abm.declaredSymbols)])
-            if length(NMedium) != abm.dims
-                error("NMedium has to be an array with the same length as AgentCompiled dimensions specifing the number of points in the grid.")
+        #Check args compulsory to be declared in the community given the agent model
+        for (sym,prop) in pairs(BASEPARAMETERS)
+            for i in prop.necessaryFor
+                if i == agent.neighbors && !(sym in keys(args))
+                    error("Parameter $sym has to be declared in the community for neighborhood style $i.")
+                elseif i == :Medium && length(getSymbolsThat(agent.declaredSymbols,:basePar,:medium_)) > 0 && !(sym in keys(args))
+                    error("Parameter $sym has to be declared in the community for models with medium parameters.")
+                end
             end
         end
 
         #Creating the appropiate data matrices for the different parameters
-        values = Dict{Symbol,Any}()
-        for (sym,prop) in pairs(abm.declaredSymbols)
-            #Choosing data type
-            dtype = Float64
-            if :Float in prop
-                dtype = FLOAT[abm.platform]
-            elseif :Int in prop
-                dtype = INT[abm.platform]
-            end
-    
-            #Chosing correct format depending on type of object
-            if :Local in prop
-                values[sym] = zeros(dtype,N)
-            elseif :Global in prop
-                values[sym] = zeros(dtype,1)
-            elseif :Medium in prop
-                values[sym] = zeros(dtype,NMedium...)
-            elseif :VerletList in prop
-                values[sym] = zeros(dtype,N,0)
-            elseif :SimulationBox in prop
-                values[sym] = zeros(dtype,abm.dims,2)
-            elseif :Dims in prop
-                values[sym] = zeros(dtype,abm.dims)
-            elseif :Cells in prop
-                values[sym] = zeros(dtype,0)
-            elseif :Atomic in prop
-                values[sym] = Threads.Atomic{dtype}(0)
+        dict = OrderedDict()
+        for (sym,prop) in pairs(BASEPARAMETERS)
+            if sym in keys(args)
+                checkFormat(sym,args,prop,dict,agent)
+                dict[sym] = args[sym]
             else
-                error("Parameter type $(prop[2]) from symbol $sym is not defined.")
+                dict[sym] = prop.initialize(dict,agent)
             end
-        
         end
-        #Initialize default parameters
-        values[:N] .= N
-        values[:nMax_] .= N
-        values[:id] .= 1:N
     
-        return new(abm,values,false,Platform(256,10))
-    end    
+        return new(agent, false, [j for (i,j) in pairs(dict)]...)
+
+    end
 
 end
 
@@ -94,8 +122,10 @@ function Base.getproperty(com::Community,var::Symbol)
     if var in fieldnames(Community)
         return getfield(com,var)
     else
-        if var in keys(com.values)
-            return com.values[var]
+        if var in keys(com.agent.declaredSymbols)
+            x = com.agent.declaredSymbols[var].basePar
+            pos = com.agent.declaredSymbols[var].position
+            return @views getfield(com,x)[:,pos]
         else
             error("Parameter ", var, " not found in the community.")
         end
@@ -108,8 +138,10 @@ function Base.getindex(com::Community,var::Symbol)
     if var in fieldnames(Community)
         return getfield(com,var)
     else
-        if var in keys(com.values)
-            return com.values[var]
+        if var in keys(com.agent.declaredSymbols)
+            x = com.agent.declaredSymbols[var].basePar
+            pos = com.agent.declaredSymbols[var].position
+            return @views getfield(com,x)[:,pos]
         else
             error("Parameter ", var, " not found in the community.")
         end
@@ -119,56 +151,85 @@ end
 
 function Base.setproperty!(com::Community,var::Symbol,v::Array{<:Number})
 
-    if !(var in keys(com.agent.declaredSymbols))
+    if !(var in keys(com.agent.declaredSymbols)) && !(var in fieldnames(Community))
         error(var," is not in community.")
-    elseif var == :N
-        error("Parameter N cannot be reassigned, for that contruct a Community with a different number of agents.")
-    elseif size(com[var]) == size(v)
-        com.values[var] .= v
+        if var in keys(BASEPARAMETERS)
+            if BASEPARAMETERS[var].protected
+                error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
+            else
+                getfield(com,var) .= v
+            end
+        else
+            error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
+        end
     else
-        error("Dimensions and type must match. ",var," is ",size(com.values[var])," and tried to assign a vector of size ",size(v))
+        x = com.agent.declaredSymbols[var].basePar
+        pos = com.agent.declaredSymbols[var].position
+        getfield(com,x)[:,pos] .= v
     end
 
 end
 
 function Base.setproperty!(com::Community,var::Symbol,v::Number)
     
-    if !(var in keys(com.agent.declaredSymbols))
+    if !(var in keys(com.agent.declaredSymbols)) && !(var in fieldnames(Community))
         error(var," is not in community.")
-    elseif var == :N
-        error("Parameter N cannot be reassigned, for that contruct a Community with a different number of agents.")
-    elseif :Global in com.agent.declaredSymbols[var]
-        com.values[var] .= v
+    elseif var in fieldnames(Community)
+        if var in keys(BASEPARAMETERS)
+            if BASEPARAMETERS[var].protected
+                error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
+            else
+                getfield(com,var) .= v
+            end
+        else
+            error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
+        end
     else
-        error("Only Global parameters can be assigned with a number.")
+        x = com.agent.declaredSymbols[var].basePar
+        pos = com.agent.declaredSymbols[var].position
+        getfield(com,x)[:,pos] .= v
     end
 
 end
 
 function Base.setindex!(com::Community,v::Array{<:Number},var::Symbol)
     
-    if !(var in keys(com.agent.declaredSymbols))
+    if !(var in keys(com.agent.declaredSymbols)) && !(var in fieldnames(Community))
         error(var," is not in community.")
-    elseif var == :N
-        error("Parameter N cannot be reassigned, for that contruct a Community with a different number of agents.")
-    elseif size(com[var]) == size(v)
-        com.values[var] .= v
+        if var in keys(BASEPARAMETERS)
+            if BASEPARAMETERS[var].protected
+                error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
+            else
+                getfield(com,var) .= v
+            end
+        else
+            error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
+        end
     else
-        error("Dimensions and type must match. ",var," is ",size(com.var)," and tried to assign a vector of size ",size(v))
+        x = com.agent.declaredSymbols[var].basePar
+        pos = com.agent.declaredSymbols[var].position
+        getfield(com,x)[:,pos] .= v
     end
 
 end
 
 function Base.setindex!(com::Community,v::Number,var::Symbol)
     
-    if !(var in keys(com.agent.declaredSymbols))
+    if !(var in keys(com.agent.declaredSymbols)) && !(var in fieldnames(Community))
         error(var," is not in community.")
-    elseif var == :N
-        error("Parameter N cannot be reassigned, for that contruct a Community with a different number of agents.")
-    elseif :Global in com.agent.declaredSymbols[var]
-        com.values[var] .= v
+        if var in keys(BASEPARAMETERS)
+            if BASEPARAMETERS[var].protected
+                error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
+            else
+                getfield(com,var) .= v
+            end
+        else
+            error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
+        end
     else
-        error("Only Global parameters can be assigned with a number.")
+        x = com.agent.declaredSymbols[var].basePar
+        pos = com.agent.declaredSymbols[var].position
+        getfield(com,x)[:,pos] .= v
     end
 
 end
@@ -192,15 +253,8 @@ Nothing
 """
 function loadToPlatform!(com::Community;addAgents::Int=0)
 
-    #Initialize initialized parameters that need to be initialized
-    for (sym,prop) in pairs(com.agent.declaredSymbols)
-        if length(prop) == 4 #Initialization
-            com.values[sym] = prop[4](com)
-        end
-    end
-
     # Transform to the correct platform
-    for (sym,prop) in pairs(com.agent.declaredSymbols)
+    for (sym,prop) in pairs(BASEPARAMETERS)
         dtype = Float64
         if :Float in prop
             dtype = FLOAT[com.agent.platform]

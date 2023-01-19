@@ -6,12 +6,12 @@
     #Check you can declare agent of any size
     @test begin 
             agent = Agent(3,
-                        localInt=[:li],
+                        localInt=[:li,:li2],
                         localIntInteraction=[:lii],
-                        localFloat=[:lf],
+                        localFloat=[:lf,:lf2],
                         localFloatInteraction=[:lfi],
-                        globalFloat=[:gf],
-                        globalInt=[:gi],
+                        globalFloat=[:gf,:gf2],
+                        globalInt=[:gi,:gi2],
                         globalFloatInteraction=[:gfi],
                         globalIntInteraction=[:gii],
                         medium=[:m],
@@ -38,11 +38,14 @@
                             m -= 1
                         end,
                         updateVariable=quote 
-                            d(x) += dt(-x)
+                            d(x) = dt(-x)
                         end
                         )
 
-            all([i in keys(agent.declaredSymbols) for i in [:x,:y,:z,:li,:lii,:lfi,:gi,:gii,:gfi,:m, :liNew_,:lfNew_,:giNew_,:gfNew_,:mNew_]])
+            #Things that should be present
+            a = all([i in keys(agent.declaredSymbols) for i in [:li,:lii,:lfi,:gi,:gii,:gfi,:m,:li2,:lf2,:gi2,:gf2]]) 
+        
+            a
         end
 
 end
