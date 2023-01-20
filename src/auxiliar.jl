@@ -7,6 +7,11 @@ manhattanDistance(x1,x2) = abs(x1-x2)
 manhattanDistance(x1,x2,y1,y2) = abs(x1-x2)+abs(y1-y2)
 manhattanDistance(x1,x2,y1,y2,z1,z2) = abs(x1-x2)+abs(y1-y2)+abs(z1-z2)
 
+baseParameterToModifiable(sym) = Meta.parse(string(string(sym)[1:end-3],"M_"))
+baseParameterNew(sym) = Meta.parse(string(split(string(sym),"_")[1],"New_"))
+agentArgs() = [keys(BASEPARAMETERS)...]
+agentArgs(sym) = [:($sym.$i) for i in keys(BASEPARAMETERS)]
+
 function getProperty(dict::OrderedDict,property::Symbol)
     return [getfield(var,property) for (i,var) in pairs(dict)]
 end
@@ -48,12 +53,20 @@ function makeSimpleLoop(code,agent)
 
 end
 
-function addCuda(code,agent)
+function addCuda(code,agent,oneThread=false)
 
     if agent.platform == :GPU
 
-       code = :(@cuda threads=community.platform.threads blocks=community.platform.blocks $code)
-    
+        if oneThread
+
+            code = :(@cuda threads=1 blocks=1 $code)
+        
+        else
+
+            code = :(@cuda threads=community.platform.threads blocks=community.platform.blocks $code)
+
+        end
+
     end
 
     return code

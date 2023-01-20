@@ -10,13 +10,13 @@ struct Integrator
     createFunction
 end
 
-struct Platform
-    threads
-    blocks
+mutable struct Platform
+    threads::Int
+    blocks::Int
 end
 struct BaseParameter
     dtype::Symbol
-    scope::Symbol
+    shape::Tuple
     origin::Symbol
     reassign::Bool
     protected::Bool
@@ -24,7 +24,12 @@ struct BaseParameter
     necessaryFor::Vector{Symbol}
     initialize
 end
-struct UserParameter
+
+struct BaseSymbol
+    symbol::Symbol
+    type::Symbol
+end
+mutable struct UserParameter
     dtype::Symbol
     scope::Symbol
     reset::Bool

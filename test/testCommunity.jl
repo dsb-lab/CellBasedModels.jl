@@ -53,171 +53,107 @@ end
 
 @testset "community" begin
 
-    #Create community
-    @test_nowarn begin agent = Agent(3,
-        localInt=[:li],
-        localIntInteraction=[:lii],
-        localFloat=[:lf],
-        localFloatInteraction=[:lfi],
-        globalFloat=[:gf],
-        globalInt=[:gi],
-        globalFloatInteraction=[:gfi],
-        globalIntInteraction=[:gii],
-        medium=[:m],
-        updateGlobal=quote 
-            gi += 1
-            gf += 1
-            gfi += 1
-            gii += 1
-        end,
-        updateLocal=quote 
-            li += 1
-            lf += 1
-            lfi += 1
-            lii += 1     
-            gii += 1       
-        end,
-        updateInteraction=quote 
-            lfi += 1
-        end,
-        updateMedium=quote 
-            m += 1
-        end,
-        updateMediumInteraction=quote
-            m -= 1
-        end,
-        updateVariable=quote 
-            d(x) += dt(-x)
-        end
-        )
+    # #Create community
+    # @test_nowarn begin agent = Agent(3,
+    #     localInt=[:li],
+    #     localIntInteraction=[:lii],
+    #     localFloat=[:lf],
+    #     localFloatInteraction=[:lfi],
+    #     globalFloat=[:gf],
+    #     globalInt=[:gi],
+    #     globalFloatInteraction=[:gfi],
+    #     globalIntInteraction=[:gii],
+    #     medium=[:m],
+    #     updateGlobal=quote 
+    #         gi += 1
+    #         gf += 1
+    #         gfi += 1
+    #         gii += 1
+    #     end,
+    #     updateLocal=quote 
+    #         li += 1
+    #         lf += 1
+    #         lfi += 1
+    #         lii += 1     
+    #         gii += 1       
+    #     end,
+    #     updateInteraction=quote 
+    #         lfi += 1
+    #     end,
+    #     updateMedium=quote 
+    #         m += 1
+    #     end,
+    #     updateMediumInteraction=quote
+    #         m -= 1
+    #     end,
+    #     updateVariable=quote 
+    #         d(x) += dt(-x)
+    #     end
+    #     )
 
-        com = Community(agent,N=[10],NMedium=[1,1,1],simBox=[0. 1;0. 1;0 1])
-    end
-
-    #Get properties
-    @test_nowarn begin agent = Agent(3,
-        localInt=[:li],
-        localIntInteraction=[:lii],
-        localFloat=[:lf],
-        localFloatInteraction=[:lfi],
-        globalFloat=[:gf],
-        globalInt=[:gi],
-        globalFloatInteraction=[:gfi],
-        globalIntInteraction=[:gii],
-        medium=[:m]
-        )
-
-        com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
-        com.li
-        com[:li]
-        com.agent
-        com.loaded
-    end
-
-    #Set properties
-    @test_nowarn begin agent = Agent(3,
-        localInt=[:li],
-        localIntInteraction=[:lii],
-        localFloat=[:lf],
-        localFloatInteraction=[:lfi],
-        globalFloat=[:gf],
-        globalInt=[:gi],
-        globalFloatInteraction=[:gfi],
-        globalIntInteraction=[:gii],
-        medium=[:m]
-        )
-
-        com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
-        com.li = ones(Int64,10)
-        com[:li] = ones(Int64,10)
-        com.li .= 1.
-        com.gi = 1
-        com.gf = 1. 
-        com.dt = 1
-    end
-
-    #loadToPlatform
-    @test_nowarn begin agent = Agent(3,
-        localInt=[:li],
-        localIntInteraction=[:lii],
-        localFloat=[:lf],
-        localFloatInteraction=[:lfi],
-        globalFloat=[:gf],
-        globalInt=[:gi],
-        globalFloatInteraction=[:gfi],
-        globalIntInteraction=[:gii],
-        medium=[:m]
-        )
-
-        com = Community(agent,N=10,NMedium=[10,10,10]);
-        loadToPlatform!(com,addAgents=10)
-    end
-
-    # #Update
-    # @testset "update" begin
-    #     @testPlatform(
-    #         (@test begin
-    #             agent = Agent(3,
-    #                         localInt=[:li],
-    #                         localIntInteraction=[:lii],
-    #                         localFloat=[:lf],
-    #                         localFloatInteraction=[:lfi],
-    #                         globalFloat=[:gf],
-    #                         globalInt=[:gi],
-    #                         globalFloatInteraction=[:gfi],
-    #                         globalIntInteraction=[:gii],
-    #                         medium=[:m],
-    #                         updateGlobal=quote 
-    #                             gi += 1
-    #                             gf += 1
-    #                             gfi += 1
-    #                             gii += 1
-    #                         end,
-    #                         updateLocal=quote 
-    #                             li += 1
-    #                             lf += 1
-    #                             lfi += 1
-    #                             lii += 1            
-    #                         end,
-    #                         updateInteraction=quote 
-    #                             lfi += 1
-    #                             gii += 1
-    #                         end,
-    #                         updateMedium=quote 
-    #                             m += 1
-    #                         end,
-    #                         updateMediumInteraction=quote
-    #                             m -= 1
-    #                         end,
-    #                         updateVariable=quote 
-    #                             d(x) += dt(-x)
-    #                         end,
-    #                         platform=PLATFORM
-    #                     )
-    #             com = Community(agent,N=3,NMedium=[10,10,10]);
-                            
-    #             loadToPlatform!(com,addAgents=10);
-    #             for i in [:li,:lf]
-    #                 ii = Meta.parse(string(i,"New_"))
-    #                 com[ii][1:3] .= 2
-    #             end
-    #             for i in [:gf,:gi,:m]
-    #                 ii = Meta.parse(string(i,"New_"))
-    #                 com[ii] .= 2
-    #             end
-                
-    #             update!(com)
-    #             passed = []
-    #             for i in [:li,:lf,:gf,:gi,:m]
-    #                 ii = Meta.parse(string(i,"New_"))
-    #                 push!(passed,all(com[ii] .== com[i]))
-    #             end
-    #             all(passed)
-    #         end), CPU
-    #     )        
+    #     com = Community(agent,N=[10],NMedium=[1,1,1],simBox=[0. 1;0. 1;0 1])
     # end
 
-    # # Test
+    # #Get properties
+    # @test_nowarn begin agent = Agent(3,
+    #     localInt=[:li],
+    #     localIntInteraction=[:lii],
+    #     localFloat=[:lf],
+    #     localFloatInteraction=[:lfi],
+    #     globalFloat=[:gf],
+    #     globalInt=[:gi],
+    #     globalFloatInteraction=[:gfi],
+    #     globalIntInteraction=[:gii],
+    #     medium=[:m]
+    #     )
+
+    #     com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
+    #     com.li
+    #     com[:li]
+    #     com.agent
+    #     com.loaded
+    # end
+
+    # #Set properties
+    # @test_nowarn begin agent = Agent(3,
+    #     localInt=[:li],
+    #     localIntInteraction=[:lii],
+    #     localFloat=[:lf],
+    #     localFloatInteraction=[:lfi],
+    #     globalFloat=[:gf],
+    #     globalInt=[:gi],
+    #     globalFloatInteraction=[:gfi],
+    #     globalIntInteraction=[:gii],
+    #     medium=[:m]
+    #     )
+
+    #     com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
+    #     com.li = ones(Int64,10)
+    #     com[:li] = ones(Int64,10)
+    #     com.li .= 1.
+    #     com.gi = 1
+    #     com.gf = 1. 
+    #     com.dt = 1
+    # end
+
+    # #loadToPlatform
+    # @test_nowarn begin agent = Agent(3,
+    #     localInt=[:li],
+    #     localIntInteraction=[:lii],
+    #     localFloat=[:lf],
+    #     localFloatInteraction=[:lfi],
+    #     globalFloat=[:gf],
+    #     globalInt=[:gi],
+    #     globalFloatInteraction=[:gfi],
+    #     globalIntInteraction=[:gii],
+    #     medium=[:m]
+    #     )
+
+    #     com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
+    #     loadToPlatform!(com,preallocateAgents=10)
+    # end
+
+    # #local
     # @testset "local" begin
 
     #     @testPlatform(
@@ -240,35 +176,34 @@ end
     #                             end
     #                         end
     #                         );
-    #             com = Community(agent,N=10);
-    #             loadToPlatform!(com,addAgents=1);
+    #             com = Community(agent,N=[10]);
+    #             loadToPlatform!(com,preallocateAgents=1);
     #             localStep!(com)
 
     #             aux = false
     #             if PLATFORM == :CPU
     #                 aux = (com.N[1] == 10) &
-    #                         (com.NAdd_[] .== 1) & #Only for CPU
-    #                         (com.NRemove_[] .== 1) & #Only for CPU
-    #                         (com.idMax_[] .== 11) & #Only for CPU
+    #                         (com.NAdd_[] .== 1) &
+    #                         (com.NRemove_[] .== 1) &
+    #                         (com.idMax_[] .== 11) &
     #                         (com.flagNeighbors_[3] == 1)  &
     #                         (com.flagNeighbors_[11] == 1) &
-    #                         (com.lfNew_[11] ≈ 5) &
+    #                         (com.lfMNew_[11,1] ≈ 5) &
     #                         (com.id[11] == 11)
     #             else 
     #                 aux = (CUDA.@allowscalar com.N[1] .== 10) &
-    #                         (CUDA.@allowscalar com.NAdd_[1] .== 1) & #Only for CPU
-    #                         (CUDA.@allowscalar com.NRemove_[1] .== 1) & #Only for CPU
-    #                         (CUDA.@allowscalar com.idMax_[1] .== 11) & #Only for CPU
+    #                         (CUDA.@allowscalar com.NAdd_[1] .== 1) &
+    #                         (CUDA.@allowscalar com.NRemove_[1] .== 1) &
+    #                         (CUDA.@allowscalar com.idMax_[1] .== 11) &
     #                         (CUDA.@allowscalar com.flagNeighbors_[3] == 1)  &
     #                         (CUDA.@allowscalar com.flagNeighbors_[11] == 1) &
-    #                         (CUDA.@allowscalar com.lfNew_[11] ≈ 5) &
+    #                         (CUDA.@allowscalar com.lfMNew_[11,1] ≈ 5) &
     #                         (CUDA.@allowscalar com.id[11] == 11)
     #             end
 
     #             aux
     #         end)
     #     )
-
 
     #     # Add agent
     #     @testPlatform(
@@ -359,6 +294,56 @@ end
         # )
 
     # end
+    
+    #global
+    @testset "global" begin
+
+        @testPlatform(
+            (@test begin
+                agent = Agent(1,platform=PLATFORM,
+                            localInt=[:li],
+                            localIntInteraction=[:lii],
+                            localFloat=[:lf],
+                            localFloatInteraction=[:lfi],
+                            globalFloat=[:gf],
+                            globalInt=[:gi],
+                            globalFloatInteraction=[:gfi],
+                            globalIntInteraction=[:gii],
+                            updateGlobal = quote
+                                t = 10.
+                                addAgent(lf = 5)
+                            end
+                            );
+                com = Community(agent,N=[10]);
+                loadToPlatform!(com,preallocateAgents=1);
+                localStep!(com)
+
+                aux = false
+                if PLATFORM == :CPU
+                    aux = (com.N[1] == 10) &
+                            (com.NAdd_[] .== 1) &
+                            (com.NRemove_[] .== 1) &
+                            (com.idMax_[] .== 11) &
+                            (com.flagNeighbors_[3] == 1)  &
+                            (com.flagNeighbors_[11] == 1) &
+                            (com.lfMNew_[11,1] ≈ 5) &
+                            (com.id[11] == 11)
+                else 
+                    aux = (CUDA.@allowscalar com.N[1] .== 10) &
+                            (CUDA.@allowscalar com.NAdd_[1] .== 1) &
+                            (CUDA.@allowscalar com.NRemove_[1] .== 1) &
+                            (CUDA.@allowscalar com.idMax_[1] .== 11) &
+                            (CUDA.@allowscalar com.flagNeighbors_[3] == 1)  &
+                            (CUDA.@allowscalar com.flagNeighbors_[11] == 1) &
+                            (CUDA.@allowscalar com.lfMNew_[11,1] ≈ 5) &
+                            (CUDA.@allowscalar com.id[11] == 11)
+                end
+
+                aux
+            end)
+        )
+
+    end
 
     # @testset "neighbors" begin
     #     #VerletTime VerletDisplacement neighbors
@@ -445,6 +430,70 @@ end
     #             result
     #         end), Full, VerletTime, VerletDisplacement
     #     )
+    # end
+
+    # #Update
+    # @testset "update" begin
+    #     @testPlatform(
+    #         (@test begin
+    #             agent = Agent(3,
+    #                         localInt=[:li],
+    #                         localIntInteraction=[:lii],
+    #                         localFloat=[:lf],
+    #                         localFloatInteraction=[:lfi],
+    #                         globalFloat=[:gf],
+    #                         globalInt=[:gi],
+    #                         globalFloatInteraction=[:gfi],
+    #                         globalIntInteraction=[:gii],
+    #                         medium=[:m],
+    #                         updateGlobal=quote 
+    #                             gi += 1
+    #                             gf += 1
+    #                             gfi += 1
+    #                             gii += 1
+    #                         end,
+    #                         updateLocal=quote 
+    #                             li += 1
+    #                             lf += 1
+    #                             lfi += 1
+    #                             lii += 1            
+    #                         end,
+    #                         updateInteraction=quote 
+    #                             lfi += 1
+    #                             gii += 1
+    #                         end,
+    #                         updateMedium=quote 
+    #                             m += 1
+    #                         end,
+    #                         updateMediumInteraction=quote
+    #                             m -= 1
+    #                         end,
+    #                         updateVariable=quote 
+    #                             d(x) += dt(-x)
+    #                         end,
+    #                         platform=PLATFORM
+    #                     )
+    #             com = Community(agent,N=3,NMedium=[10,10,10]);
+                            
+    #             loadToPlatform!(com,addAgents=10);
+    #             for i in [:li,:lf]
+    #                 ii = Meta.parse(string(i,"New_"))
+    #                 com[ii][1:3] .= 2
+    #             end
+    #             for i in [:gf,:gi,:m]
+    #                 ii = Meta.parse(string(i,"New_"))
+    #                 com[ii] .= 2
+    #             end
+                
+    #             update!(com)
+    #             passed = []
+    #             for i in [:li,:lf,:gf,:gi,:m]
+    #                 ii = Meta.parse(string(i,"New_"))
+    #                 push!(passed,all(com[ii] .== com[i]))
+    #             end
+    #             all(passed)
+    #         end), CPU
+    #     )        
     # end
 
 end

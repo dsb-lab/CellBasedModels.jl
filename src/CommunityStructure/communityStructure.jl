@@ -1,3 +1,6 @@
+######################################################################################################
+# Definition of structure
+######################################################################################################
 """
 Basic structure keeping the parameters of all the agents in the current simulation of a model.
 
@@ -26,6 +29,7 @@ mutable struct Community
 
     agent::Agent
     loaded::Bool
+    platform::Platform
     t
     dt
     N
@@ -33,7 +37,7 @@ mutable struct Community
     nMax_
     id
     idMax_
-    simulationBox
+    simBox
     NAdd_
     NRemove_
     NSurvive_
@@ -45,6 +49,7 @@ mutable struct Community
     nMaxNeighbors
     cellEdge
     flagRecomputeNeighbors_
+    flagNeighbors_
     neighborN_
     neighborList_
     neighborTimeLastRecompute_
@@ -105,11 +110,15 @@ mutable struct Community
             end
         end
     
-        return new(agent, false, [j for (i,j) in pairs(dict)]...)
+        return new(agent, false, Platform(256,1), [j for (i,j) in pairs(dict)]...)
 
     end
 
 end
+
+######################################################################################################
+# Overloads from base to access, manipulate and show the structure
+######################################################################################################
 
 # Overload show
 function Base.show(io::IO,com::Community)
@@ -234,8 +243,11 @@ function Base.setindex!(com::Community,v::Number,var::Symbol)
 
 end
 
+######################################################################################################
+# Load to platform
+######################################################################################################
 """
-    function loadToPlatform!(com::Community;addAgents::Int=0)
+    function loadToPlatform!(com::Community;preallocateAgents::Int=0)
 
 Function that converts the Community data into the appropiate format to be executed in the corresponding platform.
 
@@ -245,61 +257,52 @@ Function that converts the Community data into the appropiate format to be execu
  
 # Keyword arguments
 
- - **addAgents::Int=0**: Number of preallocated agent positions to add to the Community for situations in which more agents will be introduced in the model during the evolution of the system.
+ - **preallocateAgents::Int=0**: Number of preallocated agent positions to add to the Community for situations in which more agents will be introduced in the model during the evolution of the system.
 
 # Returns
 
 Nothing
 """
-function loadToPlatform!(com::Community;addAgents::Int=0)
+function loadToPlatform!(com::Community;preallocateAgents::Int=0)
 
-    # Transform to the correct platform
+    #Add preallocated agents to maximum
+    setfield!(com, :nMax_, com.N .+ preallocateAgents)
+
+    #Start with the new parameters equal to the old positions just in case
+    if com.agent.posUpdated_[1]
+        setfield!(com,:xNew_,copy(com.x))
+    end
+    if com.agent.posUpdated_[2]
+        setfield!(com,:yNew_,copy(com.y))
+    end
+    if com.agent.posUpdated_[3]
+        setfield!(com,:yNew_,copy(com.y))
+    end
+    setfield!(com,:liMNew_,copy(com.liM_))
+    setfield!(com,:lfMNew_,copy(com.lfM_))
+    setfield!(com,:gfMNew_,copy(com.gfM_))
+    setfield!(com,:giMNew_,copy(com.giM_))
+
+    # Transform to the correct platform the parameters
+    platform = com.agent.platform
     for (sym,prop) in pairs(BASEPARAMETERS)
-        dtype = Float64
-        if :Float in prop
-            dtype = FLOAT[com.agent.platform]
-        elseif :Int in prop
-            dtype = INT[com.agent.platform]
-        end
 
-        if :Local in prop
-            com.values[sym] = ARRAY[com.agent.platform]([com.values[sym]; zeros(dtype,addAgents)])
-        elseif :VerletList in prop
-            com.values[sym] = ARRAY[com.agent.platform](zeros(dtype,com.nMax_[1],com.nMaxNeighbors[1]))
-        elseif :SimulationBox in prop
-            com.values[sym] = ARRAY[com.agent.platform](com.values[sym])
-        elseif :Global in prop
-            com.values[sym] = ARRAY[com.agent.platform](com.values[sym])
-        elseif :Medium in prop
-            com.values[sym] = ARRAY[com.agent.platform](com.values[sym])
-        elseif :Dims in prop
-            com.values[sym] = ARRAY[com.agent.platform](com.values[sym])
-        elseif :Cells in prop
-            com.values[sym] = ARRAY[com.agent.platform](com.values[sym])
-        elseif :Atomic in prop
-            if com.agent.platform == :CPU
-                com.values[sym] = com.values[sym]
-            else
-                com.values[sym] = ARRAY[com.agent.platform](dtype[com.values[sym][]])
-            end
+        if :Atomic in prop.shape && platform == :CPU #Do nothing if CPU and atomic
+            nothing
+        elseif :Atomic in prop.shape && platform == :GPU #Convert atomic to matrix for CUDA
+            setfield!(com,sym,ARRAY[platform]{DTYPE[prop.dtype][platform]}([getproperty(com,sym)[]]))
+        elseif :Local in prop.shape
+            p = getproperty(com,sym)
+            setfield!(com,sym,ARRAY[platform]{DTYPE[prop.dtype][platform]}([p;zeros(eltype(p),preallocateAgents,size(p)[2:end]...)]))
         else
-            error("Parameter type ",prop[2], " is not defined.")
-        end
-
-        if :Update in prop #Initialize update paremters
-            sym2 = Meta.parse(string(sym)[1:end-4])
-
-            com.values[sym] .= com.values[sym2]
+            setfield!(com,sym,ARRAY[platform]{DTYPE[prop.dtype][platform]}(getproperty(com,sym)))
         end
     end            
 
-    #Add limit of agents
-    com.nMax_ .= com.N .+ addAgents
-
+    #Set loaded to true
     setfield!(com,:loaded,true)
 
-    return 
-
+    return
 end
 
 """

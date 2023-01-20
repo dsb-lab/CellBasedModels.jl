@@ -1,7 +1,7 @@
 ######################################################################################################
 # add agent code
 ######################################################################################################
-function addAgentCode(arguments,agent::Agent)
+function addGlobalAgentCode(arguments,agent::Agent)
 
     #List parameters that can be updated by the user
     updateargs = [sym for (sym,prop) in pairs(agent.declaredSymbols) if !(prop.reset) && prop.scope == :Local]
@@ -36,7 +36,7 @@ function addAgentCode(arguments,agent::Agent)
     #Add parameters to agent that have not been user defined
     for i in updateargs
         if !(i in args)
-            push!(code.args,:($i.$addCell=$i))
+            error(i, " should have been assigned when declaring addAgent in UpdateGlobal. Please specify a declaration of the form i = value")
         end
     end
 
@@ -62,12 +62,12 @@ function addAgentCode(arguments,agent::Agent)
     return code
 end
 
-function addEventAddAgent(code::Expr,agent::Agent)
+function addEventGlobalAddAgent(code::Expr,agent::Agent)
 
     if inexpr(code,:addAgent)
         
         #Substitute code
-        code = postwalk(x->@capture(x,addAgent(g__)) ? addAgentCode(g,agent) : x , code)
+        code = postwalk(x->@capture(x,addAgent(g__)) ? addGlobalAgentCode(g,agent) : x , code)
 
         return code
 
@@ -77,83 +77,41 @@ function addEventAddAgent(code::Expr,agent::Agent)
 end
 
 ######################################################################################################
-# remove agent code
+# global function
 ######################################################################################################
-function removeAgentCode(agent::Agent)
+function globalFunction(agent)
 
-    code = quote end
-
-    #Add 1 to the number of removed
-    #Add the cell position to the list of removed
-    #Set survived to 0
-    dtype = DTYPE[:Int][agent.platform]
-    code = quote
-            idNew_ = Threads.atomic_add!(NRemove_,$(dtype)(1)) + 1
-            holeFromRemoveAt_[idNew_] = i1_ 
-            flagSurvive_[i1_] = 0
-            flagRecomputeNeighbors_ = 1
-            flagNeighbors_[i1_] = 1
-        end
-
-    #Adapt to platform
-    code = cudaAdapt(code,agent)
-
-    return code
-
-end
-
-function addEventRemoveAgent(code::Expr,agent::Agent)
-
-    if inexpr(code,:removeAgent)
-
-        #Make true indicator of survival at the beginning of the code
-        pushfirst!(code.args,:(flagSurvive_[i1_] = 1))
-        #Transform code removeAgent
-        code = postwalk(x->@capture(x,removeAgent()) ? removeAgentCode(agent) : x , code)
-
-    end
-
-    return code
-
-end
-
-######################################################################################################
-# local function
-######################################################################################################
-function localFunction(agent)
-
-    if !all([typeof(i) == LineNumberNode for i in agent.declaredUpdates[:UpdateLocal].args])
-        code = agent.declaredUpdates[:UpdateLocal]
+    if !all([typeof(i) == LineNumberNode for i in agent.declaredUpdates[:UpdateGlobal].args])
+        code = agent.declaredUpdates[:UpdateGlobal]
 
         #Custom functions
-        code = addEventAddAgent(code,agent)
-        code = addEventRemoveAgent(code,agent)
+        code = addEventGlobalAddAgent(code,agent)
         #Vectorize
         code = vectorize(code,agent)
-        #Put in loop
-        code = makeSimpleLoop(code,agent)
+        # #Put in loop
+        # code = makeSimpleLoop(code,agent)
 
-        agent.declaredUpdatesCode[:UpdateLocal] = code
+        agent.declaredUpdatesCode[:UpdateGlobal] = code
 
-        agent.declaredUpdatesFunction[:UpdateLocal_] = Main.eval(:(($(agentArgs()...),) -> $code))
-        aux = addCuda(:(community.agent.declaredUpdatesFunction[:UpdateLocal_]($(agentArgs(:community)...))),agent) #Add code to execute kernel in cuda if GPU
-        agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(
+        agent.declaredUpdatesFunction[:UpdateGlobal_] = Main.eval(:(($(agentArgs()...),) -> $code))
+        aux = addCuda(:(community.agent.declaredUpdatesFunction[:UpdateGlobal_]($(agentArgs(:community)...))),agent,oneThread=true) #Add code to execute kernel in cuda if GPU
+        agent.declaredUpdatesFunction[:UpdateGlobal] = Main.eval(
             :(function (community)
                 $aux
                 return 
             end)
         )
     else
-        agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(:((community) -> nothing))
+        agent.declaredUpdatesFunction[:UpdateGlobal] = Main.eval(:((community) -> nothing))
     end
 
 end
 
-function localStep!(community)
+function globalStep!(community)
 
     checkLoaded(community)
 
-    community.agent.declaredUpdatesFunction[:UpdateLocal](community)
+    community.agent.declaredUpdatesFunction[:UpdateGlobal](community)
 
     return 
 

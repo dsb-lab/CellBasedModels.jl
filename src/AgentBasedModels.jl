@@ -7,7 +7,6 @@ using Random
 using OrderedCollections
 using LinearAlgebra
 using Distributions
-using Accessors
 using CUDA
 using DataFrames
 using CSV
@@ -33,8 +32,11 @@ include("./AgentStructure/functions/vectorize.jl")
 # export update!
 # include("./AgentStructure/functions/update.jl")
 #     #Local
-# export localStep!
-# include("./AgentStructure/functions/local.jl")
+export localStep!
+include("./AgentStructure/functions/local.jl")
+#     #Global
+export globalStep!
+include("./AgentStructure/functions/global.jl")
 #     #Neighbors
 # export computeNeighbors!
 # include("./AgentStructure/functions/neighbors.jl")

@@ -154,7 +154,7 @@ mutable struct Agent
         end
 
         #User defined symbols
-        for (i,j) in [                                        #dtype #scope #reset #basePar #pos
+        for (i,j) in [                                        #dtype    #scope      #reset     #basePar    #pos
                     (localInt,                  UserParameter(:Int,     :Local,      false,    :liNM_,      1)),
                     (localIntInteraction,       UserParameter(:Int,     :Local,      true,     :lii_,       1)),
                     (localFloat,                UserParameter(:Float,   :Local,      false,    :lfNM_,      1)),
@@ -200,21 +200,26 @@ mutable struct Agent
         end
 
         #Make explicit the updates by adding the .new tag
-        potentiallyUpdatingVars = [var for (i,var) in pairs(agent.declaredSymbols) if !(var.reset)]
+        potentiallyUpdatingVars = [[i for (i,var) in pairs(agent.declaredSymbols) if !(var.reset)]...,POSITIONPARAMETERS[1:agent.dims]...]
         for i in keys(agent.declaredUpdates)
             code = agent.declaredUpdates[i]
-            for k in potentiallyUpdatingVars
-                code = update(code,k)
+            for sym in potentiallyUpdatingVars
+                for op in UPDATINGOPERATORS
+                    code = postwalk(x-> isexpr(x,op) ? change(sym,x) : x, code)
+                end
             end
-
             agent.declaredUpdates[i] = code
         end
 
-        #Change variables updated to modiafiable
-        for update in keys(agent.declaredUpdates)
+        #Change variables updated to modifiable
+        for update in [:UpdateLocal]#keys(agent.declaredUpdates)
             for (sym,var) in pairs(agent.declaredSymbols)
                 if inexpr(agent.declaredUpdates[update],:($sym.new)) && !(var.reset)
-                    @set var.basePar = Meta.parse(string(string(sym)[1:end-3],"M_"))
+                    var.basePar = baseParameterToModifiable(var.basePar)
+                    agent.declaredSymbols[sym]  = var
+                elseif inexpr(agent.declaredUpdates[update],BASESYMBOLS[:AddAgentMacro].symbol) && !(var.reset) #If add agents, all local parameters are modifiable
+                    var.basePar = baseParameterToModifiable(var.basePar)
+                    agent.declaredSymbols[sym]  = var
                 end
             end
         end
@@ -223,7 +228,7 @@ mutable struct Agent
         for find in unique([j.basePar for (i,j) in pairs(agent.declaredSymbols)])
             vars = [j for (i,j) in pairs(agent.declaredSymbols) if j.basePar == find]
             for (count,var) in enumerate(vars)
-                @set var.position = count
+                var.position = count
             end
         end
 
@@ -237,22 +242,21 @@ mutable struct Agent
         end        
 
         #Check which position vectors are updated
+        new = BASESYMBOLS[:UpdateSymbol].symbol
         for update in keys(agent.declaredUpdates)
-            if inexpr(agent.declaredUpdates[update],:(x.new))
-                agent.removalOfAgents_[1] = true
+            if inexpr(agent.declaredUpdates[update],:($(POSITIONPARAMETERS[1]).$new)) || inexpr(agent.declaredUpdates[update],BASESYMBOLS[:AddAgentMacro])
+                agent.posUpdated_[1] = true
             end
-            if inexpr(agent.declaredUpdates[update],:(y.new))
-                agent.removalOfAgents_[2] = true
+            if inexpr(agent.declaredUpdates[update],:($(POSITIONPARAMETERS[2]).$new)) || inexpr(agent.declaredUpdates[update],BASESYMBOLS[:AddAgentMacro])
+                agent.posUpdated_[2] = true
             end
-            if inexpr(agent.declaredUpdates[update],:(z.new))
-                agent.removalOfAgents_[3] = true
+            if inexpr(agent.declaredUpdates[update],:($(POSITIONPARAMETERS[3]).$new)) || inexpr(agent.declaredUpdates[update],BASESYMBOLS[:AddAgentMacro])
+                agent.posUpdated_[3] = true
             end
         end    
 
         #Make compiled functions
-        # updateFunction(agent)
-        # localFunction(agent)
-        # neighborsFunction(agent)
+        localFunction(agent)
         # localInteractionsFunction(agent)
 
         return agent
@@ -264,7 +268,7 @@ function Base.show(io::IO,abm::Agent)
     print("PARAMETERS\n")
     for (i,j) in pairs(abm.declaredSymbols)
         if string(i)[end] != '_' #Only print parameters used by the user 
-            println("\t",i," (",j.dtype," ",j.scope,")")
+            println("\t",i," (",j.dtype," ",j.shape,")")
         end
     end
 
@@ -298,74 +302,75 @@ Function called by update to add the .new if it is an update expression.
 """
 function change(x,code)
 
+    new = BASESYMBOLS[:UpdateSymbol].symbol
     if code.args[1] == x
-        code.args[1] = :($x.new)
+        code.args[1] = :($x.$new)
     end
-    for op in getSymbolsThat(BASESYMBOLS,:scope,[:Interaction1,:Interaction2])
+    for op in [BASESYMBOLS[:InteractionIndex1],BASESYMBOLS[:InteractionIndex2]]
         if code.args[1] == :($x.$op)
-            code.args[1] = :($x.new.$op)
+            code.args[1] = :($x.$new.$op)
         end
     end
 
     return code
 end
 
-"""
-Function called by update that checks that a function is a macro functions before adding the .new
-"""
-function updateMacroFunctions(s,code)
-    if code.args[1] in getSymbolsThat(BASESYMBOLS,:scope,:Macro)
-        code = postwalk(x-> isexpr(x,:kw) ? change(s,x) : x, code)
-    end
+# """
+# Function called by update that checks that a function is a macro functions before adding the .new
+# """
+# function updateMacroFunctions(s,code)
+#     if code.args[1] in [BASESYMBOLS[:AddAgentMacro],BASESYMBOLS[:RemoveAgentMacro]]
+#         code = postwalk(x-> isexpr(x,:kw) ? change(s,x) : x, code)
+#     end
 
-    return code
-end
+#     return code
+# end
 
-"""
-Function that adds .new to all the times the symbol s is being updated. e.g. update(x=1,x) -> x.new = 1.
-The modifications are also done in the keyword arguments of the macro functions as addAgent.
-"""
-function update(code,s)
+# """
+# Function that adds the new operator to all the times the symbol s is being updated. e.g. update(x=1,x) -> x.new = 1.
+# The modifications are also done in the keyword arguments of the macro functions as addAgent.
+# """
+# function update(code,s)
 
-    for op in UPDATINGOPERATORS
-        code = postwalk(x-> isexpr(x,op) ? change(s,x) : x, code)
-    end
-    code = postwalk(x-> isexpr(x,:call) ? updateMacroFunctions(s,x) : x, code) #Update keyarguments of macrofunctions
+#     for op in UPDATINGOPERATORS
+#         code = postwalk(x-> isexpr(x,op) ? change(s,x) : x, code)
+#     end
+#     code = postwalk(x-> isexpr(x,:call) ? updateMacroFunctions(s,x) : x, code) #Update keyarguments of macrofunctions
 
-    return code
-end
+#     return code
+# end
 
-function addUpdates!(p::Agent)
+# function addUpdates!(p::Agent)
 
-    ##Assign updates of variable types
-    for (par,prop) in pairs(p.declaredSymbols)
+#     ##Assign updates of variable types
+#     for par in [keys(p.declaredSymbols)...,POSITIONPARAMETERS[1:agent.dims]...]
 
-        #Find updates
-        for up in keys(p.declaredUpdates)
+#         #Find updates
+#         for up in keys(p.declaredUpdates)
 
-            code =  postwalk(x->@capture(x, c_.new)  && c == par.name ? :ARGS_ : x , p.declaredUpdates[up]) #remove agent updates
-            code =  postwalk(x->@capture(x, c_.g_.new) && c == par.name && g in INTERACTIONSYMBOLS ? :ARGS_ : x , code)
+#             code =  postwalk(x->@capture(x, c_.new)  && c == par.name ? :ARGS_ : x , p.declaredUpdates[up]) #remove agent updates
+#             code =  postwalk(x->@capture(x, c_.g_.new) && c == par.name && g in INTERACTIONSYMBOLS ? :ARGS_ : x , code)
             
-            if inexpr(code,:ARGS_) && !(par in keys(p.declaredSymbols))
-                parNew = Meta.parse(string(par,"New_"))
-                p.declaredSymbols[parNew] = [p.declaredUpdates[1],p.declaredUpdates[2],:New]
-            end
+#             if inexpr(code,:ARGS_) && !(par in keys(p.declaredSymbols))
+#                 parNew = Meta.parse(string(par,"New_"))
+#                 p.declaredSymbols[parNew] = [p.declaredUpdates[1],p.declaredUpdates[2],:New]
+#             end
 
-        end
+#         end
 
-        #Find variables
-        for up in keys(p.declaredUpdates)
+#         #Find variables
+#         for up in keys(p.declaredUpdates)
 
-            code =  postwalk(x->@capture(x, g_(c_) = f_) && c == par.name && g == DIFFSYMBOL ? :ARGS_ : x , p.declaredUpdates[up])
+#             code =  postwalk(x->@capture(x, g_(c_) = f_) && c == par.name && g == DIFFSYMBOL ? :ARGS_ : x , p.declaredUpdates[up])
             
-            if inexpr(code,:ARGS_) && !(par in keys(p.declaredSymbols))
-                parNew = Meta.parse(string(par,"New_"))
-                p.declaredSymbols[parNew] = [p.declaredUpdates[1],p.declaredUpdates[2],:New]
-            end
+#             if inexpr(code,:ARGS_) && !(par in keys(p.declaredSymbols))
+#                 parNew = Meta.parse(string(par,"New_"))
+#                 p.declaredSymbols[parNew] = [p.declaredUpdates[1],p.declaredUpdates[2],:New]
+#             end
 
-        end
+#         end
 
-    end        
+#     end        
     
-    return
-end
+#     return
+# end
