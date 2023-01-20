@@ -212,7 +212,7 @@ mutable struct Agent
         end
 
         #Change variables updated to modifiable
-        for update in [:UpdateLocal]#keys(agent.declaredUpdates)
+        for update in keys(agent.declaredUpdates)
             for (sym,var) in pairs(agent.declaredSymbols)
                 if inexpr(agent.declaredUpdates[update],:($sym.new)) && !(var.reset)
                     var.basePar = baseParameterToModifiable(var.basePar)
@@ -244,19 +244,16 @@ mutable struct Agent
         #Check which position vectors are updated
         new = BASESYMBOLS[:UpdateSymbol].symbol
         for update in keys(agent.declaredUpdates)
-            if inexpr(agent.declaredUpdates[update],:($(POSITIONPARAMETERS[1]).$new)) || inexpr(agent.declaredUpdates[update],BASESYMBOLS[:AddAgentMacro])
-                agent.posUpdated_[1] = true
-            end
-            if inexpr(agent.declaredUpdates[update],:($(POSITIONPARAMETERS[2]).$new)) || inexpr(agent.declaredUpdates[update],BASESYMBOLS[:AddAgentMacro])
-                agent.posUpdated_[2] = true
-            end
-            if inexpr(agent.declaredUpdates[update],:($(POSITIONPARAMETERS[3]).$new)) || inexpr(agent.declaredUpdates[update],BASESYMBOLS[:AddAgentMacro])
-                agent.posUpdated_[3] = true
+            for i in 1:length(POSITIONPARAMETERS)
+                if inexpr(agent.declaredUpdates[update],:($(POSITIONPARAMETERS[i]).$new)) || inexpr(agent.declaredUpdates[update],BASESYMBOLS[:AddAgentMacro].symbol)
+                    agent.posUpdated_[i] = true
+                end
             end
         end    
 
         #Make compiled functions
         localFunction(agent)
+        globalFunction(agent)
         # localInteractionsFunction(agent)
 
         return agent
@@ -268,7 +265,7 @@ function Base.show(io::IO,abm::Agent)
     print("PARAMETERS\n")
     for (i,j) in pairs(abm.declaredSymbols)
         if string(i)[end] != '_' #Only print parameters used by the user 
-            println("\t",i," (",j.dtype," ",j.shape,")")
+            println("\t",i," (",j.dtype," ",j.scope,")")
         end
     end
 

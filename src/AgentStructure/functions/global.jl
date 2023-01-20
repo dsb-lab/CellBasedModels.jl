@@ -13,7 +13,7 @@ function addGlobalAgentCode(arguments,agent::Agent)
     for i in arguments
         found = @capture(i,g_ = f_)
         if found
-            if !(g in [sym for (sym,prop) in pairs(agent.declaredSymbols) if sym in updateargs])
+            if !(g in updateargs)
                 error(g, " is not a local parameter of the agent.")
             end
         else
@@ -36,7 +36,7 @@ function addGlobalAgentCode(arguments,agent::Agent)
     #Add parameters to agent that have not been user defined
     for i in updateargs
         if !(i in args)
-            error(i, " should have been assigned when declaring addAgent in UpdateGlobal. Please specify a declaration of the form i = value")
+            error(i, " should have been assigned when declaring addAgent in UpdateGlobal. Please specify a declaration of the form $i = value")
         end
     end
 
@@ -93,7 +93,7 @@ function globalFunction(agent)
 
         agent.declaredUpdatesCode[:UpdateGlobal] = code
 
-        agent.declaredUpdatesFunction[:UpdateGlobal_] = Main.eval(:(($(agentArgs()...),) -> $code))
+        agent.declaredUpdatesFunction[:UpdateGlobal_] = Main.eval(:(($(agentArgs()...),) -> $(quote $code; nothing end)))
         aux = addCuda(:(community.agent.declaredUpdatesFunction[:UpdateGlobal_]($(agentArgs(:community)...))),agent,oneThread=true) #Add code to execute kernel in cuda if GPU
         agent.declaredUpdatesFunction[:UpdateGlobal] = Main.eval(
             :(function (community)

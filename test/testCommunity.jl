@@ -311,31 +311,36 @@ end
                             globalIntInteraction=[:gii],
                             updateGlobal = quote
                                 t = 10.
-                                addAgent(lf = 5)
+                                addAgent(
+                                    lf = 5,
+                                    li = 2,
+                                    x = 3.
+                                )
                             end
                             );
                 com = Community(agent,N=[10]);
                 loadToPlatform!(com,preallocateAgents=1);
-                localStep!(com)
+                globalStep!(com)
 
                 aux = false
                 if PLATFORM == :CPU
                     aux = (com.N[1] == 10) &
                             (com.NAdd_[] .== 1) &
-                            (com.NRemove_[] .== 1) &
+                            (com.NRemove_[] .== 0) &
                             (com.idMax_[] .== 11) &
-                            (com.flagNeighbors_[3] == 1)  &
                             (com.flagNeighbors_[11] == 1) &
                             (com.lfMNew_[11,1] ≈ 5) &
+                            (com.liMNew_[11,1] == 2) &
+                            (com.xNew_[11,1] ≈ 3) &
                             (com.id[11] == 11)
                 else 
                     aux = (CUDA.@allowscalar com.N[1] .== 10) &
                             (CUDA.@allowscalar com.NAdd_[1] .== 1) &
-                            (CUDA.@allowscalar com.NRemove_[1] .== 1) &
+                            (CUDA.@allowscalar com.NRemove_[1] .== 0) &
                             (CUDA.@allowscalar com.idMax_[1] .== 11) &
-                            (CUDA.@allowscalar com.flagNeighbors_[3] == 1)  &
                             (CUDA.@allowscalar com.flagNeighbors_[11] == 1) &
                             (CUDA.@allowscalar com.lfMNew_[11,1] ≈ 5) &
+                            (CUDA.@allowscalar com.xNew_[11,1] ≈ 3) &
                             (CUDA.@allowscalar com.id[11] == 11)
                 end
 

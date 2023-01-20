@@ -13,7 +13,7 @@ function addAgentCode(arguments,agent::Agent)
     for i in arguments
         found = @capture(i,g_ = f_)
         if found
-            if !(g in [sym for (sym,prop) in pairs(agent.declaredSymbols) if sym in updateargs])
+            if !(g in updateargs)
                 error(g, " is not a local parameter of the agent.")
             end
         else

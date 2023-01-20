@@ -53,7 +53,7 @@ function makeSimpleLoop(code,agent)
 
 end
 
-function addCuda(code,agent,oneThread=false)
+function addCuda(code,agent;oneThread=false)
 
     if agent.platform == :GPU
 
