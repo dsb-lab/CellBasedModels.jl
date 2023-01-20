@@ -11,7 +11,7 @@ using CUDA
 using DataFrames
 using CSV
 using JLD
-import GeometryBasics, GLMakie
+# import GeometryBasics, GLMakie
 import MacroTools: postwalk, prewalk, @capture, inexpr, prettify, gensym, flatten, unblock, isexpr
 import SpecialFunctions
 using ProgressMeter
@@ -38,8 +38,8 @@ include("./AgentStructure/functions/local.jl")
 export globalStep!
 include("./AgentStructure/functions/global.jl")
 #     #Neighbors
-# export computeNeighbors!
-# include("./AgentStructure/functions/neighbors.jl")
+export computeNeighbors!
+include("./AgentStructure/functions/neighbors.jl")
 #     #Local interactions
 # export updateInteractions!
 # include("./AgentStructure/functions/interactions.jl")

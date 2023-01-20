@@ -1,42 +1,3 @@
-function neighborsFunction(agent)
-
-    if agent.neighbors == :Full
-
-        agent.declaredUpdatesFunction[:ComputeNeighbors] = neighborsFull!
-    
-    elseif agent.neighbors == :VerletTime
-
-        if agent.dims == 1
-            agent.declaredUpdatesFunction[:ComputeNeighbors] = neighborsVerletTime1!
-        elseif agent.dims == 2
-            agent.declaredUpdatesFunction[:ComputeNeighbors] = neighborsVerletTime2!
-        elseif agent.dims == 3
-            agent.declaredUpdatesFunction[:ComputeNeighbors] = neighborsVerletTime3!
-        end
-
-    elseif agent.neighbors == :VerletDisplacement
-    
-        arg = agentArgs(:community,l=length(agent.dims))
-        
-        agent.declaredUpdatesFunction[:ComputeNeighbors_] = neighborsVerletDisplacement(POSITIONPARAMETERS[1:agent.dims]...)
-        agent.declaredUpdatesFunction[:ComputeNeighbors] = Main.eval(:((community,) -> community.agent.declaredUpdatesFunction[:ComputeNeighbors_]($(arg...),)))
-    
-    elseif agent.neighbors == :CellLinked
-    
-        agent.declaredUpdatesFunction[:ComputeNeighbors] = Main.eval(:((community) -> AgentBasedModels.neighborsCellLinked!($(agentArgs(:community)...))))
-    
-    elseif agent.neighbors == :VerletGrid
-    
-        agent.declaredUpdatesFunction[:ComputeNeighbors] = Main.eval(:((community) -> AgentBasedModels.neighborsGridVerlet!($(agentArgs(:community)...))))
-    
-    else
-    
-        error("Neighbors method is not defined.")
-    
-    end
-
-end
-
 function neighborsLoop(code,agent)
 
     if agent.neighbors == :Full
@@ -143,51 +104,30 @@ end
 @verletNeighbors x y z
 
     #Verlet Time
-macro neighborsVerletTime(args...)
+function neighborsVerletTime(args...)
 
-    base = agentArgs(l=length(args))
+    arg = agentArgs(l=length(args))
 
-    return :(
-        function neighborsVerletTime!($(base...),)
-
+    code = :(
+        function ($(arg...),)
+        
             if neighborTimeLastRecompute_ <= t
                 neighborN_ .= 0
-                verletNeighbors!(N,$(args...),skin,neighborList_,neighborN_)
+                AgentBasedModels.verletNeighbors!(N,$(args...),skin,neighborList_,neighborN_)
                 neighborTimeLastRecompute_ .+= dtNeighborRecompute
             elseif flagRecomputeNeighbors_ .== 1
                 neighborN_ .= 0
-                verletNeighbors!(N,$(args...),skin,neighborList_,neighborN_)
+                AgentBasedModels.verletNeighbors!(N,$(args...),skin,neighborList_,neighborN_)
                 neighborTimeLastRecompute_ .= t + dtNeighborRecompute
                 flagRecomputeNeighbors_ .= 0
             end
-
+        
         end
     )
+
+    return Main.eval(code)
+
 end
-
-@neighborsVerletTime x
-@neighborsVerletTime x y
-@neighborsVerletTime x y z
-
-macro neighborsVerletTimeCom(args...)
-
-    base = agentArgs(:community,l=length(args))
-    name = Meta.parse(string("neighborsVerletTime$(length(args))!"))
-
-    return :(
-        function $name(community)
-
-            neighborsVerletTime!($(base...),)
-
-            return
-
-        end
-    )
-end
-
-@neighborsVerletTimeCom x
-@neighborsVerletTimeCom x y
-@neighborsVerletTimeCom x y z
 
     #Verlet Displacement
 macro verletDisplacement(args...)
@@ -317,5 +257,41 @@ end
 function neighborsVerletGridLoop(neighborsList,neighborsN,radiusVelvet,N)
 
     error("TO DO")
+
+end
+
+function neighborsFunction(agent)
+
+    if agent.neighbors == :Full
+
+        agent.declaredUpdatesFunction[:ComputeNeighbors] = neighborsFull!
+    
+    elseif agent.neighbors == :VerletTime
+
+        arg = agentArgs(:community,l=length(agent.dims))
+
+        agent.declaredUpdatesFunction[:ComputeNeighbors_] = neighborsVerletTime(POSITIONPARAMETERS[1:agent.dims]...)
+        agent.declaredUpdatesFunction[:ComputeNeighbors] = Main.eval(:((community,) -> community.agent.declaredUpdatesFunction[:ComputeNeighbors_]($(arg...),)))
+
+    elseif agent.neighbors == :VerletDisplacement
+    
+        arg = agentArgs(:community,l=length(agent.dims))
+        
+        agent.declaredUpdatesFunction[:ComputeNeighbors_] = neighborsVerletDisplacement(POSITIONPARAMETERS[1:agent.dims]...)
+        agent.declaredUpdatesFunction[:ComputeNeighbors] = Main.eval(:((community,) -> community.agent.declaredUpdatesFunction[:ComputeNeighbors_]($(arg...),)))
+    
+    elseif agent.neighbors == :CellLinked
+    
+        agent.declaredUpdatesFunction[:ComputeNeighbors] = Main.eval(:((community) -> AgentBasedModels.neighborsCellLinked!($(agentArgs(:community)...))))
+    
+    elseif agent.neighbors == :VerletGrid
+    
+        agent.declaredUpdatesFunction[:ComputeNeighbors] = Main.eval(:((community) -> AgentBasedModels.neighborsGridVerlet!($(agentArgs(:community)...))))
+    
+    else
+    
+        error("Neighbors method is not defined.")
+    
+    end
 
 end

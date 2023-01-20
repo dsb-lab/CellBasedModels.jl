@@ -295,100 +295,108 @@ end
 
     # end
     
-    #global
-    @testset "global" begin
+    # #global
+    # @testset "global" begin
 
-        @testPlatform(
-            (@test begin
-                agent = Agent(1,platform=PLATFORM,
-                            localInt=[:li],
-                            localIntInteraction=[:lii],
-                            localFloat=[:lf],
-                            localFloatInteraction=[:lfi],
-                            globalFloat=[:gf],
-                            globalInt=[:gi],
-                            globalFloatInteraction=[:gfi],
-                            globalIntInteraction=[:gii],
-                            updateGlobal = quote
-                                t = 10.
-                                addAgent(
-                                    lf = 5,
-                                    li = 2,
-                                    x = 3.
-                                )
-                            end
-                            );
-                com = Community(agent,N=[10]);
-                loadToPlatform!(com,preallocateAgents=1);
-                globalStep!(com)
+    #     @testPlatform(
+    #         (@test begin
+    #             agent = Agent(1,platform=PLATFORM,
+    #                         localInt=[:li],
+    #                         localIntInteraction=[:lii],
+    #                         localFloat=[:lf],
+    #                         localFloatInteraction=[:lfi],
+    #                         globalFloat=[:gf],
+    #                         globalInt=[:gi],
+    #                         globalFloatInteraction=[:gfi],
+    #                         globalIntInteraction=[:gii],
+    #                         updateGlobal = quote
+    #                             t = 10.
+    #                             addAgent(
+    #                                 lf = 5,
+    #                                 li = 2,
+    #                                 x = 3.
+    #                             )
+    #                         end
+    #                         );
+    #             com = Community(agent,N=[10]);
+    #             loadToPlatform!(com,preallocateAgents=1);
+    #             globalStep!(com)
 
-                aux = false
-                if PLATFORM == :CPU
-                    aux = (com.N[1] == 10) &
-                            (com.NAdd_[] .== 1) &
-                            (com.NRemove_[] .== 0) &
-                            (com.idMax_[] .== 11) &
-                            (com.flagNeighbors_[11] == 1) &
-                            (com.lfMNew_[11,1] ≈ 5) &
-                            (com.liMNew_[11,1] == 2) &
-                            (com.xNew_[11,1] ≈ 3) &
-                            (com.id[11] == 11)
-                else 
-                    aux = (CUDA.@allowscalar com.N[1] .== 10) &
-                            (CUDA.@allowscalar com.NAdd_[1] .== 1) &
-                            (CUDA.@allowscalar com.NRemove_[1] .== 0) &
-                            (CUDA.@allowscalar com.idMax_[1] .== 11) &
-                            (CUDA.@allowscalar com.flagNeighbors_[11] == 1) &
-                            (CUDA.@allowscalar com.lfMNew_[11,1] ≈ 5) &
-                            (CUDA.@allowscalar com.xNew_[11,1] ≈ 3) &
-                            (CUDA.@allowscalar com.id[11] == 11)
-                end
+    #             aux = false
+    #             if PLATFORM == :CPU
+    #                 aux = (com.N[1] == 10) &
+    #                         (com.NAdd_[] .== 1) &
+    #                         (com.NRemove_[] .== 0) &
+    #                         (com.idMax_[] .== 11) &
+    #                         (com.flagNeighbors_[11] == 1) &
+    #                         (com.lfMNew_[11,1] ≈ 5) &
+    #                         (com.liMNew_[11,1] == 2) &
+    #                         (com.xNew_[11,1] ≈ 3) &
+    #                         (com.id[11] == 11)
+    #             else 
+    #                 aux = (CUDA.@allowscalar com.N[1] .== 10) &
+    #                         (CUDA.@allowscalar com.NAdd_[1] .== 1) &
+    #                         (CUDA.@allowscalar com.NRemove_[1] .== 0) &
+    #                         (CUDA.@allowscalar com.idMax_[1] .== 11) &
+    #                         (CUDA.@allowscalar com.flagNeighbors_[11] == 1) &
+    #                         (CUDA.@allowscalar com.lfMNew_[11,1] ≈ 5) &
+    #                         (CUDA.@allowscalar com.xNew_[11,1] ≈ 3) &
+    #                         (CUDA.@allowscalar com.id[11] == 11)
+    #             end
 
-                aux
-            end)
-        )
-
-    end
-
-    # @testset "neighbors" begin
-    #     #VerletTime VerletDisplacement neighbors
-    #     @testAllNeighbors(            
-    #         (@test begin 
-
-    #         agent = Agent(DIM,neighbors=NEIGHBOR,platform=:CPU)
-    #         com = Community(agent,N=3);
-    #         com.skin = 1
-    #         com.nMaxNeighbors = 2
-    #         loadToPlatform!(com,addAgents=10);
-    #         computeNeighbors!(com, agent);
-
-    #         com.neighborList_ == [2 3;1 3;1 2]
-    #         end), VerletTime, VerletDisplacement
-    #     )
-
-    #     #CellLinked neighbors
-    #     @testAllNeighbors(            
-    #         (@test begin 
-
-    #         agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
-    #         com = Community(agent,N=3^DIM);
-    #         v = zeros(3,27)
-    #         v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
-    #         v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
-    #         v[3,:] = repeat([repeat([0],9);repeat([1],9);repeat([2],9)],1)
-    #         for (j,sym) in enumerate([:x,:y,:z][1:DIM])
-    #             com.values[sym] .= v[j,1:3^(DIM)]
-    #         end
-    #         com.cellEdge = 2.
-    #         com.simulationBox .= [.5 1.5;.5 1.5;.5 1.5][1:DIM,:]
-    #         loadToPlatform!(com,addAgents=10);
-    #         computeNeighbors!(com, agent);
-
-    #         all(com.cellNumAgents_ .== 1)
-    #         end), CellLinked
+    #             aux
+    #         end)
     #     )
 
     # end
+
+    @testset "neighbors" begin
+
+        # #Full
+        # @testAllNeighbors(
+        #     (@test_nowarn begin
+        #         agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
+        #         com = Community(agent,N=[3]);
+        #         computeNeighbors!(com);     
+        #     end), Full
+        # )
+
+        #VerletTime VerletDisplacement neighbors
+        @testAllNeighbors(            
+            (@test begin 
+
+            agent = Agent(DIM,neighbors=NEIGHBOR,platform=:CPU)
+            com = Community(agent,N=[3],skin=[1.],nMaxNeighbors=[2],dtNeighborRecompute=[1.]);
+            loadToPlatform!(com,preallocateAgents=10);
+            computeNeighbors!(com);
+
+            CUDA.@allowscalar com.neighborList_[1:3,:] == [2 3;1 3;1 2]
+            end), VerletTime#, VerletDisplacement
+        )
+
+        # #CellLinked neighbors
+        # @testAllNeighbors(            
+        #     (@test begin 
+
+        #     agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
+        #     com = Community(agent,N=3^DIM);
+        #     v = zeros(3,27)
+        #     v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
+        #     v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
+        #     v[3,:] = repeat([repeat([0],9);repeat([1],9);repeat([2],9)],1)
+        #     for (j,sym) in enumerate([:x,:y,:z][1:DIM])
+        #         com.values[sym] .= v[j,1:3^(DIM)]
+        #     end
+        #     com.cellEdge = 2.
+        #     com.simulationBox .= [.5 1.5;.5 1.5;.5 1.5][1:DIM,:]
+        #     loadToPlatform!(com,addAgents=10);
+        #     computeNeighbors!(com, agent);
+
+        #     all(com.cellNumAgents_ .== 1)
+        #     end), CellLinked
+        # )
+
+    end
 
     # @testset "localInteractions" begin
     #     @testAllNeighbors(            

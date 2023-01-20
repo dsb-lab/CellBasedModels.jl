@@ -9,8 +9,37 @@ manhattanDistance(x1,x2,y1,y2,z1,z2) = abs(x1-x2)+abs(y1-y2)+abs(z1-z2)
 
 baseParameterToModifiable(sym) = Meta.parse(string(string(sym)[1:end-3],"M_"))
 baseParameterNew(sym) = Meta.parse(string(split(string(sym),"_")[1],"New_"))
-agentArgs() = [keys(BASEPARAMETERS)...]
-agentArgs(sym) = [:($sym.$i) for i in keys(BASEPARAMETERS)]
+function agentArgs(sym=nothing;l=3) 
+
+    pars = [i for i in keys(BASEPARAMETERS)]
+
+    for i in POSITIONPARAMETERS[3:-1:1+l]
+        popat!(pars,findfirst(pars.==i))
+    end
+
+    if sym === nothing
+        return Any[pars...]
+    else
+        return Any[:($sym.$i) for i in pars]
+    end
+
+end
+
+macro agentArgs(code)
+
+    code = postwalk(x->@capture(x,ARGS) ? :($(agentArgs())...) : x, code)
+
+    return code
+
+end
+
+macro agentArgs(name,code)
+
+    code = postwalk(x->@capture(x,ARGS) ? :($(agentArgs(name))...) : x, code)
+
+    return code
+    
+end
 
 function getProperty(dict::OrderedDict,property::Symbol)
     return [getfield(var,property) for (i,var) in pairs(dict)]

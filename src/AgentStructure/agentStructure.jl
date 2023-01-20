@@ -254,6 +254,7 @@ mutable struct Agent
         #Make compiled functions
         localFunction(agent)
         globalFunction(agent)
+        neighborsFunction(agent)
         # localInteractionsFunction(agent)
 
         return agent
