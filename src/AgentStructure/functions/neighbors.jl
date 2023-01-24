@@ -16,10 +16,13 @@ function neighborsFunction(agent)
 
     elseif agent.neighbors == :VerletDisplacement
     
-        arg = agentArgs(:community,l=length(agent.dims))
-        
-        agent.declaredUpdatesFunction[:ComputeNeighbors_] = neighborsVerletDisplacement(POSITIONPARAMETERS[1:agent.dims]...)
-        agent.declaredUpdatesFunction[:ComputeNeighbors] = Main.eval(:((community,) -> community.agent.declaredUpdatesFunction[:ComputeNeighbors_]($(arg...),)))
+        if agent.dims == 1
+            agent.declaredUpdatesFunction[:ComputeNeighbors] = neighborsVerletDisplacement1!
+        elseif agent.dims == 2
+            agent.declaredUpdatesFunction[:ComputeNeighbors] = neighborsVerletDisplacement2!
+        elseif agent.dims == 3
+            agent.declaredUpdatesFunction[:ComputeNeighbors] = neighborsVerletDisplacement3!
+        end
     
     elseif agent.neighbors == :CellLinked
     
@@ -192,15 +195,15 @@ end
     #Verlet Displacement
 macro verletDisplacement(args...)
 
-    args2 = [Meta.parse(string(i,"Old_")) for i in args]
-
+    base = agentArgs(l=length(args))
+    
     args3 = []
-    for i in args
-        append!(args3,[:($i[i1_]),:($(Meta.parse(string(i,"Old_")))[i1_])])
+    for (pos,i) in enumerate(args)
+        append!(args3,[:($i[i1_]),:(posOld_[i1_,$pos])])
     end
 
     return :(
-        function verletDisplacement_!($(keys(BASESYMBOLS)...),$(args...),$(args2...),skin,accumulatedDistance_)
+        function verletDisplacement!($(base...))
 
             for i1_ in 1:1:N[1]
                 accumulatedDistance_[i1_] = euclideanDistance($(args3...))
@@ -221,14 +224,16 @@ end
 
 macro neighborsVerletDisplacement(args...)
 
+    base = agentArgs(l=length(args))
+
     args2 = [Meta.parse(string(i,"Old_")) for i in args]
 
     up = [:(i .= j) for (i,j) in zip(args,args2)]
 
     return :(
-        function neighborsVerletDisplacement!($(keys(BASESYMBOLS)...),$(args...),$(keys(NEIGHBORSYMBOLS[:VerletDisplacement])...))
+        function neighborsVerletDisplacement!($(base...))
 
-            verletDisplacement!($(keys(BASESYMBOLS)...),$(args...),$(args2...),skin,accumulatedDistance_)
+            verletDisplacement!($(base...))
             if flagRecomputeNeighbors_[1] == 1
                 neighborN_ .= 0
                 accumulatedDistance_ .= 0.
@@ -245,6 +250,26 @@ end
 @neighborsVerletDisplacement x
 @neighborsVerletDisplacement x y
 @neighborsVerletDisplacement x y z
+
+macro neighborsVerletDisplacementCom(args...)
+
+    base = agentArgs(:community,l=length(args))
+    name = Meta.parse(string("neighborsVerletDisplacement$(length(args))!"))
+
+    return :(
+        function $name(community)
+
+            neighborsVerletDisplacement!($(base...),)
+
+            return
+
+        end
+    )
+end
+
+@neighborsVerletDisplacementCom x
+@neighborsVerletDisplacementCom x y
+@neighborsVerletDisplacementCom x y z
 
 #Grid
 function neighborsCellLinkedLoop(code,agent)

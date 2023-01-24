@@ -33,7 +33,7 @@ end
 macro testAllNeighbors(code,methods...)
 
     codeset = quote end
-    for dim in [1]
+    for dim in [1,2,3]
         for meth in [string(j) for j in methods]
             for plat in TESTPLATFORMS
                 addCode = MacroTools.postwalk(x->@capture(x,NEIGHBOR) ? :(Symbol($meth)) : x, code)
@@ -371,7 +371,7 @@ end
             computeNeighbors!(com);
 
             CUDA.@allowscalar com.neighborList_[1:3,:] == [2 3;1 3;1 2]
-            end), VerletTime#, VerletDisplacement
+            end), VerletDisplacement, VerletTime
         )
 
         # #CellLinked neighbors
