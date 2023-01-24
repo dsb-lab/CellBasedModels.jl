@@ -6,23 +6,13 @@ function neighborsFunction(agent)
     
     elseif agent.neighbors == :VerletTime
 
-        if agent.dims == 1
-            agent.declaredUpdatesFunction[:ComputeNeighbors] = neighborsVerletTime1!
-        elseif agent.dims == 2
-            agent.declaredUpdatesFunction[:ComputeNeighbors] = neighborsVerletTime2!
-        elseif agent.dims == 3
-            agent.declaredUpdatesFunction[:ComputeNeighbors] = neighborsVerletTime3!
-        end
+        agent.declaredUpdatesFunction[:ComputeNeighbors] = 
+                eval(Meta.parse(string("neighborsVerletTime$(length(agent.dims))$(agent.platform)!")))
 
     elseif agent.neighbors == :VerletDisplacement
     
-        if agent.dims == 1
-            agent.declaredUpdatesFunction[:ComputeNeighbors] = neighborsVerletDisplacement1!
-        elseif agent.dims == 2
-            agent.declaredUpdatesFunction[:ComputeNeighbors] = neighborsVerletDisplacement2!
-        elseif agent.dims == 3
-            agent.declaredUpdatesFunction[:ComputeNeighbors] = neighborsVerletDisplacement3!
-        end
+        agent.declaredUpdatesFunction[:ComputeNeighbors] = 
+                eval(Meta.parse(string("neighborsVerletDisplacement$(length(agent.dims))$(agent.platform)!")))
     
     elseif agent.neighbors == :CellLinked
     
@@ -112,88 +102,131 @@ function neighborsVerletLoop(code,agent) #Macro to create the second loop in fun
 
 end
 
-macro verletNeighbors(args...) #Macro to make the verletNeighbor loops
+macro verletNeighbors(platform, args...) #Macro to make the verletNeighbor loops
+
+    base = agentArgs(l=length(args))
 
     args2 = []
     for i in args
         append!(args2,[:($i[i1_]),:($i[i2_])])
     end
 
-    return :(
-        function verletNeighbors!(N,$(args...),skin,neighborList_,neighborN_)
-            d = 0.
-            lk = ReentrantLock()
-            for i1_ in 1:1:N[1]
-                for i2_ in (i1_+1):1:N[1]
-                    d = euclideanDistance($(args2...))
-                    if d < skin[1]
-                        lock(lk) do
-                            neighborN_[i1_] += 1
-                            neighborList_[i1_,neighborN_[i1_]] = i2_
-                            neighborN_[i2_] += 1
-                            neighborList_[i2_,neighborN_[i2_]] = i1_
+    name = Meta.parse("verletNeighbors$(platform)!")
+
+    code = 0
+    if platform == :CPU
+        code = :(
+            function $name($(base...))
+                @inbounds Threads.@threads for i1_ in 1:1:N[1]
+                    lk = ReentrantLock()
+                    for i2_ in (i1_+1):1:N[1]
+                        d = euclideanDistance($(args2...))
+                        if d < skin[1]
+                            lock(lk) do
+                                neighborN_[i1_] += 1
+                                neighborList_[i1_,neighborN_[i1_]] = i2_
+                                neighborN_[i2_] += 1
+                                neighborList_[i2_,neighborN_[i2_]] = i1_
+                            end
                         end
                     end
                 end
             end
-        end
-    )
+        )
+    elseif platform == :GPU
+        code = :(
+            function $name($(base...))
+                index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+                stride = gridDim().x * blockDim().x
+                @inbounds for i1_ in index:stride:N[1]
+                    for i2_ in (i1_+1):1:N[1]
+                        d = euclideanDistance($(args2...))
+                        if d < skin[1]
+                            pos1 = CUDA.atomic_add!(CUDA.pointer(neighborN_,i1_),Int32(1)) + 1
+                            pos2 = CUDA.atomic_add!(CUDA.pointer(neighborN_,i2_),Int32(1)) + 1
+                            neighborList_[i1_,pos1] = i2_
+                            neighborList_[i2_,pos2] = i1_
+                        end
+                    end
+                end
+
+                return
+            end
+        )
+    end
+
+    return code
 
 end
 
-@verletNeighbors x
-@verletNeighbors x y
-@verletNeighbors x y z
+@verletNeighbors CPU x
+@verletNeighbors CPU x y
+@verletNeighbors CPU x y z
+@verletNeighbors GPU x
+@verletNeighbors GPU x y
+@verletNeighbors GPU x y z
+
 
     #Verlet Time
-macro neighborsVerletTime(args...)
-
-    base = agentArgs(l=length(args))
-
-    return :(
-        function neighborsVerletTime!($(base...),)
-
-            if neighborTimeLastRecompute_ <= t
-                neighborN_ .= 0
-                verletNeighbors!(N,$(args...),skin,neighborList_,neighborN_)
-                neighborTimeLastRecompute_ .+= dtNeighborRecompute
-            elseif flagRecomputeNeighbors_ .== 1
-                neighborN_ .= 0
-                verletNeighbors!(N,$(args...),skin,neighborList_,neighborN_)
-                neighborTimeLastRecompute_ .= t + dtNeighborRecompute
-                flagRecomputeNeighbors_ .= 0
-            end
-
-        end
-    )
-end
-
-@neighborsVerletTime x
-@neighborsVerletTime x y
-@neighborsVerletTime x y z
-
-macro neighborsVerletTimeCom(args...)
+macro neighborsVerletTime(platform, args...)
 
     base = agentArgs(:community,l=length(args))
-    name = Meta.parse(string("neighborsVerletTime$(length(args))!"))
+    
+    namef = Meta.parse("verletNeighbors$(platform)!")
+    name = Meta.parse(string("neighborsVerletTime$(length(args))$(platform)!"))
+    if platform == :CPU
+        code = :(
+            function $name(community)
 
-    return :(
-        function $name(community)
+                if CUDA.@allowscalar community.neighborTimeLastRecompute_[1] <= community.t[1]
+                    community.neighborN_ .= 0
+                    $namef($(base...),)
+                    community.neighborTimeLastRecompute_ .+= community.dtNeighborRecompute
+                elseif CUDA.@allowscalar community.flagRecomputeNeighbors_[1] .== 1
+                    community.neighborN_ .= 0
+                    $namef($(base...),)
+                    community.neighborTimeLastRecompute_ .= community.t + community.dtNeighborRecompute
+                    community.flagRecomputeNeighbors_ .= 0
+                end
 
-            neighborsVerletTime!($(base...),)
+                return
 
-            return
+            end
+        )
+    else
+        code = :(
+            function $name(community)
+            
+                kernel = @cuda launch=false $namef($(base...),)
+                if CUDA.@allowscalar community.neighborTimeLastRecompute_[1] <= community.t[1]
+                    community.neighborN_ .= 0
+                    kernel($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    community.neighborTimeLastRecompute_ .+= community.dtNeighborRecompute
+                elseif CUDA.@allowscalar community.flagRecomputeNeighbors_[1] .== 1
+                    community.neighborN_ .= 0
+                    kernel($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    community.neighborTimeLastRecompute_ .= community.t + community.dtNeighborRecompute
+                    community.flagRecomputeNeighbors_ .= 0
+                end
+            
+                return
+            
+            end
+        )
+    end
 
-        end
-    )
+    return code
 end
 
-@neighborsVerletTimeCom x
-@neighborsVerletTimeCom x y
-@neighborsVerletTimeCom x y z
+@neighborsVerletTime CPU x
+@neighborsVerletTime CPU x y
+@neighborsVerletTime CPU x y z
+@neighborsVerletTime GPU x
+@neighborsVerletTime GPU x y
+@neighborsVerletTime GPU x y z
 
     #Verlet Displacement
-macro verletDisplacement(args...)
+macro verletDisplacement(platform, args...)
 
     base = agentArgs(l=length(args))
     
@@ -202,74 +235,165 @@ macro verletDisplacement(args...)
         append!(args3,[:($i[i1_]),:(posOld_[i1_,$pos])])
     end
 
-    return :(
-        function verletDisplacement!($(base...))
+    name = Meta.parse("verletDisplacement$(platform)!")
 
-            for i1_ in 1:1:N[1]
-                accumulatedDistance_[i1_] = euclideanDistance($(args3...))
-                if accumulatedDistance_[i1_] >= skin[1]/2
-                    flagRecomputeNeighbors_[1] = 1
+    code = 0
+    if platform == :CPU
+        code = :(
+            function $name($(base...))
+
+                @inbounds Threads.@threads for i1_ in 1:1:N[1]
+                    accumulatedDistance_[i1_] = euclideanDistance($(args3...))
+                    if accumulatedDistance_[i1_] >= skin[1]/2
+                        flagRecomputeNeighbors_[1] = 1
+                    end
                 end
+
+                return 
+
             end
+        )
+    else
+        code = :(
+            function $name($(base...))
 
-            return 
+                index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+                stride = gridDim().x * blockDim().x
 
-        end
-    )
+                @inbounds for i1_ in index:stride:N[1]
+                    accumulatedDistance_[i1_] = euclideanDistance($(args3...))
+                    if accumulatedDistance_[i1_] >= skin[1]/2
+                        flagRecomputeNeighbors_[1] = 1
+                    end
+                end
+
+                return 
+
+            end
+        )
+    end
+
+    return code
 end
 
-@verletDisplacement x
-@verletDisplacement x y
-@verletDisplacement x y z
+@verletDisplacement CPU x
+@verletDisplacement CPU x y
+@verletDisplacement CPU x y z
+@verletDisplacement GPU x
+@verletDisplacement GPU x y
+@verletDisplacement GPU x y z
 
-macro neighborsVerletDisplacement(args...)
+macro verletResetDisplacement(platform, args...)
 
     base = agentArgs(l=length(args))
+    
+    up = quote end
+    for (pos,i) in enumerate(args)
+        push!(up.args,:(posOld_[i1_,$pos]=$i[i1_]))
+    end
 
-    args2 = [Meta.parse(string(i,"Old_")) for i in args]
+    name = Meta.parse("verletResetDisplacement$(platform)!")
 
-    up = [:(i .= j) for (i,j) in zip(args,args2)]
+    code = 0
+    if platform == :CPU
+        code = :(
+            function $name($(base...))
 
-    return :(
-        function neighborsVerletDisplacement!($(base...))
+                @inbounds Threads.@threads for i1_ in 1:1:N[1]
+                    $up
+                end
 
-            verletDisplacement!($(base...))
-            if flagRecomputeNeighbors_[1] == 1
-                neighborN_ .= 0
-                accumulatedDistance_ .= 0.
-                flagRecomputeNeighbors_ .= 0
-                $up
-                verletNeighbors!(N,$(args...),skin,neighborList_,neighborN_)
+                return 
+
             end
+        )
+    else
+        code = :(
+            function $name($(base...))
 
-            return 
-        end
-    )
+                index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+                stride = gridDim().x * blockDim().x
+
+                @inbounds for i1_ in index:stride:N[1]
+                    $up
+                end
+
+                return 
+
+            end
+        )
+    end
+
+    return code
 end
 
-@neighborsVerletDisplacement x
-@neighborsVerletDisplacement x y
-@neighborsVerletDisplacement x y z
+@verletResetDisplacement CPU x
+@verletResetDisplacement CPU x y
+@verletResetDisplacement CPU x y z
+@verletResetDisplacement GPU x
+@verletResetDisplacement GPU x y
+@verletResetDisplacement GPU x y z
 
-macro neighborsVerletDisplacementCom(args...)
+macro neighborsVerletDisplacement(platform, args...)
 
     base = agentArgs(:community,l=length(args))
-    name = Meta.parse(string("neighborsVerletDisplacement$(length(args))!"))
+    name = Meta.parse(string("neighborsVerletDisplacement$(length(args))$(platform)!"))
 
-    return :(
-        function $name(community)
+    nameNeigh = Meta.parse(string("verletNeighbors$(platform)!"))
+    nameDisp = Meta.parse(string("verletDisplacement$(platform)!"))
+    nameResDisp = Meta.parse(string("verletResetDisplacement$(platform)!"))
 
-            neighborsVerletDisplacement!($(base...),)
+    code = 0
+    if platform == :CPU
+        code = :(
+            function $name(community)
 
-            return
 
-        end
-    )
+                $nameDisp($(base...),)
+                if community.flagRecomputeNeighbors_[1] == 1
+                    community.neighborN_ .= 0
+                    community.accumulatedDistance_ .= 0.
+                    community.flagRecomputeNeighbors_ .= 0
+                    $nameResDisp($(base...))
+                    $nameNeigh($(base...),)
+                end
+
+                return
+
+            end
+        )
+    else
+        code = :(
+            function $name(community)
+
+                kernelDisp = @cuda launch=false $nameDisp($(base...),)
+                kernelResDisp = @cuda launch=false $nameResDisp($(base...),)
+                kernelNeigh = @cuda launch=false $nameNeigh($(base...),)
+                
+                kernelDisp($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                if CUDA.@allowscalar community.flagRecomputeNeighbors_[1] == 1
+                    community.neighborN_ .= 0
+                    community.accumulatedDistance_ .= 0.
+                    community.flagRecomputeNeighbors_ .= 0
+                    kernelResDisp($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    kernelNeigh($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                end
+
+                return
+
+            end
+        )
+    end
+
+    return code
 end
 
-@neighborsVerletDisplacementCom x
-@neighborsVerletDisplacementCom x y
-@neighborsVerletDisplacementCom x y z
+@neighborsVerletDisplacement CPU x
+@neighborsVerletDisplacement CPU x y
+@neighborsVerletDisplacement CPU x y z
+@neighborsVerletDisplacement GPU x
+@neighborsVerletDisplacement GPU x y
+@neighborsVerletDisplacement GPU x y z
 
 #Grid
 function neighborsCellLinkedLoop(code,agent)

@@ -365,13 +365,14 @@ end
         @testAllNeighbors(            
             (@test begin 
 
-            agent = Agent(DIM,neighbors=NEIGHBOR,platform=:CPU)
+            agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
             com = Community(agent,N=[3],skin=[1.],nMaxNeighbors=[2],dtNeighborRecompute=[1.]);
             loadToPlatform!(com,preallocateAgents=10);
             computeNeighbors!(com);
 
-            CUDA.@allowscalar com.neighborList_[1:3,:] == [2 3;1 3;1 2]
-            end), VerletDisplacement, VerletTime
+            x = Array(com.neighborList_[1:3,:])
+            all([j in [2 3;1 3;1 2][i,:] for i in 1:3 for j in x[i,:]])
+            end), VerletDisplacement, VerletTime,
         )
 
         # #CellLinked neighbors

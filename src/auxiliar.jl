@@ -82,9 +82,9 @@ function makeSimpleLoop(code,agent)
 
 end
 
-function addCuda(code,agent;oneThread=false)
+function addCuda(code,platform::Symbol;oneThread=false)
 
-    if agent.platform == :GPU
+    if platform == :GPU
 
         if oneThread
 
@@ -92,13 +92,20 @@ function addCuda(code,agent;oneThread=false)
         
         else
 
-            code = :(@cuda threads=community.platform.threads blocks=community.platform.blocks $code)
+            # code = :(@cuda threads=community.platform.threads blocks=community.platform.blocks $code)
+            code = :(@cuda threads=5 blocks=5 $code)
 
         end
 
     end
 
     return code
+
+end
+
+function addCuda(code,agent;oneThread=false)
+
+    return addCuda(code,agent.platform,oneThread=oneThread)
 
 end
 
