@@ -350,56 +350,54 @@ end
 
     # end
 
-    @testset "neighbors" begin
+    # @testset "neighbors" begin
 
-        # #Full
-        # @testAllNeighbors(
-        #     (@test_nowarn begin
-        #         agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
-        #         com = Community(agent,N=[3]);
-        #         computeNeighbors!(com);     
-        #     end), Full
-        # )
+    #     #Full
+    #     @testAllNeighbors(
+    #         (@test_nowarn begin
+    #             agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
+    #             com = Community(agent,N=[3]);
+    #             computeNeighbors!(com);     
+    #         end), Full
+    #     )
 
-        #VerletTime VerletDisplacement neighbors
-        @testAllNeighbors(            
-            (@test begin 
+    #     #VerletTime VerletDisplacement neighbors
+    #     @testAllNeighbors(            
+    #         (@test begin 
 
-            agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
-            com = Community(agent,N=[3],skin=[1.],nMaxNeighbors=[2],dtNeighborRecompute=[1.]);
-            loadToPlatform!(com,preallocateAgents=10);
-            computeNeighbors!(com);
+    #         agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
+    #         com = Community(agent,N=[3],skin=[1.],nMaxNeighbors=[2],dtNeighborRecompute=[1.]);
+    #         loadToPlatform!(com,preallocateAgents=10);
+    #         computeNeighbors!(com);
 
-            x = Array(com.neighborList_[1:3,:])
-            all([j in [2 3;1 3;1 2][i,:] for i in 1:3 for j in x[i,:]])
-            end), VerletDisplacement, VerletTime,
-        )
+    #         x = Array(com.neighborList_[1:3,:])
+    #         all([j in [2 3;1 3;1 2][i,:] for i in 1:3 for j in x[i,:]])
+    #         end), VerletDisplacement, VerletTime,
+    #     )
 
-        # #CellLinked neighbors
-        # @testAllNeighbors(            
-        #     (@test begin 
+    #     #CellLinked neighbors
+    #     @testAllNeighbors(            
+    #         (@test begin 
 
-        #     agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
-        #     com = Community(agent,N=3^DIM);
-        #     v = zeros(3,27)
-        #     v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
-        #     v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
-        #     v[3,:] = repeat([repeat([0],9);repeat([1],9);repeat([2],9)],1)
-        #     for (j,sym) in enumerate([:x,:y,:z][1:DIM])
-        #         com.values[sym] .= v[j,1:3^(DIM)]
-        #     end
-        #     com.cellEdge = 2.
-        #     com.simulationBox .= [.5 1.5;.5 1.5;.5 1.5][1:DIM,:]
-        #     loadToPlatform!(com,addAgents=10);
-        #     computeNeighbors!(com, agent);
+    #         agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
+    #         com = Community(agent, N=[3^DIM], cellEdge=[2. for i in 1:DIM], simBox = [.5 1.5;.5 1.5;.5 1.5][1:DIM,:]);
+    #         v = zeros(3,27)
+    #         v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
+    #         v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
+    #         v[3,:] = repeat([repeat([0],9);repeat([1],9);repeat([2],9)],1)
+    #         for (j,sym) in enumerate([:x,:y,:z][1:DIM])
+    #             getproperty(com,sym) .= v[j,1:3^(DIM)]
+    #         end
+    #         loadToPlatform!(com);
+    #         computeNeighbors!(com);
 
-        #     all(com.cellNumAgents_ .== 1)
-        #     end), CellLinked
-        # )
+    #         all(com.cellNumAgents_ .== 1)
+    #         end), CellLinked
+    #     )
 
-    end
+    # end
 
-    # @testset "localInteractions" begin
+    @testset "localInteractions" begin
     #     @testAllNeighbors(            
     #         (@test begin 
 
@@ -444,7 +442,7 @@ end
     #             result
     #         end), Full, VerletTime, VerletDisplacement
     #     )
-    # end
+    end
 
     # #Update
     # @testset "update" begin

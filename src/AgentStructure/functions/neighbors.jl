@@ -7,16 +7,17 @@ function neighborsFunction(agent)
     elseif agent.neighbors == :VerletTime
 
         agent.declaredUpdatesFunction[:ComputeNeighbors] = 
-                eval(Meta.parse(string("neighborsVerletTime$(length(agent.dims))$(agent.platform)!")))
+                eval(Meta.parse(string("neighborsVerletTime$(agent.dims)$(agent.platform)!")))
 
     elseif agent.neighbors == :VerletDisplacement
     
         agent.declaredUpdatesFunction[:ComputeNeighbors] = 
-                eval(Meta.parse(string("neighborsVerletDisplacement$(length(agent.dims))$(agent.platform)!")))
+                eval(Meta.parse(string("neighborsVerletDisplacement$(agent.dims)$(agent.platform)!")))
     
     elseif agent.neighbors == :CellLinked
     
-        agent.declaredUpdatesFunction[:ComputeNeighbors] = Main.eval(:((community) -> AgentBasedModels.neighborsCellLinked!($(agentArgs(:community)...))))
+        agent.declaredUpdatesFunction[:ComputeNeighbors] = 
+                eval(Meta.parse(string("neighborsCellLinked$(agent.dims)$(agent.platform)!")))
     
     elseif agent.neighbors == :VerletGrid
     
@@ -412,49 +413,103 @@ cellPos(edge,x,xMin,xMax,nX) = if x > xMax nX elseif x < xMin 1 else Int((x-xMin
 cellPos(edge,x,xMin,xMax,nX,y,yMin,yMax,nY) = cellPos(edge,x,xMin,xMax,nX) + nX*(cellPos(edge,y,yMin,yMax,nY)-1)
 cellPos(edge,x,xMin,xMax,nX,y,yMin,yMax,nY,z,zMin,zMax,nZ) = cellPos(edge,x,xMin,xMax,nX) + nX*(cellPos(edge,y,yMin,yMax,nY)-1) + nX*nY*(cellPos(edge,z,zMin,zMax,nZ)-1)
 
-macro assignCells(args...)
+macro assignCells(platform, args...)
+
+    base = agentArgs(l=length(args))
 
     args2 = Any[:(cellEdge[1])]
     for (i,j) in enumerate(args)
-        append!(args2,[:($j[i1_]),:(simulationBox[$i,1]),:(simulationBox[$i,2]),:(nCells_[$i])])
+        append!(args2,[:($j[i1_]),:(simBox[$i,1]),:(simBox[$i,2]),:(nCells_[$i])])
     end
 
-    return :(
-        function assignCells!(N,simulationBox,$(args...),$(keys(NEIGHBORSYMBOLS[:CellLinked])...))
+    name = Meta.parse(string("assignCells$(length(args))$(platform)!"))
 
-            pos = 0
-            for i1_ in 1:1:N[1]
-                pos = cellPos($(args2...))
-                cellAssignedToAgent_[i1_] = pos
-                cellNumAgents_[pos] += 1
+    code = 0
+    if platform == :CPU
+        code = :(
+            function $name($(base...))
+
+                @inbounds Threads.@threads for i1_ in 1:1:N[1]
+                    pos = cellPos($(args2...))
+                    cellAssignedToAgent_[i1_] = pos
+                    lk = ReentrantLock()
+                    lock(lk) do
+                        cellNumAgents_[pos] += 1
+                    end
+                end
+
+                return
             end
+        )
+    else
+        code = :(
+            function $name($(base...))
 
-            return
-        end
-    )
+                index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+                stride = gridDim().x * blockDim().x
+                @inbounds for i1_ in index:stride:N[1]
+                    pos = cellPos($(args2...))
+                    cellAssignedToAgent_[i1_] = pos
+                    CUDA.atomic_add!(CUDA.pointer(cellNumAgents_,pos),Int32(1))
+                end
+
+                return
+            end
+        )
+    end
+
+    return code
 end
 
-@assignCells x
-@assignCells x y
-@assignCells x y z
+@assignCells CPU x
+@assignCells CPU x y
+@assignCells CPU x y z
+@assignCells GPU x
+@assignCells GPU x y
+@assignCells GPU x y z
 
-macro neighborsCellLinked(args...)
+macro neighborsCellLinked(platform, args...)
 
-    return :(
-        function neighborsCellLinked!(t,N,simulationBox,$(args...),$(keys(NEIGHBORSYMBOLS[:CellLinked])...))
+    base = agentArgs(:community,l=length(args))
 
-            @views cellNumAgents_[1:N[1]] .= 0
-            assignCells!(N,simulationBox,$(args...),$(keys(NEIGHBORSYMBOLS[:CellLinked])...))
-            cellCumSum_ .= cumsum(cellNumAgents_)
+    name = Meta.parse(string("neighborsCellLinked$(length(args))$(platform)!"))
+    namef = Meta.parse(string("assignCells$(length(args))$(platform)!"))
 
-            return 
-        end
-    )
+    code = 0
+    if platform == :CPU
+        code = :(
+            function $name(community)
+
+                @views community.cellNumAgents_[1:community.N[1]] .= 0
+                $namef($(base...),)
+                community.cellCumSum_ .= cumsum(community.cellNumAgents_)
+
+                return 
+            end
+        )
+    else
+        code = :(
+            function $name(community)
+
+                community.cellNumAgents_ .= 0
+                kernel = @cuda launch=false $namef($(base...),)
+                kernel($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                community.cellCumSum_ .= cumsum(community.cellNumAgents_)
+
+                return 
+            end
+        )
+    end
+
+    return code
 end
 
-@neighborsCellLinked x
-@neighborsCellLinked x y
-@neighborsCellLinked x y z
+@neighborsCellLinked CPU x
+@neighborsCellLinked CPU x y
+@neighborsCellLinked CPU x y z
+@neighborsCellLinked GPU x
+@neighborsCellLinked GPU x y
+@neighborsCellLinked GPU x y z
 
 #VerletLinkedCell
 macro neighborsVerletGridLoop(code,agent)
