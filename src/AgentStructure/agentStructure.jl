@@ -132,10 +132,10 @@ mutable struct Agent
         agent = Agent()
 
         agent.dims = dims
-        if neighbors in keys(NEIGHBORSYMBOLS)
+        if neighbors in NEIGHBORSYMBOLS
             agent.neighbors = neighbors
         else
-            error("Neighbors algorithm ", neighbors, " not defined. Specify among: ", keys(NEIGHBORSYMBOLS))
+            error("Neighbors algorithm ", neighbors, " not defined. Specify among: ", NEIGHBORSYMBOLS)
         end
         if integrator in INTEGRATOR
             agent.integrator = integrator
@@ -255,7 +255,7 @@ mutable struct Agent
         localFunction(agent)
         globalFunction(agent)
         neighborsFunction(agent)
-        # localInteractionsFunction(agent)
+        interactionFunction(agent)
 
         return agent
     end

@@ -87,35 +87,7 @@ BASESYMBOLS = OrderedDict(
     :RemoveAgentMacro             => BaseSymbol(:removeAgent,  :Macro)
 )     
 
-NEIGHBORSYMBOLS = Dict(
-  :Full => OrderedDict(),
-  :VerletTime => OrderedDict(
-                                      #1Number  #2Scope           #3Origin      #4Reassign  #5Update   #6Reset   #7Initialize
-      :skin                       => [:Float,   :Global,          :Neighbor,    false,      false,     false,    nothing           ],
-      :dtNeighborRecompute        => [:Float,   :Global,          :Neighbor,    false,      false,     false,    nothing           ],
-      :nMaxNeighbors              => [:Int,     :Global,          :Neighbor,    false,      false,     false,    nothing           ],
-      :neighborList_              => [:Int,     :VerletList,      :Neighbor,    true ,      false,     false,    nothing           ],
-      :neighborN_                 => [:Int,     :Local,           :Neighbor,    true ,      false,     false,    nothing           ],
-      :neighborTimeLastRecompute_ => [:Float,   :Global,          :Neighbor,    false,      false,     false,    nothing           ]
-    ),
-  :VerletDisplacement => OrderedDict(
-      :skin                       => [:Float,   :Global,          :Neighbor,    false,      false,     false,    nothing           ],
-      :nMaxNeighbors              => [:Int,     :Global,          :Neighbor,    false,      false,     false,    nothing           ],
-      :neighborList_              => [:Int,     :VerletList,      :Neighbor,    true,       false,     false,    nothing           ],
-      :neighborN_                 => [:Int,     :Local,           :Neighbor,    true,       false,     false,    nothing           ],
-      :xOld_                      => [:Float,   :Local,           :Neighbor,    true,       false,     false,    nothing           ],
-      :yOld_                      => [:Float,   :Local,           :Neighbor,    true,       false,     false,    nothing           ],
-      :zOld_                      => [:Float,   :Local,           :Neighbor,    true,       false,     false,    nothing           ],
-      :accumulatedDistance_       => [:Float,   :Local,           :Neighbor,    true,       false,     false,    nothing           ]
-    ),
-    :CellLinked => OrderedDict(
-      :cellEdge                   => [:Float,   :Global,          :Neighbor,    false,      false,     false,    nothing                                                                                     ],
-      :nCells_                    => [:Int,     :Dims,            :Neighbor,    false,      false,     false,                            @eval (com,agent) -> ceil.(Int64,(com[:simBox][:,2].-com[:simBox][:,1])./com[:cellEdge] .+2)],
-      :cellAssignedToAgent_       => [:Int,     :Cells,           :Neighbor,    false,      false,     false,                            @eval (com,agent) -> zeros(Int64,prod(com[:nCells_]))                                                 ],
-      :cellNumAgents_             => [:Int,     :Cells,           :Neighbor,    false,      false,     false,                            @eval (com,agent) -> zeros(Int64,prod(com[:nCells_]))                                                 ],
-      :cellCumSum_                => [:Int,     :Cells,           :Neighbor,    false,      false,     false,                            @eval (com,agent) -> zeros(Int64,prod(com[:nCells_]))                                                 ]
-    )
-)
+NEIGHBORSYMBOLS = [:Full, :VerletTime, :VerletDisplacement, :CellLinked]
 
 UPDATES = [
   :UpdateGlobal, 

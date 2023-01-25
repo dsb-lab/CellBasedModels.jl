@@ -41,8 +41,8 @@ include("./AgentStructure/functions/global.jl")
 export computeNeighbors!
 include("./AgentStructure/functions/neighbors.jl")
 #     #Local interactions
-# export updateInteractions!
-# include("./AgentStructure/functions/interactions.jl")
+export interactionStep!
+include("./AgentStructure/functions/interactions.jl")
 #     #Integrators
 # export Euler
 # include("./AgentStructure/compile/integrator/integrators.jl")

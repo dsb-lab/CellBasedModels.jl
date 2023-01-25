@@ -79,7 +79,7 @@ function neighborsFullLoop(code,agent)
     if agent.platform == :CPU
         return makeSimpleLoop(:(for i2_ in 1:1:N[1]; if i1_ != i2_; $code; end; end), agent)
     else
-        error("Make simple loop Gpu not implemented")
+        return makeSimpleLoop(:(for i2_ in 1:1:N[1]; if i1_ != i2_; $code; end; end), agent)
     end
 
 end
