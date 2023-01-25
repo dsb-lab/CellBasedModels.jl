@@ -395,8 +395,8 @@ cellPos(edge,x,xMin,xMax,nX,y,yMin,yMax,nY) = cellPos(edge,x,xMin,xMax,nX) + nX*
 cellPos(edge,x,xMin,xMax,nX,y,yMin,yMax,nY,z,zMin,zMax,nZ) = cellPos(edge,x,xMin,xMax,nX) + nX*(cellPos(edge,y,yMin,yMax,nY)-1) + nX*nY*(cellPos(edge,z,zMin,zMax,nZ)-1)
 
 function cellPosNeigh(pos,i,nX)
-    p = pos + (i - 2)
-    if p < 1 || p > nX
+    px = pos + (i - 2)
+    if px < 1 || px > nX
         return -1
     else
         return p
@@ -404,15 +404,20 @@ function cellPosNeigh(pos,i,nX)
 end
 
 function cellPosNeigh(pos,i,nX,nY)
-    p = pos + 3*((i ÷ 3) - 1) + ((i % 3) - 1)
-    posy = p ÷ nX
-    posx = p - nX * posy
-    px = posx +i - 2
-    py = posy +i - 2
-    if px < 0 || px > nX || py < 0 || py > nY
+    py = (pos - 1) ÷ nX + 1
+    px = (pos - nX*(py-1))
+
+    iy = (i - 1) ÷ 3 - 1
+    ix = (i - 3*(iy+1)) - 2
+    # println((px,py),(ix,iy))
+    py = py + iy
+    px = px + ix
+    # println((px,py),(ix,iy))
+
+    if px < 1 || px > nX || py < 1 || py > nY
         return -1
     else
-        return p
+        return (py-1)*nY+px
     end
 end
 
