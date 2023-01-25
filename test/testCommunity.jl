@@ -401,7 +401,7 @@ end
         @testAllNeighbors(            
             (@test begin 
 
-                agent = Agent(DIM,neighbors=NEIGHBOR,platform=:CPU,
+                agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM,
                     localIntInteraction = [:nn],
                     updateInteraction=quote
                             if euclideanDistance() < 1.1
@@ -424,15 +424,15 @@ end
                 interactionStep!(com);
                 interactionStep!(com);
 
-                result = false
+                result = true
                 if DIM == 1
-                    CUDA.@allowscalar result = all(com.nn .≈ [1,2,1])
+                    result = all(Array(com.nn) .≈ [1,2,1])
                 elseif DIM == 2
-                    CUDA.@allowscalar result = all(com.nn .≈ [2,3,2,3,4,3,2,3,2])
+                    result = all(Array(com.nn) .≈ [2,3,2,3,4,3,2,3,2])
                 elseif DIM == 3
-                    CUDA.@allowscalar result = all(com.nn .≈ [3,4,3,4,5,4,3,4,3,
-                                                               4,5,4,5,6,5,4,5,4,
-                                                               3,4,3,4,5,4,3,4,3])
+                    result = all(Array(com.nn) .≈ [3,4,3,4,5,4,3,4,3,
+                                                   4,5,4,5,6,5,4,5,4,
+                                                   3,4,3,4,5,4,3,4,3])
                 end
 
                 result
