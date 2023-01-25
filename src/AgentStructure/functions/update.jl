@@ -64,98 +64,103 @@ end
 ######################################################################################################
 # code to save updated parameters .new in the base array
 ######################################################################################################
-function updateParameters(agent)
+function updateParametersCPU!(community)
 
-    #Get parameters and make community
-    args = []
-    for i in keys(agent.declaredSymbols)
-        push!(args,:($i))        
+    if size(community.xNew_)[1] > 0
+        @views community.x[1:community.N[1],:] .= community.xNew_[1:community.N[1],:]
     end
-    args2 = [:(community.$i) for i in args]
 
-    #Get parameters that are updated and find its symbols
-    parameters = [(Meta.parse(string(sym)[1:end-4]),sym,prop) for (sym,prop) in pairs(agent.declaredSymbols) if prop[3] == :Update]
-
-    #Make code for kernel of local updates (to only update until N and not nMax_) and the rest
-    codeLocal = quote end
-    codeRest = quote end
-    for (s,sNew,prop) in parameters
-        if :Local in prop
-            push!(codeLocal.args,:($s[i1_] = $sNew[i1_])) #Not bradcast as it is inside custom kernel
-        elseif :Global in prop
-            push!(codeRest.args,:($s .= $sNew)) #Broadcasted
-        elseif :Medium in prop
-            push!(codeRest.args,:($s .= $sNew)) #Broadcasted
-        else
-            error("Updating not implemented for ", s, " with type ", prop)
-        end
+    if size(community.yNew_)[1] > 0
+        @views community.y[1:community.N[1],:] .= community.yNew_[1:community.N[1],:]
     end
-    codeLocal = makeSimpleLoop(codeLocal,agent)
-    #Add generated code to the agents
-        #Code
-    agent.declaredUpdatesCode[:Update1] = codeLocal
-    agent.declaredUpdatesCode[:Update2] = codeRest
-        #Partial functions
-    agent.declaredUpdatesFunction[:Update1_] = Main.eval(:(
-                                                            function ($(args...),) 
-                                                                $codeLocal 
-                                                                return nothing
-                                                            end
-                                                        ))
-    agent.declaredUpdatesFunction[:Update2_] = Main.eval(:(($(args...),) -> $codeRest))
+
+    if size(community.zNew_)[1] > 0
+        @views community.z[1:community.N[1],:] .= community.zNew_[1:community.N[1],:]
+    end
+
+    if size(community.liMNew_)[2] > 0
+        @views community.liM_[1:community.N[1],:] .= community.liMNew_[1:community.N[1],:]
+    end
+
+    if size(community.lfMNew_)[2] > 0
+        @views community.lfM_[1:community.N[1],:] .= community.lfMNew_[1:community.N[1],:]
+    end
+
+    if size(community.gfMNew_)[1] > 0
+        @views community.gfM_ .= community.gfMNew_
+    end
+
+    if size(community.giMNew_)[1] > 0
+        @views community.giM_ .= community.giMNew_
+    end
+
+    if length(community.mediumMNew_) > 0
+        @views community.mediumM_ .= community.mediumMNew_
+    end
 
     return
 
 end
 
-function updateFunction(agent)
+function updateParametersGPU!(community)
 
-    args = []
-    for i in keys(agent.declaredSymbols)
-        push!(args,:($i))        
+    if size(community.xNew_)[1] > 0
+        community.x .= community.xNew_
     end
-    args2 = [:(community.$i) for i in args]
 
-    #Make functions to fill holes left from removeAgents
-    fillHoles(agent)
+    if size(community.yNew_)[1] > 0
+        community.y .= community.yNew_
+    end
 
-    #Make functions to update paremters from .new
-    updateParameters(agent)
- 
-    #Total function
-    aux1 = addCuda(:(AgentBasedModels.listSurvived(community.N,
-                                community.NAdd_,
-                                community.NRemove_,
-                                community.repositionAgentInPos_::Array,
-                                community.flagSurvive_)),agent) #Add code to execute kernel in cuda if GPU
-    aux2 = addCuda(:(community.agent.declaredUpdatesFunction[:FillHoles_]($(args2...))),agent) #Add code to execute kernel in cuda if GPU
-    aux3 = addCuda(:(community.agent.declaredUpdatesFunction[:Update1_]($(args2...))),agent) #Add code to execute kernel in cuda if GPU
-    agent.declaredUpdatesFunction[:UpdateParameters] = Main.eval(:(function (community) 
-                                                            $aux1
-                                                            $aux2
-                                                            community.N .+= community.NAdd_[]-community.NRemove_[]
-                                                            community.NAdd_[] = 0
-                                                            community.NRemove_[] = 0
-                                                            $aux3
-                                                            community.agent.declaredUpdatesFunction[:Update2_]($(args2...))
-                                                            return
-                                                        end
-                                                        ))               
+    if size(community.zNew_)[1] > 0
+        community.z .= community.zNew_
+    end
+
+    if size(community.liMNew_)[2] > 0
+        community.liM_ .= community.liMNew_
+    end
+
+    if size(community.lfMNew_)[2] > 0
+        community.lfM_ .= community.lfMNew_
+    end
+
+    if size(community.gfMNew_)[1] > 0
+        community.gfM_ .= community.gfMNew_
+    end
+
+    if size(community.giMNew_)[1] > 0
+        community.giM_ .= community.giMNew_
+    end
+
+    if length(community.mediumMNew_) > 0
+        community.mediumM_ .= community.mediumMNew_
+    end
 
     return
 
 end
+
 
 """
     function update!(community,agent)
 
 Function that it is required to be called after performing all the functions of an step (findNeighbors, localStep, integrationStep...).
 """
-function update!(community)
+function updateCPU!(community)
 
     checkLoaded(community)
 
-    community.agent.declaredUpdatesFunction[:UpdateParameters](community)
+    updateParametersCPU!(community)
+
+    return 
+
+end
+
+function updateGPU!(community)
+
+    checkLoaded(community)
+
+    updateParametersGPU!(community)
 
     return 
 

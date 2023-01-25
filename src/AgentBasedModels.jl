@@ -28,9 +28,6 @@ include("./auxiliar.jl")
 export Agent
 include("./AgentStructure/agentStructure.jl")
 include("./AgentStructure/functions/vectorize.jl")
-#     #Local update
-# export update!
-# include("./AgentStructure/functions/update.jl")
 #     #Local
 export localStep!
 include("./AgentStructure/functions/local.jl")
@@ -43,6 +40,9 @@ include("./AgentStructure/functions/neighbors.jl")
 #     #Local interactions
 export interactionStep!
 include("./AgentStructure/functions/interactions.jl")
+    #Local update
+export updateCPU!, updateGPU!
+include("./AgentStructure/functions/update.jl")
 #     #Integrators
 # export Euler
 # include("./AgentStructure/compile/integrator/integrators.jl")
