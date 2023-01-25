@@ -70,36 +70,29 @@ function computeNeighbors!(community)
 end
 
 #Full
-function neighborsFull!(community)
-    return nothing
-end
-
 function neighborsFullLoop(code,agent)
 
-    if agent.platform == :CPU
-        return makeSimpleLoop(:(for i2_ in 1:1:N[1]; if i1_ != i2_; $code; end; end), agent)
-    else
-        return makeSimpleLoop(:(for i2_ in 1:1:N[1]; if i1_ != i2_; $code; end; end), agent)
-    end
+    return makeSimpleLoop(:(for i2_ in 1:1:N[1]; if i1_ != i2_; $code; end; end), agent)
 
 end
+
+function neighborsFull!(community)
+
+    return nothing
+
+end
+
 
 #Verlet
 function neighborsVerletLoop(code,agent) #Macro to create the second loop in functions
     
-    if agent.platform == :CPU
+    #Go over the list of neighbors
+    code = postwalk(x->@capture(x,h_) && h == :i2_ ? :(neighborList_[i1_,i2_]) : x, code)
+    #make loop
+    code = makeSimpleLoop(:(for i2_ in 1:1:neighborN_[i1_]; $code; end), agent)
+    
+    return code
 
-        code = makeSimpleLoop(:(for i2_ in 1:1:neighborN_[i1_]; $code; end), agent)
-        #Go over the list of neighbors
-        code = postwalk(x->@capture(x,g_[h_]) && h == :i2_ ? :($g[neighborList_[i2_]]) : x, code)
-
-        return code
-
-    else
-
-        error("Make simple loop GPU not implemented")
-
-    end
 
 end
 
