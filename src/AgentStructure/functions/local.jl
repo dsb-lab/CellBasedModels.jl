@@ -133,15 +133,15 @@ function localFunction(agent)
         #Put in loop
         code = makeSimpleLoop(code,agent)
 
-        agent.declaredUpdatesCode[:UpdateLocal] = code
-
-        agent.declaredUpdatesFunction[:UpdateLocal_] = Main.eval(:(($(agentArgs()...),) -> $code))
+        agent.declaredUpdatesCode[:UpdateLocal_] = :(($(agentArgs()...),) -> $code)
+        agent.declaredUpdatesFunction[:UpdateLocal_] = Main.eval(:($(agent.declaredUpdatesCode[:UpdateLocal_])))
         aux = addCuda(:(community.agent.declaredUpdatesFunction[:UpdateLocal_]($(agentArgs(:community)...))),agent) #Add code to execute kernel in cuda if GPU
+        agent.declaredUpdatesCode[:UpdateLocal] = :(function (community)
+                                                        $aux
+                                                        return 
+                                                    end)
         agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(
-            :(function (community)
-                $aux
-                return 
-            end)
+            :($(agent.declaredUpdatesCode[:UpdateLocal]))
         )
     else
         agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(:((community) -> nothing))

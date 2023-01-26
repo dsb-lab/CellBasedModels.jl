@@ -1,15 +1,15 @@
 ######################################################################################################
-# code to fill the holes in the array left by dead cells
+# code to list the agents that survived
 ######################################################################################################
-function listSurvived(N,NAdd_,NRemove_,repositionAgentInPos_::Array,flagSurvive_)
+function listSurvivedCPU!(community)
 
-    count = 0
-    lastPos = N[]+NAdd_[]
-    while NRemove_[] > count
+    count = 1
+    lastPos = community.N[1]+community.NAdd_[]
+    while community.NRemove_[] >= count
 
-        if flagSurvive_[lastPos] == 1
+        if community.flagSurvive_[lastPos] == 1
 
-            repositionAgentInPos_[count] = lastPos
+            community.repositionAgentInPos_[count] = lastPos
             count += 1
 
         end
@@ -22,146 +22,283 @@ function listSurvived(N,NAdd_,NRemove_,repositionAgentInPos_::Array,flagSurvive_
 
 end
 
-function fillHoles(agent::Agent)
+macro kernelListSurvivedGPU!(arg,arg2)
 
-    args = []
-    for i in keys(agent.declaredSymbols)
-        push!(args,:($i))        
-    end
+    base = eval(arg)
+    pos = eval(arg2)
+    args = agentArgs(params=base,posparams=pos)
 
-    #Get parameters that are updated and find its symbols
-    parameters = [(sym,prop) for (sym,prop) in pairs(agent.declaredSymbols) if prop[4]]
+    return :(function kernelListSurvivedGPU!($(args...))
 
-    #Make code for kernel of local updates (to only update until N and not nMax_) and the rest
-    code = quote end
-    for (s,prop) in parameters
-        if :Local in prop
-            push!(code.args,:($s[holeFromRemoveAt_[i1_]] = $s[repositionAgentInPos_[i1_]])) #Not bradcast as it is inside custom kernel
-        elseif :VerletList in prop
-            push!(code.args,:(for i2_ in 1:1:neighborN_; $s[holeFromRemoveAt_[i1_],i2_] .= $s[repositionAgentInPos_[i1_],i1_]; end)) #Broadcasted
-        else
-            error("Updating not implemented for ", s, " with type ", prop)
+        count = 1
+        lastPos = N[1]+NAdd_[1]
+        while NRemove_[1] >= count
+
+            if flagSurvive_[lastPos] == 1
+
+                repositionAgentInPos_[count] = lastPos
+                count += 1
+
+            end
+
+            lastPos -= 1
+
         end
-    end
-    code = makeSimpleLoop(code,agent)
-    #Change running pace
-    code = postwalk(x->@capture(x,N[1]) ? :(NRemove_[]) : x, code)
-    #Add generated code to the agents
-    agent.declaredUpdatesCode[:FillHoles_] = code
 
-    #Partial functions
-    agent.declaredUpdatesFunction[:FillHoles_] = Main.eval(:(
-                                                            function ($(args...),) 
-                                                                $code 
-                                                                return nothing
-                                                            end
-                                                        ))
+        return 
 
-    return
+    end)
 
 end
+
+@kernelListSurvivedGPU! BASEPARAMETERS POSITIONPARAMETERS
+
+######################################################################################################
+# code to fill the holes left by cells that did not survived
+######################################################################################################
+macro fillHolesCPU!(arg)
+
+    #get base parameters
+    baseParameters = eval(arg)
+    #Get local symbols
+    localSymbols = getSymbolsThat(baseParameters,:shape,:Local)
+    #Remove the ones related with reassigning position
+    popat!(localSymbols,findfirst(localSymbols.==:holeFromRemoveAt_))
+    popat!(localSymbols,findfirst(localSymbols.==:repositionAgentInPos_))
+    #Make assignements
+    code = quote end
+    for sym in localSymbols
+        if length(baseParameters[sym].shape)==1
+            push!(code.args,
+                quote
+                    if length(community.$sym) > 0
+                        community.$sym[posNew] = community.$sym[posOld]
+                    end
+                end
+            )
+        elseif length(baseParameters[sym].shape)==2
+            push!(code.args,
+                quote
+                    if length(community.$sym) > 0
+                        community.$sym[posNew,:] .= community.$sym[posOld,:]
+                    end
+                end
+            )
+        end
+    end
+    code = quote
+        Threads.@threads for i in 1:1:community.NRemove_[]
+            posNew = community.holeFromRemoveAt_[i]
+            posOld = community.repositionAgentInPos_[i]
+            if posNew < posOld
+                $code
+            end
+        end
+    end
+
+    return :(
+        function fillHolesCPU!(community)
+
+            $code
+
+            return
+
+        end
+    )
+
+end
+
+@fillHolesCPU! BASEPARAMETERS
+
+macro kernelFillHolesGPU!(arg,arg2)
+
+    #get base parameters
+    baseParameters = eval(arg)
+    pos = eval(arg2)
+    args = agentArgs(params=baseParameters,posparams=pos)
+    #Get local symbols
+    localSymbols = getSymbolsThat(baseParameters,:shape,:Local)
+    #Remove the ones related with reassigning position
+    popat!(localSymbols,findfirst(localSymbols.==:holeFromRemoveAt_))
+    popat!(localSymbols,findfirst(localSymbols.==:repositionAgentInPos_))
+    #Make assignements
+    code = quote end
+    for sym in localSymbols
+        if length(baseParameters[sym].shape)==1
+            push!(code.args,
+                quote
+                    if length($sym) > 0
+                        $sym[posNew] = $sym[posOld]
+                    end
+                end
+            )
+        elseif length(baseParameters[sym].shape)==2
+            push!(code.args,
+                quote
+                    if length($sym) > 0
+                        for i2_ in 1:1:size($sym)[2]
+                            $sym[posNew,i2_] = $sym[posOld,i2_]
+                        end
+                    end
+                end
+            )
+        end
+    end
+    code = quote
+        index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+        stride = gridDim().x * blockDim().x
+        for i in index:stride:NRemove_[]
+            posNew = holeFromRemoveAt_[i]
+            posOld = repositionAgentInPos_[i]
+            if posNew < posOld
+                $code
+            end
+        end
+    end
+
+    return :(
+        function kernelFillHolesGPU!($(args...))
+
+            $code
+
+            return
+
+        end
+    )
+
+end
+
+@kernelFillHolesGPU! BASEPARAMETERS POSITIONPARAMETERS
 
 ######################################################################################################
 # code to save updated parameters .new in the base array
 ######################################################################################################
-function updateParametersCPU!(community)
+macro updateParameters!(arg, platform)
 
-    if size(community.xNew_)[1] > 0
-        @views community.x[1:community.N[1],:] .= community.xNew_[1:community.N[1],:]
+    #get base parameters
+    baseParameters = eval(arg)
+    #Get local symbols
+    newSymbols = [i for i in keys(baseParameters) if occursin("New_",string(i))]
+    oldSymbols = [Meta.parse(string(split(string(i),"New_")[1],"_")) for i in newSymbols]
+    old = []
+    for i in oldSymbols
+        if !(i in keys(baseParameters)) 
+            push!(old,Meta.parse(string(split(string(i),"_")[1])))
+        else 
+            push!(old,i)
+        end
+    end
+    oldSymbols = old
+
+    #Make code
+    code = quote end
+    for (n,o) in zip(newSymbols, oldSymbols)
+        s = string((n,o))
+        if :Local in baseParameters[n].shape && length(baseParameters[n].shape) > 1 && platform == :CPU #Only views if cpu, rest, pure copy
+            push!(code.args,
+                quote
+                    if length(community.$n) > 0
+                        @views community.$o[1:community.N[1],:] .= community.$n[1:community.N[1],:]
+                    end
+                end
+            )
+        else
+            push!(code.args,
+                quote
+                    if length(community.$n) > 0
+                        community.$o .= community.$n
+                    end
+                end
+            )
+        end
     end
 
-    if size(community.yNew_)[1] > 0
-        @views community.y[1:community.N[1],:] .= community.yNew_[1:community.N[1],:]
-    end
+    #Make function
+    name = Meta.parse("updateParameters$(platform)!")
 
-    if size(community.zNew_)[1] > 0
-        @views community.z[1:community.N[1],:] .= community.zNew_[1:community.N[1],:]
-    end
+    return :(
+        function $name(community)
 
-    if size(community.liMNew_)[2] > 0
-        @views community.liM_[1:community.N[1],:] .= community.liMNew_[1:community.N[1],:]
-    end
+            $code
 
-    if size(community.lfMNew_)[2] > 0
-        @views community.lfM_[1:community.N[1],:] .= community.lfMNew_[1:community.N[1],:]
-    end
+            return
 
-    if size(community.gfMNew_)[1] > 0
-        @views community.gfM_ .= community.gfMNew_
-    end
-
-    if size(community.giMNew_)[1] > 0
-        @views community.giM_ .= community.giMNew_
-    end
-
-    if length(community.mediumMNew_) > 0
-        @views community.mediumM_ .= community.mediumMNew_
-    end
-
-    return
+        end
+    )
 
 end
 
-function updateParametersGPU!(community)
+@updateParameters! BASEPARAMETERS CPU
+@updateParameters! BASEPARAMETERS GPU
 
-    if size(community.xNew_)[1] > 0
-        community.x .= community.xNew_
-    end
-
-    if size(community.yNew_)[1] > 0
-        community.y .= community.yNew_
-    end
-
-    if size(community.zNew_)[1] > 0
-        community.z .= community.zNew_
-    end
-
-    if size(community.liMNew_)[2] > 0
-        community.liM_ .= community.liMNew_
-    end
-
-    if size(community.lfMNew_)[2] > 0
-        community.lfM_ .= community.lfMNew_
-    end
-
-    if size(community.gfMNew_)[1] > 0
-        community.gfM_ .= community.gfMNew_
-    end
-
-    if size(community.giMNew_)[1] > 0
-        community.giM_ .= community.giMNew_
-    end
-
-    if length(community.mediumMNew_) > 0
-        community.mediumM_ .= community.mediumMNew_
-    end
-
-    return
-
-end
-
-
-"""
-    function update!(community,agent)
-
-Function that it is required to be called after performing all the functions of an step (findNeighbors, localStep, integrationStep...).
-"""
+######################################################################################################
+# full update code
+######################################################################################################
 function updateCPU!(community)
 
-    checkLoaded(community)
-
+    #List and fill holes left from agent removal
+    listSurvivedCPU!(community)
+    fillHolesCPU!(community)
+    #Update number of agents
+    community.N[1] += community.NAdd_[] - community.NRemove_[] 
+    community.NAdd_[] = 0
+    community.NRemove_[] = 0
+    #Clear flags
+    if community.agent.removalOfAgents_
+        @views community.flagSurvive_[1:community.N[1]] .= 0
+    end
+    #Update parameters
     updateParametersCPU!(community)
+    #Recompute neighbors
+    computeNeighbors!(community)
 
     return 
 
 end
 
-function updateGPU!(community)
+macro updateGPU!(arg,arg2)
+
+    base = eval(arg)
+    pos = eval(arg2)
+    args = agentArgs(:community,params=base,posparams=pos)
+
+    return :(function updateGPU!(community)
+
+        #List and fill holes left from agent removal
+        kernel1 = @cuda launch=false kernelListSurvivedGPU!($(args...))
+        kernel1($(args...);threads=community.platform.threads,blocks=community.platform.threads)
+        kernel2 = @cuda launch=false kernelFillHolesGPU!($(args...))
+        kernel2($(args...);threads=community.platform.threads,blocks=community.platform.threads)
+        #Update number of agents
+        community.N .+= community.NAdd_ - community.NRemove_ 
+        community.NAdd_ .= 0
+        community.NRemove_ .= 0
+        #Clear flags
+        if community.agent.removalOfAgents_
+            community.flagSurvive_ .= 0
+        end
+        #Update parameters
+        updateParametersGPU!(community)
+        #Recompute neighbors
+        computeNeighbors!(community)
+
+        return 
+
+        end
+    )
+end
+
+@updateGPU!(BASEPARAMETERS,POSITIONPARAMETERS)
+
+function update!(community)
 
     checkLoaded(community)
 
-    updateParametersGPU!(community)
+    if community.agent.platform == :CPU
+        updateCPU!(community)
+    else
+        updateGPU!(community)
+    end
 
-    return 
-
+    return
 end

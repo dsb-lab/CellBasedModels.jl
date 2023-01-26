@@ -234,18 +234,17 @@ mutable struct Agent
 
         #Check if there is removed agents
         for update in keys(agent.declaredUpdates)
-            for (sym,var) in pairs(agent.declaredSymbols)
-                if inexpr(agent.declaredUpdates[update],:removeAgent)
-                    agent.removalOfAgents_ = true
-                end
+            if inexpr(agent.declaredUpdates[update],:removeAgent)
+                agent.removalOfAgents_ = true
             end
         end        
 
         #Check which position vectors are updated
         new = BASESYMBOLS[:UpdateSymbol].symbol
         for update in keys(agent.declaredUpdates)
-            for i in 1:length(POSITIONPARAMETERS)
-                if inexpr(agent.declaredUpdates[update],:($(POSITIONPARAMETERS[i]).$new)) || inexpr(agent.declaredUpdates[update],BASESYMBOLS[:AddAgentMacro].symbol)
+            for i in 1:length(POSITIONPARAMETERS[1:agent.dims])
+                if inexpr(agent.declaredUpdates[update],:($(POSITIONPARAMETERS[i]).$new)) || 
+                    inexpr(agent.declaredUpdates[update],BASESYMBOLS[:AddAgentMacro].symbol)
                     agent.posUpdated_[i] = true
                 end
             end

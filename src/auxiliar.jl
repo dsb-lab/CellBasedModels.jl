@@ -9,11 +9,12 @@ manhattanDistance(x1,x2,y1,y2,z1,z2) = abs(x1-x2)+abs(y1-y2)+abs(z1-z2)
 
 baseParameterToModifiable(sym) = Meta.parse(string(string(sym)[1:end-3],"M_"))
 baseParameterNew(sym) = Meta.parse(string(split(string(sym),"_")[1],"New_"))
-function agentArgs(sym=nothing;l=3) 
 
-    pars = [i for i in keys(BASEPARAMETERS)]
+function agentArgs(sym=nothing;l=3,params=BASEPARAMETERS,posparams=POSITIONPARAMETERS) 
 
-    for i in POSITIONPARAMETERS[3:-1:1+l]
+    pars = [i for i in keys(params)]
+
+    for i in posparams[3:-1:1+l]
         popat!(pars,findfirst(pars.==i))
     end
 
@@ -50,7 +51,18 @@ function getSymbolsThat(dict::OrderedDict,property::Symbol,condition::Array)
 end
 
 function getSymbolsThat(dict::OrderedDict,property::Symbol,condition)
-    return [i for (i,var) in pairs(dict) if getfield(var,property) == condition]
+    l = []
+    for (i,var) in pairs(dict) 
+        f = getfield(var,property) 
+        if f == condition 
+            push!(l,i)
+        elseif typeof(f) <: Tuple
+            if condition in f
+                push!(l,i)
+            end
+        end
+    end
+    return l
 end
 
 function checkFormat(sym,args,prop,dict,agent)

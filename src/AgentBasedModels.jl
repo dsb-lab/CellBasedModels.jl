@@ -41,7 +41,7 @@ include("./AgentStructure/functions/neighbors.jl")
 export interactionStep!
 include("./AgentStructure/functions/interactions.jl")
     #Local update
-export updateCPU!, updateGPU!
+export update!
 include("./AgentStructure/functions/update.jl")
 #     #Integrators
 # export Euler
