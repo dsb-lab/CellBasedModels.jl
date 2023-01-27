@@ -9,7 +9,7 @@ ARRAY = Dict([:CPU=>Array,:GPU=>CuArray])
 BASEPARAMETERS = OrderedDict(
                                                    #dtype    #Shape                     #Origin      #Reassign    #Protected #Reset    #Necessaryfor                         #Initialize
 #Parameters of time
-    :t                            => BaseParameter(:Float,   (:Global,),                :Base,        false,       false,     false,    Symbol[],                             @eval (com,agent) -> [1.]                                                                      ),
+    :t                            => BaseParameter(:Float,   (:Global,),                :Base,        false,       false,     false,    Symbol[],                             @eval (com,agent) -> [0.]                                                                      ),
     :dt                           => BaseParameter(:Float,   (:Global,),                :Base,        false,       false,     false,    Symbol[],                             @eval (com,agent) -> [1.]                                                                      ),
 #Parameters of system size
     :N                            => BaseParameter(:Int,     (:Global,),                :Base,        false,       true,      false,    Symbol[],                             @eval (com,agent) -> [1]                                                                       ),
@@ -50,6 +50,8 @@ BASEPARAMETERS = OrderedDict(
     :xNew_                        => BaseParameter(:Float,   (:Local,),                 :User,        true,        true,      false,    Symbol[],                             @eval (com,agent) -> if agent.posUpdated_[1]; zeros(Float64,com[:N][1]) else Float64[] end                                                   ),
     :yNew_                        => BaseParameter(:Float,   (:Local,),                 :User,        true,        true,      false,    Symbol[],                             @eval (com,agent) -> if agent.posUpdated_[2]; zeros(Float64,com[:N][1]) else Float64[] end                                                   ),
     :zNew_                        => BaseParameter(:Float,   (:Local,),                 :User,        true,        true,      false,    Symbol[],                             @eval (com,agent) -> if agent.posUpdated_[3]; zeros(Float64,com[:N][1]) else Float64[] end                                                   ),  
+#Parameters of variable
+    :varAux_                      => BaseParameter(:Float,   (:Local,:Vars,:IntSteps),  :Base,        true,        true,      false,    Symbol[],                             @eval (com,agent) -> zeros(Float64,com[:N][1],length(keys(agent.declaredVariables)),INTEGRATOR[agent.integrator].length-1)                                                   ),  
 #Parameters of user declared
     :liNM_                        => BaseParameter(:Int,     (:Local,:User),            :User,        true,        true,      false,    Symbol[],                             @eval (com,agent) -> zeros(Int64,com[:N][1],length(getSymbolsThat(agent.declaredSymbols,:basePar,:liNM_)))         ),
     :liM_                         => BaseParameter(:Int,     (:Local,:User),            :User,        true,        true,      false,    Symbol[],                             @eval (com,agent) -> zeros(Int64,com[:N][1],length(getSymbolsThat(agent.declaredSymbols,:basePar,:liM_)))          ),
@@ -102,7 +104,28 @@ PLATFORMS = [:CPU,:GPU]
 
 SAVING = [:RAM,:JLD]
 
-INTEGRATOR = [:Euler]
+INTEGRATOR = OrderedDict(
+    :Euler => Integrator(
+                    1,
+                    (:dt,),
+                    (:dW,),
+                    (nothing,),
+                    (1,)
+                ),
+    :Heun => Integrator(
+                    2,
+                    (:dt,:dt),
+                    (:dW,:dW),
+                    ((1,)),
+                    (1/2,1/2)
+                ),
+    :RungeKutta4 => Integrator(
+                    4,
+                    (:dt,:dt,:dt,:dt),
+                    (:dW,:dW,:dW,:dW),
+                    ((1/2,),(0,1/2),(0,0,1)),
+                    (1/6,2/6,2/6,1/6)
+                ))
 
 PLATFORM = [:CPU,:GPU]
 

@@ -4,12 +4,6 @@ struct Neighbors
     neighborsCompute::Function
 end
 
-struct Integrator
-    steps
-    args
-    createFunction
-end
-
 mutable struct Platform
     threads::Int
     blocks::Int
@@ -35,4 +29,18 @@ mutable struct UserParameter
     reset::Bool
     basePar::Symbol
     position::Int64
+end
+
+mutable struct Equation
+    position::Int
+    deterministic::Union{Expr,Symbol}
+    stochastic::Union{Expr,Symbol}
+end
+
+struct Integrator
+    length
+    dt
+    dW
+    weight
+    finalWeights
 end

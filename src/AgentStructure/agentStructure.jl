@@ -80,6 +80,7 @@ mutable struct Agent
     dims::Int
     
     declaredSymbols::OrderedDict{Symbol,UserParameter}
+    declaredVariables::OrderedDict{Symbol,Equation}
     declaredUpdates::Dict{Symbol,Expr}
     declaredUpdatesCode::Dict{Symbol,Expr}
     declaredUpdatesFunction::Dict{Symbol,Function}
@@ -93,6 +94,7 @@ mutable struct Agent
     function Agent()
         new(0,
             OrderedDict{Symbol,Array{Symbol}}(),
+            OrderedDict{Symbol,Equation}(),
             Dict{Symbol,Expr}(),
             Dict{Symbol,Expr}(),
             Dict{Symbol,Function}(),
@@ -137,20 +139,20 @@ mutable struct Agent
         else
             error("Neighbors algorithm ", neighbors, " not defined. Specify among: ", NEIGHBORSYMBOLS)
         end
-        if integrator in INTEGRATOR
+        if integrator in keys(INTEGRATOR)
             agent.integrator = integrator
         else
-            error("Neighbors algorithm ", integrator, " not defined. Specify among: ", INTEGRATOR)
+            error("Integrator algorithm ", integrator, " not defined. Specify among: ", INTEGRATOR)
         end
         if platform in PLATFORM
             agent.platform = platform
         else
-            error("Neighbors algorithm ", platform, " not defined. Specify among: ", PLATFORM)
+            error("Platform ", platform, " not defined. Specify among: ", PLATFORM)
         end
         if saving in SAVING
             agent.saving = saving
         else
-            error("Neighbors algorithm ", saving, " not defined. Specify among: ", SAVING)
+            error("Saving algorithm ", saving, " not defined. Specify among: ", SAVING)
         end
 
         #User defined symbols
@@ -250,11 +252,27 @@ mutable struct Agent
             end
         end    
 
+        #Get equations
+        getEquations!(agent)
+        #Check position that are evolved
+        for i in 1:length(POSITIONPARAMETERS[1:agent.dims])
+            if POSITIONPARAMETERS[i] in keys(agent.declaredVariables)
+                agent.posUpdated_[i] = true
+            end
+        end
+        #Check parameters that are evolved
+        for i in keys(agent.declaredSymbols)
+            if i in keys(agent.declaredVariables)
+                agent.declaredSymbols[i].basePar = baseParameterToModifiable(agent.declaredSymbols[i].basePar)
+            end
+        end
+
         #Make compiled functions
         localFunction(agent)
         globalFunction(agent)
         neighborsFunction(agent)
         interactionFunction(agent)
+        integratorFunction(agent)
 
         return agent
     end

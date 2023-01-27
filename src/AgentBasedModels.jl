@@ -27,7 +27,6 @@ include("./auxiliar.jl")
 #Agent
 export Agent
 include("./AgentStructure/agentStructure.jl")
-include("./AgentStructure/functions/vectorize.jl")
 #     #Local
 export localStep!
 include("./AgentStructure/functions/local.jl")
@@ -43,8 +42,9 @@ include("./AgentStructure/functions/interactions.jl")
     #Local update
 export update!
 include("./AgentStructure/functions/update.jl")
-#     #Integrators
-# export Euler
+    #Integrators
+export integrationStep!
+include("./AgentStructure/functions/integrators.jl")
 # include("./AgentStructure/compile/integrator/integrators.jl")
 # include("./AgentStructure/compile/integrator/euler.jl")
 # include("./AgentStructure/compile/integrator/heun.jl")
@@ -73,7 +73,7 @@ include("./AgentStructure/functions/update.jl")
 # include("./AgentStructure/compile/medium/integratorMedium/ftcs.jl")
 # include("./AgentStructure/compile/medium/integratorMedium/lax.jl")
 # include("./AgentStructure/compile/medium/integratorMedium/implicitEuler.jl")
-# include("./AgentStructure/compile/medium/integratorMedium/integratorsMedium.jl")
+# include("./AgentStructure/compile/medium/integratorMedium/integratorsMedium.jl") 
 # include("./AgentStructure/compile/medium/medium.jl")
     #Saving
 # include("./AgentStructure/compile/saving/saveRAM.jl")
