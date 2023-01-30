@@ -16,6 +16,8 @@ function addToList(x,agent;type)
         sym = [i for i in keys(agent.declaredVariables)][end]
         if agent.declaredVariables[sym].stochastic != :nothing
             error("Stochastic term dW(  ) has been defined more than one for variable $sym." )
+        elseif !INTEGRATOR[agent.integrator].stochasticImplemented
+            error("Stochastic integration has not been implemented for this method." )
         end
         agent.declaredVariables[sym].stochastic = x
 
@@ -94,10 +96,11 @@ function integratorFunction(agent)
 
                 codeDet = getfield(eq,cd)
                 if codeDet != :nothing
-                    codeDet = :($(getfield(integ,ds)[i])*$codeDet) #Add time differential multiplication
+                    codeDet = :($ds*$codeDet) #Add time differential multiplication
 
                     if i == 1
 
+                        codeDet = postwalk(x->@capture(x,dW) ? :(sqrt(dt)*Normal(0,1)) : x, codeDet) #Stochastic adaptation
                         codeDet = vectorize(codeDet,agent) #Just vectorize
                         push!(terms,codeDet)
 
@@ -126,13 +129,18 @@ function integratorFunction(agent)
 
             end
 
+            termsTotal = :()
             if length(terms) == 1
-                eqcode = :($eqcode = $(terms[1]))
+                termsTotal = :($(terms[1]))
             else
-                eqcode = :($eqcode = $(terms[1])+$(terms[2]))
+                termsTotal = :($(terms[1])+$(terms[2]))
             end
 
-            code = postwalk(x->@capture(x,d(s_)=g_) && s == sym ? eqcode : x, code)
+            if 1 == integ.length #One step integrators add directly to the end
+                code = postwalk(x->@capture(x,d(s_)=g_) && s == sym ? :($eqcode = $past + $termsTotal) : x, code) 
+            else #Several step integrators compute just slope at point
+                code = postwalk(x->@capture(x,d(s_)=g_) && s == sym ? :($eqcode = $termsTotal) : x, code)
+            end
 
         end
 
@@ -169,8 +177,6 @@ function integratorFunction(agent)
                     return
                 end
             end
-
-            println(prettify(agent.declaredUpdatesCode[s]))
 
             agent.declaredUpdatesFunction[s] = Main.eval(agent.declaredUpdatesCode[s])
         end
@@ -231,9 +237,6 @@ function integratorFunction(agent)
         agent.declaredUpdatesFunction[:IntegratorStep] = Main.eval(agent.declaredUpdatesCode[:IntegratorStep])
 
     end
-
-    # println(prettify(agent.declaredUpdatesCode[:IntegratorStep_]))
-    # println(prettify(agent.declaredUpdatesCode[:IntegratorStep]))
         
     return
 
