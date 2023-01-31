@@ -33,14 +33,14 @@ end
 
 mutable struct Equation
     position::Int
-    deterministic::Union{Expr,Symbol}
-    stochastic::Union{Expr,Symbol}
+    positiondt::Int
+    positiondW::Int
+    deterministic::Union{Expr,Symbol,Number}
+    stochastic::Union{Expr,Symbol,Number}
 end
 
 struct Integrator
     length
-    dt
-    dW
+    stochasticImplemented
     weight
-    finalWeights
 end

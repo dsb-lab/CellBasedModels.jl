@@ -30,6 +30,21 @@ macro testPlatform(code,methods...)
 
 end
 
+macro testIntegrator(code,methods...)
+
+    codeset = quote end
+    for plat in [string(j) for j in methods]
+        addCode = MacroTools.postwalk(x->@capture(x,INTEGRATOR) ? :(Symbol($plat)) : x, code)
+        codeset = quote
+            $codeset
+            $addCode
+        end
+    end
+
+    return codeset
+
+end
+
 macro testAllNeighbors(code,methods...)
 
     codeset = quote end
@@ -487,29 +502,86 @@ end
 
     # end
 
-    @test begin
-            agent = Agent(2,platform=:CPU, #Add agents one by one
-                        integrator=:RungeKutta4,
-                        globalFloat = [:D],
-                        updateVariable = quote
+    # #Update
+    @testset "integration" begin
+        # @test begin
+        #     agent = Agent(2,platform=:CPU, #Add agents one by one
+        #                 integrator=:RungeKutta4,
+        #                 updateVariable = quote
 
-                            d(  x  ) = dt(  -x  )
+        #                     d(  x  ) = dt(  -x  )
+        #                     d(  y  ) = dt(  -c  ) + dW( 2 )
                             
-                        end
-                        );
-            com = Community(agent)
-            com.dt = .1
-            com.x .= 1
-            loadToPlatform!(com)
+        #                 end
+        #                 );
+        #     com = Community(agent)
+        #     # println(agent.declaredVariables)
+        #     # println(size(com.varAuxdt_))
+        #     # println(size(com.varAuxdW_))
 
-            for i in 1:10
-                print(com.x,exp.(-com.t),com.x.-exp.(-com.t),"\t")
-                integrationStep!(com)
-                update!(com)
-                println(com.x,exp.(-com.t),com.x.-exp.(-com.t))
-            end
+        #     true
+        # end
 
-            true
+        # @testPlatform( #basic integration
+        # @testIntegrator(
+        #     (@test begin
+        #             agent = Agent(2,platform=PLATFORM, #Add agents one by one
+        #                         integrator=INTEGRATOR,
+        #                         updateVariable = quote
+
+        #                             d(  x  ) = dt(  -x  )
+                                    
+        #                         end
+        #                         );
+        #             com = Community(agent)
+        #             com.dt = .1
+        #             com.x .= 1
+        #             loadToPlatform!(com)
+
+        #             istrue = []
+        #             println(INTEGRATOR)
+        #             for i in 1:10
+        #                 integrationStep!(com)
+        #                 update!(com)
+        #                 println(abs.(com.x.-exp.(-com.t)))
+        #                 push!(istrue,all(abs.(com.x.-exp.(-com.t)).<0.05))
+        #             end
+
+        #             all(istrue)
+        #     end), Euler, Heun, RungeKutta4
+        # )
+        # )
+
+        @testPlatform( #basic integration
+        @testIntegrator( #Stochastic term
+            (@test begin
+                agent = Agent(2,platform=PLATFORM, #Add agents one by one
+                            integrator=INTEGRATOR,
+                            globalFloat = [:D],
+                            updateVariable = quote
+
+                                d( x ) = dW( 1 )
+                                
+                            end
+                            );
+                N = 10000
+                com = Community(agent,N=[N])
+                com.dt = .1
+                com.x .= 0
+                loadToPlatform!(com)
+
+                istrue = []
+                for i in 1:10
+                    integrationStep!(com)
+                    update!(com)
+                    push!(istrue, all(abs.( com.t .- ( sum(com.x .^ 2)/N .- sum(com.x)/N .^ 2 ) ) .< 0.5))
+                end
+
+                all(istrue)
+            end), Euler, Heun, RungeKutta4
+        )
+        )
+
     end
 
 end

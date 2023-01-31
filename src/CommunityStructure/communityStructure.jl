@@ -66,6 +66,7 @@ mutable struct Community
     yNew_
     zNew_
     varAux_
+    varAuxΔW_
     liNM_
     liM_
     liMNew_

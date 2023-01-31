@@ -6,20 +6,22 @@ function addToList(x,agent;type)
     if type == :Deterministic
 
         sym = [i for i in keys(agent.declaredVariables)][end]
-        if agent.declaredVariables[sym].deterministic != :nothing
+        if agent.declaredVariables[sym].deterministic != 0
             error("Deterministic term dt(  ) has been defined more than one for variable $sym." )
         end
         agent.declaredVariables[sym].deterministic = x
+        agent.declaredVariables[sym].positiondt = sum([j.positiondt > 0 for (i,j) in pairs(agent.declaredVariables)]) + 1
 
     elseif type == :Stochastic 
 
         sym = [i for i in keys(agent.declaredVariables)][end]
-        if agent.declaredVariables[sym].stochastic != :nothing
+        if agent.declaredVariables[sym].stochastic != 0
             error("Stochastic term dW(  ) has been defined more than one for variable $sym." )
         elseif !INTEGRATOR[agent.integrator].stochasticImplemented
             error("Stochastic integration has not been implemented for this method." )
         end
         agent.declaredVariables[sym].stochastic = x
+        agent.declaredVariables[sym].positiondW = sum([j.positiondW > 0 for (i,j) in pairs(agent.declaredVariables)]) + 1
 
     end
 
@@ -43,7 +45,7 @@ function getEquation(sym,code,agent)
 
     end
 
-    agent.declaredVariables[sym] = Equation(0,:nothing,:nothing)
+    agent.declaredVariables[sym] = Equation(0,0,0,0,0)
     agent.declaredVariables[sym].position = length(keys(agent.declaredVariables))
 
     code = postwalk(x->@capture(x,dt(m_)) ? addToList(m,agent,type=:Deterministic) : x, code)
@@ -66,109 +68,84 @@ end
 #######################################################################################################
 # Convert the equations
 #######################################################################################################
-
 function integratorFunction(agent)
 
     integ = INTEGRATOR[agent.integrator]
 
     for i in 1:integ.length
 
+        #Get code
         code = agent.declaredUpdates[:UpdateVariable]
+        #Clean variables in the first loop
+        if i == 1
+            cleanCode = quote end
+            for (sym,eq) in pairs(agent.declaredVariables)
+                push!(cleanCode.args,
+                    :($sym.new = 0)
+                )
+            end
+            push!(cleanCode.args,code)
+            code = cleanCode
+        end
 
+        #Substitute equations
         for (sym,eq) in pairs(agent.declaredVariables)
 
-            #future step
-            eqcode = :()
-            if i == integ.length
-                eqcode = :($sym.new)
-                eqcode = vectorize(eqcode,agent)
-            else
-                eqcode = :(varAux_[i1_,$(eq.position),$i])
+            #Substitute variables according to step in Buthcer table
+            terms = []
+            for (cd) in [:deterministic, :stochastic]
+
+                codeEq = getfield(eq,cd)
+                for (sym2,eq2) in pairs(agent.declaredVariables) #Vectorize with the appropiate weights for each time point
+                    if i == 1 #For the first weight use the original positions
+                        s = :($sym2)
+                    else #For the rest use the new positions positions
+                        s = :(varAux_[i1_,$(getfield(eq2,:position)),$(i-1)])
+                    end
+
+                    codeEq = postwalk(x->@capture(x,g_) && g==sym2 ? s : x, codeEq)
+                end
+                
+                push!(terms,:($codeEq))
+
             end
 
-            #past step
-            past = :($sym)
-            past = vectorize(past,agent)
-
-            #right terms
-            terms = []
-            for (cd,ds) in [(:deterministic,:dt), (:stochastic,:dW)]
-
-                codeDet = getfield(eq,cd)
-                if codeDet != :nothing
-                    codeDet = :($ds*$codeDet) #Add time differential multiplication
-
-                    if i == 1
-
-                        codeDet = postwalk(x->@capture(x,dW) ? :(sqrt(dt)*Normal(0,1)) : x, codeDet) #Stochastic adaptation
-                        codeDet = vectorize(codeDet,agent) #Just vectorize
-                        push!(terms,codeDet)
-
-                    else
-
-                        for (sym2,eq2) in pairs(agent.declaredVariables) #Vectorize with the appropiate weights for each time point
-                            s = :($past)
-                            for (j,w) in enumerate(integ.weight[i-1])
-                                if w ≈ 1.
-                                    s = :($s+varAux_[i1_,$(eq2.position),$(i-1)]) 
-                                elseif w ≈ 0.
-                                    nothing
-                                else
-                                    s = :($s+$w*varAux_[i1_,$(eq2.position),$(i-1)]) 
-                                end
-                            end
-
-                            codeDet = postwalk(x->@capture(x,g_) && g==sym2 ? s : x, codeDet)
-                        end
-                        
-                        codeDet = vectorize(codeDet,agent)
-                        push!(terms,codeDet)
-                        
-                    end
+            sub = quote end
+            sNew = :()
+            for j in i:integ.length
+                if j == 1 #For the first weight use the original positions
+                    s = :($sym)
+                else #For the rest use the new positions positions
+                    s = :(varAux_[i1_,$(getfield(eq,:position)),$i])
                 end
 
-            end
+                sNew = :(varAux_[i1_,$(getfield(eq,:position)),$j])
 
-            termsTotal = :()
-            if length(terms) == 1
-                termsTotal = :($(terms[1]))
-            else
-                termsTotal = :($(terms[1])+$(terms[2]))
+                if j == i
+                    push!(sub.args,
+                        :($sNew += $sym + $(integ.weight[j][i]) * ($(terms[1])*dt + $(terms[2])*varAuxΔW_[i1_,$(getfield(eq,:positiondW)),$j]*sqrt(dt)))
+                    )
+                else
+                    push!(sub.args,
+                        :($sNew += $(integ.weight[j][i]) * ($(terms[1])*dt + $(terms[2])*varAuxΔW_[i1_,$(getfield(eq,:positiondW)),$j]*sqrt(dt)))
+                    )
+                end
             end
+            push!(sub.args,
+                :($sym.new = varAux_[i1_,$(getfield(eq,:position)),$i])
+            )
 
-            if 1 == integ.length #One step integrators add directly to the end
-                code = postwalk(x->@capture(x,d(s_)=g_) && s == sym ? :($eqcode = $past + $termsTotal) : x, code) 
-            else #Several step integrators compute just slope at point
-                code = postwalk(x->@capture(x,d(s_)=g_) && s == sym ? :($eqcode = $termsTotal) : x, code)
-            end
+            code = postwalk(x->@capture(x,d(s_)=g_) && s == sym ? sub : x, code) 
+            code = clean(code)
 
         end
 
         code = vectorize(code,agent)
+        # println(prettify(code))
         code = makeSimpleLoop(code,agent)
 
-        if integ.length == 1
-            agent.declaredUpdatesCode[:IntegratorStep_] = 
-            quote
-                function ($(agentArgs()...),)
-
-                    $code
-
-                    return
-                end
-            end
-            agent.declaredUpdatesFunction[:IntegratorStep_] = Main.eval(agent.declaredUpdatesCode[:IntegratorStep_])
-
-            aux = addCuda(:(community.agent.declaredUpdatesFunction[:IntegratorStep_]($(agentArgs(:community)...))),agent) #Add code to execute kernel in cuda if GPU
-            agent.declaredUpdatesCode[:IntegratorStep] = :(function (community)
-                                                            $aux
-                                                            return 
-                                                        end)    
-            agent.declaredUpdatesFunction[:IntegratorStep] = Main.eval(agent.declaredUpdatesCode[:IntegratorStep])
-        else
-            s = Meta.parse("IntegratorStep$(i)_")
-                            :IntegratorStep1_
-            agent.declaredUpdatesCode[s] = 
+        s = Meta.parse("IntegratorStep$(i)_")
+        agent.declaredUpdatesCode[s] = 
             quote
                 function ($(agentArgs()...),)
 
@@ -178,65 +155,43 @@ function integratorFunction(agent)
                 end
             end
 
-            agent.declaredUpdatesFunction[s] = Main.eval(agent.declaredUpdatesCode[s])
-        end
-
+        agent.declaredUpdatesFunction[s] = Main.eval(agent.declaredUpdatesCode[s])
     end
 
-    if integ.length > 1
-
-        #Make sum of steps in final form
-        code = quote end
-        for (sym,eq) in pairs(agent.declaredVariables) #Vectorize with the appropiate weights for each time point
-
-            #past step
-            past = :($sym)
-            past = vectorize(past,agent)
-
-            s = :($(integ.finalWeights[1])*$sym.new)
-            for (j,w) in enumerate(integ.finalWeights)
-                if j > 1
-                    s = :($s+$w*varAux_[i1_,$(eq.position),$(j-1)]) 
-                end
-            end
-            s = :($sym.new = $past+$s)
-            s = vectorize(s,agent)
-            push!(code.args,s)
-        end
-        code = makeSimpleLoop(code,agent)
-
-        agent.declaredUpdatesCode[:IntegratorStep_] = 
-        :(function ($(agentArgs()...),)
-        
-                $code
-
-                return
-            end)
-        agent.declaredUpdatesFunction[:IntegratorStep_] = Main.eval(agent.declaredUpdatesCode[:IntegratorStep_])
-
-        #Make series of steps if more than a step is performed
-        auxs = quote end
-        for i in 1:integ.length
-            s = Meta.parse("community.agent.declaredUpdatesFunction[:IntegratorStep$(i)_]")
-            aux = addCuda(:( $s( $(agentArgs(:community)...), ) ),agent) #Add code to execute kernel in cuda if GPU
-            push!(auxs.args, aux)
-        end
-        aux = addCuda(:(community.agent.declaredUpdatesFunction[:IntegratorStep_]($(agentArgs(:community)...))),agent) #Add code to execute kernel in cuda if GPU
+    #Make series of steps if more than a step is performed
+    auxs = quote end
+    for i in 1:integ.length
+        s = Meta.parse("community.agent.declaredUpdatesFunction[:IntegratorStep$(i)_]")
+        aux = addCuda(:( $s( $(agentArgs(:community)...), ) ),agent) #Add code to execute kernel in cuda if GPU
         push!(auxs.args, aux)
+    end
 
-        #Put all together
-        agent.declaredUpdatesCode[:IntegratorStep] = 
-        quote
-            function (community,)
-
-                $auxs
-
-                return
+    #Clean auxiliar variables
+    cleanCode = quote
+        @views community.varAux_[1:community.N[1],:,:] .= 0
+        if length(community.varAuxΔW_) > 0
+            @views AgentBasedModels.randn!(community.varAuxΔW_[1:community.N[1],:,:])
+        end
+    end
+    if agent.platform == :GPU
+        cleanCode = quote
+            community.varAux_ .= 0
+            if length(community.varAuxΔW_) > 0
+                AgentBasedModels.randn!(community.varAuxΔW_)
             end
         end
-        agent.declaredUpdatesFunction[:IntegratorStep] = Main.eval(agent.declaredUpdatesCode[:IntegratorStep])
-
     end
+
+    #Put all together
+    agent.declaredUpdatesCode[:IntegratorStep] = 
+    quote
+        function (community,)
+            $cleanCode
+            $auxs
+            return
+        end
+    end
+    agent.declaredUpdatesFunction[:IntegratorStep] = Main.eval(agent.declaredUpdatesCode[:IntegratorStep])
         
     return
 

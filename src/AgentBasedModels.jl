@@ -22,7 +22,7 @@ using Test
 include("./baseStructs.jl")
 include("./constants.jl")
 export euclideanDistance, manhattanDistance
-include("./auxiliar.jl")
+include("./AgentStructure/functions/auxiliar.jl")
 
 #Agent
 export Agent

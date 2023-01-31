@@ -51,7 +51,8 @@ BASEPARAMETERS = OrderedDict(
     :yNew_                        => BaseParameter(:Float,   (:Local,),                 :User,        true,        true,      false,    Symbol[],                             @eval (com,agent) -> if agent.posUpdated_[2]; zeros(Float64,com[:N][1]) else Float64[] end                                                   ),
     :zNew_                        => BaseParameter(:Float,   (:Local,),                 :User,        true,        true,      false,    Symbol[],                             @eval (com,agent) -> if agent.posUpdated_[3]; zeros(Float64,com[:N][1]) else Float64[] end                                                   ),  
 #Parameters of variable
-    :varAux_                      => BaseParameter(:Float,   (:Local,:Vars,:IntSteps),  :Base,        true,        true,      false,    Symbol[],                             @eval (com,agent) -> zeros(Float64,com[:N][1],length(keys(agent.declaredVariables)),INTEGRATOR[agent.integrator].length-1)                                                   ),  
+    :varAux_                      => BaseParameter(:Float,   (:Local,:Vars,:IntSteps),  :Base,        true,        true,      false,    Symbol[],                             @eval (com,agent) -> zeros(Float64,com[:N][1],length(keys(agent.declaredVariables)),INTEGRATOR[agent.integrator].length)                                                   ),  
+    :varAuxΔW_                    => BaseParameter(:Float,   (:Local,:Vars,:IntSteps),  :Base,        true,        true,      false,    Symbol[],                             @eval (com,agent) -> zeros(Float64,com[:N][1],sum([j.positiondW > 0 for (i,j) in pairs(agent.declaredVariables)]),INTEGRATOR[agent.integrator].length)                                                   ),  
 #Parameters of user declared
     :liNM_                        => BaseParameter(:Int,     (:Local,:User),            :User,        true,        true,      false,    Symbol[],                             @eval (com,agent) -> zeros(Int64,com[:N][1],length(getSymbolsThat(agent.declaredSymbols,:basePar,:liNM_)))         ),
     :liM_                         => BaseParameter(:Int,     (:Local,:User),            :User,        true,        true,      false,    Symbol[],                             @eval (com,agent) -> zeros(Int64,com[:N][1],length(getSymbolsThat(agent.declaredSymbols,:basePar,:liM_)))          ),
@@ -107,24 +108,28 @@ SAVING = [:RAM,:JLD]
 INTEGRATOR = OrderedDict(
     :Euler => Integrator(
                     1,
-                    (:dt,),
-                    (:dW,),
-                    (nothing,),
-                    (1,)
+                    true,
+                    (   
+                        (1),
+                    )
                 ),
     :Heun => Integrator(
                     2,
-                    (:dt,:dt),
-                    (:dW,:dW),
-                    ((1,)),
-                    (1/2,1/2)
+                    true,
+                    (
+                        (1,),
+                        (1/2,1/2)
+                    )
                 ),
     :RungeKutta4 => Integrator(
                     4,
-                    (:dt,:dt,:dt,:dt),
-                    (:dW,:dW,:dW,:dW),
-                    ((1/2,),(0,1/2),(0,0,1)),
-                    (1/6,2/6,2/6,1/6)
+                    true,
+                    (
+                        (1/2,),
+                        (0,  1/2),
+                        (0,  0,  1),
+                        (1/6,2/6,2/6,1/6)
+                    )
                 ))
 
 PLATFORM = [:CPU,:GPU]
