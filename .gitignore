@@ -6,3 +6,6 @@ build
 examples/.*
 examples/data
 examples/make_docs.sh
+examples/*.jld2
+
+test/testfiles/*

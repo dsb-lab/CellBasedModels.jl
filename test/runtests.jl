@@ -3,7 +3,6 @@ using AgentBasedModels
 using Test
 using DataFrames
 import MacroTools: prettify
-using JLD
 
 if CUDA.has_cuda()
     TESTPLATFORMS = ["CPU","GPU"]

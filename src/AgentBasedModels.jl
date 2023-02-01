@@ -10,13 +10,12 @@ using Distributions
 using CUDA
 using DataFrames
 using CSV
-using JLD
+using JLD2
 # import GeometryBasics, GLMakie
 import MacroTools: postwalk, prewalk, @capture, inexpr, prettify, gensym, flatten, unblock, isexpr
 import SpecialFunctions
 using ProgressMeter
 using Test
-#using WriteVTK
 
 #Constants
 include("./baseStructs.jl")
@@ -45,48 +44,19 @@ include("./AgentStructure/functions/update.jl")
     #Integrators
 export integrationStep!
 include("./AgentStructure/functions/integrators.jl")
-# include("./AgentStructure/compile/integrator/integrators.jl")
-# include("./AgentStructure/compile/integrator/euler.jl")
-# include("./AgentStructure/compile/integrator/heun.jl")
-# include("./AgentStructure/compile/integrator/rungeKutta4.jl")
+    #Step
+export step!
+include("./AgentStructure/functions/step.jl")
 # include("./AgentStructure/compile/integrator/implicitEuler.jl")
 # include("./AgentStructure/compile/integrator/verletVelocity.jl")
 
-#CompiledAgent
-    #Base
-# include("./AgentStructure/compile/addMediumCode.jl")
-# include("./AgentStructure/compile/addParameters.jl")
-# include("./AgentStructure/compile/cudaAdapt.jl")
-# include("./AgentStructure/compile/eventAddAgent.jl")
-# include("./AgentStructure/compile/eventRemoveAgent.jl")
-# include("./AgentStructure/compile/randomAdapt.jl")
-# include("./AgentStructure/compile/vectorize.jl")
-# include("./AgentStructure/compile/wrapping.jl")
-# include("./AgentStructure/compile/createFunction.jl")
-    #Updates
-# include("./AgentStructure/compile/updates/updateGlobal.jl")
-# include("./AgentStructure/compile/updates/updateInteraction.jl")
-# include("./AgentStructure/compile/updates/updateLocal.jl")
-# include("./AgentStructure/compile/updates/updateMediumBoundaries.jl")
-# include("./AgentStructure/compile/updates/updateMediumInteraction.jl")
-    #Integrators Medium
-# include("./AgentStructure/compile/medium/integratorMedium/ftcs.jl")
-# include("./AgentStructure/compile/medium/integratorMedium/lax.jl")
-# include("./AgentStructure/compile/medium/integratorMedium/implicitEuler.jl")
-# include("./AgentStructure/compile/medium/integratorMedium/integratorsMedium.jl") 
-# include("./AgentStructure/compile/medium/medium.jl")
-    #Saving
-# include("./AgentStructure/compile/saving/saveRAM.jl")
-# include("./AgentStructure/compile/saving/saveCSV.jl")
-# include("./AgentStructure/compile/saving/saveJLD.jl")
-# include("./AgentStructure/compile/saving/saving.jl")
-
 #Community
 # export setParameters!
-export Community, loadToPlatform!
-# export Community, CommunityInTime, saveCSV, loadCommunityFromCSV, loadCommunityInTimeFromCSV, loadCommunityInTimeFromJLD
-# export initialiseCommunityCompactHexagonal, initialiseCommunityCompactCubic
+export Community, loadToPlatform!, bringFromPlatform!
 include("./CommunityStructure/communityStructure.jl")
+export saveJLD2!, saveRAM!
+include("./CommunityStructure/IO.jl")
+# export initialiseCommunityCompactHexagonal, initialiseCommunityCompactCubic
 # include("./CommunityStructure/baseModuleExtensions.jl")
 # include("./CommunityStructure/setParameters.jl")
 # include("./CommunityStructure/constructors/latices/compactHexagonal.jl")

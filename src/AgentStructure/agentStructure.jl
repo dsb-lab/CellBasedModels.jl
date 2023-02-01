@@ -87,7 +87,6 @@ mutable struct Agent
     neighbors::Symbol
     integrator::Symbol
     platform::Symbol
-    saving::Symbol
     removalOfAgents_::Bool
     posUpdated_::Vector{Bool}
         
@@ -101,7 +100,6 @@ mutable struct Agent
             :Full,
             :Euler,
             :CPU,
-            :RAM,
             false,
             [false,false,false]
             )
@@ -148,11 +146,6 @@ mutable struct Agent
             agent.platform = platform
         else
             error("Platform ", platform, " not defined. Specify among: ", PLATFORM)
-        end
-        if saving in SAVING
-            agent.saving = saving
-        else
-            error("Saving algorithm ", saving, " not defined. Specify among: ", SAVING)
         end
 
         #User defined symbols

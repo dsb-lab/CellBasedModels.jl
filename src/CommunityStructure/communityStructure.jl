@@ -27,9 +27,11 @@ Function to construct a Community with a predefined number of agents and medium 
 """
 mutable struct Community
 
-    agent::Agent
-    loaded::Bool
-    platform::Platform
+    agent
+    loaded
+    platform
+    pastTimes::Array{Community}
+
     t
     dt
     N
@@ -112,7 +114,19 @@ mutable struct Community
             end
         end
     
-        return new(agent, false, Platform(256,1), [j for (i,j) in pairs(dict)]...)
+        return new(agent, false, Platform(256,1),Community[], [j for (i,j) in pairs(dict)]...)
+
+    end
+
+    function Community()
+
+        #Creating the appropiate data matrices for the different parameters
+        dict = OrderedDict()
+        for (sym,prop) in pairs(BASEPARAMETERS)
+            dict[sym] = nothing
+        end
+    
+        return new(nothing, nothing, nothing,Community[], [j for (i,j) in pairs(dict)]...)
 
     end
 
@@ -128,6 +142,34 @@ function Base.show(io::IO,com::Community)
 end
 
 # Overload ways of calling and assigning the parameters in community
+function Base.getindex(community::Community,timePoint::Number)
+    
+    if 1 > timePoint || timePoint > length(community.pastTimes)
+        error("Only time points from 1 to $(length(community.pastTimes)) present in the Community.")
+    elseif community.loaded 
+        error("Community has to be in RAM before calling a time point saved in RAM. Execute `bringFromPlatform!` before using this.")
+    else
+        com = community.pastTimes[timePoint]
+        for (sym,prop) in pairs(BASEPARAMETERS)
+            if 0 == prop.saveLevel
+                if :Atomic in prop.shape && platform == :CPU #Do nothing if CPU and atomic
+                    setfield!(com,sym,copy(getfield(community,sym)))
+                elseif :Atomic in prop.shape && platform == :GPU #Convert atomic to matrix for CUDA
+                    setfield!(com,sym,copy(Atomic.atomic(Array([getfield(community,sym)[]])[1])))
+                elseif :Local in prop.shape
+                    p = getfield(community,sym)
+                    if length(p) > 0
+                        setfield!(com,sym,copy(Array(@views p[1:N,size(p)[2:end]...])))
+                    end
+                else
+                    setfield!(com,sym,copy(Array(getfield(community,sym))))
+                end
+            end
+        end
+    end
+
+end
+
 function Base.getproperty(com::Community,var::Symbol)
     
     if var in fieldnames(Community)
@@ -307,6 +349,38 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
     return
 end
 
+function bringFromPlatform!(com::Community)
+
+    N = Array(com.N)[1]
+    # Transform to the correct platform the parameters
+    platform = com.agent.platform
+    for (sym,prop) in pairs(BASEPARAMETERS)
+
+        if :Atomic in prop.shape && platform == :CPU #Do nothing if CPU and atomic
+            nothing
+        elseif :Atomic in prop.shape && platform == :GPU #Convert atomic to matrix for CUDA
+            setfield!(com,sym,Atomic.atomic(getproperty(com,sym)[1]))
+        elseif :Local in prop.shape
+            p = getproperty(com,sym)
+            if length(p) > 0
+                setfield!(com,sym,ARRAY[:CPU]{DTYPE[prop.dtype][:CPU]}(p[1:N,size(p)[2:end]...]))
+            else
+                setfield!(com,sym,ARRAY[:CPU]{DTYPE[prop.dtype][:CPU]}(p))
+            end
+        else
+            p = getproperty(com,sym)
+            setfield!(com,sym,ARRAY[:CPU]{DTYPE[prop.dtype][:CPU]}(p))
+        end
+    end            
+
+    setfield!(com, :nMax_, com.N)
+
+    #Set loaded to true
+    setfield!(com,:loaded,false)
+
+    return
+end
+
 """
     function checkLoaded(com)
 
@@ -317,66 +391,3 @@ function checkLoaded(com)
         error("Community must be loaded to platform with `loadToPlatform!` before being able to compute any step.")
     end
 end
-
-"""
-Structure that basically stores an array of Coomunities at different time points.
-
-# Elements
-
- - **com** (Array{Community}) Array where the communities are stored
-
-# Constructors
-
-    function CommunityInTime()
-
-Instantiates an empty CommunityInTime folder.
-
-# Base extended methods
-
-    function Base.push!(com::CommunityInTime,c::Community)
-
-Adds one Community element to the CommunityInTime object.
-
-    function Base.length(com::CommunityInTime)
-
-Returns the number of time points of the Community in time.
-
-    function Base.getindex(com::CommunityInTime,var::Int)
-    function Base.firstindex(com::CommunityInTime,var::Int)
-    function Base.lastindex(com::CommunityInTime,var::Int)
-
-Returns the Community of the corresponding entry.
-
-    function Base.getindex(com::CommunityInTime,var::Symbol)
-
-Returns a 2D array with rows being the agents and the rows the timepoints. If the agent did not existed for certain time point, the extry is filled with a NaN value.
-"""
-mutable struct CommunityInTime
-    com::Array{Community,1}
-
-    function CommunityInTime()
-        
-        return new(Community[])
-    end
-end
-
-function Base.push!(comT::CommunityInTime,c::Community)
-    
-    push!(comtT.com,c)
-    
-    return
-end
-
-function Base.length(comT::CommunityInTime)
-    
-    return length(comtT.com)
-end
-
-function Base.getindex(comT::CommunityInTime,var::Int)
-    
-    return comtT.com[var]
-
-end
-
-Base.first(comT::CommunityInTime) = 1
-Base.lastindex(comT::CommunityInTime) = length(comT)

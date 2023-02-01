@@ -11,6 +11,7 @@ end
 struct BaseParameter
     dtype::Symbol
     shape::Tuple
+    saveLevel::Int
     origin::Symbol
     reassign::Bool
     protected::Bool
