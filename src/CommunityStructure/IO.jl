@@ -9,7 +9,7 @@ function saveRAM!(community::Community;saveLevel=1)
 
     com = Community()
     for (sym,prop) in pairs(BASEPARAMETERS)
-        if 0 < prop.saveLevel <= saveLevel
+        if 0 < prop.saveLevel && prop.saveLevel <= saveLevel
             if :Atomic in prop.shape && community.agent.platform == :CPU #Do nothing if CPU and atomic
                 setfield!(com,sym,deepcopy(getfield(community,sym)))
             elseif :Atomic in prop.shape && community.agent.platform == :GPU #Convert atomic to matrix for CUDA
@@ -18,6 +18,8 @@ function saveRAM!(community::Community;saveLevel=1)
                 p = getfield(community,sym)
                 if length(p) > 0
                     setfield!(com,sym,copy(Array(@views p[1:N,size(p)[2:end]...])))
+                else
+                    setfield!(com,sym,copy(Array(p)))
                 end
             else
                 setfield!(com,sym,copy(Array(getfield(community,sym))))

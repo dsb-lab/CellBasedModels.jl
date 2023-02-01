@@ -144,6 +144,7 @@ end
 # Overload ways of calling and assigning the parameters in community
 function Base.getindex(community::Community,timePoint::Number)
     
+    com = Community()
     if 1 > timePoint || timePoint > length(community.pastTimes)
         error("Only time points from 1 to $(length(community.pastTimes)) present in the Community.")
     elseif community.loaded 
@@ -155,18 +156,15 @@ function Base.getindex(community::Community,timePoint::Number)
                 if :Atomic in prop.shape && platform == :CPU #Do nothing if CPU and atomic
                     setfield!(com,sym,copy(getfield(community,sym)))
                 elseif :Atomic in prop.shape && platform == :GPU #Convert atomic to matrix for CUDA
-                    setfield!(com,sym,copy(Atomic.atomic(Array([getfield(community,sym)[]])[1])))
-                elseif :Local in prop.shape
-                    p = getfield(community,sym)
-                    if length(p) > 0
-                        setfield!(com,sym,copy(Array(@views p[1:N,size(p)[2:end]...])))
-                    end
+                    setfield!(com,sym,copy(Atomic.atomic(getfield(community,sym)[])[1]))
                 else
                     setfield!(com,sym,copy(Array(getfield(community,sym))))
                 end
             end
         end
     end
+
+    return com
 
 end
 

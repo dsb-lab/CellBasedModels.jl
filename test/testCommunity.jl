@@ -614,16 +614,18 @@ end
 
                     isTrue = []
                     for i in 1:1
-                        comCheck.dt = .1*(i+1)
-                        comCheck.x .= .1*(i+1)
-                        comCheck.l = .1*(i+1)
-                        comCheck.xNew_ .= .1*(i+1)
+                        comCheck.t = .1*i
+                        comCheck.x .= .1*i+1
+                        comCheck.xNew_ .= .1*i+.1
+                        comCheck.varAux_ .= .1*i+1
+                        comCheck.lfM_ .= .1*i
+                        comCheck.lfMNew_ .= .1*i
 
                         comt = com[i]
                         for sym in keys(AgentBasedModels.BASEPARAMETERS)
                             t = getfield(comCheck,sym) == getfield(comt,sym)
                             if !t
-                                println(getfield(comCheck,sym), getfield(comt,sym))
+                                println(sym," ",getfield(comCheck,sym), getfield(comt,sym))
                             end
                             push!(isTrue,t)
                         end
