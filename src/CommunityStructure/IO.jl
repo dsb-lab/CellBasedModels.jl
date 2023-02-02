@@ -73,8 +73,9 @@ function saveJLD2!(file::String,community::Community;saveLevel=1)
 
         if !( "constants" in keys(f) )
             for (sym,prop) in pairs(BASEPARAMETERS)
+                type = DTYPE[prop.dtype][:CPU]
                 if prop.saveLevel == 0
-                    f["constants/$sym"] = getfield(community,sym)
+                    f["constants/$sym"] =  Array{type}(getfield(community,sym))
                 end
             end
 

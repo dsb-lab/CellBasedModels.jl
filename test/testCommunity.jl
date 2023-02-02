@@ -698,14 +698,14 @@ end
                         comt = com[i]
                         for (sym,prop) in pairs(AgentBasedModels.BASEPARAMETERS)
                             t = false
-                                if :Atomic in prop.shape
-                                    t = getfield(comCheck,sym)[] == getfield(comt,sym)[]
-                                else 
-                                    t = all(getfield(comCheck,sym) .≈ getfield(comt,sym))
-                                end
-                                if !t
-                                    println(sym," ",getfield(comCheck,sym), getfield(comt,sym))
-                                end
+                            if :Atomic in prop.shape
+                                t = getfield(comCheck,sym)[] == getfield(comt,sym)[]
+                            else 
+                                t = all(round.(getfield(comCheck,sym),digits=6) .≈ round(getfield(comt,sym),digits=5))
+                            end
+                            if !t
+                                println(sym," ",getfield(comCheck,sym), getfield(comt,sym))
+                            end
 
                             push!(isTrue,t)
                         end
@@ -715,7 +715,8 @@ end
                     if isfile("testfiles/jld.jld2")
                         rm("testfiles/jld.jld2")
                     end
-                    true
+                    
+                    all(isTrue)
             end), CellLinked, VerletTime, VerletDisplacement, Full
         )
 
