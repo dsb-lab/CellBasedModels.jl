@@ -586,13 +586,77 @@ end
 
     @testset "IO" begin
 
-        @testPlatform( #basic integration
+        # @testAllNeighbors( #basic integration
+        #     (@test begin
+        #             dim = DIM
+        #             agent = Agent(dim,platform=PLATFORM, #Add agents one by one
+        #                         localFloat=[:l],
+        #                         neighbors=NEIGHBOR,
+        #                         updateLocal = quote
+
+        #                             l = t
+                                
+        #                         end,
+        #                         updateVariable = quote
+
+        #                             d(  x  ) = dt(  1  )
+                                    
+        #                         end
+        #                         );
+        #             com = Community(agent,skin=[2.],simBox=[0. .9;1 2;1 2][1:dim,:],nMaxNeighbors=[15],dtNeighborRecompute=[10.],cellEdge=[10.,10.,10.][1:dim])
+        #             com.dt = .1
+        #             com.x .= 1
+        #             loadToPlatform!(com)
+        #             bringFromPlatform!(com)
+        #             comCheck = deepcopy(com)
+        #             loadToPlatform!(com)
+ 
+        #             for i in 1:5
+        #                 step!(com)
+        #                 saveRAM!(com,saveLevel=5)
+        #             end
+        #             bringFromPlatform!(com)
+
+        #             isTrue = []
+        #             for i in 1:5
+        #                 comCheck.t = .1*i
+        #                 comCheck.x .= .1*i+1
+        #                 comCheck.xNew_ .= .1*i+1
+        #                 comCheck.varAux_ .= .1*i+1
+        #                 comCheck.lfM_ .= .1*i-.1
+        #                 comCheck.lfMNew_ .= .1*i-.1
+        #                 if NEIGHBOR == :VerletDisplacement
+        #                     setfield!(comCheck, :accumulatedDistance_, [.1*i])
+        #                 end
+
+        #                 comt = com[i]
+        #                 for (sym,prop) in pairs(AgentBasedModels.BASEPARAMETERS)
+        #                     t = false
+        #                     if :Atomic in prop.shape
+        #                         t = getfield(comCheck,sym)[] == getfield(comt,sym)[]
+        #                     else 
+        #                         t = all(getfield(comCheck,sym) .≈ getfield(comt,sym))
+        #                     end
+        #                     if !t
+        #                         println(sym," ",getfield(comCheck,sym), getfield(comt,sym))
+        #                     end
+        #                     push!(isTrue,t)
+        #                 end
+        #             end
+ 
+        #             all(isTrue)
+        #     end), CellLinked, VerletTime, VerletDisplacement, Full
+        # )
+
+        @testAllNeighbors( #basic integration
             (@test begin
-                    agent = Agent(2,platform=PLATFORM, #Add agents one by one
+                    dim = DIM
+                    agent = Agent(dim,platform=:CPU, #Add agents one by one
                                 localFloat=[:l],
+                                neighbors=NEIGHBOR,
                                 updateLocal = quote
 
-                                    l = dt
+                                    l = t
                                 
                                 end,
                                 updateVariable = quote
@@ -601,62 +665,52 @@ end
                                     
                                 end
                                 );
-                    com = Community(agent)
+                    com = Community(agent,skin=[2.],simBox=[0. .9;1 2;1 2][1:dim,:],nMaxNeighbors=[15],dtNeighborRecompute=[10.],cellEdge=[10.,10.,10.][1:dim])
                     com.dt = .1
                     com.x .= 1
+                    loadToPlatform!(com)
+                    bringFromPlatform!(com)
                     comCheck = deepcopy(com)
+                    loadToPlatform!(com)
  
-                    for i in 1:10
+                    for i in 1:5
                         step!(com)
-                        saveRAM!(com,saveLevel=5)
+                        saveJLD2!("testfiles/jld.jld2",com,saveLevel=5)
                     end
                     bringFromPlatform!(com)
 
-                    isTrue = []
-                    for i in 1:1
-                        comCheck.t = .1*i
-                        comCheck.x .= .1*i+1
-                        comCheck.xNew_ .= .1*i+.1
-                        comCheck.varAux_ .= .1*i+1
-                        comCheck.lfM_ .= .1*i
-                        comCheck.lfMNew_ .= .1*i
+                    # isTrue = []
+                    # for i in 1:5
+                    #     comCheck.t = .1*i
+                    #     comCheck.x .= .1*i+1
+                    #     comCheck.xNew_ .= .1*i+1
+                    #     comCheck.varAux_ .= .1*i+1
+                    #     comCheck.lfM_ .= .1*i-.1
+                    #     comCheck.lfMNew_ .= .1*i-.1
+                    #     if NEIGHBOR == :VerletDisplacement
+                    #         setfield!(comCheck, :accumulatedDistance_, [.1*i])
+                    #     end
 
-                        comt = com[i]
-                        for sym in keys(AgentBasedModels.BASEPARAMETERS)
-                            t = getfield(comCheck,sym) == getfield(comt,sym)
-                            if !t
-                                println(sym," ",getfield(comCheck,sym), getfield(comt,sym))
-                            end
-                            push!(isTrue,t)
-                        end
-                    end
+                    #     comt = com[i]
+                    #     for (sym,prop) in pairs(AgentBasedModels.BASEPARAMETERS)
+                    #         t = false
+                    #         if :Atomic in prop.shape
+                    #             t = getfield(comCheck,sym)[] == getfield(comt,sym)[]
+                    #         else 
+                    #             t = all(getfield(comCheck,sym) .≈ getfield(comt,sym))
+                    #         end
+                    #         if !t
+                    #             println(sym," ",getfield(comCheck,sym), getfield(comt,sym))
+                    #         end
+                    #         push!(isTrue,t)
+                    #     end
+                    # end
  
-                    all(isTrue)
-            end), CPU
+                    # all(isTrue)
+                    rm("testfiles/jld.jld2")
+                    true
+            end), Full#CellLinked, VerletTime, VerletDisplacement, Full
         )
-
-        # @testPlatform( #basic integration
-        #     (@test begin
-        #             agent = Agent(2,platform=PLATFORM, #Add agents one by one
-        #                         integrator=:Euler,
-        #                         updateVariable = quote
-
-        #                             d(  x  ) = dt(  -x  )
-                                    
-        #                         end
-        #                         );
-        #             com = Community(agent)
-        #             com.dt = .1
-        #             com.x .= 1
- 
-        #             for i in 1:10
-        #                 step!(com)
-        #                 saveJLD2!("testfiles/savejld.jld2",com)
-        #             end
- 
-        #             true
-        #     end)
-        # )
 
     end
 

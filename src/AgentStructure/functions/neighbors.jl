@@ -172,11 +172,7 @@ macro neighborsVerletTime(platform, args...)
         code = :(
             function $name(community)
 
-                if CUDA.@allowscalar community.neighborTimeLastRecompute_[1] <= community.t[1]
-                    community.neighborN_ .= 0
-                    $namef($(base...),)
-                    community.neighborTimeLastRecompute_ .+= community.dtNeighborRecompute
-                elseif CUDA.@allowscalar community.flagRecomputeNeighbors_[1] .== 1
+                if CUDA.@allowscalar community.neighborTimeLastRecompute_[1] <= community.t[1] || CUDA.@allowscalar community.flagRecomputeNeighbors_[1] .== 1
                     community.neighborN_ .= 0
                     $namef($(base...),)
                     community.neighborTimeLastRecompute_ .= community.t + community.dtNeighborRecompute
@@ -192,11 +188,7 @@ macro neighborsVerletTime(platform, args...)
             function $name(community)
             
                 kernel = @cuda launch=false $namef($(base...),)
-                if CUDA.@allowscalar community.neighborTimeLastRecompute_[1] <= community.t[1]
-                    community.neighborN_ .= 0
-                    kernel($(base...);threads=community.platform.threads,blocks=community.platform.threads)
-                    community.neighborTimeLastRecompute_ .+= community.dtNeighborRecompute
-                elseif CUDA.@allowscalar community.flagRecomputeNeighbors_[1] .== 1
+                if CUDA.@allowscalar community.neighborTimeLastRecompute_[1] <= community.t[1] || CUDA.@allowscalar community.flagRecomputeNeighbors_[1] .== 1
                     community.neighborN_ .= 0
                     kernel($(base...);threads=community.platform.threads,blocks=community.platform.threads)
                     community.neighborTimeLastRecompute_ .= community.t + community.dtNeighborRecompute
@@ -557,7 +549,7 @@ macro sortAgentsInCells(platform, args...)
                     lock(lk) do
                         cellCumSum_[pos] += 1
                         pos = cellCumSum_[pos]
-                        cellAssignedToAgent_[pos] = i1_
+                        cellAssignedToAgent_[i1_] = pos
                     end
                 end
 
@@ -573,7 +565,7 @@ macro sortAgentsInCells(platform, args...)
                 @inbounds for i1_ in index:stride:N[1]
                     pos = cellPos($(args2...))
                     pos = CUDA.atomic_add!(CUDA.pointer(cellCumSum_,pos),Int32(1)) + 1
-                    cellAssignedToAgent_[pos] = i1_
+                    cellAssignedToAgent_[i1_] = pos
                 end
 
                 return
@@ -604,7 +596,7 @@ macro neighborsCellLinked(platform, args...)
         code = :(
             function $name(community)
 
-                @views community.cellNumAgents_[1:community.N[1]] .= 0
+                community.cellNumAgents_ .= 0
                 $namef($(base...),)
                 community.cellCumSum_ .= cumsum(community.cellNumAgents_) .- community.cellNumAgents_
                 $namef2($(base...),)

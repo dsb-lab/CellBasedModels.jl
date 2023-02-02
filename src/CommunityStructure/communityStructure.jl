@@ -154,12 +154,19 @@ function Base.getindex(community::Community,timePoint::Number)
         for (sym,prop) in pairs(BASEPARAMETERS)
             if 0 == prop.saveLevel
                 if :Atomic in prop.shape && platform == :CPU #Do nothing if CPU and atomic
-                    setfield!(com,sym,copy(getfield(community,sym)))
+                    setfield!(com,sym,getfield(community,sym))
                 elseif :Atomic in prop.shape && platform == :GPU #Convert atomic to matrix for CUDA
-                    setfield!(com,sym,copy(Atomic.atomic(getfield(community,sym)[])[1]))
+                    setfield!(com,sym,Atomic.atomic(getfield(community,sym)[])[1])
                 else
-                    setfield!(com,sym,copy(Array(getfield(community,sym))))
+                    setfield!(com,sym,Array(getfield(community,sym)))
                 end
+            end
+        end
+
+        for (i,sym) in enumerate(POSITIONPARAMETERS[1:1:community.agent.dims])
+            if !community.agent.posUpdated_[i]
+                p = getfield(community,sym)
+                setfield!(com,sym,p)
             end
         end
     end
@@ -344,6 +351,10 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
     #Set loaded to true
     setfield!(com,:loaded,true)
 
+    #Compute nieghbors and interactions for the first time
+    computeNeighbors!(com)
+    interactionStep!(com)
+
     return
 end
 
@@ -353,21 +364,21 @@ function bringFromPlatform!(com::Community)
     # Transform to the correct platform the parameters
     platform = com.agent.platform
     for (sym,prop) in pairs(BASEPARAMETERS)
-
+        type = DTYPE[prop.dtype][:CPU]
         if :Atomic in prop.shape && platform == :CPU #Do nothing if CPU and atomic
             nothing
         elseif :Atomic in prop.shape && platform == :GPU #Convert atomic to matrix for CUDA
-            setfield!(com,sym,Atomic.atomic(getproperty(com,sym)[1]))
+            setfield!(com,sym,Threads.Atomic{type}(Array(getproperty(com,sym))[1]))
         elseif :Local in prop.shape
             p = getproperty(com,sym)
             if length(p) > 0
-                setfield!(com,sym,ARRAY[:CPU]{DTYPE[prop.dtype][:CPU]}(p[1:N,size(p)[2:end]...]))
+                setfield!(com,sym,ARRAY[:CPU]{type}(p[1:N,[1:x for x in size(p)[2:end]]...]))
             else
-                setfield!(com,sym,ARRAY[:CPU]{DTYPE[prop.dtype][:CPU]}(p))
+                setfield!(com,sym,ARRAY[:CPU]{type}(p))
             end
         else
             p = getproperty(com,sym)
-            setfield!(com,sym,ARRAY[:CPU]{DTYPE[prop.dtype][:CPU]}(p))
+            setfield!(com,sym,ARRAY[:CPU]{type}(p))
         end
     end            
 
