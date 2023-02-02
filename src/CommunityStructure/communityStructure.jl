@@ -153,10 +153,8 @@ function Base.getindex(community::Community,timePoint::Number)
         com = community.pastTimes[timePoint]
         for (sym,prop) in pairs(BASEPARAMETERS)
             if 0 == prop.saveLevel
-                if :Atomic in prop.shape && platform == :CPU #Do nothing if CPU and atomic
+                if :Atomic in prop.shape #Do nothing if CPU and atomic
                     setfield!(com,sym,getfield(community,sym))
-                elseif :Atomic in prop.shape && platform == :GPU #Convert atomic to matrix for CUDA
-                    setfield!(com,sym,Atomic.atomic(getfield(community,sym)[])[1])
                 else
                     setfield!(com,sym,Array(getfield(community,sym)))
                 end

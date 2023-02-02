@@ -54,7 +54,7 @@ include("./AgentStructure/functions/step.jl")
 # export setParameters!
 export Community, loadToPlatform!, bringFromPlatform!
 include("./CommunityStructure/communityStructure.jl")
-export saveJLD2!, saveRAM!
+export saveJLD2!, saveRAM!, loadJLD2!
 include("./CommunityStructure/IO.jl")
 # export initialiseCommunityCompactHexagonal, initialiseCommunityCompactCubic
 # include("./CommunityStructure/baseModuleExtensions.jl")

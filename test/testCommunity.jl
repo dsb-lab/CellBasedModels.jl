@@ -651,7 +651,7 @@ end
         @testAllNeighbors( #basic integration
             (@test begin
                     dim = DIM
-                    agent = Agent(dim,platform=:CPU, #Add agents one by one
+                    agent = Agent(dim,platform=PLATFORM, #Add agents one by one
                                 localFloat=[:l],
                                 neighbors=NEIGHBOR,
                                 updateLocal = quote
@@ -672,44 +672,51 @@ end
                     bringFromPlatform!(com)
                     comCheck = deepcopy(com)
                     loadToPlatform!(com)
+
+                    if isfile("testfiles/jld.jld2")
+                        rm("testfiles/jld.jld2")
+                    end
  
                     for i in 1:5
                         step!(com)
                         saveJLD2!("testfiles/jld.jld2",com,saveLevel=5)
                     end
-                    bringFromPlatform!(com)
+                    com = loadJLD2!("testfiles/jld.jld2")
 
-                    # isTrue = []
-                    # for i in 1:5
-                    #     comCheck.t = .1*i
-                    #     comCheck.x .= .1*i+1
-                    #     comCheck.xNew_ .= .1*i+1
-                    #     comCheck.varAux_ .= .1*i+1
-                    #     comCheck.lfM_ .= .1*i-.1
-                    #     comCheck.lfMNew_ .= .1*i-.1
-                    #     if NEIGHBOR == :VerletDisplacement
-                    #         setfield!(comCheck, :accumulatedDistance_, [.1*i])
-                    #     end
+                    isTrue = []
+                    for i in 1:5
+                        comCheck.t = .1*i
+                        comCheck.x .= .1*i+1
+                        comCheck.xNew_ .= .1*i+1
+                        comCheck.varAux_ .= .1*i+1
+                        comCheck.lfM_ .= .1*i-.1
+                        comCheck.lfMNew_ .= .1*i-.1
+                        if NEIGHBOR == :VerletDisplacement
+                            setfield!(comCheck, :accumulatedDistance_, [.1*i])
+                        end
 
-                    #     comt = com[i]
-                    #     for (sym,prop) in pairs(AgentBasedModels.BASEPARAMETERS)
-                    #         t = false
-                    #         if :Atomic in prop.shape
-                    #             t = getfield(comCheck,sym)[] == getfield(comt,sym)[]
-                    #         else 
-                    #             t = all(getfield(comCheck,sym) .≈ getfield(comt,sym))
-                    #         end
-                    #         if !t
-                    #             println(sym," ",getfield(comCheck,sym), getfield(comt,sym))
-                    #         end
-                    #         push!(isTrue,t)
-                    #     end
-                    # end
+                        comt = com[i]
+                        for (sym,prop) in pairs(AgentBasedModels.BASEPARAMETERS)
+                            t = false
+                                if :Atomic in prop.shape
+                                    t = getfield(comCheck,sym)[] == getfield(comt,sym)[]
+                                else 
+                                    t = all(getfield(comCheck,sym) .≈ getfield(comt,sym))
+                                end
+                                if !t
+                                    println(sym," ",getfield(comCheck,sym), getfield(comt,sym))
+                                end
+
+                            push!(isTrue,t)
+                        end
+                    end
  
                     # all(isTrue)
-                    rm("testfiles/jld.jld2")
+                    if isfile("testfiles/jld.jld2")
+                        rm("testfiles/jld.jld2")
+                    end
                     true
-            end), Full#CellLinked, VerletTime, VerletDisplacement, Full
+            end), CellLinked, VerletTime, VerletDisplacement, Full
         )
 
     end
