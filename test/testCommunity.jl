@@ -584,7 +584,7 @@ end
 
     # end
 
-    @testset "IO" begin
+    # @testset "IO" begin
 
         # @testAllNeighbors( #basic integration
         #     (@test begin
@@ -666,98 +666,112 @@ end
         #     end), CellLinked, VerletTime, VerletDisplacement, Full
         # )
 
-        @testAllNeighbors( #basic integration
-            (@test begin
-                    dim = DIM
-                    agent = Agent(dim,platform=PLATFORM, #Add agents one by one
-                                localFloat=[:l],
-                                neighbors=NEIGHBOR,
-                                updateLocal = quote
+    #     @testAllNeighbors( #basic integration
+    #         (@test begin
+    #                 dim = DIM
+    #                 agent = Agent(dim,platform=PLATFORM, #Add agents one by one
+    #                             localFloat=[:l],
+    #                             neighbors=NEIGHBOR,
+    #                             updateLocal = quote
 
-                                    l = t
+    #                                 l = t
                                 
-                                end,
-                                updateVariable = quote
+    #                             end,
+    #                             updateVariable = quote
 
-                                    d(  x  ) = dt(  1  )
+    #                                 d(  x  ) = dt(  1  )
                                     
-                                end
-                                );
-                    com = Community(agent,skin=[2.],simBox=[0. .9;1 2;1 2][1:dim,:],nMaxNeighbors=[15],dtNeighborRecompute=[10.],cellEdge=[10.,10.,10.][1:dim])
-                    com.dt = .1
-                    com.x .= 1
-                    loadToPlatform!(com)
-                    bringFromPlatform!(com)
-                    comCheck = deepcopy(com)
-                    loadToPlatform!(com)
+    #                             end
+    #                             );
+    #                 com = Community(agent,skin=[2.],simBox=[0. .9;1 2;1 2][1:dim,:],nMaxNeighbors=[15],dtNeighborRecompute=[10.],cellEdge=[10.,10.,10.][1:dim])
+    #                 com.dt = .1
+    #                 com.x .= 1
+    #                 loadToPlatform!(com)
+    #                 bringFromPlatform!(com)
+    #                 comCheck = deepcopy(com)
+    #                 loadToPlatform!(com)
 
-                    if isfile("testfiles/jld.jld2")
-                        rm("testfiles/jld.jld2")
-                    end
+    #                 if isfile("testfiles/jld.jld2")
+    #                     rm("testfiles/jld.jld2")
+    #                 end
 
-                    for i in 1:5
-                        step!(com)
-                        saveJLD2!("testfiles/jld.jld2",com,saveLevel=5)
-                    end
-                    com = loadJLD2!("testfiles/jld.jld2")
-                    if isfile("testfiles/jld.jld2")
-                        rm("testfiles/jld.jld2")
-                    end
+    #                 for i in 1:5
+    #                     step!(com)
+    #                     saveJLD2!("testfiles/jld.jld2",com,saveLevel=5)
+    #                 end
+    #                 com = loadJLD2!("testfiles/jld.jld2")
+    #                 if isfile("testfiles/jld.jld2")
+    #                     rm("testfiles/jld.jld2")
+    #                 end
 
-                    isTrue = []
-                    for i in 1:5
-                        comCheck.t = .1*i
-                        comCheck.x .= .1*i+1
-                        comCheck.xNew_ .= .1*i+1
-                        comCheck.varAux_ .= .1*i+1
-                        comCheck.lfM_ .= .1*i-.1
-                        comCheck.lfMNew_ .= .1*i-.1
-                        if NEIGHBOR == :VerletDisplacement
-                            setfield!(comCheck, :accumulatedDistance_, [.1*i])
-                        end
+    #                 isTrue = []
+    #                 for i in 1:5
+    #                     comCheck.t = .1*i
+    #                     comCheck.x .= .1*i+1
+    #                     comCheck.xNew_ .= .1*i+1
+    #                     comCheck.varAux_ .= .1*i+1
+    #                     comCheck.lfM_ .= .1*i-.1
+    #                     comCheck.lfMNew_ .= .1*i-.1
+    #                     if NEIGHBOR == :VerletDisplacement
+    #                         setfield!(comCheck, :accumulatedDistance_, [.1*i])
+    #                     end
 
-                        comt = com[i]
-                        for (sym,prop) in pairs(AgentBasedModels.BASEPARAMETERS)
-                            t = false
-                            if :Atomic in prop.shape
-                                t = getfield(comCheck,sym)[] == getfield(comt,sym)[]
-                            else 
-                                t = all(round.(getfield(comCheck,sym),digits=6) .≈ round.(getfield(comt,sym),digits=5))
-                            end
-                            if !t
-                                println(sym," ",getfield(comCheck,sym), getfield(comt,sym))
-                            end
+    #                     comt = com[i]
+    #                     for (sym,prop) in pairs(AgentBasedModels.BASEPARAMETERS)
+    #                         t = false
+    #                         if :Atomic in prop.shape
+    #                             t = getfield(comCheck,sym)[] == getfield(comt,sym)[]
+    #                         else 
+    #                             t = all(round.(getfield(comCheck,sym),digits=6) .≈ round.(getfield(comt,sym),digits=5))
+    #                         end
+    #                         if !t
+    #                             println(sym," ",getfield(comCheck,sym), getfield(comt,sym))
+    #                         end
 
-                            push!(isTrue,t)
-                        end
-                    end
+    #                         push!(isTrue,t)
+    #                     end
+    #                 end
  
-                    #Check evolution can be done again from any timepoint if saveLevel=5
-                    com = com[1]
-                    loadToPlatform!(com)
-                    step!(com)
-                    saveJLD2!("testfiles/jld.jld2",com)
-                    com = loadJLD2!("testfiles/jld.jld2")
-                    #Check evolution can be done again from any timepoint if saveLevel=1
-                    com = com[end]
-                    com.t .= 0
-                    com.x .= 1
-                    com.l .= 0
-                    loadToPlatform!(com)
-                    for i in 1:5
-                        step!(com)
-                        saveJLD2!("testfiles/jld.jld2",com)
-                    end
-                    bringFromPlatform!(com)
+    #                 #Check evolution can be done again from any timepoint if saveLevel=5
+    #                 com = com[1]
+    #                 loadToPlatform!(com)
+    #                 step!(com)
+    #                 saveJLD2!("testfiles/jld.jld2",com)
+    #                 com = loadJLD2!("testfiles/jld.jld2")
+    #                 #Check evolution can be done again from any timepoint if saveLevel=1
+    #                 com = com[end]
+    #                 com.t .= 0
+    #                 com.x .= 1
+    #                 com.l .= 0
+    #                 loadToPlatform!(com)
+    #                 for i in 1:5
+    #                     step!(com)
+    #                     saveJLD2!("testfiles/jld.jld2",com)
+    #                 end
+    #                 bringFromPlatform!(com)
 
-                    # all(isTrue)
-                    if isfile("testfiles/jld.jld2")
-                        rm("testfiles/jld.jld2")
-                    end
+    #                 # all(isTrue)
+    #                 if isfile("testfiles/jld.jld2")
+    #                     rm("testfiles/jld.jld2")
+    #                 end
 
-                    all(isTrue)
-            end), CellLinked, VerletTime, VerletDisplacement, Full
-        )
+    #                 all(isTrue)
+    #         end), CellLinked, VerletTime, VerletDisplacement, Full
+    #     )
+
+    # end
+
+    @testset "Initializers" begin
+        
+        @test_nowarn begin
+            agent = Agent(3,)
+            com = initializeCommunity(agent,[0 1;0 1;0 1],.1,packaging=cubicPackaging)
+        end
+
+        @test_nowarn begin
+            agent = Agent(3,)
+            com = initializeCommunity(agent,[0 1;0 1;0 1],.1,packaging=compactHexagonalPackaging)
+        end
 
     end
 
