@@ -36,7 +36,8 @@ function stochasticDescentAlgorithm(evalFunction::Function,
                         initialisation::Union{Nothing,DataFrame} = nothing,
                         returnAll::Bool=false,
                         saveFileName::Union{Nothing,String} = nothing,
-                        args::Vector{<:Any} = Any[])
+                        args::Vector{<:Any} = Any[],
+                        verbose=false)
 
     #Creating the dataframe
     m = DataFrame([i=>zeros(population) for i in keys(searchList)]...)
@@ -63,10 +64,15 @@ function stochasticDescentAlgorithm(evalFunction::Function,
     m[:,:_rejection_] .= 0
 
     #Start simulation
-    prog = Progress(population,string("Generation ",1,"/",stopMaxGenerations))
+    prog = nothing
+    if verbose
+        prog = Progress(population,string("Generation ",1,"/",stopMaxGenerations))
+    end
     Threads.@threads for i in 1:population
         m[i,:_score_] = evalFunction(m[i,:],args...)
-        next!(prog)
+        if verbose
+            next!(prog)
+        end
     end
     mTotal = copy(m)
 
@@ -84,7 +90,9 @@ function stochasticDescentAlgorithm(evalFunction::Function,
         mNew[:,:_rejection_] .= m[:,:_rejection_]
 
         #New jumps
-        prog = Progress(population,string("Generation ",k,"/",stopMaxGenerations))
+        if verbose
+            prog = Progress(population,string("Generation ",k,"/",stopMaxGenerations))
+        end
         Threads.@threads for i in 1:population
             #Make the distribution matrix
             if mNew[i,:_generation_] % nStatistics == 0
@@ -104,7 +112,9 @@ function stochasticDescentAlgorithm(evalFunction::Function,
                     mNew[i,param] = searchList[Symbol(param)][2]
                 end
             end
-            next!(prog)
+            if verbose
+                next!(prog)
+            end
         end
         mOld = copy(m)
         m = copy(mNew)

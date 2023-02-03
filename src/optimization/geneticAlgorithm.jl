@@ -42,7 +42,8 @@ function geneticAlgorithm(
                         initialisation::Union{Nothing,DataFrame} = nothing,
                         returnAll::Bool = false,
                         saveFileName::Union{Nothing,String} = nothing,
-                        args::Vector{<:Any} = Any[])
+                        args::Vector{<:Any} = Any[],
+                        verbose=false)
 
     mTotal = DataFrame()
 
@@ -69,10 +70,15 @@ function geneticAlgorithm(
     m[:,:_generation_] .= 1
 
     #Start first simulations
-    prog = Progress(population,string("Generation ",1,"/",stopMaxGenerations))
+    prog = nothing
+    if verbose
+        prog = Progress(population,string("Generation ",1,"/",stopMaxGenerations))
+    end
     Threads.@threads for i in 1:population
         m[i,:_score_] = evalFunction(m[i,:],args...)
-        next!(prog)
+        if verbose
+            next!(prog)
+        end
     end
     mTotal = copy(m)
 
@@ -91,7 +97,9 @@ function geneticAlgorithm(
         else
             p .= 1/population
         end
-        prog = Progress(population,string("Generation ",k,"/",stopMaxGenerations))
+        if verbose
+            prog = Progress(population,string("Generation ",k,"/",stopMaxGenerations))
+        end
         Threads.@threads for i in 1:2:population
             parents = rand(Categorical(p),2)
             for param in keys(searchList)
@@ -119,7 +127,9 @@ function geneticAlgorithm(
                     end
                 end
             end
-            next!(prog)
+            if verbose
+                next!(prog)
+            end
         end
         m = copy(mNew)
         m[:,:_score_] .= 0.
