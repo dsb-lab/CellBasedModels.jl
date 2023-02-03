@@ -319,6 +319,10 @@ function Base.setindex!(com::Community,v::Number,var::Symbol)
 
 end
 
+function Base.length(com::Community)
+    return length(com.pastTimes)
+end
+
 ######################################################################################################
 # Load to platform
 ######################################################################################################

@@ -51,13 +51,16 @@ include("./AgentStructure/functions/step.jl")
 # include("./AgentStructure/compile/integrator/verletVelocity.jl")
 
 #Community
-# export setParameters!
 export Community, loadToPlatform!, bringFromPlatform!
 include("./CommunityStructure/communityStructure.jl")
 export saveJLD2!, saveRAM!, loadJLD2!
 include("./CommunityStructure/IO.jl")
 export initializeCommunity, cubicPackaging, compactHexagonalPackaging
 include("./CommunityStructure/initializers.jl")
+
+#Optimization tools
+export Optimization
+include("./optimization/optimization.jl")
 
 # #Visualization functions
 # export plotSpheres, plotRods, videoRods
@@ -69,8 +72,5 @@ include("./CommunityStructure/initializers.jl")
 
 #Implemented Models
 # include("./implementedModels/models.jl")
-
-#Optimization tools
-# include("./optimization/optimization.jl")
 
 end
