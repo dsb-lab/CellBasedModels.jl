@@ -20,7 +20,8 @@ function gridSearch(evalFunction::Function,
                     searchList::Dict{Symbol,<:Vector{<:Number}}; 
                     returnAll::Bool=false,
                     saveFileName::Union{Nothing,String} = nothing,
-                    args::Vector{<:Any} = Any[])
+                    args::Vector{<:Any} = Any[],
+                    verbose=false)
 
     #Creating the dataframe
     dims = [size(searchList[par])[1] for par in keys(searchList)]
@@ -36,7 +37,10 @@ function gridSearch(evalFunction::Function,
     m[!,:_score_] .= -Inf
 
     lock = Threads.SpinLock()
-    prog = Progress(size(m)[1],string("Evaluating grid points..."))
+    prog = nothing
+    if verbose
+        prog = Progress(size(m)[1],string("Evaluating grid points..."))
+    end
     Threads.@threads for line in 1:size(m)[1]
         m[line,:_score_] = evalFunction(m[line,:],args...)
 
@@ -49,7 +53,9 @@ function gridSearch(evalFunction::Function,
             end
         end
         Threads.unlock(lock)
-        next!(prog)
+        if verbose
+            next!(prog)
+        end
     end
 
     if returnAll
