@@ -145,6 +145,8 @@ end
 function Base.getindex(community::Community,timePoint::Number)
     
     com = Community()
+
+    #Assign base parameters
     if 1 > timePoint || timePoint > length(community.pastTimes)
         error("Only time points from 1 to $(length(community.pastTimes)) present in the Community.")
     elseif community.loaded 
@@ -169,8 +171,32 @@ function Base.getindex(community::Community,timePoint::Number)
         end
     end
 
+    #Assign agent
+    com.agent = community.agent
+    setfield!(com,:loaded,community.loaded)
+    com.platform = community.platform
+
+    #Initializing parameters that were nothing before
+    dict = OrderedDict()
+    for (sym,prop) in pairs(BASEPARAMETERS)
+        if getfield(com,sym) === nothing
+            setfield!(com,sym,prop.initialize(dict,com.agent))
+            dict[sym] = getfield(com,sym)
+        else
+            dict[sym] = getfield(com,sym)
+        end
+    end
+
     return com
 
+end
+
+function Base.lastindex(community::Community)
+    return length(community.pastTimes)
+end
+
+function Base.firstindex(community::Community)
+    return 1
 end
 
 function Base.getproperty(com::Community,var::Symbol)
@@ -209,6 +235,7 @@ function Base.setproperty!(com::Community,var::Symbol,v::Array{<:Number})
 
     if !(var in keys(com.agent.declaredSymbols)) && !(var in fieldnames(Community))
         error(var," is not in community.")
+    elseif var in fieldnames(Community)
         if var in keys(BASEPARAMETERS)
             if BASEPARAMETERS[var].protected
                 error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
@@ -252,6 +279,7 @@ function Base.setindex!(com::Community,v::Array{<:Number},var::Symbol)
     
     if !(var in keys(com.agent.declaredSymbols)) && !(var in fieldnames(Community))
         error(var," is not in community.")
+    elseif var in fieldnames(Community)
         if var in keys(BASEPARAMETERS)
             if BASEPARAMETERS[var].protected
                 error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
@@ -273,6 +301,7 @@ function Base.setindex!(com::Community,v::Number,var::Symbol)
     
     if !(var in keys(com.agent.declaredSymbols)) && !(var in fieldnames(Community))
         error(var," is not in community.")
+    elseif var in fieldnames(Community)
         if var in keys(BASEPARAMETERS)
             if BASEPARAMETERS[var].protected
                 error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")

@@ -643,7 +643,25 @@ end
         #                     push!(isTrue,t)
         #                 end
         #             end
- 
+
+        #             #Check evolution can be done again from any timepoint if saveLevel=5
+        #             com = com[1]
+        #             loadToPlatform!(com)
+        #             step!(com)
+        #             saveRAM!(com)
+        #             bringFromPlatform!(com)
+        #             #Check evolution can be done again from any timepoint if saveLevel=1
+        #             com = com[end]
+        #             com.t .= 0
+        #             com.x .= 1
+        #             com.l .= 0
+        #             loadToPlatform!(com)
+        #             for i in 1:5
+        #                 step!(com)
+        #                 saveRAM!(com)
+        #             end
+        #             bringFromPlatform!(com)
+
         #             all(isTrue)
         #     end), CellLinked, VerletTime, VerletDisplacement, Full
         # )
@@ -676,12 +694,15 @@ end
                     if isfile("testfiles/jld.jld2")
                         rm("testfiles/jld.jld2")
                     end
- 
+
                     for i in 1:5
                         step!(com)
                         saveJLD2!("testfiles/jld.jld2",com,saveLevel=5)
                     end
                     com = loadJLD2!("testfiles/jld.jld2")
+                    if isfile("testfiles/jld.jld2")
+                        rm("testfiles/jld.jld2")
+                    end
 
                     isTrue = []
                     for i in 1:5
@@ -701,7 +722,7 @@ end
                             if :Atomic in prop.shape
                                 t = getfield(comCheck,sym)[] == getfield(comt,sym)[]
                             else 
-                                t = all(round.(getfield(comCheck,sym),digits=6) .≈ round(getfield(comt,sym),digits=5))
+                                t = all(round.(getfield(comCheck,sym),digits=6) .≈ round.(getfield(comt,sym),digits=5))
                             end
                             if !t
                                 println(sym," ",getfield(comCheck,sym), getfield(comt,sym))
@@ -711,11 +732,29 @@ end
                         end
                     end
  
+                    #Check evolution can be done again from any timepoint if saveLevel=5
+                    com = com[1]
+                    loadToPlatform!(com)
+                    step!(com)
+                    saveJLD2!("testfiles/jld.jld2",com)
+                    com = loadJLD2!("testfiles/jld.jld2")
+                    #Check evolution can be done again from any timepoint if saveLevel=1
+                    com = com[end]
+                    com.t .= 0
+                    com.x .= 1
+                    com.l .= 0
+                    loadToPlatform!(com)
+                    for i in 1:5
+                        step!(com)
+                        saveJLD2!("testfiles/jld.jld2",com)
+                    end
+                    bringFromPlatform!(com)
+
                     # all(isTrue)
                     if isfile("testfiles/jld.jld2")
                         rm("testfiles/jld.jld2")
                     end
-                    
+
                     all(isTrue)
             end), CellLinked, VerletTime, VerletDisplacement, Full
         )

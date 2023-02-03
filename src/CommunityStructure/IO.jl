@@ -29,12 +29,14 @@ function saveRAM!(community::Community;saveLevel=1)
         end
     end
 
-    for (i,sym) in enumerate(POSITIONPARAMETERS[1:1:community.agent.dims])
+    for (i,sym) in enumerate(POSITIONPARAMETERS)
         prop = BASEPARAMETERS[sym]
         type = DTYPE[prop.dtype][community.agent.platform]
         if community.agent.posUpdated_[i]
             p = getfield(community,sym)
             setfield!(com,sym,copy(Array{type}(@views p[1:N])))
+        else
+            setfield!(com,sym,zeros(type,1,0))
         end
     end
 
@@ -62,7 +64,11 @@ function saveJLD2!(file::String,community::Community;saveLevel=1)
             f["agent/platform"] = community.agent.platform
             f["agent/removalOfAgents_"] = community.agent.removalOfAgents_
             f["agent/posUpdated_"] = community.agent.posUpdated_
+
+            f["loaded"] = community.loaded
+            f["platform"] = community.platform    
         end
+
 
         N = 0
         if community.agent.platform == :CPU
@@ -153,6 +159,11 @@ function loadJLD2!(file::String)
         #Assign agent
         com.agent = agent
 
+        #Other parameters
+        setfield!(com,:loaded,f["loaded"])
+        com.platform = f["platform"]            
+        
+        #Base parameters
         for (sym,prop) in pairs(BASEPARAMETERS)
             if prop.saveLevel == 0
                 setfield!(com,sym,f["constants/$sym"])

@@ -56,15 +56,8 @@ export Community, loadToPlatform!, bringFromPlatform!
 include("./CommunityStructure/communityStructure.jl")
 export saveJLD2!, saveRAM!, loadJLD2!
 include("./CommunityStructure/IO.jl")
-# export initialiseCommunityCompactHexagonal, initialiseCommunityCompactCubic
-# include("./CommunityStructure/baseModuleExtensions.jl")
-# include("./CommunityStructure/setParameters.jl")
-# include("./CommunityStructure/constructors/latices/compactHexagonal.jl")
-# include("./CommunityStructure/constructors/latices/cubic.jl")
-# include("./CommunityStructure/constructors/extrude.jl")
-# include("./CommunityStructure/constructors/initialisers.jl")
-# include("./CommunityStructure/IO/save.jl")
-# include("./CommunityStructure/IO/load.jl")
+export initializeCommunity, cubicPackaging, compactHexagonalPackaging
+include("./CommunityStructure/initializers.jl")
 
 # #Visualization functions
 # export plotSpheres, plotRods, videoRods
