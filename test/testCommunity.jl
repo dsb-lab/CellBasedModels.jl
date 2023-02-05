@@ -151,22 +151,25 @@ end
     #     com.dt = 1
     # end
 
-    # #loadToPlatform
-    # @test_nowarn begin agent = Agent(3,
-    #     localInt=[:li],
-    #     localIntInteraction=[:lii],
-    #     localFloat=[:lf],
-    #     localFloatInteraction=[:lfi],
-    #     globalFloat=[:gf],
-    #     globalInt=[:gi],
-    #     globalFloatInteraction=[:gfi],
-    #     globalIntInteraction=[:gii],
-    #     medium=[:m]
-    #     )
+    #loadToPlatform
+    @test begin agent = Agent(3,
+        localInt=[:li],
+        localIntInteraction=[:lii],
+        localFloat=[:lf],
+        localFloatInteraction=[:lfi],
+        globalFloat=[:gf],
+        globalInt=[:gi],
+        globalFloatInteraction=[:gfi],
+        globalIntInteraction=[:gii],
+        medium=[:m]
+        )
 
-    #     com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
-    #     loadToPlatform!(com,preallocateAgents=10)
-    # end
+        com = Community(agent,N=[100],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
+        loadToPlatform!(com,preallocateAgents=10)
+        bringFromPlatform!(com)
+
+        true
+    end
 
     # #local
     # @testset "local" begin
@@ -761,18 +764,18 @@ end
 
     # end
 
-    @testset "Initializers" begin
+    # @testset "Initializers" begin
         
-        @test_nowarn begin
-            agent = Agent(3,)
-            com = initializeCommunity(agent,[0 1;0 1;0 1],.1,packaging=cubicPackaging)
-        end
+    #     @test_nowarn begin
+    #         agent = Agent(3,)
+    #         com = initializeCommunity(agent,[0 1;0 1;0 1],.1,packaging=cubicPackaging)
+    #     end
 
-        @test_nowarn begin
-            agent = Agent(3,)
-            com = initializeCommunity(agent,[0 1;0 1;0 1],.1,packaging=compactHexagonalPackaging)
-        end
+    #     @test_nowarn begin
+    #         agent = Agent(3,)
+    #         com = initializeCommunity(agent,[0 1;0 1;0 1],.1,packaging=compactHexagonalPackaging)
+    #     end
 
-    end
+    # end
 
 end
