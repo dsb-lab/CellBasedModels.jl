@@ -46,13 +46,19 @@ function saveRAM!(community::Community;saveLevel=1)
 
 end
 
-function saveJLD2!(file::String,community::Community;saveLevel=1)
+function saveJLD2!(community::Community;saveLevel=1)
 
-    jldopen(file, "a+") do f
+    f = nothing
+    if typeof(community.fileSaving) <: JLD2.JLDFile
+        f = community.fileSaving
+    elseif typeof(community.fileSaving) <: String
+        f = jldopen(community.fileSaving, "a+")
+        community.fileSaving = f
+    else
+        error("fileSaving property has to be defined before executing saveJLD2.")
+    end
 
-        if !( "saveLevel" in keys(f) )
-            f["saveLevel"] = saveLevel
-        end
+    # jldopen(file, "a+") do f
 
         if !( "agent" in keys(f) )
             f["agent/dims"] = community.agent.dims
@@ -67,6 +73,7 @@ function saveJLD2!(file::String,community::Community;saveLevel=1)
 
             f["loaded"] = community.loaded
             f["platform"] = community.platform    
+            f["fileSaving"] = community.fileSaving
         end
 
 
@@ -97,6 +104,7 @@ function saveJLD2!(file::String,community::Community;saveLevel=1)
         if "times" in keys(f)
             t = length(f["times"]) + 1
         end
+        f["times/$t/saveLevel"] = saveLevel
 
         for (sym,prop) in pairs(BASEPARAMETERS)
             type = DTYPE[prop.dtype][:CPU]
@@ -127,7 +135,7 @@ function saveJLD2!(file::String,community::Community;saveLevel=1)
             end
         end
 
-    end
+    # end
 
     return
 
@@ -162,6 +170,7 @@ function loadJLD2!(file::String)
         #Other parameters
         setfield!(com,:loaded,f["loaded"])
         com.platform = f["platform"]            
+        com.fileSaving = f["fileSaving"]            
         
         #Base parameters
         for (sym,prop) in pairs(BASEPARAMETERS)
@@ -181,7 +190,7 @@ function loadJLD2!(file::String)
             community = Community()
             for (sym,prop) in pairs(BASEPARAMETERS)
                 type = DTYPE[prop.dtype][:CPU]
-                if 0 != prop.saveLevel && prop.saveLevel <= f["saveLevel"] && !(sym in POSITIONPARAMETERS)
+                if 0 != prop.saveLevel && prop.saveLevel <= f["times/$t/saveLevel"] && !(sym in POSITIONPARAMETERS)
                     if :Atomic in prop.shape
                         setfield!(community,sym,Threads.Atomic{type}(f["times/$t/$sym"][1]))
                     else
@@ -199,7 +208,7 @@ function loadJLD2!(file::String)
             if t == times[end] #add a copy of the last element to the main Community object
                 for (sym,prop) in pairs(BASEPARAMETERS)
                     type = DTYPE[prop.dtype][:CPU]
-                    if 0 != prop.saveLevel && prop.saveLevel <= f["saveLevel"] && !(sym in POSITIONPARAMETERS)
+                    if 0 != prop.saveLevel && prop.saveLevel <= f["times/$t/saveLevel"] && !(sym in POSITIONPARAMETERS)
                         if :Atomic in prop.shape
                             setfield!(com,sym,Threads.Atomic{type}(f["times/$t/$sym"][1]))
                         else

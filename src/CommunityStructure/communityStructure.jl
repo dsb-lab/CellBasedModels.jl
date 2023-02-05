@@ -30,7 +30,8 @@ mutable struct Community
     agent
     loaded
     platform
-    pastTimes::Union{Array{Community},Channel{Community}}
+    fileSaving
+    pastTimes
 
     t
     dt
@@ -114,7 +115,7 @@ mutable struct Community
             end
         end
     
-        return new(agent, false, Platform(256,1),Community[], [j for (i,j) in pairs(dict)]...)
+        return new(agent, false, Platform(256,1), nothing, Community[], [j for (i,j) in pairs(dict)]...)
 
     end
 
@@ -126,7 +127,7 @@ mutable struct Community
             dict[sym] = nothing
         end
     
-        return new(nothing, nothing, nothing,Community[], [j for (i,j) in pairs(dict)]...)
+        return new(nothing, nothing, nothing, nothing,Community[], [j for (i,j) in pairs(dict)]...)
 
     end
 
@@ -175,6 +176,7 @@ function Base.getindex(community::Community,timePoint::Number)
     com.agent = community.agent
     setfield!(com,:loaded,community.loaded)
     com.platform = community.platform
+    com.fileSaving = nothing
 
     #Initializing parameters that were nothing before
     dict = OrderedDict()
@@ -388,6 +390,10 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
     computeNeighbors!(com)
     interactionStep!(com)
 
+    if typeof(com.fileSaving) <: String
+        com.fileSaving = jldopen(com.fileSaving, "a+")
+    end
+
     return
 end
 
@@ -419,6 +425,11 @@ function bringFromPlatform!(com::Community)
 
     #Set loaded to true
     setfield!(com,:loaded,false)
+
+    if typeof(com.fileSaving) <: JLD2.JLDFile
+        close(com.fileSaving)
+        com.fileSaving = com.fileSaving.path
+    end
 
     return
 end
