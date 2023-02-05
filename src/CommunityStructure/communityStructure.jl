@@ -30,7 +30,7 @@ mutable struct Community
     agent
     loaded
     platform
-    pastTimes::Array{Community}
+    pastTimes::Union{Array{Community},Channel{Community}}
 
     t
     dt
