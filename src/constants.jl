@@ -77,6 +77,8 @@ BASEPARAMETERS = OrderedDict(
 
 POSITIONPARAMETERS = [:x,:y,:z]
 
+NOTMODIFIABLEPARAMETERS = [:liNM_,:lfNM_,:gfNM_,:giNM_]
+
 BASESYMBOLS = OrderedDict(
 #Symbols interaction
     :InteractionIndex1            => BaseSymbol(:i,            :End),

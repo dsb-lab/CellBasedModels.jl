@@ -326,6 +326,37 @@ function Base.length(com::Community)
 end
 
 ######################################################################################################
+# Functions to get parameters at all times
+######################################################################################################
+
+function getParameter(com,var)
+    if var in fieldnames(Community)
+        return [getfield(i,var) for i in com.pastTimes]
+    else
+        if var in keys(com.agent.declaredSymbols)
+            x = com.agent.declaredSymbols[var].basePar
+            pos = com.agent.declaredSymbols[var].position
+            if x in NOTMODIFIABLEPARAMETERS
+                return getfield(com,x)[:,pos]
+            else
+                return [@views getfield(i,x)[:,pos] for i in com.pastTimes]
+            end
+        else
+            error("Parameter ", var, " not found in the community.")
+        end
+    end
+end
+
+function getParameter(com,varList::Vector)
+    d = Dict{Symbol,Vector}()
+    for i in varList
+        d[i] = getParameter(com,i)
+    end
+
+    return d
+end
+
+######################################################################################################
 # Load to platform
 ######################################################################################################
 """
