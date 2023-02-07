@@ -36,7 +36,8 @@ function beeColonyAlgorithm(
                         returnAll::Bool = false,
                         initialisation::Union{Nothing,DataFrame} = nothing,
                         saveFileName::Union{Nothing,String} = nothing,
-                        args::Vector{<:Any} = Any[])
+                        args::Vector{<:Any} = Any[],
+                        verbose=false)
 
     mTotal = DataFrame()
 
@@ -64,10 +65,14 @@ function beeColonyAlgorithm(
     m[:,:_cycles_] .= 0
 
     #Start first simulations
-    prog = Progress(population,string("Generation ",1,"/",stopMaxGenerations))
+    if verbose
+        prog = Progress(population,string("Generation ",1,"/",stopMaxGenerations))
+    end
     Threads.@threads for i in 1:population
         m[i,:_score_] = evalFunction(m[i,:],args...)
-        next!(prog)
+        if verbose
+            next!(prog)
+        end
     end
     mTotal = copy(m)
 
@@ -89,7 +94,9 @@ function beeColonyAlgorithm(
         else
             p .= 1/population
         end
-        prog = Progress(population,string("Generation ",k,"/",stopMaxGenerations))
+        if verbose
+            prog = Progress(population,string("Generation ",k,"/",stopMaxGenerations))
+        end
         Threads.@threads for i in 1:population
             candidate = rand(Categorical(p))
             for param in keys(searchList)
@@ -108,7 +115,9 @@ function beeColonyAlgorithm(
             if m[i,:_cycles_] < limitCycles
                 mNew[i,:_cycles_] = 0
             end
-            next!(prog)
+            if verbose
+                next!(prog)
+            end
         end
         mOld = copy(m)
         m = copy(mNew)
@@ -123,6 +132,9 @@ function beeColonyAlgorithm(
                 m[i,:] = mOld[i,:]
                 m[i,:_cycles_] += 1
                 m[i,:_generation_] = generation
+                if verbose
+                    next!(prog)
+                end
             end
         end
         append!(mTotal,m)

@@ -40,7 +40,8 @@ function swarmAlgorithm(evalFunction::Function,
                         initialisation::Union{Nothing,DataFrame} = nothing,
                         returnAll::Bool = false,
                         saveFileName::Union{Nothing,String} = nothing,
-                        args::Vector{<:Any} = Any[])
+                        args::Vector{<:Any} = Any[],
+                        verbose=false)
 
     mTotal = DataFrame()
 
@@ -78,10 +79,14 @@ function swarmAlgorithm(evalFunction::Function,
     m[:,:_generation_] .= 1
 
     #Start first simulations
-    prog = Progress(population,string("Generation ",1,"/",stopMaxGenerations))
+    if verbose
+        prog = Progress(population,string("Generation ",1,"/",stopMaxGenerations))
+    end
     Threads.@threads for i in 1:population
         m[i,:_score_] = evalFunction(m[i,:],args...)
-        next!(prog)
+        if verbose
+            next!(prog)
+        end
     end
     mTotal = copy(m)
     mPBest = m[argmin(m._score_),:]
@@ -119,10 +124,14 @@ function swarmAlgorithm(evalFunction::Function,
         m[:,:_generation_] .= count
 
         #Simulations
-        prog = Progress(population,string("Generation ",k,"/",stopMaxGenerations))
+        if verbose
+            prog = Progress(population,string("Generation ",k,"/",stopMaxGenerations))
+        end
         Threads.@threads for i in 1:population
             m[i,:_score_] = evalFunction(m[i,:],args...)
-            next!(prog)
+            if verbose
+                next!(prog)
+            end
         end
         append!(mTotal,m)
 

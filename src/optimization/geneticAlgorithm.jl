@@ -43,7 +43,7 @@ function geneticAlgorithm(
                         returnAll::Bool = false,
                         saveFileName::Union{Nothing,String} = nothing,
                         args::Vector{<:Any} = Any[],
-                        verbose=false)
+                        verbose=false) 
 
     mTotal = DataFrame()
 
