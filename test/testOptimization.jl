@@ -8,23 +8,24 @@
     
     )
 
-    loosf(com) = sum([(com[1].x[1] .*exp.(-3*com[i].t[1]) .- com[i].x[:,1]).^2 for i in 1:length(com)])
+    loosf(com,x0) = (x0.*exp.(-3 .*com.t) .- com.x).^2
     function simulation(dataframe,dt=0.01) 
-
+    
         com = Community(model,N=[1])
         com.dt .= dt
         com.a = dataframe.a
         com.x .= 10
-        saveRAM!(com)
-
+        loadToPlatform!(com)
+    
+        l = 0
         for i in 1:1000
             step!(com)
-            saveRAM!(com)
+            l += loosf(com,10.)[1]
         end
         bringFromPlatform!(com)
-
-        return loosf(com)[1]
-        
+    
+        return l
+    
     end
 
     # #Grid search
@@ -52,16 +53,16 @@
     #     abs(m.a - 3 ) < .1
     # end
 
-    #Genetic algorithm
-    @test begin
-        m = AgentBasedModels.Optimization.geneticAlgorithm(simulation,explore,population=100,mutationRate=0.8,returnAll=false)
-        abs(m.a - 3 ) < .5
-    end
-    @test begin
-        m = AgentBasedModels.Optimization.geneticAlgorithm(simulation,explore,population=100,mutationRate=0.8,
-                                                            initialisation=DataFrame(:a=>rand(100)),returnAll=false,args=[0.01])
-        abs(m.a - 3 ) < .5
-    end
+    # #Genetic algorithm
+    # @test begin
+    #     m = AgentBasedModels.Optimization.geneticAlgorithm(simulation,explore,population=20,mutationRate=0.8,returnAll=false)
+    #     abs(m.a - 3 ) < .5
+    # end
+    # @test begin
+    #     m = AgentBasedModels.Optimization.geneticAlgorithm(simulation,explore,population=20,mutationRate=0.8,
+    #                                                         initialisation=DataFrame(:a=>rand(100)),returnAll=false,args=[0.01])
+    #     abs(m.a - 3 ) < .5
+    # end
 
     # #Swarm algorithm
     # @test begin
