@@ -1,10 +1,28 @@
 ##############################################################################################################################
 # Distance metrics
 ##############################################################################################################################
+"""
+    euclideanDistance(x1,x2)
+    euclideanDistance(x1,x2,y1,y2)
+    euclideanDistance(x1,x2,y1,y2,z1,z2)
+
+Euclidean distance metric between two positions.
+
+d = (x₁-x₂)²
+"""
 euclideanDistance(x1,x2) = sqrt((x1-x2)^2)
 euclideanDistance(x1,x2,y1,y2) = sqrt((x1-x2)^2+(y1-y2)^2)
 euclideanDistance(x1,x2,y1,y2,z1,z2) = sqrt((x1-x2)^2+(y1-y2)^2+(z1-z2)^2)
 
+"""
+    manhattanDistance(x1,x2)
+    manhattanDistance(x1,x2,y1,y2)
+    manhattanDistance(x1,x2,y1,y2,z1,z2)
+
+Manhattan distance metric between two positions.
+
+d = |x₁-x₂|
+"""
 manhattanDistance(x1,x2) = abs(x1-x2)
 manhattanDistance(x1,x2,y1,y2) = abs(x1-x2)+abs(y1-y2)
 manhattanDistance(x1,x2,y1,y2,z1,z2) = abs(x1-x2)+abs(y1-y2)+abs(z1-z2)
@@ -12,7 +30,18 @@ manhattanDistance(x1,x2,y1,y2,z1,z2) = abs(x1-x2)+abs(y1-y2)+abs(z1-z2)
 ##############################################################################################################################
 # Agent functions
 ##############################################################################################################################
+"""
+    baseParameterToModifiable(sym)
+
+Return sym coming from UserParameter.basePar changed to modifiable. (e.g. liNM_ -> liM_)
+"""
 baseParameterToModifiable(sym) = Meta.parse(string(string(sym)[1:end-3],"M_"))
+
+"""
+    baseParameterNew(sym)
+
+Return sym coming from UserParameter.basePar to new. (e.g. liM_ -> liMNew_)
+"""
 baseParameterNew(sym) = Meta.parse(string(split(string(sym),"_")[1],"New_"))
 
 function agentArgs(sym=nothing;l=3,params=BASEPARAMETERS,posparams=POSITIONPARAMETERS) 
@@ -31,6 +60,12 @@ function agentArgs(sym=nothing;l=3,params=BASEPARAMETERS,posparams=POSITIONPARAM
 
 end
 
+"""
+    macro agentArgs(code)
+    macro agentArgs(name,code)
+
+Macro that substitutes the symbol :ARGS in **code** by the fieldnames of the structure Community. If **name** is given, it substitutes by the fielnames in form of by *name.fieldname*.
+"""
 macro agentArgs(code)
 
     code = postwalk(x->@capture(x,ARGS) ? :($(agentArgs())...) : x, code)
@@ -47,10 +82,22 @@ macro agentArgs(name,code)
     
 end
 
+"""
+    function getProperty(dict::OrderedDict,property::Symbol)
+
+For a Ordered dictionary of {Symbols, Structure} like BASEPARAMETERS, get a specific field of the structure.
+"""
 function getProperty(dict::OrderedDict,property::Symbol)
     return [getfield(var,property) for (i,var) in pairs(dict)]
 end
 
+"""
+    function getSymbolsThat(dict::OrderedDict,property::Symbol,condition)
+    function getSymbolsThat(dict::OrderedDict,property::Symbol,condition::Array)
+
+For a Ordered dictionary of {Symbols, Structure} like BASEPARAMETERS, and a specific field (property) of the structure.
+If the property has as value of the condition, returns that symbol.
+"""
 function getSymbolsThat(dict::OrderedDict,property::Symbol,condition::Array)
     return [i for (i,var) in pairs(dict) if getfield(var,property) in condition]
 end

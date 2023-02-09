@@ -71,6 +71,13 @@ Base parameters are all the parameters that any of the Agent Based Models define
 ||mediumM_|Matrix storing user-defined Medium (Float) parameters that are not modifiable.|
 ||mediumMNew_|Matrix storing user-defined Medium (Float) parameters that are not modifiable after a step.|
 
+## Metrics
+
+```@docs
+euclideanDistance
+manhattanDistance
+```
+
 ## Agent
 
 Methods involved in the construction and modification of the Agent structure.

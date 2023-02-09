@@ -12,7 +12,7 @@ pages = [
     # ], 
     # "ImplementedModels.md",
     "API.md",
-    # "APIdevelopers.md"
+    "APIdevelopers.md"
 ],
 format = Documenter.HTML(prettyurls = false)
 )
