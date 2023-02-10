@@ -12,24 +12,25 @@ import ...AgentBasedModels: rand, Categorical, Uniform
         initialisation::Union{Nothing,DataFrame} = nothing,
         returnAll::Bool = false,
         saveFileName::Union{Nothing,String} = nothing,
-        args::Vector{<:Any} = Any[])
+        args::Vector{<:Any} = Any[],
+        verbose=false)
 
 Optimization of the parameter space of a model that uses the [Particle Swarm Algorithm](https://en.wikipedia.org/wiki/Particle_swarm_optimization).
 
-# Args
-- **evalFunction:: Function** : Function that takes a DataFrame with parameters, generates the simulations and returns a score of the fit.
-- **searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
-
-# KwArgs
- - **population::Int=100** : Size of the colony used at each generation for the optimization.
- - **parentSelectionAlg::String = "weighted"** : Weigthing method of the population ot chose descendants. 
- - **parentSelectionP::Number = .1** : Hyperparameter of the algorithm indicating the proportion of parameters exchanged between parents.
- - **mutationRate::Number = .1** : Hyperparameter of the algorithm indicating the probability of resampling the parameter with a uniform.
- - **stopMaxGenerations::Int = 10** : How many generations do before stopping the algorithm. 
- - **initialisation::Union{Nothing,DataFrame} = nothing** : DataFrame defining the initial parameters of the population. If nothing, they are set randomly.
- - **returnAll::Bool = false** : If return the hole list of parameters explored or the just the most fit.
- - **saveFileName::Union{Nothing,String} = nothing** : If given a string, it saves the parameters explored in a file with the corresponding name.
- - **args::Vector{<:Any} = Any[]** : Additional arguments to give to `evalFunction`.
+||Parameter|Description|
+|:---|:---|:---|
+|Args|evalFunction:: Function | Function that takes a DataFrame with parameters, generates the simulations and returns a score of the fit.|
+||searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}} | Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).|
+|KwArgs|population::Int=100 | Size of the colony used at each generation for the optimization.|
+||parentSelectionAlg::String = "weighted" | Weigthing method of the population ot chose descendants. |
+||parentSelectionP::Number = .1 | Hyperparameter of the algorithm indicating the proportion of parameters exchanged between parents.|
+||mutationRate::Number = .1 | Hyperparameter of the algorithm indicating the probability of resampling the parameter with a uniform.|
+||stopMaxGenerations::Int = 10 | How many generations do before stopping the algorithm. |
+||initialisation::Union{Nothing,DataFrame} = nothing | DataFrame defining the initial parameters of the population. If nothing, they are set randomly.|
+||returnAll::Bool = false | If return the hole list of parameters explored or the just the most fit.|
+||saveFileName::Union{Nothing,String} = nothing | If given a string, it saves the parameters explored in a file with the corresponding name.|
+||args::Vector{<:Any} = Any[] | Additional arguments to give to `evalFunction`.|
+||verbose=false | If `true`, show progress bar during optimization.|
 """
 function geneticAlgorithm(
                         evalFunction::Function,  
@@ -43,7 +44,7 @@ function geneticAlgorithm(
                         returnAll::Bool = false,
                         saveFileName::Union{Nothing,String} = nothing,
                         args::Vector{<:Any} = Any[],
-                        verbose=false)
+                        verbose=false) 
 
     mTotal = DataFrame()
 

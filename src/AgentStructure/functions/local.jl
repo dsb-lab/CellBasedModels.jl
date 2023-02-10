@@ -1,6 +1,11 @@
 ######################################################################################################
 # add agent code
 ######################################################################################################
+"""
+    function addAgentCode(arguments,agent::Agent)
+
+Functions that returns the special code based on the arguments provided to `addAgent`.
+"""
 function addAgentCode(arguments,agent::Agent)
 
     #List parameters that can be updated by the user
@@ -62,6 +67,11 @@ function addAgentCode(arguments,agent::Agent)
     return code
 end
 
+"""
+    function addEventAddAgent(code::Expr,agent::Agent)
+
+Functions that goes over all the calls to `addAgent` and inserts the compiled code provided by `addGlobalAgentCode`.
+"""
 function addEventAddAgent(code::Expr,agent::Agent)
 
     if inexpr(code,:addAgent)
@@ -79,6 +89,11 @@ end
 ######################################################################################################
 # remove agent code
 ######################################################################################################
+"""
+    function removeAgentCode(agent::Agent)
+
+Functions that returns the special code based on the arguments provided to `removeAgent()`.
+"""
 function removeAgentCode(agent::Agent)
 
     code = quote end
@@ -102,6 +117,11 @@ function removeAgentCode(agent::Agent)
 
 end
 
+"""
+    function addEventRemoveAgent(code::Expr,agent::Agent)
+
+Functions that goes over all the calls to `removeAgent` and inserts the compiled code provided by `addGlobalAgentCode`.
+"""
 function addEventRemoveAgent(code::Expr,agent::Agent)
 
     if inexpr(code,:removeAgent)
@@ -120,6 +140,11 @@ end
 ######################################################################################################
 # local function
 ######################################################################################################
+"""
+    function localFunction(agent)
+
+Creates the final code provided to Agent in `updateLocal` as a function and adds it to the Agent.
+"""
 function localFunction(agent)
 
     if !all([typeof(i) == LineNumberNode for i in agent.declaredUpdates[:UpdateLocal].args])
@@ -149,6 +174,11 @@ function localFunction(agent)
 
 end
 
+"""
+    function localStep!(community)
+
+Function that computes a local step of the community a time step `dt`.
+"""
 function localStep!(community)
 
     checkLoaded(community)

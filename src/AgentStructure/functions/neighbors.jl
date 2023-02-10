@@ -1,3 +1,8 @@
+"""
+    function neighborsFunction(agent)
+
+Assigns the neighbors computation method to the agent.
+"""
 function neighborsFunction(agent)
 
     if agent.neighbors == :Full
@@ -31,6 +36,11 @@ function neighborsFunction(agent)
 
 end
 
+"""
+    function neighborsLoop(code,agent)
+
+For the updateInteraction loop, create the double loop to go over all the agents and neighbors.
+"""
 function neighborsLoop(code,agent)
 
     if agent.neighbors == :Full
@@ -63,6 +73,11 @@ function neighborsLoop(code,agent)
 
 end
 
+"""
+    function computeNeighbors!(community)
+
+Function that computes the neighbors of the community according the defined neighbor algorithm in Agent.
+"""
 function computeNeighbors!(community)
 
     community.agent.declaredUpdatesFunction[:ComputeNeighbors](community)
@@ -70,20 +85,34 @@ function computeNeighbors!(community)
 end
 
 #Full
+"""
+    function neighborsFullLoop(code,agent)
+
+Wrapper loop for full neighbors algorithm.
+"""
 function neighborsFullLoop(code,agent)
 
     return makeSimpleLoop(:(for i2_ in 1:1:N[1]; if i1_ != i2_; $code; end; end), agent)
 
 end
 
+"""
+    function neighborsFull!(community)
+
+Function that computes the neighbors of the full connected algorithm.
+"""
 function neighborsFull!(community)
 
     return nothing
 
 end
 
-
 #Verlet
+"""
+    function neighborsVerletLoop(code,agent)
+
+Wrapper loop for verlet neighbors algorithms.
+"""
 function neighborsVerletLoop(code,agent) #Macro to create the second loop in functions
     
     #Go over the list of neighbors
@@ -96,6 +125,20 @@ function neighborsVerletLoop(code,agent) #Macro to create the second loop in fun
 
 end
 
+"""
+    macro verletNeighbors(platform, args...)
+
+Macro to generate the code for the computation of Verlet lists for different platforms and dimensions.
+
+Adds the following functions to the library:
+
+    verletNeighborsCPU!(x)
+    verletNeighborsCPU!(x,y)
+    verletNeighborsCPU!(x,y,z)
+    verletNeighborsGPU!(x)
+    verletNeighborsGPU!(x,y)
+    verletNeighborsGPU!(x,y,z)
+"""
 macro verletNeighbors(platform, args...) #Macro to make the verletNeighbor loops
 
     base = agentArgs(l=length(args))
@@ -153,6 +196,16 @@ macro verletNeighbors(platform, args...) #Macro to make the verletNeighbor loops
 
 end
 
+"""
+    verletNeighborsCPU!(x)
+    verletNeighborsCPU!(x,y)
+    verletNeighborsCPU!(x,y,z)
+    verletNeighborsGPU!(x)
+    verletNeighborsGPU!(x,y)
+    verletNeighborsGPU!(x,y,z)
+
+Functions generated that compute Verlet lists for CPU/GPU and 1/2/3 dimensions.
+"""
 @verletNeighbors CPU x
 @verletNeighbors CPU x y
 @verletNeighbors CPU x y z
@@ -162,6 +215,20 @@ end
 
 
     #Verlet Time
+"""
+    macro neighborsVerletTime(platform, args...)
+
+Macro to generate the code for the computation of Verlet lists updated by Verlet Time algorithm.
+
+Adds the following functions to the library: 
+
+    neighborsVerletTime1CPU!(community)
+    neighborsVerletTime2CPU!(community)
+    neighborsVerletTime3CPU!(community)
+    neighborsVerletTime1GPU!(community)
+    neighborsVerletTime2GPU!(community)
+    neighborsVerletTime3GPU!(community)
+"""
 macro neighborsVerletTime(platform, args...)
 
     base = agentArgs(:community,l=length(args))
@@ -204,6 +271,16 @@ macro neighborsVerletTime(platform, args...)
     return code
 end
 
+"""
+    neighborsVerletTime1CPU!(community)
+    neighborsVerletTime2CPU!(community)
+    neighborsVerletTime3CPU!(community)
+    neighborsVerletTime1GPU!(community)
+    neighborsVerletTime2GPU!(community)
+    neighborsVerletTime3GPU!(community)
+
+Functions generated that computes Verlet lists for CPU/GPU and 1/2/3 dimensions when updating according to the Verlet Time Algorithm.
+"""
 @neighborsVerletTime CPU x
 @neighborsVerletTime CPU x y
 @neighborsVerletTime CPU x y z
@@ -212,6 +289,20 @@ end
 @neighborsVerletTime GPU x y z
 
     #Verlet Displacement
+"""
+    macro verletDisplacement(platform, args...)
+
+Macro to generate the code for the check of Verlet lists recomputation flag according to Verlet Displacement algorithm.
+
+Adds the following functions to the library:
+
+    verletDisplacementCPU!(x)
+    verletDisplacementCPU!(x,y)
+    verletDisplacementCPU!(x,y,z)
+    verletDisplacementGPU!(x)
+    verletDisplacementGPU!(x,y)
+    verletDisplacementGPU!(x,y,z)
+"""
 macro verletDisplacement(platform, args...)
 
     base = agentArgs(l=length(args))
@@ -262,6 +353,16 @@ macro verletDisplacement(platform, args...)
     return code
 end
 
+"""
+    verletDisplacementCPU!(x)
+    verletDisplacementCPU!(x,y)
+    verletDisplacementCPU!(x,y,z)
+    verletDisplacementGPU!(x)
+    verletDisplacementGPU!(x,y)
+    verletDisplacementGPU!(x,y,z)
+
+Functions generated that compute total displacement of agents from last Verlet neighbor computation and flags if recomputation has to be made for CPU/GPU and 1/2/3 dimensions.
+"""
 @verletDisplacement CPU x
 @verletDisplacement CPU x y
 @verletDisplacement CPU x y z
@@ -269,6 +370,20 @@ end
 @verletDisplacement GPU x y
 @verletDisplacement GPU x y z
 
+"""
+    macro verletResetDisplacement(platform, args...)
+
+Macro to generate the code to store the positions of the agents in the last recomputation of Verlet lists for Verlet Displacement algorithm.
+
+Adds the following functions to the library:
+
+    verletResetDisplacementCPU!(x)
+    verletResetDisplacementCPU!(x,y)
+    verletResetDisplacementCPU!(x,y,z)
+    verletResetDisplacementGPU!(x)
+    verletResetDisplacementGPU!(x,y)
+    verletResetDisplacementGPU!(x,y,z)
+"""
 macro verletResetDisplacement(platform, args...)
 
     base = agentArgs(l=length(args))
@@ -313,6 +428,16 @@ macro verletResetDisplacement(platform, args...)
     return code
 end
 
+"""
+    verletResetDisplacementCPU!(x)
+    verletResetDisplacementCPU!(x,y)
+    verletResetDisplacementCPU!(x,y,z)
+    verletResetDisplacementGPU!(x)
+    verletResetDisplacementGPU!(x,y)
+    verletResetDisplacementGPU!(x,y,z)
+
+Functions generated that assigns the current positions of the agents at which Verlet neighbor have been recomputed for CPU/GPU and 1/2/3 dimensions.
+"""
 @verletResetDisplacement CPU x
 @verletResetDisplacement CPU x y
 @verletResetDisplacement CPU x y z
@@ -320,6 +445,24 @@ end
 @verletResetDisplacement GPU x y
 @verletResetDisplacement GPU x y z
 
+"""
+    macro neighborsVerletDisplacement(platform, args...)
+
+Macro to generate the code for the computation of Verlet lists updated by Verlet Displacement algorithm.
+This function puts together the action of:
+ - verletDisplacement
+ - resetVerletDisplacement
+ - verletList
+
+Adds the following functions to the library:
+
+    neighborsVerletDisplacement1CPU!(community)
+    neighborsVerletDisplacement2CPU!(community)
+    neighborsVerletDisplacement3CPU!(community)
+    neighborsVerletDisplacement1GPU!(community)
+    neighborsVerletDisplacement2GPU!(community)
+    neighborsVerletDisplacement3GPU!(community)
+"""
 macro neighborsVerletDisplacement(platform, args...)
 
     base = agentArgs(:community,l=length(args))
@@ -374,6 +517,16 @@ macro neighborsVerletDisplacement(platform, args...)
     return code
 end
 
+"""
+    neighborsVerletDisplacement1CPU!(community)
+    neighborsVerletDisplacement2CPU!(community)
+    neighborsVerletDisplacement3CPU!(community)
+    neighborsVerletDisplacement1GPU!(community)
+    neighborsVerletDisplacement2GPU!(community)
+    neighborsVerletDisplacement3GPU!(community)
+
+Functions generated that computes Verlet lists for CPU/GPU and 1/2/3 dimensions when updating according to the Verlet Time Algorithm.
+"""
 @neighborsVerletDisplacement CPU x
 @neighborsVerletDisplacement CPU x y
 @neighborsVerletDisplacement CPU x y z
@@ -382,10 +535,35 @@ end
 @neighborsVerletDisplacement GPU x y z
 
 #Grid
+"""
+    cellPos(edge,x,xMin,xMax,nX)
+    cellPos(edge,x,xMin,xMax,nX,y,yMin,yMax,nY)
+    cellPos(edge,x,xMin,xMax,nX,y,yMin,yMax,nY,z,zMin,zMax,nZ)
+
+Function that returns the position of the agent in a cell list given their coordinates and cell grid properties.
+"""
 cellPos(edge,x,xMin,xMax,nX) = if x > xMax nX elseif x < xMin 1 else Int((x-xMin)÷edge)+2 end
 cellPos(edge,x,xMin,xMax,nX,y,yMin,yMax,nY) = cellPos(edge,x,xMin,xMax,nX) + nX*(cellPos(edge,y,yMin,yMax,nY)-1)
 cellPos(edge,x,xMin,xMax,nX,y,yMin,yMax,nY,z,zMin,zMax,nZ) = cellPos(edge,x,xMin,xMax,nX) + nX*(cellPos(edge,y,yMin,yMax,nY)-1) + nX*nY*(cellPos(edge,z,zMin,zMax,nZ)-1)
 
+"""
+    function cellPosNeigh(pos,i,nX)
+    function cellPosNeigh(pos,i,nX,nY)
+    function cellPosNeigh(pos,i,nX,nY,nZ)
+
+Returns the position of the neighbors cells to the current cell i (pos in 1D = 1-3, in 2D 1-9...) and gives -1 is the pos is a boundary.
+
+e.g.
+
+grid = 
+
+1  2  3  4
+5  6  7  8
+9 10 11 12
+
+cellPosNeigh(4,5,4,3) = -1
+For i = 5 the outcomes of all the positions will be [-1,1,2,-1,5,6,-1,9,10]
+"""
 function cellPosNeigh(pos,i,nX)
     px = pos + i - 2
     if px < 1 || px > nX
@@ -438,6 +616,11 @@ function cellPosNeigh(pos,i,nX,nY,nZ)
     end
 end
 
+"""
+    function neighborsCellLinkedLoop(code,agent)
+
+Wrapper loop for cell linked neighbors algorithm.
+"""
 function neighborsCellLinkedLoop(code,agent)
 
     args = Any[:(pos_),:(i3_)]
@@ -474,6 +657,20 @@ function neighborsCellLinkedLoop(code,agent)
 
 end
 
+"""
+    macro assignCells(platform, args...)
+
+Macro to generate the code to assign agent to a cell.
+
+Adds the following functions to the library:
+
+    assignCells1CPU!(community)
+    assignCells2CPU!(community)
+    assignCells3CPU!(community)
+    assignCells1GPU!(community)
+    assignCells2GPU!(community)
+    assignCells3GPU!(community)
+"""
 macro assignCells(platform, args...)
 
     base = agentArgs(l=length(args))
@@ -520,6 +717,16 @@ macro assignCells(platform, args...)
     return code
 end
 
+"""
+    assignCells1CPU!(community)
+    assignCells2CPU!(community)
+    assignCells3CPU!(community)
+    assignCells1GPU!(community)
+    assignCells2GPU!(community)
+    assignCells3GPU!(community)
+
+Functions generated that assign the current positions of the agents to a cell.
+"""
 @assignCells CPU x
 @assignCells CPU x y
 @assignCells CPU x y z
@@ -527,6 +734,20 @@ end
 @assignCells GPU x y
 @assignCells GPU x y z
 
+"""
+    macro sortAgentsInCells(platform, args...)
+
+Macro to generate the code to sort agents in cells in cell order.
+
+Adds the following functions to the library:
+
+    sortAgentsInCells1CPU!(community)
+    sortAgentsInCells2CPU!(community)
+    sortAgentsInCells3CPU!(community)
+    sortAgentsInCells1GPU!(community)
+    sortAgentsInCells2GPU!(community)
+    sortAgentsInCells3GPU!(community)
+"""
 macro sortAgentsInCells(platform, args...)
 
     base = agentArgs(l=length(args))
@@ -576,6 +797,16 @@ macro sortAgentsInCells(platform, args...)
     return code
 end
 
+"""
+    sortAgentsInCells1CPU!(community)
+    sortAgentsInCells2CPU!(community)
+    sortAgentsInCells3CPU!(community)
+    sortAgentsInCells1GPU!(community)
+    sortAgentsInCells2GPU!(community)
+    sortAgentsInCells3GPU!(community)
+
+Functions generated that assign the current positions of the agents to a cell.
+"""
 @sortAgentsInCells CPU x
 @sortAgentsInCells CPU x y
 @sortAgentsInCells CPU x y z
@@ -583,6 +814,23 @@ end
 @sortAgentsInCells GPU x y
 @sortAgentsInCells GPU x y z
 
+"""
+    macro neighborsCellLinked(platform, args...)
+
+Macro to generate the code to compute neighbors according to cell linked algorithm.
+This function puts together the action of:
+    - assignCells
+    - sortAgentsInCells
+
+Adds the following functions to the library:
+
+    neighborsCellLinked1CPU!(community)
+    neighborsCellLinked2CPU!(community)
+    neighborsCellLinked3CPU!(community)
+    neighborsCellLinked1GPU!(community)
+    neighborsCellLinked2GPU!(community)
+    neighborsCellLinked3GPU!(community)
+"""
 macro neighborsCellLinked(platform, args...)
 
     base = agentArgs(:community,l=length(args))
@@ -623,6 +871,16 @@ macro neighborsCellLinked(platform, args...)
     return code
 end
 
+"""
+    neighborsCellLinked1CPU!(community)
+    neighborsCellLinked2CPU!(community)
+    neighborsCellLinked3CPU!(community)
+    neighborsCellLinked1GPU!(community)
+    neighborsCellLinked2GPU!(community)
+    neighborsCellLinked3GPU!(community)
+
+Functions generated to compute neighbors according to cell linked algorithm.
+"""
 @neighborsCellLinked CPU x
 @neighborsCellLinked CPU x y
 @neighborsCellLinked CPU x y z

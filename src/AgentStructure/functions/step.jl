@@ -1,8 +1,16 @@
-function step!(community)
+"""
+    function step!(community)
 
-    if !community.loaded
-        loadToPlatform!(community)
-    end
+Executes all the step functions and updates the parameters a single time.
+
+ 1. `interactionStep!(community)`
+ 2. `integrationStep!(community)`
+ 3. `localStep!(community)`
+ 4. `globalStep!(community)`
+ 5. `update!(community)`
+
+"""
+function step!(community)
 
     interactionStep!(community)
     integrationStep!(community)

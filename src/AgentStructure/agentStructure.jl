@@ -1,19 +1,23 @@
 """
     mutable struct Agent
 
-Basic structure which contains the high level code specifying the rules of the agents. 
+Basic structure which contains the user defined parmeters of the model, the user rules of the agents, both in high level definition and the functions already compiled.
 
 # Elements
 
- - **dims::Int**: Dimensions of the model.
- - **declaredSymbols::OrderedDict{Symbol,Array{Any}}**: Dictionary of parameters of the model and its properties.
- - **declaredUpdates::Dict{Symbol,Expr}**:  Dictionary of updating rules.
- - **declaredUpdatesCode::Dict{Symbol,Expr}**: Dictionary of updating rules after wrapping into code.
- - **declaredUpdatesFunction::Dict{Symbol,Function}**: Dictionary of updting rules and the compiled functions.
- - **neighbors::Symbol**: Type of neighbors computation of the model.
- - **integrator::Symbol**: Type of integrator for the Differential Equations of the model.
- - **platform::Symbol**: Platform used for evolving the model.
- - **saving::Symbol**: Saving method.
+| Field | Description |
+|:---|:---|
+| dims::Int | Dimensions of the model. |
+| declaredVariables::OrderedDict{Symbol,Equation} | Dictionary containing the parameters that have a differential equation describing their evolution assotiated. |
+| declaredSymbols::OrderedDict{Symbol,Array{Any}} | Dictionary of parameters of the model and its properties. |
+| declaredUpdates::Dict{Symbol,Expr} |  Dictionary of updating rules and their user defined content (high level code). |
+| declaredUpdatesCode::Dict{Symbol,Expr} | Dictionary of updating rules after wrapping into code (low level code). |
+| declaredUpdatesFunction::Dict{Symbol,Function} | Dictionary of updting rules and the compiled functions (compiled code). |
+| neighbors::Symbol | Type of neighbors computation of the model. |
+| integrator::Symbol | Type of integrator for the Differential Equations of the model. |
+| platform::Symbol | Platform used for evolving the model. |
+| removalOfAgents_::Bool | Stores the information to check wether agents are removed in the code. Auxiliar parameter for generating the code. |
+| posUpdated_::Vector{Bool} | Stores the information to check wether position parameters (x,y,z) are updated in the code. Auxiliar parameter for generating the code. |
 
 # Constructors
 
@@ -47,38 +51,36 @@ Generates an empty instance of Agent to be filled.
 
 Generates an agent based model with defined parameters and rules.
 
-## Arguments
- - **dims**: Dimensions of the system.
-
-## Keyword arguments
- - **localInt::Vector{Symbol}=Symbol[]**: User defined local integer parameters.
- - **localIntInteraction::Vector{Symbol}=Symbol[]**: User defined local integer interacting parameters.
- - **localFloat::Vector{Symbol}=Symbol[]**: User defined local float parameters.
- - **localFloatInteraction::Vector{Symbol}=Symbol[]**: User defined local float interacting parameters.
- - **globalFloat::Vector{Symbol}=Symbol[]**: User defined global float parameters.
- - **globalInt::Vector{Symbol}=Symbol[]**: User defined global integer parameters.
- - **globalFloatInteraction::Vector{Symbol}=Symbol[]**: User defined global float interacting parameters.
- - **globalIntInteraction::Vector{Symbol}=Symbol[]**: User defined global integer interacting parameters.
- - **medium::Vector{Symbol}=Symbol[]**: User defined medium (float) parameters.
- - **baseModelInit::Vector{Agent}=Agent[]**: Models inherited to construct this model and which rules apply before this one.
- - **baseModelEnd::Vector{Agent}=Agent[]**: Models inherited to construct this model and which rules apply after this one.
- - **neighbors::Symbol=:Full**: Type of neighbor method used.
- - **integrator::Symbol=:Euler**: Type of integrator used.
- - **platform::Symbol=:CPU**: Platform in which the agent will run.
- - **saving::Symbol=:RAM**: Saving platform.
- - **updateGlobal::Expr=quote end**: Update rule for global parameters.
- - **updateLocal::Expr=quote end**: Update rule for local parameters.
- - **updateInteraction::Expr=quote end**: Update rule for interacting parameters.
- - **updateMedium::Expr=quote end**: Update rule for medium parameters.
- - **updateMediumInteraction::Expr=quote end**: Update rule for medium interaction parameters.
- - **updateVariable::Expr=quote end**: Update rule for diferential equation defining evolution of parameters.
+|| Argument | Description |
+|:---:|:---|:---|
+| Args | dims | Dimensions of the system. |
+| KwArgs | localInt::Vector{Symbol}=Symbol[] | User defined local integer parameters. |
+|| localIntInteraction::Vector{Symbol}=Symbol[] | User defined local integer interacting parameters. |
+|| localFloat::Vector{Symbol}=Symbol[] | User defined local float parameters. |
+|| localFloatInteraction::Vector{Symbol}=Symbol[] | User defined local float interacting parameters. |
+|| globalFloat::Vector{Symbol}=Symbol[] | User defined global float parameters. |
+|| globalInt::Vector{Symbol}=Symbol[] | User defined global integer parameters. |
+|| globalFloatInteraction::Vector{Symbol}=Symbol[] | User defined global float interacting parameters. |
+|| globalIntInteraction::Vector{Symbol}=Symbol[] | User defined global integer interacting parameters. |
+|| medium::Vector{Symbol}=Symbol[] | User defined medium (float) parameters. |
+|| baseModelInit::Vector{Agent}=Agent[] | Models inherited to construct this model and which rules apply before this one. |
+|| baseModelEnd::Vector{Agent}=Agent[] | Models inherited to construct this model and which rules apply after this one. |
+|| neighbors::Symbol=:Full | Type of neighbor method used. |
+|| integrator::Symbol=:Euler | Type of integrator used. |
+|| platform::Symbol=:CPU | Platform in which the agent will run. |
+|| saving::Symbol=:RAM | Saving platform. |
+|| updateGlobal::Expr=quote end | Update rule for global parameters. |
+|| updateLocal::Expr=quote end | Update rule for local parameters. |
+|| updateInteraction::Expr=quote end | Update rule for interacting parameters. |
+|| updateMedium::Expr=quote end | Update rule for medium parameters. |
+|| updateMediumInteraction::Expr=quote end | Update rule for medium interaction parameters. |
+|| updateVariable::Expr=quote end | Update rule for diferential equation defining evolution of parameters. |
 
 For a more extense explanation of how to define rules and parameters, read `Usage` in the documentation.
 """
 mutable struct Agent
 
-    dims::Int
-    
+    dims::Int    
     declaredSymbols::OrderedDict{Symbol,UserParameter}
     declaredVariables::OrderedDict{Symbol,Equation}
     declaredUpdates::Dict{Symbol,Expr}
@@ -120,7 +122,6 @@ mutable struct Agent
         neighbors::Symbol=:Full,
         integrator::Symbol=:Euler,
         platform::Symbol=:CPU,
-        saving::Symbol=:RAM,
         updateGlobal::Expr=quote end,
         updateLocal::Expr=quote end,
         updateInteraction::Expr=quote end,
@@ -289,6 +290,12 @@ function Base.show(io::IO,abm::Agent)
     end
 end
 
+"""
+    function checkDeclared(a::Symbol, agent::Agent) 
+    function checkDeclared(a::Array{Symbol}, agent::Agent) 
+
+Check if a symbol is already declared in the model or inherited models.
+"""
 function checkDeclared(a::Array{Symbol}, agent::Agent) 
 
     for s in a
@@ -306,7 +313,9 @@ function checkDeclared(a::Symbol, agent::Agent)
 end
 
 """
-Function called by update to add the .new if it is an update expression.
+    function change(x,code)
+
+Function called by update to add the .new if it is an update expression (e.g. x += 4 -> x.new += 4).
 """
 function change(x,code)
 

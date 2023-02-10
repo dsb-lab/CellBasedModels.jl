@@ -1,6 +1,11 @@
 ######################################################################################################
 # code to list the agents that survived
 ######################################################################################################
+"""
+    function listSurvivedCPU!(community)
+
+Function that listes the survived agents from the end of the list to fill the left gaps by removed agents.
+"""
 function listSurvivedCPU!(community)
 
     count = 1
@@ -22,6 +27,16 @@ function listSurvivedCPU!(community)
 
 end
 
+"""
+    macro kernelListSurvivedGPU!(arg,arg2)
+
+Macro that constructs the kernel that listes the survived agents from the end of the list to fill the left gaps by removed agents in GPU. Is the GPU version of `listSurvivedCPU!`.
+
+Generates the code of the kernel function:
+
+    function kernelListSurvivedGPU!(community)
+
+"""
 macro kernelListSurvivedGPU!(arg,arg2)
 
     base = eval(arg)
@@ -56,6 +71,15 @@ end
 ######################################################################################################
 # code to fill the holes left by cells that did not survived
 ######################################################################################################
+"""
+    macro fillHolesCPU!(arg)
+
+Macro to generate the function to fill the holes left by dead agents with the survived agents listed by `listSurvivedCPU!` over all the parameters that have :Local dimension (are proportional to agents).
+
+Creates the function:
+
+    fillHolesCPU!(community)
+"""
 macro fillHolesCPU!(arg)
 
     #get base parameters
@@ -110,6 +134,15 @@ end
 
 @fillHolesCPU! BASEPARAMETERS
 
+"""
+    macro kernelFillHolesGPU!(arg,arg2)
+
+Macro to generate the function to fill the holes left by dead agents with the survived agents listed by `listSurvivedGPU!` over all the parameters that have :Local dimension (are proportional to agents).
+
+Creates the function:
+
+    kernelFillHolesGPU!(community)
+"""
 macro kernelFillHolesGPU!(arg,arg2)
 
     #get base parameters
@@ -173,6 +206,16 @@ end
 ######################################################################################################
 # code to save updated parameters .new in the base array
 ######################################################################################################
+"""
+    macro updateParameters!(arg, platform)
+
+Macro to generate the code that assigns the updated parameters assigned in XXXNew_ to the base parameter XXX_ in BASEPARAMETERS.
+
+Creates the functions:
+
+    updateParametersCPU!(community)
+    updateParametersGPU!(community)
+"""
 macro updateParameters!(arg, platform)
 
     #get base parameters
@@ -234,6 +277,16 @@ end
 ######################################################################################################
 # full update code
 ######################################################################################################
+"""
+    function updateCPU!(community)
+
+Function groups together the functions:
+ - `listSurvivedCPU!`
+ - `fillHolesCPU!`
+ - `updateParametersCPU`
+
+And updates the number of agents and resets the corresponding parmaeters after update.
+"""
 function updateCPU!(community)
 
     #List and fill holes left from agent removal
@@ -258,6 +311,20 @@ function updateCPU!(community)
 
 end
 
+"""
+    macro updateGPU!(arg,arg2)
+
+Macro that constructs the function:
+
+    function updateGPU!(community)
+
+Function groups together the functions:
+ - `listSurvivedGPU!`
+ - `fillHolesGPU!`
+ - `updateParametersGPU`
+
+And updates the number of agents and resets the corresponding parmaeters after update.
+"""
 macro updateGPU!(arg,arg2)
 
     base = eval(arg)
@@ -294,6 +361,11 @@ end
 
 @updateGPU!(BASEPARAMETERS,POSITIONPARAMETERS)
 
+"""
+    function update!(community)
+
+Function that updates all the parameters after making a step in the community.
+"""
 function update!(community)
 
     checkLoaded(community)

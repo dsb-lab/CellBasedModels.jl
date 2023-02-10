@@ -1,6 +1,11 @@
 #######################################################################################################
 # Get the equations
 #######################################################################################################
+"""
+    function addToList(x,agent;type)
+
+Add the code from dt or dW (type) terms to the Corresponding `Equation` structure. Give errors if some code is already present or if SDE is not implemented for that particular integrator.
+"""
 function addToList(x,agent;type)
 
     if type == :Deterministic
@@ -29,6 +34,12 @@ function addToList(x,agent;type)
 
 end
 
+"""
+    function getEquation(sym,code,agent)
+
+Give errors if the symbol for an equation is not vald for an SDE or ODE.
+Go over the possible dt and dW terms in the equation and add them to the structure `Equation`.
+"""
 function getEquation(sym,code,agent)
 
     if sym in POSITIONPARAMETERS[end:-1:agent.dims+1]
@@ -55,6 +66,11 @@ function getEquation(sym,code,agent)
 
 end
 
+"""
+    function getEquations!(agent)
+
+Go over the code in updateVariable and get the equations defined in the code.
+"""
 function getEquations!(agent)
 
     code = agent.declaredUpdates[:UpdateVariable]
@@ -68,6 +84,11 @@ end
 #######################################################################################################
 # Convert the equations
 #######################################################################################################
+"""
+    function integratorFunction(agent)
+
+Creates the final code provided to Agent in `updateVariable` as a function and adds it to the Agent.
+"""
 function integratorFunction(agent)
 
     integ = INTEGRATOR[agent.integrator]
@@ -197,6 +218,11 @@ function integratorFunction(agent)
 
 end
 
+"""
+    function integrationStep!(community)
+
+Function that computes a integration step of the community a time step `dt` using the defined Integrator defined in Agent.
+"""
 function integrationStep!(community)
 
     checkLoaded(community)

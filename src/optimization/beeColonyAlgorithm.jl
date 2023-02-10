@@ -10,22 +10,23 @@ import ...AgentBasedModels: rand, Categorical, Uniform
         returnAll::Bool = false,
         initialisation::Union{Nothing,DataFrame} = nothing,
         saveFileName::Union{Nothing,String} = nothing,
-        args::Vector{<:Any} = Any[])
+        args::Vector{<:Any} = Any[],
+        verbose=false)
 
 Optimization of the parameter space of a model that uses the [Bee Colony Algorithm](https://en.wikipedia.org/wiki/Artificial_bee_colony_algorithm).
 
-# Args
- - **evalFunction:: Function** : Function that takes a DataFrame with parameters, generates the simulations and returns a score of the fit.
- - **searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
-
-# KwArgs
- - **population::Int=100** : Size of the colony used at each generation for the optimization.
- - **limitCycles::Int = 10** : Hyperparameter of the algorithm that says how many generations without update are waited until jump to other position.
- - **stopMaxGenerations::Int = 100** : How many generations do before stopping the algorithm. 
- - **returnAll::Bool = false** : If return the hole list of parameters explored or the just the most fit.
- - **initialisation::Union{Nothing,DataFrame} = nothing** : DataFrame defining the initial parameters of the population. If nothing, they are set randomly.
- - **saveFileName::Union{Nothing,String} = nothing** : If given a string, it saves the parameters explored in a file with the corresponding name.
- - **args::Vector{<:Any} = Any[]** : Additional arguments to give to `evalFunction`.
+||Parameter|Description|
+|:---|:---|:---|
+|Args|evalFunction:: Function | Function that takes a DataFrame with parameters, generates the simulations and returns a score of the fit.|
+||searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}} | Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).|
+|KwArgs|population::Int=100 | Size of the colony used at each generation for the optimization.|
+||limitCycles::Int = 10 | Hyperparameter of the algorithm that says how many generations without update are waited until jump to other position.|
+||stopMaxGenerations::Int = 100 | How many generations do before stopping the algorithm. |
+||returnAll::Bool = false | If return the hole list of parameters explored or the just the most fit.|
+||initialisation::Union{Nothing,DataFrame} = nothing | DataFrame defining the initial parameters of the population. If nothing, they are set randomly.|
+||saveFileName::Union{Nothing,String} = nothing | If given a string, it saves the parameters explored in a file with the corresponding name.|
+||args::Vector{<:Any} = Any[] | Additional arguments to give to `evalFunction`.|
+||verbose=false | If `true`, show progress bar during optimization.|
 """
 function beeColonyAlgorithm(
                         evalFunction::Function, 
@@ -36,7 +37,8 @@ function beeColonyAlgorithm(
                         returnAll::Bool = false,
                         initialisation::Union{Nothing,DataFrame} = nothing,
                         saveFileName::Union{Nothing,String} = nothing,
-                        args::Vector{<:Any} = Any[])
+                        args::Vector{<:Any} = Any[],
+                        verbose=false)
 
     mTotal = DataFrame()
 
@@ -64,10 +66,14 @@ function beeColonyAlgorithm(
     m[:,:_cycles_] .= 0
 
     #Start first simulations
-    prog = Progress(population,string("Generation ",1,"/",stopMaxGenerations))
+    if verbose
+        prog = Progress(population,string("Generation ",1,"/",stopMaxGenerations))
+    end
     Threads.@threads for i in 1:population
         m[i,:_score_] = evalFunction(m[i,:],args...)
-        next!(prog)
+        if verbose
+            next!(prog)
+        end
     end
     mTotal = copy(m)
 
@@ -89,7 +95,9 @@ function beeColonyAlgorithm(
         else
             p .= 1/population
         end
-        prog = Progress(population,string("Generation ",k,"/",stopMaxGenerations))
+        if verbose
+            prog = Progress(population,string("Generation ",k,"/",stopMaxGenerations))
+        end
         Threads.@threads for i in 1:population
             candidate = rand(Categorical(p))
             for param in keys(searchList)
@@ -108,7 +116,9 @@ function beeColonyAlgorithm(
             if m[i,:_cycles_] < limitCycles
                 mNew[i,:_cycles_] = 0
             end
-            next!(prog)
+            if verbose
+                next!(prog)
+            end
         end
         mOld = copy(m)
         m = copy(mNew)
@@ -123,6 +133,9 @@ function beeColonyAlgorithm(
                 m[i,:] = mOld[i,:]
                 m[i,:_cycles_] += 1
                 m[i,:_generation_] = generation
+                if verbose
+                    next!(prog)
+                end
             end
         end
         append!(mTotal,m)

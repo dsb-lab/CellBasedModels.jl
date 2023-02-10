@@ -1,3 +1,14 @@
+"""
+    function saveRAM!(community::Community;saveLevel=1)
+
+Function that stores the present configuration of community in the field `Community.pastTimes`.
+The parameter `saveLevel` indicates which parameters should be saved.
+
+|saveLevel|saved parameters|
+|:---:|:---|
+|1|User defined parameters and modifiable parameters. (t,N...) (default)|
+|2|All auxiliar parameters of Community (for debugging)|
+"""
 function saveRAM!(community::Community;saveLevel=1)
 
     N = 0
@@ -46,6 +57,17 @@ function saveRAM!(community::Community;saveLevel=1)
 
 end
 
+"""
+    function saveJLD!(community::Community;saveLevel=1)
+
+Function that stores the present configuration of community in the file defined in `Community.fileSaving`.
+The parameter `saveLevel` indicates which parameters should be saved.
+
+|saveLevel|saved parameters|
+|:---:|:---|
+|1|User defined parameters and modifiable parameters. (t,N...) (default)|
+|2|All auxiliar parameters of Community (for debugging)|
+"""
 function saveJLD2!(community::Community;saveLevel=1)
 
     f = nothing
@@ -141,6 +163,11 @@ function saveJLD2!(community::Community;saveLevel=1)
 
 end
 
+"""
+    function loadJLD2!(file::String)
+
+Load the Community structure saved in file.
+"""
 function loadJLD2!(file::String)
 
     com = Community()

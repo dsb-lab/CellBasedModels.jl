@@ -3,16 +3,12 @@
 ##############################################################################################################################
 
 """
-Remove all points that are not inside a specified volume.
+    function removePositions(xyz,f::Function)
 
-# Arguments
- - **xyz** (Array{Array{Any}}) Array containing all the list of position parameters.
- - **f** (Function) Function that returns true if the position is inside the volume.
- 
-# Returns
-Array{Array{Any}} Extruded points.
+Remove all points that do not follow the rule `f` (`true` if inside, `false` if outside).
+Returns points that are kept.
 """
-function extrude(xyz,f::Function)
+function removePositions(xyz,f::Function)
     l = f(xyz...)
     xyzAux = []
     for i in xyz
@@ -22,60 +18,17 @@ function extrude(xyz,f::Function)
     return xyzAux
 end
 
-"""
-Remove all points that are not inside a specified volume.
-
-# Arguments
- - **com** (Community) Community to extrude.
- - **f** (Function) Function that returns true if the position is inside the volume.
- 
-# Returns
-nothing
-"""
-function extrude!(com::Community,f::Function)
-
-    x = com.loc[:,1:com.dims]
-    l = f(x)
-
-    if size(com.var)[2] > 0
-        com.var = com.var[l,:]
-    end
-    if size(com.inter)[2] > 0
-        com.inter = com.inter[l,:]
-    end
-    if size(com.loc)[2] > 0
-        com.loc = com.loc[l,:]
-    end
-    if size(com.locInter)[2] > 0
-        com.locInter = com.locInter[l,:]
-    end
-    if size(com.ids)[2] > 0
-        com.ids = com.ids[l,:]
-    end
-    com.N = sum(l)
-
-    return 
-end
-
 ##############################################################################################################################
 # Community initializers
 ##############################################################################################################################
 acceptAll(x) = true
 
 """
-    compactHexagonal(box::Array{<:Real,2},r::Number)
+    packagingCompactHexagonal(box::Array{<:Real,2},r::Number)
 
-Make a 3D lattice with hexagonal structure.
-
-# Args
-
- - **box::Array{<:Real,2}**: 3D Box to be filled with spheres of radius r. e.g. [[0,1],[1,2],[0,4]]
- - **r::Number**: Radius of the sphere
-
-# Return
-    `Comunnity` object with the spheres
+Make a 3D hexagonal lattice filled with spheres of radius `r`.
 """
-function compactHexagonalPackaging(box::Array{<:Real,2},r::Number)
+function packagingCompactHexagonal(box::Array{<:Real,2},r::Number)
 
     d = size(box)
     if d != (3,2)
@@ -125,19 +78,11 @@ function compactHexagonalPackaging(box::Array{<:Real,2},r::Number)
 end
 
 """
-    cubic(box::Array{<:Real,2},r::Number)
+    packagingCubic(box::Array{<:Real,2},r::Number)
 
-Make a 3D lattice with cubic structure.
-
-# Args
-
- - **box::Array{<:Real,2}**: 3D Box to be filled with spheres of radius r. e.g. [[0,1],[1,2],[0,4]]
- - **r::Number**: Radius of the sphere
-
-# Return
-    `Comunnity` object with the spheres
+Make a 3D cubic lattice filled with spheres of radius `r`.
 """
-function cubicPackaging(box::Array{<:Real,2},r::Number)
+function packagingCubic(box::Array{<:Real,2},r::Number)
 
     d = size(box)
     if d != (3,2)
@@ -179,21 +124,19 @@ function cubicPackaging(box::Array{<:Real,2},r::Number)
 end
 
 """
-    function initializeCommunityCompactCubic(model,box,r;fExtrude=acceptAll,N=NaN,mediumN::Array{Int,1}=Array{Int,1}([]))
+    function initializeCommunity(model,box,r;packaging::Function,fExtrude=acceptAll,args...)
 
-Create Community object with the positions of the agents in positioned in volume in cubic packing.
+Create Community object with the positions of the agents in positioned in an specific packing.
 
-# Args 
- - **model** Compiled agent based model
- - **box** Maximum box where to fill the spheres.
- - **r** Radius of the spheres
-
-# KwArgs
- - **fExtrude=acceptAll** Function that returns true if center of the sphere is inside the volume. Helpts to define non-cubic shapes
- - **N=NaN** Maximum number of particles inside the volume. If NaN, there is not upper bound.
- - **mediumN::Array{Int,1}=Array{Int,1}([])** Grid dimensions of medium if Medium is declared.
+||Name|Description|
+|Args| model | Sgent based model. |
+||box| Maximum box to fill by spheres. |
+||r| Radius of the spheres. |
+|KwArgs|packaging:Function|Method of packaging of the spheres. (See packaging methods)|
+||fExtrude|Function that given an array of positions, returns true for positions that want to be kept.|
+||args...|Arguments to be passed to Community structure for initialization (except `N`)|
 """
-function initializeCommunity(model,box,r;packaging::Function,fExtrude=acceptAll,args...)
+function initializeSpheresCommunity(model,box,r;packaging::Function,fExtrude=acceptAll,args...)
 
     if :N in keys(args)
         error("For shape initialization, no N has to be passed.")
@@ -206,9 +149,15 @@ function initializeCommunity(model,box,r;packaging::Function,fExtrude=acceptAll,
     X = X[ext,:]
         
     com = Community(model,N=[size(X)[1]],args...)
-    com.x = X[:,1]
-    com.y = X[:,2]
-    com.z = X[:,3]
+    if com.agent.dims > 0
+        com.x = X[:,1]
+    end
+    if com.agent.dims > 1
+        com.y = X[:,2]
+    end
+    if com.agent.dims > 2
+        com.z = X[:,3]
+    end
 
     return com
 end
