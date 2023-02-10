@@ -55,7 +55,7 @@ export Community, loadToPlatform!, bringFromPlatform!
 include("./CommunityStructure/communityStructure.jl")
 export saveJLD2!, saveRAM!, loadJLD2!
 include("./CommunityStructure/IO.jl")
-export initializeCommunity, cubicPackaging, compactHexagonalPackaging
+export initializeSpheresCommunity, packagingCompactHexagonal, packagingCubic
 include("./CommunityStructure/initializers.jl")
 
 #Optimization tools

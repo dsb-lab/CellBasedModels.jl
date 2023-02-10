@@ -11,24 +11,25 @@ import ...AgentBasedModels: rand
         initialisation::Union{Nothing,DataFrame} = nothing,
         returnAll::Bool = false,
         saveFileName::Union{Nothing,String} = nothing,
-        args::Vector{<:Any} = Any[])
+        args::Vector{<:Any} = Any[],
+        verbose=false)
 
 Optimization of the parameter space of a model that uses the [Swarm Algorithm](https://en.wikipedia.org/wiki/Particle_swarm_optimization).
 
-# Args
-- **evalFunction:: Function** : Function that takes a DataFrame with parameters, generates the simulations and returns a score of the fit.
-- **searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}}** : Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).
-
-# KwArgs:
- - **population::Int = 100** : Size of the colony used at each generation for the optimization.
- - **weightInertia::Number = .1** : Hyperparameter of the colony weighting the current velocity.
- - **weightGlobalBest::Number = .1** : Hyperparameter of the colony weighting the global best solution.
- - **weightPopulationBest::Number = .1** : Hyperparameter of the colony weighting the local best solution.
- - **stopMaxGenerations::Int = 10** : How many generations do before stopping the algorithm. 
- - **initialisation::Union{Nothing,DataFrame} = nothing** : DataFrame defining the initial parameters of the population. If nothing, they are set randomly.
- - **returnAll::Bool = false** : If return the hole list of parameters explored or the just the most fit.
- - **saveFileName::Union{Nothing,String} = nothing** : If given a string, it saves the parameters explored in a file with the corresponding name.
- - **args::Vector{<:Any} = Any[]** : Additional arguments to give to `evalFunction`.
+||Parameter|Description|
+|:---|:---|:---|
+|Args|evalFunction:: Function | Function that takes a DataFrame with parameters, generates the simulations and returns a score of the fit.|
+||searchList::Dict{Symbol,<:Tuple{<:Number,<:Number}}} | Dictionary of parameters and the ranges of exloration the parameters (e.g. :x => (0,1)).|
+|KwArgs|population::Int = 100 | Size of the colony used at each generation for the optimization.|
+||weightInertia::Number = .1 | Hyperparameter of the colony weighting the current velocity.|
+||weightGlobalBest::Number = .1 | Hyperparameter of the colony weighting the global best solution.|
+||weightPopulationBest::Number = .1 | Hyperparameter of the colony weighting the local best solution.|
+||stopMaxGenerations::Int = 10 | How many generations do before stopping the algorithm. |
+||initialisation::Union{Nothing,DataFrame} = nothing | DataFrame defining the initial parameters of the population. If nothing, they are set randomly.|
+||returnAll::Bool = false | If return the hole list of parameters explored or the just the most fit.|
+||saveFileName::Union{Nothing,String} = nothing | If given a string, it saves the parameters explored in a file with the corresponding name.|
+||args::Vector{<:Any} = Any[] | Additional arguments to give to `evalFunction`.|
+||verbose=false | If `true`, show progress bar during optimization.|
 """
 function swarmAlgorithm(evalFunction::Function,  
                         searchList::Dict{Symbol,<:Union{<:Tuple{<:Number,<:Number},Vector{<:Number}}};

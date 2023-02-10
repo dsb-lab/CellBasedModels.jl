@@ -44,6 +44,11 @@ Return sym coming from UserParameter.basePar to new. (e.g. liM_ -> liMNew_)
 """
 baseParameterNew(sym) = Meta.parse(string(split(string(sym),"_")[1],"New_"))
 
+"""
+    function agentArgs(sym=nothing;l=3,params=BASEPARAMETERS,posparams=POSITIONPARAMETERS) 
+
+Function that returns the arguments obervable for the constructed functions. If symbol is given, it substitutes by the fielnames in form of by *sym.fieldname*.
+"""
 function agentArgs(sym=nothing;l=3,params=BASEPARAMETERS,posparams=POSITIONPARAMETERS) 
 
     pars = [i for i in keys(params)]
@@ -120,6 +125,12 @@ end
 ##############################################################################################################################
 # Check if appropiate format
 ##############################################################################################################################
+"""
+    function checkFormat(sym,args,prop,dict,agent)
+
+Function that checks that the args provided to Community are from the same type that the ones provided by automatic initialization property in BASEPARAMETERS. 
+If they are not, it gives an error.
+"""
 function checkFormat(sym,args,prop,dict,agent)
 
     a = prop.initialize(dict,agent)
@@ -138,6 +149,11 @@ end
 ##############################################################################################################################
 # Constuct custom functions
 ##############################################################################################################################
+"""
+    function makeSimpleLoop(code,agent)
+
+Wrap code in loop iterating over the Community agents in the correct platform.
+"""
 function makeSimpleLoop(code,agent)
 
     if agent.platform == :CPU
@@ -152,6 +168,13 @@ function makeSimpleLoop(code,agent)
 
 end
 
+"""
+    function addCuda(code,platform::Symbol;oneThread=false)
+    function addCuda(code,agent;oneThread=false)
+
+Add cuda macro to execute the kernel with the correspondent number of threads and blocks.
+If one thread, launches the kernel just with one thread.
+"""
 function addCuda(code,platform::Symbol;oneThread=false)
 
     if platform == :GPU
@@ -162,8 +185,8 @@ function addCuda(code,platform::Symbol;oneThread=false)
         
         else
 
-            # code = :(@cuda threads=community.platform.threads blocks=community.platform.blocks $code)
-            code = :(@cuda threads=5 blocks=5 $code)
+            code = :(@cuda threads=community.platform.threads blocks=community.platform.blocks $code)
+            # code = :(@cuda threads=5 blocks=5 $code)
 
         end
 
@@ -179,6 +202,11 @@ function addCuda(code,agent;oneThread=false)
 
 end
 
+"""
+    function cudaAdapt(code,agent)
+
+Adapt specific CPU forms of calling parameters (e.g. Atomic) to CUDA valid code (Atomic -> size 1 CuArray).
+"""
 function cudaAdapt(code,agent)
 
     if agent.platform == :GPU
@@ -194,6 +222,7 @@ function cudaAdapt(code,agent)
 
 end
 
+############ I think this code can be removed
 macro cudaAdapt(code)
 
     code1 = copy(code)
@@ -213,6 +242,7 @@ macro cudaAdapt(code)
 
 end
 
+############ I think this code can be removed
 CUDATHREADS1D = quote
     index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
     stride = gridDim().x * blockDim().x
@@ -221,6 +251,11 @@ end
 ##############################################################################################################################
 # Vectorize parameters
 ##############################################################################################################################
+"""
+    function vectorize(code,agent)
+
+Function that transforms the code provided in Agent to the vectorized form for wrapping around an executable function.
+"""
 function vectorize(code,agent)
 
     #For user declared symbols
@@ -289,6 +324,11 @@ function vectorize(code,agent)
 
 end
 
+"""
+    function clean(code,it=5)
+
+Simplify code by removing multiplications by 1 or 0 and additions of 0 that appear sometimes when generating the integration code.
+"""
 function clean(code,it=5)
 
     for i in 1:it
@@ -314,21 +354,29 @@ VALIDDISTRIBUTIONS = [i for i in names(Distributions) if uppercasefirst(string(i
 VALIDDISTRIBUTIONSCUDA = [:Normal,:Uniform,:Exponential]
 
 #Random distribution transformations for cuda capabilities
+"""
+    NormalCUDA(x,μ,σ)
+
+Normal distribution adapted to CUDA.
+"""
 NormalCUDA(x,μ,σ) = σ*CUDA.sqrt(2.)*SpecialFunctions.erfinv(2*(x-.5))+μ
+"""
+    UniformCUDA(x,l0,l1)
+
+Uniform distribution adapted to CUDA.
+"""
 UniformCUDA(x,l0,l1) = (l1-l0)*x+l0
+"""
+    ExponentialCUDA(x,θ)
+
+Exponential distribution adapted to CUDA.
+"""
 ExponentialCUDA(x,θ) = -CUDA.log(1-x)*θ
 
 """
-    function randomAdapt_(code::Expr, p::Agent)
+    function randomAdapt(code, p)
 
-Function that adapt the random function invocations of the code to be executable in the different platforms.
-
-# Args
- - **p::Agent**: Agent structure containing all the created code when compiling.
- - **code::Expr**:  Code to be adapted.
-
-# Returns
- - `Expr` with the code adapted.
+Adapt the random function invocations of the code to be executable in the different platforms.
 """
 function randomAdapt(code, p)
 

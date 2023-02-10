@@ -1,3 +1,8 @@
+"""
+    function interactionFunction(agent)
+
+Creates the final code provided to Agent in `updateInteraction` as a function and adds it to the Agent.
+"""
 function interactionFunction(agent)
 
         #Metric args
@@ -50,6 +55,11 @@ function interactionFunction(agent)
 
 end
 
+"""
+    function interactionStep!(community)
+
+Function that computes a interaction step of the community a time step `dt`.
+"""
 function interactionStep!(community)
 
     checkLoaded(community)

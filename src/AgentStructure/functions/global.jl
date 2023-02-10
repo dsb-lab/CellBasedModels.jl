@@ -1,6 +1,11 @@
 ######################################################################################################
 # add agent code
 ######################################################################################################
+"""
+    function addGlobalAgentCode(arguments,agent::Agent)
+
+Functions that returns the special code based on the arguments provided to `addAgent`.
+"""
 function addGlobalAgentCode(arguments,agent::Agent)
 
     #List parameters that can be updated by the user
@@ -62,6 +67,11 @@ function addGlobalAgentCode(arguments,agent::Agent)
     return code
 end
 
+"""
+    function addEventGlobalAddAgent(code::Expr,agent::Agent)
+
+Functions that goes over all the calls to `addAgent` and inserts the compiled code provided by `addGlobalAgentCode`.
+"""
 function addEventGlobalAddAgent(code::Expr,agent::Agent)
 
     if inexpr(code,:addAgent)
@@ -79,6 +89,11 @@ end
 ######################################################################################################
 # global function
 ######################################################################################################
+"""
+    function globalFunction(agent)
+
+Creates the final code provided to Agent in `updateGlobal` as a function and adds it to the Agent.
+"""
 function globalFunction(agent)
 
     if !all([typeof(i) == LineNumberNode for i in agent.declaredUpdates[:UpdateGlobal].args])
@@ -107,6 +122,11 @@ function globalFunction(agent)
 
 end
 
+"""
+    function globalStep!(community)
+
+Function that computes a global step of the community a time step `dt`.
+"""
 function globalStep!(community)
 
     checkLoaded(community)
