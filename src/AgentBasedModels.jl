@@ -13,6 +13,7 @@ using CSV
 using JLD2
 # import GeometryBasics, GLMakie
 import MacroTools: postwalk, prewalk, @capture, inexpr, prettify, gensym, flatten, unblock, isexpr
+export prettify
 import SpecialFunctions
 using ProgressMeter
 using Test
@@ -45,32 +46,30 @@ include("./AgentStructure/functions/update.jl")
 export integrationStep!
 include("./AgentStructure/functions/integrators.jl")
     #Step
-export step!
+export step!, evolve!
 include("./AgentStructure/functions/step.jl")
 # include("./AgentStructure/compile/integrator/implicitEuler.jl")
 # include("./AgentStructure/compile/integrator/verletVelocity.jl")
 
 #Community
-export Community, loadToPlatform!, bringFromPlatform!
+export Community, loadToPlatform!, bringFromPlatform!, getParameter
 include("./CommunityStructure/communityStructure.jl")
-export saveJLD2!, saveRAM!, loadJLD2!
+export saveJLD2, saveRAM!, loadJLD2
 include("./CommunityStructure/IO.jl")
 export initializeSpheresCommunity, packagingCompactHexagonal, packagingCubic
 include("./CommunityStructure/initializers.jl")
 
 #Optimization tools
-export Optimization
-include("./optimization/optimization.jl")
+export Fitting
+include("./fitting/fitting.jl")
+
+#Implemented Models
+export Models
+include("./implementedModels/models.jl")
 
 # #Visualization functions
 # export plotSpheres, plotRods, videoRods
 # include("./plotting/rods.jl")
 # include("./plotting/spheres.jl")
-
-#Cuda
-# include("./cuda/cudaConfigurator.jl")
-
-#Implemented Models
-# include("./implementedModels/models.jl")
 
 end

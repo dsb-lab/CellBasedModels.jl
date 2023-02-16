@@ -220,7 +220,15 @@ mutable struct Community
             end
         end
     
-        return new(agent, false, Platform(256,1), nothing, Community[], [j for (i,j) in pairs(dict)]...)
+        com = new(agent, false, Platform(256,1), nothing, Community[], [j for (i,j) in pairs(dict)]...)
+
+        for sym in keys(args)
+            if sym in keys(agent.declaredSymbols)
+                setproperty!(com,sym,args[sym])
+            end
+        end
+
+        return com
 
     end
 

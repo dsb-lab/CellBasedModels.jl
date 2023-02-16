@@ -127,7 +127,8 @@ mutable struct Agent
         updateInteraction::Expr=quote end,
         updateMedium::Expr=quote end,
         updateMediumInteraction::Expr=quote end,
-        updateVariable::Expr=quote end
+        updateVariable::Expr=quote end,
+        compile = false,
         )
 
         agent = Agent()
@@ -177,8 +178,12 @@ mutable struct Agent
         
         #Add Updates
         for a in baseModelInit
-            for update in UPDATES
-                agent.declaredUpdates[update] = a.updates[update]
+            for (update,code) in pairs(a.declaredUpdates)
+                if update in keys(agent.declaredUpdates)
+                    push!(agent.declaredUpdates[update].args, code)
+                else
+                    agent.declaredUpdates[update] = code
+                end
             end
         end
         for (update,code) in zip(UPDATES, [updateGlobal, 
@@ -187,11 +192,19 @@ mutable struct Agent
                                             updateMedium, 
                                             updateMediumInteraction, 
                                             updateVariable])
-            agent.declaredUpdates[update] = code
+            if update in keys(agent.declaredUpdates)
+                push!(agent.declaredUpdates[update].args, code)
+            else
+                agent.declaredUpdates[update] = code
+            end
         end
         for a in baseModelEnd
-            for update in UPDATES
-                agent.declaredUpdates[update] = a.updates[update]
+            for (update,code) in pairs(a.declaredUpdates)
+                if update in keys(agent.declaredUpdates)
+                    push!(agent.declaredUpdates[update].args, code)
+                else
+                    agent.declaredUpdates[update] = code
+                end
             end
         end
 
@@ -262,11 +275,13 @@ mutable struct Agent
         end
 
         #Make compiled functions
-        localFunction(agent)
-        globalFunction(agent)
-        neighborsFunction(agent)
-        interactionFunction(agent)
-        integratorFunction(agent)
+        if compile 
+            localFunction(agent)
+            globalFunction(agent)
+            neighborsFunction(agent)
+            interactionFunction(agent)
+            integratorFunction(agent)
+        end
 
         return agent
     end
@@ -283,7 +298,7 @@ function Base.show(io::IO,abm::Agent)
 
     print("\n\nUPDATE RULES\n")
     for i in keys(abm.declaredUpdates)
-        if [i for i in abm.declaredUpdates[i].args if typeof(i) != LineNumberNode] != []
+        if [i for i in prettify(abm.declaredUpdates[i]).args if typeof(i) != LineNumberNode] != []
             print(i,"\n")
             print(" ",prettify(copy(abm.declaredUpdates[i])),"\n\n")
         end

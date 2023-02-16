@@ -1,7 +1,8 @@
 module Models
 
 #    using AgentBasedModels
-    import ...AgentBasedModels: @agent
+    import ...AgentBasedModels: Agent
     
-    include("./bacteria.jl")
+    include("./softSpheres.jl")
+    include("./rods.jl")
 end

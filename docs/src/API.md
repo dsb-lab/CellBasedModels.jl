@@ -39,6 +39,7 @@ bringFromPlatform!
 ## Evolution functions
 
 ```@docs
+evolve!
 step!
 globalStep!
 localStep!
@@ -51,15 +52,15 @@ update!
 ## IO
 ```@docs
 saveRAM!
-saveJLD2!
-loadJLD2!
+saveJLD2
+loadJLD2
 ```
 
-## Optimization
+## Fitting
 ```@docs
-Optimization.gridSearch
-Optimization.stochasticDescentAlgorithm
-Optimization.swarmAlgorithm
-Optimization.beeColonyAlgorithm
-Optimization.geneticAlgorithm
+Fitting.gridSearch
+<!-- Fitting.stochasticDescentAlgorithm -->
+Fitting.swarmAlgorithm
+Fitting.beeColonyAlgorithm
+Fitting.geneticAlgorithm
 ```

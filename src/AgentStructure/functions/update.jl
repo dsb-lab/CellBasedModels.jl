@@ -302,8 +302,6 @@ function updateCPU!(community)
     end
     #Update parameters
     updateParametersCPU!(community)
-    #Recompute neighbors
-    computeNeighbors!(community)
     #Update time
     community.t .+= community.dt
 
@@ -348,8 +346,6 @@ macro updateGPU!(arg,arg2)
         end
         #Update parameters
         updateParametersGPU!(community)
-        #Recompute neighbors
-        computeNeighbors!(community)
         #Update time
         community.t .+= community.dt
 

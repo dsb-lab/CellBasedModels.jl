@@ -701,11 +701,11 @@ end
                     loadToPlatform!(com)
                     for i in 1:5
                         step!(com)
-                        saveJLD2!(com,saveLevel=5)
+                        saveJLD2(com,saveLevel=5)
                     end
                     bringFromPlatform!(com)
 
-                    com = loadJLD2!("testfiles/jld.jld2")
+                    com = loadJLD2("testfiles/jld.jld2")
                     isTrue = []
                     for i in 1:5
                         comCheck.t = .1*i
@@ -744,10 +744,10 @@ end
 
                     loadToPlatform!(com)
                     step!(com)
-                    saveJLD2!(com)
+                    saveJLD2(com)
                     bringFromPlatform!(com)
                     
-                    com = loadJLD2!("testfiles/jld.jld2")
+                    com = loadJLD2("testfiles/jld.jld2")
                     #Check evolution can be done again from any timepoint if saveLevel=1
                     com = com[end]
                     com.fileSaving = "testfiles/jld.jld2"
@@ -757,7 +757,7 @@ end
                     loadToPlatform!(com)
                     for i in 1:5
                         step!(com)
-                        saveJLD2!(com)
+                        saveJLD2(com)
                     end
                     bringFromPlatform!(com)
 

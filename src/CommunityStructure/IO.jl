@@ -58,9 +58,10 @@ function saveRAM!(community::Community;saveLevel=1)
 end
 
 """
-    function saveJLD!(community::Community;saveLevel=1)
+    function saveJLD2(community::Community;saveLevel=1)
 
 Function that stores the present configuration of community in the file defined in `Community.fileSaving`.
+The behavior of the function is to append to the file if the file exists. If you want to restart the file, you will have to rename the exisiting file or delete it before running the function.
 The parameter `saveLevel` indicates which parameters should be saved.
 
 |saveLevel|saved parameters|
@@ -68,7 +69,7 @@ The parameter `saveLevel` indicates which parameters should be saved.
 |1|User defined parameters and modifiable parameters. (t,N...) (default)|
 |2|All auxiliar parameters of Community (for debugging)|
 """
-function saveJLD2!(community::Community;saveLevel=1)
+function saveJLD2(community::Community;saveLevel=1)
 
     f = nothing
     if typeof(community.fileSaving) <: JLD2.JLDFile
@@ -95,7 +96,11 @@ function saveJLD2!(community::Community;saveLevel=1)
 
             f["loaded"] = community.loaded
             f["platform"] = community.platform    
-            f["fileSaving"] = community.fileSaving
+            if typeof(com.fileSaving) <: JLD2.JLDFile
+                f["fileSaving"] = com.fileSaving.path
+            else
+                f["fileSaving"] = community.fileSaving
+            end
         end
 
 
@@ -164,11 +169,11 @@ function saveJLD2!(community::Community;saveLevel=1)
 end
 
 """
-    function loadJLD2!(file::String)
+    function loadJLD2(file::String)
 
 Load the Community structure saved in file.
 """
-function loadJLD2!(file::String)
+function loadJLD2(file::String)
 
     com = Community()
 
@@ -256,6 +261,17 @@ function loadJLD2!(file::String)
 
         close(f)
 
+    end
+
+    #Initializing parameters that were nothing before
+    dict = OrderedDict()
+    for (sym,prop) in pairs(BASEPARAMETERS)
+        if getfield(com,sym) === nothing
+            setfield!(com,sym,prop.initialize(dict,com.agent))
+            dict[sym] = getfield(com,sym)
+        else
+            dict[sym] = getfield(com,sym)
+        end
     end
 
     setfield!(com,:loaded,false)

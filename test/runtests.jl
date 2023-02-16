@@ -15,5 +15,6 @@ end
 
 # include("testAgent.jl")
 # include("testCommunity.jl")
-include("testOptimization.jl")
+# include("testOptimization.jl")
+include("testModels.jl")
 # include("testMedium.jl")
