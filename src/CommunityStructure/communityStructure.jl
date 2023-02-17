@@ -322,7 +322,12 @@ function Base.getproperty(com::Community,var::Symbol)
         if var in keys(com.agent.declaredSymbols)
             x = com.agent.declaredSymbols[var].basePar
             pos = com.agent.declaredSymbols[var].position
-            return @views getfield(com,x)[:,pos]
+            scope = com.agent.declaredSymbols[var].scope
+            if scope == :Local
+                return @views getfield(com,x)[:,pos]
+            elseif scope == :Global
+                return @views getfield(com,x)[pos:pos]
+            end
         else
             error("Parameter ", var, " not found in the community.")
         end
@@ -332,21 +337,11 @@ end
 
 function Base.getindex(com::Community,var::Symbol)
     
-    if var in fieldnames(Community)
-        return getfield(com,var)
-    else
-        if var in keys(com.agent.declaredSymbols)
-            x = com.agent.declaredSymbols[var].basePar
-            pos = com.agent.declaredSymbols[var].position
-            return @views getfield(com,x)[:,pos]
-        else
-            error("Parameter ", var, " not found in the community.")
-        end
-    end
+    getproperty(com,var)
 
 end
 
-function Base.setproperty!(com::Community,var::Symbol,v::Array{<:Number})
+function Base.setproperty!(com::Community,var::Symbol,v)
 
     if !(var in keys(com.agent.declaredSymbols)) && !(var in fieldnames(Community))
         error(var," is not in community.")
@@ -363,74 +358,19 @@ function Base.setproperty!(com::Community,var::Symbol,v::Array{<:Number})
     else
         x = com.agent.declaredSymbols[var].basePar
         pos = com.agent.declaredSymbols[var].position
-        getfield(com,x)[:,pos] .= v
+        scope = com.agent.declaredSymbols[var].scope
+        if scope == :Local
+            getfield(com,x)[:,pos] .= v
+        elseif scope == :Global
+            getfield(com,x)[pos:pos] .= v            
+        end
     end
 
 end
 
-function Base.setproperty!(com::Community,var::Symbol,v::Number)
+function Base.setindex!(com::Community,v,var::Symbol)
     
-    if !(var in keys(com.agent.declaredSymbols)) && !(var in fieldnames(Community))
-        error(var," is not in community.")
-    elseif var in fieldnames(Community)
-        if var in keys(BASEPARAMETERS)
-            if BASEPARAMETERS[var].protected
-                error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
-            else
-                getfield(com,var) .= v
-            end
-        else
-            error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
-        end
-    else
-        x = com.agent.declaredSymbols[var].basePar
-        pos = com.agent.declaredSymbols[var].position
-        getfield(com,x)[:,pos] .= v
-    end
-
-end
-
-function Base.setindex!(com::Community,v::Array{<:Number},var::Symbol)
-    
-    if !(var in keys(com.agent.declaredSymbols)) && !(var in fieldnames(Community))
-        error(var," is not in community.")
-    elseif var in fieldnames(Community)
-        if var in keys(BASEPARAMETERS)
-            if BASEPARAMETERS[var].protected
-                error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
-            else
-                getfield(com,var) .= v
-            end
-        else
-            error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
-        end
-    else
-        x = com.agent.declaredSymbols[var].basePar
-        pos = com.agent.declaredSymbols[var].position
-        getfield(com,x)[:,pos] .= v
-    end
-
-end
-
-function Base.setindex!(com::Community,v::Number,var::Symbol)
-    
-    if !(var in keys(com.agent.declaredSymbols)) && !(var in fieldnames(Community))
-        error(var," is not in community.")
-    elseif var in fieldnames(Community)
-        if var in keys(BASEPARAMETERS)
-            if BASEPARAMETERS[var].protected
-                error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
-            else
-                getfield(com,var) .= v
-            end
-        else
-            error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
-        end
-    else
-        x = com.agent.declaredSymbols[var].basePar
-        pos = com.agent.declaredSymbols[var].position
-        getfield(com,x)[:,pos] .= v
-    end
+    setproperty!(com,var,v)
 
 end
 
