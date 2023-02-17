@@ -31,12 +31,21 @@ manhattanDistance(x1,x2,y1,y2,z1,z2) = abs(x1-x2)+abs(y1-y2)+abs(z1-z2)
 # Agent functions
 ##############################################################################################################################
 """
-    baseParameterToModifiable(sym)
+    function baseParameterToModifiable(sym)
 
 Return sym coming from UserParameter.basePar changed to modifiable. (e.g. liNM_ -> liM_)
 """
-baseParameterToModifiable(sym) = Meta.parse(string(string(sym)[1:end-3],"M_"))
+function baseParameterToModifiable(sym) 
+    
+    m = split(string(sym),"NM_")
+    
+    if length(m) == 1
+        return Meta.parse(m[1])
+    else
+        return Meta.parse(string(m[1],"M_"))
+    end
 
+end
 """
     baseParameterNew(sym)
 
