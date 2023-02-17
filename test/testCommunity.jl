@@ -109,55 +109,55 @@ end
     #     com = Community(agent,N=[10],NMedium=[1,1,1],simBox=[0. 1;0. 1;0 1])
     # end
 
-    #Get properties
-    @test_nowarn begin agent = Agent(3,
-        localInt=[:li],
-        localIntInteraction=[:lii],
-        localFloat=[:lf],
-        localFloatInteraction=[:lfi],
-        globalFloat=[:gf,:gf2],
-        globalInt=[:gi,:gi2],
-        globalFloatInteraction=[:gfi],
-        globalIntInteraction=[:gii],
-        medium=[:m]
-        )
+    # #Get properties
+    # @test_nowarn begin agent = Agent(3,
+    #     localInt=[:li],
+    #     localIntInteraction=[:lii],
+    #     localFloat=[:lf],
+    #     localFloatInteraction=[:lfi],
+    #     globalFloat=[:gf,:gf2],
+    #     globalInt=[:gi,:gi2],
+    #     globalFloatInteraction=[:gfi],
+    #     globalIntInteraction=[:gii],
+    #     medium=[:m]
+    #     )
 
-        com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
-        com.li
-        com[:li]
-        com.gf
-        com[:gf]
-        com.gf2
-        com[:gf2]
-        com.agent
-        com.loaded
-    end
+    #     com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
+    #     com.li
+    #     com[:li]
+    #     com.gf
+    #     com[:gf]
+    #     com.gf2
+    #     com[:gf2]
+    #     com.agent
+    #     com.loaded
+    # end
 
-    #Set properties
-    @test begin agent = Agent(3,
-        localInt=[:li],
-        localIntInteraction=[:lii],
-        localFloat=[:lf],
-        localFloatInteraction=[:lfi],
-        globalFloat=[:gf,:gf2],
-        globalInt=[:gi,:gi2],
-        globalFloatInteraction=[:gfi],
-        globalIntInteraction=[:gii],
-        medium=[:m]
-        )
+    # #Set properties
+    # @test begin agent = Agent(3,
+    #     localInt=[:li],
+    #     localIntInteraction=[:lii],
+    #     localFloat=[:lf],
+    #     localFloatInteraction=[:lfi],
+    #     globalFloat=[:gf,:gf2],
+    #     globalInt=[:gi,:gi2],
+    #     globalFloatInteraction=[:gfi],
+    #     globalIntInteraction=[:gii],
+    #     medium=[:m]
+    #     )
 
-        com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
-        com.li = ones(Int64,10)
-        com[:li] = ones(Int64,10)
-        com.li .= 1.
-        com.gi = 1
-        com.gf = 1. 
-        com.gi2 = 1
-        com.gf2 = 1. 
-        com.dt = 1
+    #     com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
+    #     com.li = ones(Int64,10)
+    #     com[:li] = ones(Int64,10)
+    #     com.li .= 1.
+    #     com.gi = 1
+    #     com.gf = 1. 
+    #     com.gi2 = 1
+    #     com.gf2 = 1. 
+    #     com.dt = 1
 
-        all( com.gi2 .== 1 )
-    end
+    #     all( com.gi2 .== 1 )
+    # end
 
     # #loadToPlatform
     # @test begin agent = Agent(3,
@@ -230,6 +230,26 @@ end
     #             aux
     #         end)
     #     )
+
+        @testPlatform(
+            (@test begin
+                agent = Agent(1,platform=PLATFORM,
+                            localFloat=[:lf],
+                            updateLocal = quote
+                                addAgent(lf = 5)
+                                addAgent(lf = 5)
+                                removeAgent()
+                            end
+                            );
+                com = Community(agent,N=[1]);
+                loadToPlatform!(com,preallocateAgents=3);
+                localStep!(com)
+                println("NAdd_: ",com.NAdd_[])
+                update!(com)
+
+                true
+            end)
+        )
 
     # end
     

@@ -55,6 +55,7 @@ function addAgentCode(arguments,agent::Agent)
                 id[i1New_] = idNew_
                 flagRecomputeNeighbors_ = 1
                 flagNeighbors_[i1New_] = 1
+                flagSurvive_[i1New_] = 1
                 $code
             else
                 Threads.atomic_add!(NAdd_,$(dtype)(-1))
