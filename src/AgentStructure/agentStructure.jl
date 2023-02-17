@@ -128,7 +128,7 @@ mutable struct Agent
         updateMedium::Expr=quote end,
         updateMediumInteraction::Expr=quote end,
         updateVariable::Expr=quote end,
-        compile = false,
+        compile = true,
         )
 
         agent = Agent()
