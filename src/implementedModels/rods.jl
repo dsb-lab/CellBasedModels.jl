@@ -207,4 +207,6 @@ rod2D = Agent(2,
         d(theta) = dt( ω )
         d(ω) = dt( W/(m*(d+l)^2/12+m*d^2)-βω*ω )
     end,
+
+    compile = false
 )
