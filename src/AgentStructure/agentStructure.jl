@@ -171,7 +171,7 @@ mutable struct Agent
             for (i,j) in pairs(base.declaredSymbols)
                 if !(i in keys(BASEPARAMETERS))
                     checkDeclared(i,agent)
-                    agent.declaredSymbols[i] = j
+                    agent.declaredSymbols[i] = deepcopy(j)
                 end
             end
         end
@@ -180,9 +180,9 @@ mutable struct Agent
         for a in baseModelInit
             for (update,code) in pairs(a.declaredUpdates)
                 if update in keys(agent.declaredUpdates)
-                    push!(agent.declaredUpdates[update].args, code)
+                    push!(agent.declaredUpdates[update].args, copy(code))
                 else
-                    agent.declaredUpdates[update] = code
+                    agent.declaredUpdates[update] = copy(code)
                 end
             end
         end
@@ -201,9 +201,9 @@ mutable struct Agent
         for a in baseModelEnd
             for (update,code) in pairs(a.declaredUpdates)
                 if update in keys(agent.declaredUpdates)
-                    push!(agent.declaredUpdates[update].args, code)
+                    push!(agent.declaredUpdates[update].args, copy(code))
                 else
-                    agent.declaredUpdates[update] = code
+                    agent.declaredUpdates[update] = copy(code)
                 end
             end
         end
