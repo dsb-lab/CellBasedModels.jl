@@ -471,7 +471,7 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
     #Set loaded to true
     setfield!(com,:loaded,true)
 
-    #Compute nieghbors and interactions for the first time
+    #Compute neighbors and interactions for the first time
     computeNeighbors!(com)
     interactionStep!(com)
 

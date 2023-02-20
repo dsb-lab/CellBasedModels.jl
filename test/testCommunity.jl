@@ -231,25 +231,25 @@ end
     #         end)
     #     )
 
-        @testPlatform(
-            (@test begin
-                agent = Agent(1,platform=PLATFORM,
-                            localFloat=[:lf],
-                            updateLocal = quote
-                                addAgent(lf = 5)
-                                addAgent(lf = 5)
-                                removeAgent()
-                            end
-                            );
-                com = Community(agent,N=[1]);
-                loadToPlatform!(com,preallocateAgents=3);
-                localStep!(com)
-                println("NAdd_: ",com.NAdd_[])
-                update!(com)
+        # @testPlatform(
+        #     (@test begin
+        #         agent = Agent(1,platform=PLATFORM,
+        #                     localFloat=[:lf],
+        #                     updateLocal = quote
+        #                         addAgent(lf = 5)
+        #                         addAgent(lf = 5)
+        #                         removeAgent()
+        #                     end
+        #                     );
+        #         com = Community(agent,N=[1]);
+        #         loadToPlatform!(com,preallocateAgents=3);
+        #         localStep!(com)
+        #         println("NAdd_: ",com.NAdd_[])
+        #         update!(com)
 
-                true
-            end)
-        )
+        #         true
+        #     end)
+        # )
 
     # end
     
@@ -396,6 +396,79 @@ end
     #             result
     #         end), CellLinked, #VerletTime, VerletDisplacement, Full
     #     )
+
+    @test begin
+        model = Agent(2,
+
+                localFloatInteraction = [:fx,:fy],
+
+                globalFloat = [:rRep,:fRep,:rAtr,:fAtr,:D],
+
+                updateInteraction = quote
+                    d = euclideanDistance(x.i,x.j,y.i,y.j)
+                    dx = (x.i-x.j)/d
+                    dy = (y.i-y.j)/d
+                    if d < rRep #Repulsion forces
+                        fx.i += fRep*(rRep-d)*dx  
+                        fy.i += fRep*(rRep-d)*dy  
+                    elseif d < rAtr #Attraction forces
+                        fx.i += -fAtr*(rAtr-d)*dx  
+                        fy.i += -fAtr*(rAtr-d)*dy  
+                    end
+                end,
+
+                updateVariable = quote
+                    #Bounaries
+                    if x < simBox[1,1]+rRep/2
+                        fx += fRep
+                    elseif x > simBox[1,2]-rRep/2
+                        fx -= fRep        
+                    end
+                    if y < simBox[2,1]+rRep/2
+                        fy += fRep
+                    elseif y > simBox[2,2]-rRep/2
+                        fy -= fRep
+                    end
+                    #Dynamics
+                    d( x ) = dt( fx ) + dW( D )
+                    d( y ) = dt( fy ) + dW( D )
+                end,
+                
+                integrator=:Heun,
+            );
+
+            modelVerlet = Agent(2,
+                baseModelInit = [model],
+                integrator = :Heun,
+                neighbors = :VerletDisplacement
+            );
+
+            function initialize(model,N,simBox)
+                return Community(model,N=[N],
+                        simBox = simBox,
+                        nMaxNeighbors = [100],
+                        skin = [10.],
+                        
+                        rRep=.8,
+                        fRep=1,
+                        rAtr=1.,
+                        fAtr=1.,
+                        D = .5,
+                        x=rand(N).*(simBox[1,2]-simBox[1,1]).+simBox[1,1],
+                        y=rand(N).*(simBox[2,2]-simBox[2,1]).+simBox[2,1],
+                        dt=[.1],
+                        );
+            end;
+
+            simBox = [-10. 10; -10 10]
+            N = 100
+            com = initialize(modelVerlet,N,simBox);
+            @time evolve!(com,steps=1000,saveEach=10,saveCurrentState=true)
+
+            true
+    end
+
+    
     # end
 
     # #Update

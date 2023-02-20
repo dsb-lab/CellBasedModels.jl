@@ -154,16 +154,16 @@ macro verletNeighbors(platform, args...) #Macro to make the verletNeighbor loops
     if platform == :CPU
         code = :(
             function $name($(base...))
-                @inbounds Threads.@threads for i1_ in 1:1:N[1]
-                    lk = ReentrantLock()
-                    for i2_ in (i1_+1):1:N[1]
-                        d = euclideanDistance($(args2...))
-                        if d < skin[1]
-                            lock(lk) do
-                                neighborN_[i1_] += 1
-                                neighborList_[i1_,neighborN_[i1_]] = i2_
-                                neighborN_[i2_] += 1
-                                neighborList_[i2_,neighborN_[i2_]] = i1_
+                @inbounds for i1_ in 1:1:N[1] #Lack multithreading because of race
+                    # lk = ReentrantLock()
+                    for i2_ in 1:1:N[1]
+                        if i1_ != i2_
+                            d = euclideanDistance($(args2...))
+                            if d < skin[1] 
+                                # lock(lk) do
+                                    neighborN_[i1_] += 1
+                                    neighborList_[i1_,neighborN_[i1_]] = i2_
+                                # end
                             end
                         end
                     end
@@ -319,7 +319,7 @@ macro verletDisplacement(platform, args...)
         code = :(
             function $name($(base...))
 
-                @inbounds Threads.@threads for i1_ in 1:1:N[1]
+                @inbounds for i1_ in 1:1:N[1]
                     accumulatedDistance_[i1_] = euclideanDistance($(args3...))
                     if accumulatedDistance_[i1_] >= skin[1]/2
                         flagRecomputeNeighbors_[1] = 1
@@ -400,7 +400,7 @@ macro verletResetDisplacement(platform, args...)
         code = :(
             function $name($(base...))
 
-                @inbounds Threads.@threads for i1_ in 1:1:N[1]
+                @inbounds for i1_ in 1:1:N[1]
                     $up
                 end
 
@@ -687,7 +687,7 @@ macro assignCells(platform, args...)
         code = :(
             function $name($(base...))
 
-                @inbounds Threads.@threads for i1_ in 1:1:N[1]
+                @inbounds for i1_ in 1:1:N[1]
                     pos = cellPos($(args2...))
                     lk = ReentrantLock()
                     lock(lk) do
@@ -764,7 +764,7 @@ macro sortAgentsInCells(platform, args...)
         code = :(
             function $name($(base...))
 
-                @inbounds Threads.@threads for i1_ in 1:1:N[1]
+                @inbounds for i1_ in 1:1:N[1]
                     pos = cellPos($(args2...))
                     lk = ReentrantLock()
                     lock(lk) do
