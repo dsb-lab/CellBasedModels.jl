@@ -1,7 +1,7 @@
 rod2D = Agent(2,
     localFloat = [:vx,:vy,:theta,:ω,:d,:l,:m], #Local parameters
     localFloatInteraction = [:fx,:fy,:W],    #Local Interaction Parameters
-    globalFloatInteraction = [:kn,:γn,:γt,:μcc,:μcw,:β,:βω],#Global parameters
+    globalFloat = [:kn,:γn,:γt,:μcc,:μcw,:β,:βω],        #Global parameters
 
     updateInteraction = quote
         #Compute distance between centers of mass
