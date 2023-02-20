@@ -3,7 +3,7 @@ push!(LOAD_PATH,"./src")
 
 using Documenter, AgentBasedModels
 
-makedocs(sitename="AgentBasedModel.jl",
+makedocs(sitename="AgentBasedModels.jl",
 pages = [
     "Home" => "index.md",
     "Usage" => [
@@ -13,10 +13,12 @@ pages = [
         "Usage_Fitting.md",
     ],
     "ImplementedModels.md",
-    # "Examples" => [
-    #     "ExampleDevelopment.md"
-    # ], 
-    # "ImplementedModels.md",
+    "Examples" => [
+        "Patterning.md",
+        "Development.md",
+        "Aggregation.md",
+        "Bacteries.md"
+    ], 
     "API.md",
     "APIdevelopers.md"
 ],
