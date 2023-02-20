@@ -394,10 +394,15 @@ function getParameter(com,var)
         if var in keys(com.agent.declaredSymbols)
             x = com.agent.declaredSymbols[var].basePar
             pos = com.agent.declaredSymbols[var].position
+            scope = com.agent.declaredSymbols[var].scope
             if x in NOTMODIFIABLEPARAMETERS
                 return getfield(com,x)[:,pos]
             else
-                return [@views getfield(i,x)[:,pos] for i in com.pastTimes]
+                if scope == :Local
+                    return [@views getfield(i,x)[:,pos] for i in com.pastTimes]
+                elseif scope == :Global
+                    return [@views getfield(i,x)[pos:pos] for i in com.pastTimes]
+                end
             end
         else
             error("Parameter ", var, " not found in the community.")

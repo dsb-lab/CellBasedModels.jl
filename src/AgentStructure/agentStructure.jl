@@ -241,7 +241,7 @@ mutable struct Agent
             end
         end
 
-        #Check if there is removed agents
+        #Check if there are removed agents
         for update in keys(agent.declaredUpdates)
             if inexpr(agent.declaredUpdates[update],:removeAgent)
                 agent.removalOfAgents_ = true
@@ -271,6 +271,18 @@ mutable struct Agent
         for i in keys(agent.declaredSymbols)
             if i in keys(agent.declaredVariables)
                 agent.declaredSymbols[i].basePar = baseParameterToModifiable(agent.declaredSymbols[i].basePar)
+            end
+        end
+
+        #Reset Counters
+        for base in [:liNM_, :liM_, :lii_, :lfNM_, :lfM_, :lfi_, :gfNM_, :gfM_, :gfi_, :giNM_, :giM_, :gii_, :mediumNM_, :mediumM_]
+            counter = 1
+            for (s,var) in pairs(agent.declaredSymbols)
+                if var.basePar == base
+                    var.position = counter
+                    agent.declaredSymbols[s] = var
+                    counter += 1
+                end
             end
         end
 
