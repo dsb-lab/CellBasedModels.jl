@@ -462,6 +462,8 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
             p = getproperty(com,sym)
             if length(p) > 0
                 setfield!(com,sym,ARRAY[platform]{DTYPE[prop.dtype][platform]}([p;zeros(eltype(p),preallocateAgents,size(p)[2:end]...)]))
+            else
+                setfield!(com,sym,ARRAY[platform]{DTYPE[prop.dtype][platform]}(getproperty(com,sym)))
             end
         else
             setfield!(com,sym,ARRAY[platform]{DTYPE[prop.dtype][platform]}(getproperty(com,sym)))
