@@ -1,0 +1,16 @@
+#Development
+d = getParameter(com,[:x,:y,:z,:r,:cellFate])
+colorMap = Dict(1=>:blue,2=>:orange,3=>:green)
+for (i,pos) in enumerate(1:length(com))
+    color = [colorMap[i] for i in d[:cellFate][pos]]
+    fig = Figure(resolution=(2000,2000))
+    ax = Axis3(fig[1,1],aspect = :data)
+    meshscatter!(ax,d[:x][pos],d[:y][pos],d[:z][pos],markersize=d[:r][pos],color=color)
+    xlims!(ax,-7,7)
+    ylims!(ax,-7,7)
+    zlims!(ax,-7,7)
+
+    ind = "000$i"
+    save("video/Development$(ind[end-2:end]).jpeg",fig)
+end
+
