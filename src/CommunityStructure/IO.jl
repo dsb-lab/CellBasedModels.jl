@@ -15,7 +15,6 @@ function saveRAM!(community::Community;saveLevel=1)
     if community.agent.platform == :CPU
         N = community.N[1]
     else
-        println(community.N)
         N = Array{DTYPE[:Int][:CPU]}(getfield(community,:N))[1]
     end
     
