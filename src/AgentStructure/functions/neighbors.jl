@@ -24,9 +24,10 @@ function neighborsFunction(agent)
         agent.declaredUpdatesFunction[:ComputeNeighbors] = 
                 eval(Meta.parse(string("neighborsCellLinked$(agent.dims)$(agent.platform)!")))
     
-    elseif agent.neighbors == :VerletGrid
-    
-        agent.declaredUpdatesFunction[:ComputeNeighbors] = Main.eval(:((community) -> AgentBasedModels.neighborsGridVerlet!($(agentArgs(:community)...))))
+    elseif agent.neighbors == :CLVD
+
+        agent.declaredUpdatesFunction[:ComputeNeighbors] = 
+                eval(Meta.parse(string("neighborsCLVD$(agent.dims)$(agent.platform)!")))
     
     else
     
@@ -59,9 +60,9 @@ function neighborsLoop(code,agent)
 
         code = neighborsCellLinkedLoop(code,agent)
 
-    elseif agent.neighbors == :VerletGrid
+    elseif agent.neighbors == :CLVD
 
-        error("Not done yet.")
+        code = neighborsVerletLoop(code,agent)
 
     else
 
@@ -156,15 +157,15 @@ macro verletNeighbors(platform, args...) #Macro to make the verletNeighbor loops
             function $name($(base...))
                 @inbounds for i1_ in 1:1:N[1] #Lack multithreading because of race
                     # lk = ReentrantLock()
-                    for i2_ in 1:1:N[1]
-                        if i1_ != i2_
-                            d = euclideanDistance($(args2...))
-                            if d < skin[1] 
-                                # lock(lk) do
-                                    neighborN_[i1_] += 1
-                                    neighborList_[i1_,neighborN_[i1_]] = i2_
-                                # end
-                            end
+                    for i2_ in (i1_+1):1:N[1]
+                        d = euclideanDistance($(args2...))
+                        if d < skin[1] 
+                            # lock(lk) do
+                                neighborN_[i1_] += 1
+                                neighborN_[i2_] += 1
+                                neighborList_[i1_,neighborN_[i1_]] = i2_
+                                neighborList_[i2_,neighborN_[i2_]] = i1_
+                            # end
                         end
                     end
                 end
@@ -888,15 +889,221 @@ Functions generated to compute neighbors according to cell linked algorithm.
 @neighborsCellLinked GPU x y
 @neighborsCellLinked GPU x y z
 
-#VerletLinkedCell
-macro neighborsVerletGridLoop(code,agent)
+#CLVD
+"""
+    macro verletNeighborsCLVD(platform, args...)
 
-    error("TO DO")
+Macro to generate the code for the computation of Verlet lists going over CellLinked lists for different platforms and dimensions .
+
+Adds the following functions to the library:
+
+    verletNeighborsCLVDCPU!(x)
+    verletNeighborsCLVDCPU!(x,y)
+    verletNeighborsCLVDCPU!(x,y,z)
+    verletNeighborsCLVDGPU!(x)
+    verletNeighborsCLVDGPU!(x,y)
+    verletNeighborsCLVDGPU!(x,y,z)
+"""
+macro verletNeighborsCLVD(platform, args...) #Macro to make the verletNeighbor loops
+
+    base = agentArgs(l=length(args))
+
+    args2 = []
+    for i in args
+        append!(args2,[:($i[i1_]),:($i[i2_])])
+    end
+
+    args3 = Any[:(pos_),:(i3_)]
+    for i in 1:length(args)
+        append!(args3,[:(nCells_[$i])])
+    end
+
+    args4 = Any[:(cellEdge[1])]
+    for (i,j) in enumerate(POSITIONPARAMETERS[1:length(args)])
+        append!(args4,[:($j[i1_]),:(simBox[$i,1]),:(simBox[$i,2]),:(nCells_[$i])])
+    end
+
+    name = Meta.parse("verletNeighborsCLVD$(length(args))$(platform)!")
+
+    code = 0
+    if platform == :CPU
+
+        code = quote
+            if i1_ != i2_
+                d = euclideanDistance($(args2...))
+                if d < skin[1] 
+                    neighborN_[i1_] += 1
+                    # neighborN_[i2_] += 1
+                    neighborList_[i1_,neighborN_[i1_]] = i2_
+                    # neighborList_[i2_,neighborN_[i2_]] = i1_
+                end
+            end
+        end
+
+        code = quote
+            pos_ = AgentBasedModels.cellPos($(args4...))
+            for i3_ in 1:1:$(3^length(args)) #Go over the posible neighbor cells
+                posNeigh_ = AgentBasedModels.cellPosNeigh($(args3...)) #Obtain the position of the neighbor cell
+                if posNeigh_ != -1 #Ignore cells outside the boundaries
+                    for i4_ in cellCumSum_[posNeigh_]-cellNumAgents_[posNeigh_]+1:1:cellCumSum_[posNeigh_] #Go over the cells of that neighbor cell
+                        i2_ = cellAssignedToAgent_[i4_]
+                        if i1_ != i2_
+                            $code 
+                        end
+                    end
+                end
+            end
+        end
+
+        code = :(
+            function $name($(base...))
+                @inbounds for i1_ in 1:1:N[1] #Lack multithreading because of race
+                    # lk = ReentrantLock()
+                    $code
+                end
+            end
+        )
+    elseif platform == :GPU
+
+        code = quote
+            if i1_ != i2_
+                d = euclideanDistance($(args2...))
+                if d < skin[1]
+                    pos1 = CUDA.atomic_add!(CUDA.pointer(neighborN_,i1_),Int32(1)) + 1
+                    # pos2 = CUDA.atomic_add!(CUDA.pointer(neighborN_,i2_),Int32(1)) + 1
+                    neighborList_[i1_,pos1] = i2_
+                    # neighborList_[i2_,pos2] = i1_
+                 end
+            end
+        end
+
+        code = quote
+            pos_ = AgentBasedModels.cellPos($(args4...))
+            for i3_ in 1:1:$(3^length(args)) #Go over the posible neighbor cells
+                posNeigh_ = AgentBasedModels.cellPosNeigh($(args3...)) #Obtain the position of the neighbor cell
+                if posNeigh_ != -1 #Ignore cells outside the boundaries
+                    for i4_ in cellCumSum_[posNeigh_]-cellNumAgents_[posNeigh_]+1:1:cellCumSum_[posNeigh_] #Go over the cells of that neighbor cell
+                        i2_ = cellAssignedToAgent_[i4_]
+                        if i1_ != i2_
+                            $code 
+                        end
+                    end
+                end
+            end
+        end
+
+        code = :(
+            function $name($(base...))
+                index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+                stride = gridDim().x * blockDim().x
+                @inbounds for i1_ in index:stride:N[1]
+                    $code
+                end
+
+                return
+            end
+        )
+    end
+
+    return code
 
 end
 
-function neighborsVerletGridLoop(neighborsList,neighborsN,radiusVelvet,N)
+@verletNeighborsCLVD CPU x
+@verletNeighborsCLVD CPU x y
+@verletNeighborsCLVD CPU x y z
+@verletNeighborsCLVD GPU x
+@verletNeighborsCLVD GPU x y
+@verletNeighborsCLVD GPU x y z
 
-    error("TO DO")
+"""
+    macro neighborsCLVD(platform, args...)
 
+Macro to generate the code to compute neighbors according to CellLinked-VerletDistance algorithms.
+
+Adds the following functions to the library:
+
+    neighborsCLVD1CPU!(community)
+    neighborsCLVD2CPU!(community)
+    neighborsCLVD3CPU!(community)
+    neighborsCLVD1GPU!(community)
+    neighborsCLVD2GPU!(community)
+    neighborsCLVD3GPU!(community)
+"""
+macro neighborsCLVD(platform, args...)
+
+    base = agentArgs(:community,l=length(args))
+
+    nameDisp = Meta.parse(string("verletDisplacement$(platform)!"))
+    nameResDisp = Meta.parse(string("verletResetDisplacement$(platform)!"))
+
+    namef = Meta.parse(string("assignCells$(length(args))$(platform)!"))
+    namef2 = Meta.parse(string("sortAgentsInCells$(length(args))$(platform)!"))
+    namef3 = Meta.parse(string("verletNeighborsCLVD$(length(args))$(platform)!"))
+
+    name = Meta.parse(string("neighborsCLVD$(length(args))$(platform)!"))
+
+    code = 0
+    if platform == :CPU
+        code = :(
+            function $name(community)
+
+                $nameDisp($(base...),)
+                if community.flagRecomputeNeighbors_[1] == 1
+                    #Stuff related with CellLink
+                    community.cellNumAgents_ .= 0
+                    $namef($(base...),)
+                    community.cellCumSum_ .= cumsum(community.cellNumAgents_) .- community.cellNumAgents_
+                    $namef2($(base...),)
+                    #Stuff related with Verlet Displacement
+                    @views community.neighborN_[1:community.N[1]] .= 0
+                    @views community.accumulatedDistance_[1:community.N[1]] .= 0.
+                    @views community.flagRecomputeNeighbors_ .= 0
+                    $nameResDisp($(base...))
+                    #Assign neighbors
+                    $namef3($(base...),)
+                end
+
+                return 
+            end
+        )
+    else
+        code = :(
+            function $name(community)
+
+                kernelDisp = @cuda launch=false $nameDisp($(base...),)
+                kernelResDisp = @cuda launch=false $nameResDisp($(base...),)
+                
+                kernelDisp($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                if CUDA.@allowscalar community.flagRecomputeNeighbors_[1] == 1
+                    #Stuff relateed with CellLinked
+                    community.cellNumAgents_ .= 0
+                    kernel = @cuda launch=false $namef($(base...),)
+                    kernel($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    community.cellCumSum_ .= cumsum(community.cellNumAgents_) .- community.cellNumAgents_
+                    kernel2 = @cuda launch=false $namef2($(base...),)
+                    kernel2($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    #Stuff related with Verlet Displacement
+                    community.neighborN_ .= 0
+                    community.accumulatedDistance_ .= 0.
+                    community.flagRecomputeNeighbors_ .= 0
+                    kernelResDisp($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    #Assign neighbors
+                    kernel3 = @cuda launch=false $namef3($(base...),)
+                    kernel3($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                end
+
+                return 
+            end
+        )
+    end
+
+    return code
 end
+
+@neighborsCLVD CPU x
+@neighborsCLVD CPU x y
+@neighborsCLVD CPU x y z
+@neighborsCLVD GPU x
+@neighborsCLVD GPU x y
+@neighborsCLVD GPU x y z

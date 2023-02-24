@@ -1,4 +1,4 @@
-using MacroTools
+using MacroTools, CUDA
 
 macro testPlatform(code)
 
@@ -356,119 +356,121 @@ end
     # end
 
     # @testset "interactions" begin
-    #     @testAllNeighbors(            
-    #         (@test begin 
+        @testAllNeighbors(            
+            (@test begin 
 
-    #             agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM,
-    #                 localIntInteraction = [:nn],
-    #                 updateInteraction=quote
-    #                         if euclideanDistance() < 1.1
-    #                             nn.i += 1 
-    #                         end
-    #                     end
-    #             )
-    #             # println(agent.declaredUpdatesCode[:UpdateInteraction])
-    #             com = Community(agent,N=[3^DIM],dtNeighborRecompute=[1.],skin=[2.],nMaxNeighbors=[27],cellEdge=[2.,2.,2.][1:DIM],simBox=[.5 1.5;.5 1.5;.5 1.5][1:DIM,:]);
-    #             v = zeros(3,27)
-    #             v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
-    #             v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
-    #             v[3,:] = repeat([repeat([0],9);repeat([1],9);repeat([2],9)],1)
-    #             for (j,sym) in enumerate([:x,:y,:z][1:DIM])
-    #                 getfield(com,sym) .= v[j,1:3^(DIM)]
-    #             end
+                agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM,
+                    localIntInteraction = [:nn],
+                    updateInteraction=quote
+                            if euclideanDistance() < 1.1
+                                nn.i += 1 
+                            end
+                        end
+                )
+                # println(agent.declaredUpdatesCode[:UpdateInteraction])
+                com = Community(agent,N=[3^DIM],dtNeighborRecompute=[1.],skin=[2.],nMaxNeighbors=[27],cellEdge=[2.,2.,2.][1:DIM],simBox=[.5 1.5;.5 1.5;.5 1.5][1:DIM,:]);
+                v = zeros(3,27)
+                v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
+                v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
+                v[3,:] = repeat([repeat([0],9);repeat([1],9);repeat([2],9)],1)
+                for (j,sym) in enumerate([:x,:y,:z][1:DIM])
+                    getfield(com,sym) .= v[j,1:3^(DIM)]
+                end
 
-    #             loadToPlatform!(com);
-    #             computeNeighbors!(com);
-    #             interactionStep!(com);
-    #             interactionStep!(com);
+                loadToPlatform!(com);
+                computeNeighbors!(com);
+                interactionStep!(com);
+                interactionStep!(com);
 
-    #             result = true
-    #             if DIM == 1
-    #                 result = all(Array(com.nn) .≈ [1,2,1])
-    #             elseif DIM == 2
-    #                 result = all(Array(com.nn) .≈ [2,3,2,3,4,3,2,3,2])
-    #             elseif DIM == 3
-    #                 result = all(Array(com.nn) .≈ [3,4,3,4,5,4,3,4,3,
-    #                                                4,5,4,5,6,5,4,5,4,
-    #                                                3,4,3,4,5,4,3,4,3])
-    #             end
+                result = true
+                if DIM == 1
+                    result = all(Array(com.nn) .≈ [1,2,1])
+                elseif DIM == 2
+                    result = all(Array(com.nn) .≈ [2,3,2,3,4,3,2,3,2])
+                elseif DIM == 3
+                    result = all(Array(com.nn) .≈ [3,4,3,4,5,4,3,4,3,
+                                                   4,5,4,5,6,5,4,5,4,
+                                                   3,4,3,4,5,4,3,4,3])
+                end
 
-    #             result
-    #         end), CellLinked, #VerletTime, VerletDisplacement, Full
-    #     )
+                result
+            end), CellLinked, VerletTime, VerletDisplacement, Full, CLVD
+        )
 
-    @test begin
-        model = Agent(2,
+    # @test begin
+    #     model = Agent(2,
 
-                localFloatInteraction = [:fx,:fy],
+    #             localFloatInteraction = [:fx,:fy],
 
-                globalFloat = [:rRep,:fRep,:rAtr,:fAtr,:D],
+    #             globalFloat = [:rRep,:fRep,:rAtr,:fAtr,:D],
 
-                updateInteraction = quote
-                    d = euclideanDistance(x.i,x.j,y.i,y.j)
-                    dx = (x.i-x.j)/d
-                    dy = (y.i-y.j)/d
-                    if d < rRep #Repulsion forces
-                        fx.i += fRep*(rRep-d)*dx  
-                        fy.i += fRep*(rRep-d)*dy  
-                    elseif d < rAtr #Attraction forces
-                        fx.i += -fAtr*(rAtr-d)*dx  
-                        fy.i += -fAtr*(rAtr-d)*dy  
-                    end
-                end,
+    #             updateInteraction = quote
+    #                 d = euclideanDistance(x.i,x.j,y.i,y.j)
+    #                 dx = (x.i-x.j)/d
+    #                 dy = (y.i-y.j)/d
+    #                 if d < rRep #Repulsion forces
+    #                     fx.i += fRep*(rRep-d)*dx  
+    #                     fy.i += fRep*(rRep-d)*dy  
+    #                 elseif d < rAtr #Attraction forces
+    #                     fx.i += -fAtr*(rAtr-d)*dx  
+    #                     fy.i += -fAtr*(rAtr-d)*dy  
+    #                 end
+    #             end,
 
-                updateVariable = quote
-                    #Bounaries
-                    if x < simBox[1,1]+rRep/2
-                        fx += fRep
-                    elseif x > simBox[1,2]-rRep/2
-                        fx -= fRep        
-                    end
-                    if y < simBox[2,1]+rRep/2
-                        fy += fRep
-                    elseif y > simBox[2,2]-rRep/2
-                        fy -= fRep
-                    end
-                    #Dynamics
-                    d( x ) = dt( fx ) + dW( D )
-                    d( y ) = dt( fy ) + dW( D )
-                end,
+    #             updateVariable = quote
+    #                 #Bounaries
+    #                 if x < simBox[1,1]+rRep/2
+    #                     fx += fRep
+    #                 elseif x > simBox[1,2]-rRep/2
+    #                     fx -= fRep        
+    #                 end
+    #                 if y < simBox[2,1]+rRep/2
+    #                     fy += fRep
+    #                 elseif y > simBox[2,2]-rRep/2
+    #                     fy -= fRep
+    #                 end
+    #                 #Dynamics
+    #                 d( x ) = dt( fx ) + dW( D )
+    #                 d( y ) = dt( fy ) + dW( D )
+    #             end,
                 
-                integrator=:Heun,
-            );
+    #             integrator=:Heun,
+    #         );
 
-            modelVerlet = Agent(2,
-                baseModelInit = [model],
-                integrator = :Heun,
-                neighbors = :VerletDisplacement
-            );
+    #         modelGPU = Agent(2,
+    #             baseModelInit = [model],
+    #             integrator = :Heun,
+    #             neighbors = :Full,
+    #             platform = :GPU,
+    #         );
 
-            function initialize(model,N,simBox)
-                return Community(model,N=[N],
-                        simBox = simBox,
-                        nMaxNeighbors = [100],
-                        skin = [10.],
+    #         function initialize(model,N,simBox)
+    #             return Community(model,N=[N],
+    #                     simBox = simBox,
+    #                     nMaxNeighbors = [100],
+    #                     skin = [10.],
                         
-                        rRep=.8,
-                        fRep=1,
-                        rAtr=1.,
-                        fAtr=1.,
-                        D = .5,
-                        x=rand(N).*(simBox[1,2]-simBox[1,1]).+simBox[1,1],
-                        y=rand(N).*(simBox[2,2]-simBox[2,1]).+simBox[2,1],
-                        dt=[.1],
-                        );
-            end;
+    #                     rRep=.8,
+    #                     fRep=1,
+    #                     rAtr=1.,
+    #                     fAtr=1.,
+    #                     D = .5,
+    #                     x=rand(N).*(simBox[1,2]-simBox[1,1]).+simBox[1,1],
+    #                     y=rand(N).*(simBox[2,2]-simBox[2,1]).+simBox[2,1],
+    #                     dt=[.1],
+    #                     );
+    #         end;
 
-            simBox = [-10. 10; -10 10]
-            N = 100
-            com = initialize(modelVerlet,N,simBox);
-            @time evolve!(com,steps=1000,saveEach=10,saveCurrentState=true)
+    #         ρ=.1
+    #         S = 1
+    #         simBox = S.*[-10. 10; -10 10]
+    #         n = round(Int64,ρ*(simBox[1,2]-simBox[1,1])*(simBox[2,2]-simBox[2,1]))
+    #         com = initialize(modelGPU,n,simBox);
+    #         t = @elapsed evolve!(com,steps=1000,saveEach=10,saveCurrentState=true)
 
-            true
-    end
+    #         true
+    # end
 
-    
     # end
 
     # #Update

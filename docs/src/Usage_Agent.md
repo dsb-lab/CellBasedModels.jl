@@ -382,12 +382,13 @@ There is three things to have in consideration:
  - Since the interaction go over all agents and all the neighbors of agents, we need to specify in the code declared if we are using a parameter of the agent with an `.i` or a neighbor with a `.j`.
  - There computation goes over the neighbors of the agent. There are different algorithms implemented to keep track of the neighbors and that may matter tot the speed of the simulations. You can choose the neighborhood algorithm with the argument `neighbors`. See a comparative of neighbor algorithms in the examples section.
 
-|Implemented Neighbor algorthms|
-|:---:|
-|Full|
-|VerletTime|
-|VerletDistances|
-|CellLinked|
+|Implemented Neighbor algorthms|Description|
+|:---:|:---|
+|Full|Compute all the interactions among all pairs.|
+|VerletTime|Compute a Verlet List and update it at fixed times.|
+|VerletDistances|Compute a Verlet List and update it when some cell overpasses certain limit.|
+|CellLinked|Assign cells to a matrix and compute neighbors of neighboring cells only.|
+|CLVD|Combination of CellLinked and VerletDistances, it uses CellLinked to compute the VerletLists|
 
 **Example** We want to compute mean euclidean distance of an agent to all its neighbors in a specific radius of distance.
 

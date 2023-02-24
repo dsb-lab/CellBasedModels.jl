@@ -76,6 +76,8 @@ cellPosNeigh
 @assignCells
 @sortAgentsInCells
 @neighborsCellLinked
+@verletNeighborsCLVD
+@neighborsCLVD
 ```
 
 **Update**
