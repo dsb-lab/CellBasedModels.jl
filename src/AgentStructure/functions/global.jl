@@ -96,7 +96,7 @@ Creates the final code provided to Agent in `updateGlobal` as a function and add
 """
 function globalFunction(agent)
 
-    if !all([typeof(i) == LineNumberNode for i in agent.declaredUpdates[:UpdateGlobal].args])
+    if [i for i in prettify(agent.declaredUpdates[:UpdateGlobal]).args if typeof(i) != LineNumberNode] != []
         code = agent.declaredUpdates[:UpdateGlobal]
 
         #Custom functions

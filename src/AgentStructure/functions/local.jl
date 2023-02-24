@@ -148,7 +148,7 @@ Creates the final code provided to Agent in `updateLocal` as a function and adds
 """
 function localFunction(agent)
 
-    if !all([typeof(i) == LineNumberNode for i in agent.declaredUpdates[:UpdateLocal].args])
+    if [i for i in prettify(agent.declaredUpdates[:UpdateLocal]).args if typeof(i) != LineNumberNode] != []
         code = agent.declaredUpdates[:UpdateLocal]
 
         #Custom functions

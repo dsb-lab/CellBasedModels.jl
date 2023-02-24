@@ -11,7 +11,7 @@ function interactionFunction(agent)
             append!(metricArgs,[:($i[i1_]),:($i[i2_])])
         end
 
-    if !all([typeof(i) == LineNumberNode for i in agent.declaredUpdates[:UpdateInteraction].args])
+    if [i for i in prettify(agent.declaredUpdates[:UpdateInteraction]).args if typeof(i) != LineNumberNode] != []
         code = agent.declaredUpdates[:UpdateInteraction]
 
         #Vectorize
