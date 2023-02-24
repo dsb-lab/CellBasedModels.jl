@@ -240,7 +240,7 @@ macro neighborsVerletTime(platform, args...)
         code = :(
             function $name(community)
 
-                if CUDA.@allowscalar community.neighborTimeLastRecompute_[1] <= community.t[1] || CUDA.@allowscalar community.flagRecomputeNeighbors_[1] .== 1
+                if community.neighborTimeLastRecompute_[1] <= community.t[1] || community.flagRecomputeNeighbors_[1] .== 1
                     community.neighborN_ .= 0
                     $namef($(base...),)
                     community.neighborTimeLastRecompute_ .= community.t + community.dtNeighborRecompute
@@ -257,10 +257,10 @@ macro neighborsVerletTime(platform, args...)
             
                 kernel = @cuda launch=false $namef($(base...),)
                 if CUDA.@allowscalar community.neighborTimeLastRecompute_[1] <= community.t[1] || CUDA.@allowscalar community.flagRecomputeNeighbors_[1] .== 1
-                    community.neighborN_ .= 0
-                    kernel($(base...);threads=community.platform.threads,blocks=community.platform.threads)
-                    community.neighborTimeLastRecompute_ .= community.t + community.dtNeighborRecompute
-                    community.flagRecomputeNeighbors_ .= 0
+                    CUDA.@sync community.neighborN_ .= 0
+                    CUDA.@sync kernel($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    CUDA.@sync community.neighborTimeLastRecompute_ .= community.t + community.dtNeighborRecompute
+                    CUDA.@sync community.flagRecomputeNeighbors_ .= 0
                 end
             
                 return
@@ -500,13 +500,13 @@ macro neighborsVerletDisplacement(platform, args...)
                 kernelResDisp = @cuda launch=false $nameResDisp($(base...),)
                 kernelNeigh = @cuda launch=false $nameNeigh($(base...),)
                 
-                kernelDisp($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                CUDA.@sync kernelDisp($(base...);threads=community.platform.threads,blocks=community.platform.threads)
                 if CUDA.@allowscalar community.flagRecomputeNeighbors_[1] == 1
                     community.neighborN_ .= 0
                     community.accumulatedDistance_ .= 0.
                     community.flagRecomputeNeighbors_ .= 0
-                    kernelResDisp($(base...);threads=community.platform.threads,blocks=community.platform.threads)
-                    kernelNeigh($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    CUDA.@sync kernelResDisp($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    CUDA.@sync kernelNeigh($(base...);threads=community.platform.threads,blocks=community.platform.threads)
                 end
 
                 return
@@ -859,10 +859,10 @@ macro neighborsCellLinked(platform, args...)
 
                 community.cellNumAgents_ .= 0
                 kernel = @cuda launch=false $namef($(base...),)
-                kernel($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                CUDA.@sync kernel($(base...);threads=community.platform.threads,blocks=community.platform.threads)
                 community.cellCumSum_ .= cumsum(community.cellNumAgents_) .- community.cellNumAgents_
                 kernel2 = @cuda launch=false $namef2($(base...),)
-                kernel2($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                CUDA.@sync kernel2($(base...);threads=community.platform.threads,blocks=community.platform.threads)
 
                 return 
             end
@@ -1074,23 +1074,23 @@ macro neighborsCLVD(platform, args...)
                 kernelDisp = @cuda launch=false $nameDisp($(base...),)
                 kernelResDisp = @cuda launch=false $nameResDisp($(base...),)
                 
-                kernelDisp($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                CUDA.@sync kernelDisp($(base...);threads=community.platform.threads,blocks=community.platform.threads)
                 if CUDA.@allowscalar community.flagRecomputeNeighbors_[1] == 1
                     #Stuff relateed with CellLinked
                     community.cellNumAgents_ .= 0
                     kernel = @cuda launch=false $namef($(base...),)
-                    kernel($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    CUDA.@sync kernel($(base...);threads=community.platform.threads,blocks=community.platform.threads)
                     community.cellCumSum_ .= cumsum(community.cellNumAgents_) .- community.cellNumAgents_
                     kernel2 = @cuda launch=false $namef2($(base...),)
-                    kernel2($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    CUDA.@sync kernel2($(base...);threads=community.platform.threads,blocks=community.platform.threads)
                     #Stuff related with Verlet Displacement
-                    community.neighborN_ .= 0
-                    community.accumulatedDistance_ .= 0.
-                    community.flagRecomputeNeighbors_ .= 0
-                    kernelResDisp($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    CUDA.@sync community.neighborN_ .= 0
+                    CUDA.@sync community.accumulatedDistance_ .= 0.
+                    CUDA.@sync community.flagRecomputeNeighbors_ .= 0
+                    CUDA.@sync kernelResDisp($(base...);threads=community.platform.threads,blocks=community.platform.threads)
                     #Assign neighbors
                     kernel3 = @cuda launch=false $namef3($(base...),)
-                    kernel3($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    CUDA.@sync kernel3($(base...);threads=community.platform.threads,blocks=community.platform.threads)
                 end
 
                 return 

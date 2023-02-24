@@ -13,14 +13,15 @@ function saveRAM!(community::Community;saveLevel=1)
 
     N = 0
     if community.agent.platform == :CPU
-        N = community.N[]
+        N = community.N[1]
     else
-        CUDA.@allowscalar N = community.N[1]
+        println(community.N)
+        N = Array{DTYPE[:Int][:CPU]}(getfield(community,:N))[1]
     end
-
+    
     com = Community()
     for (sym,prop) in pairs(BASEPARAMETERS)
-        type = DTYPE[prop.dtype][community.agent.platform]
+        type = DTYPE[prop.dtype][:CPU]
         if (0 < prop.saveLevel && prop.saveLevel <= saveLevel)
             if :Atomic in prop.shape && community.agent.platform == :CPU #Do nothing if CPU and atomic
                 setfield!(com,sym,deepcopy(getfield(community,sym)))
@@ -42,7 +43,7 @@ function saveRAM!(community::Community;saveLevel=1)
 
     for (i,sym) in enumerate(POSITIONPARAMETERS)
         prop = BASEPARAMETERS[sym]
-        type = DTYPE[prop.dtype][community.agent.platform]
+        type = DTYPE[prop.dtype][:CPU]
         if community.agent.posUpdated_[i]
             p = getfield(community,sym)
             setfield!(com,sym,copy(Array{type}(@views p[1:N])))

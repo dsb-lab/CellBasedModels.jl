@@ -200,7 +200,7 @@ function integratorFunction(agent)
             cleanCode = quote
                 community.varAux_ .= 0
                 if length(community.varAuxΔW_) > 0
-                    AgentBasedModels.randn!(community.varAuxΔW_)
+                    CUDA.@sync AgentBasedModels.randn!(community.varAuxΔW_)
                 end
             end
         end

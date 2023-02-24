@@ -41,7 +41,7 @@ function interactionFunction(agent)
         end
 
         agent.declaredUpdatesFunction[:UpdateInteraction_] = Main.eval(:(($(agentArgs()...),) -> $(quote $code; nothing end)))
-        aux = addCuda(:(community.agent.declaredUpdatesFunction[:UpdateInteraction_]($(agentArgs(:community)...))),agent,oneThread=true) #Add code to execute kernel in cuda if GPU
+        aux = addCuda(:(community.agent.declaredUpdatesFunction[:UpdateInteraction_]($(agentArgs(:community)...))),agent) #Add code to execute kernel in cuda if GPU
         agent.declaredUpdatesFunction[:UpdateInteraction] = Main.eval(
             :(function (community)
                 $clearCode

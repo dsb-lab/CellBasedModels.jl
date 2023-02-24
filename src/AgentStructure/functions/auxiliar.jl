@@ -190,11 +190,11 @@ function addCuda(code,platform::Symbol;oneThread=false)
 
         if oneThread
 
-            code = :(@cuda threads=1 blocks=1 $code)
+            code = :(CUDA.@sync @cuda threads=1 blocks=1 $code)
         
         else
 
-            code = :(@cuda threads=community.platform.threads blocks=community.platform.blocks $code)
+            code = :(CUDA.@sync @cuda threads=community.platform.threads blocks=community.platform.blocks $code)
             # code = :(@cuda threads=5 blocks=5 $code)
 
         end
