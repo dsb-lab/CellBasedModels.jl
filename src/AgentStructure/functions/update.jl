@@ -349,7 +349,7 @@ macro updateGPU!(arg,arg2)
         #Update time
         community.t .+= community.dt
         #Update GPU execution
-        setfield!(com,:platform,AgentBasedModels.Platform(256,ceil(Int,Array{Float64}(getfield(community,:N))[1]/256)))
+        setfield!(community,:platform,AgentBasedModels.Platform(256,ceil(Int,Array{Float64}(getfield(community,:N))[1]/256)))
 
         return 
 
