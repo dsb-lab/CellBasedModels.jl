@@ -771,7 +771,7 @@ macro sortAgentsInCells(platform, args...)
                     lock(lk) do
                         cellCumSum_[pos] += 1
                         pos = cellCumSum_[pos]
-                        cellAssignedToAgent_[i1_] = pos
+                        cellAssignedToAgent_[pos] = i1_
                     end
                 end
 
@@ -787,7 +787,7 @@ macro sortAgentsInCells(platform, args...)
                 @inbounds for i1_ in index:stride:N[1]
                     pos = cellPos($(args2...))
                     pos = CUDA.atomic_add!(CUDA.pointer(cellCumSum_,pos),Int32(1)) + 1
-                    cellAssignedToAgent_[i1_] = pos
+                    cellAssignedToAgent_[pos] = i1_
                 end
 
                 return
