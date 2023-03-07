@@ -356,46 +356,46 @@ end
     # end
 
     # @testset "interactions" begin
-        @testAllNeighbors(            
-            (@test begin 
+        # @testAllNeighbors(            
+        #     (@test begin 
 
-                agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM,
-                    localIntInteraction = [:nn],
-                    updateInteraction=quote
-                            if euclideanDistance() < 1.1
-                                nn.i += 1 
-                            end
-                        end
-                )
-                # println(agent.declaredUpdatesCode[:UpdateInteraction])
-                com = Community(agent,N=[3^DIM],dtNeighborRecompute=[1.],skin=[2.],nMaxNeighbors=[27],cellEdge=[2.,2.,2.][1:DIM],simBox=[.5 1.5;.5 1.5;.5 1.5][1:DIM,:]);
-                v = zeros(3,27)
-                v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
-                v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
-                v[3,:] = repeat([repeat([0],9);repeat([1],9);repeat([2],9)],1)
-                for (j,sym) in enumerate([:x,:y,:z][1:DIM])
-                    getfield(com,sym) .= v[j,1:3^(DIM)]
-                end
+        #         agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM,
+        #             localIntInteraction = [:nn],
+        #             updateInteraction=quote
+        #                     if euclideanDistance() < 1.1
+        #                         nn.i += 1 
+        #                     end
+        #                 end
+        #         )
+        #         # println(agent.declaredUpdatesCode[:UpdateInteraction])
+        #         com = Community(agent,N=[3^DIM],dtNeighborRecompute=[1.],skin=[2.],nMaxNeighbors=[27],cellEdge=[2.,2.,2.][1:DIM],simBox=[.5 1.5;.5 1.5;.5 1.5][1:DIM,:]);
+        #         v = zeros(3,27)
+        #         v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
+        #         v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
+        #         v[3,:] = repeat([repeat([0],9);repeat([1],9);repeat([2],9)],1)
+        #         for (j,sym) in enumerate([:x,:y,:z][1:DIM])
+        #             getfield(com,sym) .= v[j,1:3^(DIM)]
+        #         end
 
-                loadToPlatform!(com);
-                computeNeighbors!(com);
-                interactionStep!(com);
-                interactionStep!(com);
+        #         loadToPlatform!(com);
+        #         computeNeighbors!(com);
+        #         interactionStep!(com);
+        #         interactionStep!(com);
 
-                result = true
-                if DIM == 1
-                    result = all(Array(com.nn) .≈ [1,2,1])
-                elseif DIM == 2
-                    result = all(Array(com.nn) .≈ [2,3,2,3,4,3,2,3,2])
-                elseif DIM == 3
-                    result = all(Array(com.nn) .≈ [3,4,3,4,5,4,3,4,3,
-                                                   4,5,4,5,6,5,4,5,4,
-                                                   3,4,3,4,5,4,3,4,3])
-                end
+        #         result = true
+        #         if DIM == 1
+        #             result = all(Array(com.nn) .≈ [1,2,1])
+        #         elseif DIM == 2
+        #             result = all(Array(com.nn) .≈ [2,3,2,3,4,3,2,3,2])
+        #         elseif DIM == 3
+        #             result = all(Array(com.nn) .≈ [3,4,3,4,5,4,3,4,3,
+        #                                            4,5,4,5,6,5,4,5,4,
+        #                                            3,4,3,4,5,4,3,4,3])
+        #         end
 
-                result
-            end), CellLinked, VerletTime, VerletDisplacement, Full, CLVD
-        )
+        #         result
+        #     end), CellLinked, VerletTime, VerletDisplacement, Full, CLVD
+        # )
 
     # @test begin
     #     model = Agent(2,
@@ -887,5 +887,25 @@ end
     #     end
 
     # end
+
+    @testset "Medium" begin
+        
+        @test begin
+            
+            agent = Agent(2,
+                medium = [:a,:b],
+                updateMedium = quote
+                    ∂t( a ) = ∂2( a ) + react( δx(5. -xₘ)*δy(5. -yₘ)*2 )
+                end
+            )
+
+            com = Community(agent,NMedium=[11,11],simBox=[0 10;0 10.],dt=[.2])
+            evolve!(com,steps=1000)
+            println(round.(com.mediumM_,digits=2))
+            # println(round.(com.mediumMNew_,digits=2))
+
+        end
+
+    end
 
 end

@@ -167,6 +167,7 @@ mutable struct Community
     cellAssignedToAgent_
     cellNumAgents_
     cellCumSum_
+    meshLateralSize_
     x
     y
     z
@@ -203,7 +204,7 @@ mutable struct Community
             for i in prop.necessaryFor
                 if i == agent.neighbors && !(sym in keys(args))
                     error("Parameter $sym has to be declared in the community for neighborhood style $i.")
-                elseif i == :Medium && length(getSymbolsThat(agent.declaredSymbols,:basePar,:medium_)) > 0 && !(sym in keys(args))
+                elseif i == :Medium && length(getSymbolsThat(agent.declaredSymbols,:scope,:Medium)) > 0 && !(sym in keys(args))
                     error("Parameter $sym has to be declared in the community for models with medium parameters.")
                 end
             end
@@ -327,6 +328,14 @@ function Base.getproperty(com::Community,var::Symbol)
                 return @views getfield(com,x)[:,pos]
             elseif scope == :Global
                 return @views getfield(com,x)[pos:pos]
+            elseif scope == :Medium
+                if com.agent.dims == 1
+                    return @views getfield(com,x)[:,pos]
+                elseif com.agent.dims == 2
+                    return @views getfield(com,x)[:,:,pos]
+                elseif com.agent.dims == 3
+                    return @views getfield(com,x)[:,:,:,pos]
+                end
             end
         else
             error("Parameter ", var, " not found in the community.")
@@ -402,6 +411,14 @@ function getParameter(com,var)
                     return [@views getfield(i,x)[:,pos] for i in com.pastTimes]
                 elseif scope == :Global
                     return [@views getfield(i,x)[pos:pos] for i in com.pastTimes]
+                elseif scope == :Medium
+                    if com.agent.dims == 1
+                        return [@views getfield(i,x)[:,pos] for i in com.pastTimes]
+                    elseif com.agent.dims == 2
+                        return [@views getfield(i,x)[:,:,pos] for i in com.pastTimes]
+                    elseif com.agent.dims == 3
+                        return [@views getfield(i,x)[:,:,:,pos] for i in com.pastTimes]
+                    end
                 end
             end
         else

@@ -27,6 +27,18 @@ manhattanDistance(x1,x2) = abs(x1-x2)
 manhattanDistance(x1,x2,y1,y2) = abs(x1-x2)+abs(y1-y2)
 manhattanDistance(x1,x2,y1,y2,z1,z2) = abs(x1-x2)+abs(y1-y2)+abs(z1-z2)
 
+
+##############################################################################################################################
+# Delta functions
+##############################################################################################################################
+
+"""
+    functionδ(x,meshSize)
+
+Delta function dicretized.
+"""
+functionδ(x,meshSize) = Float32(abs(x) < meshSize/2)
+
 ##############################################################################################################################
 # Agent functions
 ##############################################################################################################################
@@ -159,20 +171,53 @@ end
 # Constuct custom functions
 ##############################################################################################################################
 """
-    function makeSimpleLoop(code,agent)
+    function makeSimpleLoop(code,agent;nloops=nothing)
 
-Wrap code in loop iterating over the Community agents in the correct platform.
+Wrap code in loop iterating over the Community agents in the correct platform and dimensions (for medium).
 """
-function makeSimpleLoop(code,agent)
+function makeSimpleLoop(code,agent;nloops=nothing)
 
     if agent.platform == :CPU
-
-        return :(@inbounds Threads.@threads for i1_ in 1:1:N[1]; $code; end)
+        
+        if nloops === nothing
+            return :(@inbounds Threads.@threads for i1_ in 1:1:N[1]; $code; end)
+        elseif nloops == 1
+            return :(@inbounds Threads.@threads for i1_ in 1:1:NMedium[1]; $code; end)
+        elseif nloops == 2
+            return :(@inbounds Threads.@threads for i1_ in 1:1:NMedium[1]; for i2_ in 1:1:NMedium[2]; $code; end; end)
+        elseif nloops == 3
+            return :(@inbounds Threads.@threads for i1_ in 1:1:NMedium[1]; for i2_ in 1:1:NMedium[2];  for i3_ in 1:1:NMedium[2]; $code; end; end; end)
+        end
 
     else agent.platform == :GPU
 
-        return :($CUDATHREADS1D; @inbounds for i1_ in index:stride:N[1]; $code; end)
+        if nloops === nothing
+            return :($CUDATHREADS1D; @inbounds for i1_ in index:stride:N[1]; $code; end)
+        elseif nloops == 1
+            return :($CUDATHREADS1D; @inbounds for i1_ in index:stride:N[1]; $code; end)
+        elseif nloops == 2
+            return :($CUDATHREADS2D; @inbounds for i1_ in index:stride:N[1]; for i2_ in indexY:strideY:N[2]; $code; end; end)
+        elseif nloops == 3
+            return :($CUDATHREADS3D; @inbounds for i1_ in index:stride:N[1]; for i2_ in indexY:strideY:N[2]; for i3_ in indexZ:strideZ:N[3]; $code; end; end; end)
+        end
 
+    end
+
+end
+
+"""
+    function noBorders(code,agent)
+
+Function that limits the computations to the inner set of a grid.
+"""
+function noBorders(code,agent)
+
+    if agent.dims == 1
+        return :(if 1 < i1_ < NMedium[1]; $code; end)
+    elseif agent.dims == 2
+        return :(if 1 < i1_ < NMedium[1] && 1 < i2_ < NMedium[2]; $code; end)
+    elseif agent.dims == 3
+        return :(if 1 < i1_ < NMedium[1] && 1 < i2_ < NMedium[2] && 1 < i3_ < NMedium[3]; $code; end)
     end
 
 end

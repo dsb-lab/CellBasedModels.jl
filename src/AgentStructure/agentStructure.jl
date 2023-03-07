@@ -9,6 +9,7 @@ Basic structure which contains the user defined parmeters of the model, the user
 |:---|:---|
 | dims::Int | Dimensions of the model. |
 | declaredVariables::OrderedDict{Symbol,Equation} | Dictionary containing the parameters that have a differential equation describing their evolution assotiated. |
+| declaredVariablesMedium::OrderedDict{Symbol,EquationMedium} | Dictionary containing the parameters that have a partial differential equation describing their evolution assotiated. |
 | declaredSymbols::OrderedDict{Symbol,Array{Any}} | Dictionary of parameters of the model and its properties. |
 | declaredUpdates::Dict{Symbol,Expr} |  Dictionary of updating rules and their user defined content (high level code). |
 | declaredUpdatesCode::Dict{Symbol,Expr} | Dictionary of updating rules after wrapping into code (low level code). |
@@ -39,6 +40,7 @@ Generates an empty instance of Agent to be filled.
         baseModelEnd::Vector{Agent}=Agent[],
         neighbors::Symbol=:Full,
         integrator::Symbol=:Euler,
+        integratorMedium::Symbol=:Centered,
         platform::Symbol=:CPU,
         saving::Symbol=:RAM,
         updateGlobal::Expr=quote end,
@@ -67,6 +69,7 @@ Generates an agent based model with defined parameters and rules.
 || baseModelEnd::Vector{Agent}=Agent[] | Models inherited to construct this model and which rules apply after this one. |
 || neighbors::Symbol=:Full | Type of neighbor method used. |
 || integrator::Symbol=:Euler | Type of integrator used. |
+|| integratorMedium::Symbol=:Centered | Type of discretizer used for the spatial medium. |
 || platform::Symbol=:CPU | Platform in which the agent will run. |
 || saving::Symbol=:RAM | Saving platform. |
 || updateGlobal::Expr=quote end | Update rule for global parameters. |
@@ -83,11 +86,13 @@ mutable struct Agent
     dims::Int    
     declaredSymbols::OrderedDict{Symbol,UserParameter}
     declaredVariables::OrderedDict{Symbol,Equation}
+    declaredVariablesMedium::OrderedDict{Symbol,EquationMedium}
     declaredUpdates::Dict{Symbol,Expr}
     declaredUpdatesCode::Dict{Symbol,Expr}
     declaredUpdatesFunction::Dict{Symbol,Function}
     neighbors::Symbol
     integrator::Symbol
+    integratorMedium::Symbol
     platform::Symbol
     removalOfAgents_::Bool
     posUpdated_::Vector{Bool}
@@ -96,11 +101,13 @@ mutable struct Agent
         new(0,
             OrderedDict{Symbol,Array{Symbol}}(),
             OrderedDict{Symbol,Equation}(),
+            OrderedDict{Symbol,EquationMedium}(),
             Dict{Symbol,Expr}(),
             Dict{Symbol,Expr}(),
             Dict{Symbol,Function}(),
             :Full,
             :Euler,
+            :Centered,
             :CPU,
             false,
             [false,false,false]
@@ -121,6 +128,7 @@ mutable struct Agent
         baseModelEnd::Vector{Agent}=Agent[],
         neighbors::Symbol=:Full,
         integrator::Symbol=:Euler,
+        integratorMedium::Symbol=:Centered,
         platform::Symbol=:CPU,
         updateGlobal::Expr=quote end,
         updateLocal::Expr=quote end,
@@ -144,6 +152,11 @@ mutable struct Agent
         else
             error("Integrator algorithm ", integrator, " not defined. Specify among: ", INTEGRATOR)
         end
+        if integratorMedium in keys(INTEGRATORMEDIUM)
+            agent.integrator = integrator
+        else
+            error("Integrator medium algorithm ", integrator, " not defined. Specify among: ", INTEGRATORMEDIUM)
+        end
         if platform in PLATFORM
             agent.platform = platform
         else
@@ -160,7 +173,7 @@ mutable struct Agent
                     (globalFloatInteraction,    UserParameter(:Float,   :Global,     true,     :gfi_,       1)),
                     (globalInt,                 UserParameter(:Int,     :Global,     false,    :giNM_,      1)),
                     (globalIntInteraction,      UserParameter(:Int,     :Global,     true,     :gii_,       1)),
-                    (medium,                    UserParameter(:Float,   :Medium,     false,    :medium_,    1))]
+                    (medium,                    UserParameter(:Float,   :Medium,     false,    :mediumNM_,    1))]
             checkDeclared(i,agent)
             for sym in i
                 agent.declaredSymbols[sym] = deepcopy(j)
@@ -274,6 +287,15 @@ mutable struct Agent
             end
         end
 
+        #Get equations
+        getEquationsMedium!(agent)
+        #Check parameters that are evolved
+        for i in keys(agent.declaredSymbols)
+            if i in keys(agent.declaredVariablesMedium)
+                agent.declaredSymbols[i].basePar = baseParameterToModifiable(agent.declaredSymbols[i].basePar)
+            end
+        end
+
         #Reset Counters
         for base in [:liNM_, :liM_, :lii_, :lfNM_, :lfM_, :lfi_, :gfNM_, :gfM_, :gfi_, :giNM_, :giM_, :gii_, :mediumNM_, :mediumM_]
             counter = 1
@@ -293,6 +315,7 @@ mutable struct Agent
             neighborsFunction(agent)
             interactionFunction(agent)
             integratorFunction(agent)
+            integratorMediumFunction(agent)
         end
 
         return agent

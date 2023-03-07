@@ -45,6 +45,9 @@ include("./AgentStructure/functions/update.jl")
     #Integrators
 export integrationStep!
 include("./AgentStructure/functions/integrators.jl")
+    #Medium
+export integrationMediumStep!
+include("./AgentStructure/functions/medium.jl")
     #Step
 export step!, evolve!
 include("./AgentStructure/functions/step.jl")

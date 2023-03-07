@@ -95,6 +95,32 @@ mutable struct Equation
     stochastic::Union{Expr,Symbol,Number}
 end
 
+"""EquationMedium
+    mutable struct EquationMedium
+
+Structure containing the informatiojn of each equation declared in the model.
+
+|Field|Description|
+|:---|:---|
+| position::Int | Position of the equation for the variable in BASEPARAMETERS |
+| advection::Array{Union{Symbol,Expr,Number}} | Code of the advection equation part |
+| difussion::Array{Union{Symbol,Expr,Number}} | Code of the diffusion equation part |
+| reaction::Array{Union{Symbol,Expr,Number}} | Code of the reaction equation part |
+| delta::Array{Union{Symbol,Expr,Number}} | Code of the delta equation part |
+| fromAgents::Array{Union{Symbol,Expr,Number}} | Code for the agents part equation part |
+"""
+mutable struct EquationMedium
+    position::Int
+    advectionX::Array{Union{Symbol,Expr,Number}}
+    advectionY::Array{Union{Symbol,Expr,Number}}
+    advectionZ::Array{Union{Symbol,Expr,Number}}
+    difussionXX::Array{Union{Symbol,Expr,Number}}
+    difussionYY::Array{Union{Symbol,Expr,Number}}
+    difussionZZ::Array{Union{Symbol,Expr,Number}}
+    reaction::Array{Union{Symbol,Expr,Number}}
+    fromAgents::Array{Union{Symbol,Expr,Number}}
+end
+
 """
     struct Integrator
 
@@ -102,7 +128,7 @@ Structure containin the information of the integration method.
 
 |Field|Description|
 |:---|:---|
-| length | Number of intermediate steps (RungeKutta4 has 4 steps) |
+| length | Number of intermediate steps (e.g. RungeKutta4 has 4 steps) |
 | stochasticImplemented | If this integrator is valid for SDE integration. |
 | weight | Weight of each step in the integration in the form of a Butcher table of ((weights step 1), (weigths step 2)...) |
 """
@@ -110,4 +136,21 @@ struct Integrator
     length
     stochasticImplemented
     weight
+end
+
+"""
+    struct IntegratorMedium
+
+Structure containin the information of the integration medium method.
+
+|Field|Description|
+|:---|:---|
+| advection | Advection spatial integration steps. |
+| difusion | Difussion spatial integration steps. |
+| reaction | Reaction spatial integration steps. |
+"""
+struct IntegratorMedium
+    advection
+    difussion
+    reaction
 end
