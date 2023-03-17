@@ -1,4 +1,66 @@
 """
+    function getEquation(sym,code,agent)
+
+Sets to true the the variable field of UserParameters
+"""
+function getEquation(sym,code,agent)
+
+    agent.parameters[sym].variable = true
+
+    return code
+
+end
+
+"""
+    function getEquations!(agent)
+
+Go over the code in updateVariable and looks for parameters defined as variables.
+"""
+function getEquations!(agent)
+
+    for update in keys(agent.declaredUpdates)
+        code = agent.declaredUpdates[update]
+
+        code = postwalk(x->@capture(x,d(s_)=g_) ? getEquation(s,x,agent) : x, code)
+    end
+
+    return
+
+end
+
+"""
+    function getEquationMedium(sym,code,agent)
+
+Sets to true the the variableMedium field of UserParameters
+"""
+function getEquationMedium(sym,code,agent)
+
+    agent.parameters[sym].variableMedium = true
+
+    return code
+
+end
+
+"""
+    function getEquationsMedium!(agent)
+
+Go over the code in updateVariable and looks for parameters defined as medium variables.
+"""
+function getEquationsMedium!(agent)
+
+    for update in keys(agent.declaredUpdates)
+
+        code = agent.declaredUpdates[update]
+
+        code = postwalk(x->@capture(x,∂t(s_)=g_) ? getEquationMedium(s,x,agent) : x, code)
+
+    end
+
+    return
+
+end
+
+"""
     mutable struct Agent
 
 Basic structure which contains the user defined parmeters of the model, the user rules of the agents, both in high level definition and the functions already compiled.
@@ -84,52 +146,49 @@ For a more extense explanation of how to define rules and parameters, read `Usag
 mutable struct Agent
 
     dims::Int    
-    declaredSymbols::OrderedDict{Symbol,UserParameter}
-    declaredVariables::OrderedDict{Symbol,Equation}
-    declaredVariablesMedium::OrderedDict{Symbol,EquationMedium}
+
+    positionParameters::OrderedDict{Symbol,DataType}
+    idParameter::OrderedDict{Symbol,DataType}
+
+    parameters::OrderedDict{Symbol,UserParameter}
+    
     declaredUpdates::Dict{Symbol,Expr}
     declaredUpdatesCode::Dict{Symbol,Expr}
     declaredUpdatesFunction::Dict{Symbol,Function}
     neighbors::Symbol
-    integrator::Symbol
-    integratorMedium::Symbol
     platform::Symbol
     removalOfAgents_::Bool
-    posUpdated_::Vector{Bool}
         
     function Agent()
         new(0,
-            OrderedDict{Symbol,Array{Symbol}}(),
-            OrderedDict{Symbol,Equation}(),
-            OrderedDict{Symbol,EquationMedium}(),
+            OrderedDict{Symbol,DataType}(),
+            OrderedDict{Symbol,DataType}(),
+            OrderedDict{Symbol,DataType}(),
             Dict{Symbol,Expr}(),
             Dict{Symbol,Expr}(),
             Dict{Symbol,Function}(),
             :Full,
-            :Euler,
-            :Centered,
             :CPU,
             false,
-            [false,false,false]
             )
     end
 
     function Agent(dims;
-        localInt::Vector{Symbol}=Symbol[],
-        localIntInteraction::Vector{Symbol}=Symbol[],
-        localFloat::Vector{Symbol}=Symbol[],
-        localFloatInteraction::Vector{Symbol}=Symbol[],
-        globalFloat::Vector{Symbol}=Symbol[],
-        globalInt::Vector{Symbol}=Symbol[],
-        globalFloatInteraction::Vector{Symbol}=Symbol[],
-        globalIntInteraction::Vector{Symbol}=Symbol[],
-        medium::Vector{Symbol}=Symbol[],
+        agentParameters=OrderedDict{Symbol,DataType}(),
+        modelParameters=OrderedDict{Symbol,DataType}(),
+        mediumParameters=OrderedDict{Symbol,DataType}(),
+        positionParameters=OrderedDict(
+            :x=>Float64,
+            :y=>Float64,
+            :z=>Float64,
+        ),
+        idParameter=OrderedDict([:id=>Int64]),
         baseModelInit::Vector{Agent}=Agent[],
         baseModelEnd::Vector{Agent}=Agent[],
+
         neighbors::Symbol=:Full,
-        integrator::Symbol=:Euler,
-        integratorMedium::Symbol=:Centered,
         platform::Symbol=:CPU,
+
         updateGlobal::Expr=quote end,
         updateLocal::Expr=quote end,
         updateInteraction::Expr=quote end,
@@ -147,44 +206,48 @@ mutable struct Agent
         else
             error("Neighbors algorithm ", neighbors, " not defined. Specify among: ", NEIGHBORSYMBOLS)
         end
-        if integrator in keys(INTEGRATOR)
-            agent.integrator = integrator
-        else
-            error("Integrator algorithm ", integrator, " not defined. Specify among: ", INTEGRATOR)
-        end
-        if integratorMedium in keys(INTEGRATORMEDIUM)
-            agent.integrator = integrator
-        else
-            error("Integrator medium algorithm ", integrator, " not defined. Specify among: ", INTEGRATORMEDIUM)
-        end
         if platform in PLATFORM
             agent.platform = platform
         else
             error("Platform ", platform, " not defined. Specify among: ", PLATFORM)
         end
 
-        #User defined symbols
-        for (i,j) in [                                        #dtype    #scope      #reset     #basePar    #pos
-                    (localInt,                  UserParameter(:Int,     :Local,      false,    :liNM_,      1)),
-                    (localIntInteraction,       UserParameter(:Int,     :Local,      true,     :lii_,       1)),
-                    (localFloat,                UserParameter(:Float,   :Local,      false,    :lfNM_,      1)),
-                    (localFloatInteraction,     UserParameter(:Float,   :Local,      true,     :lfi_,       1)),
-                    (globalFloat,               UserParameter(:Float,   :Global,     false,    :gfNM_,      1)),
-                    (globalFloatInteraction,    UserParameter(:Float,   :Global,     true,     :gfi_,       1)),
-                    (globalInt,                 UserParameter(:Int,     :Global,     false,    :giNM_,      1)),
-                    (globalIntInteraction,      UserParameter(:Int,     :Global,     true,     :gii_,       1)),
-                    (medium,                    UserParameter(:Float,   :Medium,     false,    :mediumNM_,    1))]
-            checkDeclared(i,agent)
-            for sym in i
-                agent.declaredSymbols[sym] = deepcopy(j)
+        #Add basic agent symbols
+        for (i,sym) in enumerate(keys(positionParameters))
+            if i <= dims
+                agent.parameters[sym] = UserParameter(positionParameters[sym],:agent)
             end
         end
+        for (i,sym) in enumerate(keys(idParameter))
+            if i <= 1
+                agent.parameters[sym] = UserParameter(idParameter[sym],:agent)
+            end
+        end
+
+        #Parameters
+        for (arg,scope) = [
+                            (agentParameters,:agent),
+                            (modelParameters,:model),
+                            (mediumParameters,:medium)            
+                            ]
+            params = 0
+            if typeof(arg) == DataType
+                params = Dict([i=>j for (i,j) in zip(fieldnames(arg),fieldtypes(arg))])
+            else
+                params = arg
+            end
+            for (par,dataType) in pairs(params)
+                checkDeclared(par,agent)
+                agent.parameters[par] = UserParameter(dataType,scope)
+            end
+        end
+
         #Add symbols from base objects
         for base in [baseModelInit; baseModelEnd]
-            for (i,j) in pairs(base.declaredSymbols)
+            for (i,j) in pairs(base.parameters)
                 if !(i in keys(BASEPARAMETERS))
                     checkDeclared(i,agent)
-                    agent.declaredSymbols[i] = deepcopy(j)
+                    agent.parameters[i] = j
                 end
             end
         end
@@ -222,7 +285,7 @@ mutable struct Agent
         end
 
         #Make explicit the updates by adding the .new tag
-        potentiallyUpdatingVars = [[i for (i,var) in pairs(agent.declaredSymbols) if !(var.reset)]...,POSITIONPARAMETERS[1:agent.dims]...]
+        potentiallyUpdatingVars = [i for (i,var) in pairs(agent.parameters)]
         for i in keys(agent.declaredUpdates)
             code = agent.declaredUpdates[i]
             for sym in potentiallyUpdatingVars
@@ -235,23 +298,19 @@ mutable struct Agent
 
         #Change variables updated to modifiable
         for update in keys(agent.declaredUpdates)
-            for (sym,var) in pairs(agent.declaredSymbols)
-                if inexpr(agent.declaredUpdates[update],:($sym.new)) && !(var.reset)
-                    var.basePar = baseParameterToModifiable(var.basePar)
-                    agent.declaredSymbols[sym]  = var
-                elseif inexpr(agent.declaredUpdates[update],BASESYMBOLS[:AddAgentMacro].symbol) && !(var.reset) #If add agents, all local parameters are modifiable
-                    var.basePar = baseParameterToModifiable(var.basePar)
-                    agent.declaredSymbols[sym]  = var
+
+            for (sym,var) in pairs(agent.parameters)
+                if inexpr(agent.declaredUpdates[update],:($sym.new))
+                    agent.parameters[sym].update = true
+                elseif inexpr(agent.declaredUpdates[update],BASESYMBOLS[:AddAgentMacro].symbol) && agent.parameters[sym].scope == :agent #If add agents, all local parameters are modifiable
+                    agent.parameters[sym].update = true
                 end
             end
-        end
 
-        #Make list of positions of user parameters
-        for find in unique([j.basePar for (i,j) in pairs(agent.declaredSymbols)])
-            vars = [j for (i,j) in pairs(agent.declaredSymbols) if j.basePar == find]
-            for (count,var) in enumerate(vars)
-                var.position = count
-            end
+            getEquations!(agent)
+
+            getEquationsMedium!(agent)
+
         end
 
         #Check if there are removed agents
@@ -261,53 +320,6 @@ mutable struct Agent
             end
         end        
 
-        #Check which position vectors are updated
-        new = BASESYMBOLS[:UpdateSymbol].symbol
-        for update in keys(agent.declaredUpdates)
-            for i in 1:length(POSITIONPARAMETERS[1:agent.dims])
-                if inexpr(agent.declaredUpdates[update],:($(POSITIONPARAMETERS[i]).$new)) || 
-                    inexpr(agent.declaredUpdates[update],BASESYMBOLS[:AddAgentMacro].symbol)
-                    agent.posUpdated_[i] = true
-                end
-            end
-        end    
-
-        #Get equations
-        getEquations!(agent)
-        #Check position that are evolved
-        for i in 1:length(POSITIONPARAMETERS[1:agent.dims])
-            if POSITIONPARAMETERS[i] in keys(agent.declaredVariables)
-                agent.posUpdated_[i] = true
-            end
-        end
-        #Check parameters that are evolved
-        for i in keys(agent.declaredSymbols)
-            if i in keys(agent.declaredVariables)
-                agent.declaredSymbols[i].basePar = baseParameterToModifiable(agent.declaredSymbols[i].basePar)
-            end
-        end
-
-        #Get equations
-        getEquationsMedium!(agent)
-        #Check parameters that are evolved
-        for i in keys(agent.declaredSymbols)
-            if i in keys(agent.declaredVariablesMedium)
-                agent.declaredSymbols[i].basePar = baseParameterToModifiable(agent.declaredSymbols[i].basePar)
-            end
-        end
-
-        #Reset Counters
-        for base in [:liNM_, :liM_, :lii_, :lfNM_, :lfM_, :lfi_, :gfNM_, :gfM_, :gfi_, :giNM_, :giM_, :gii_, :mediumNM_, :mediumM_]
-            counter = 1
-            for (s,var) in pairs(agent.declaredSymbols)
-                if var.basePar == base
-                    var.position = counter
-                    agent.declaredSymbols[s] = var
-                    counter += 1
-                end
-            end
-        end
-
         #Make compiled functions
         if compile 
             localFunction(agent)
@@ -315,6 +327,7 @@ mutable struct Agent
             neighborsFunction(agent)
             interactionFunction(agent)
             integratorFunction(agent)
+            integrator2Function(agent)
             integratorMediumFunction(agent)
         end
 
@@ -356,7 +369,7 @@ end
 
 function checkDeclared(a::Symbol, agent::Agent) 
 
-    if a in keys(agent.declaredSymbols)
+    if a in keys(agent.parameters)
         error("Symbol ", a, " already declared in the agent.")
     end
 

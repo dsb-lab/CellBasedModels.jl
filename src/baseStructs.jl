@@ -60,18 +60,22 @@ Structure that contains the properties of each of the user declared parameters.
 
 |Field|Description|
 |:---|:---|
-| dtype::Symbol | If :Int or :Float |
-| scope::Symbol | If :Local, :Global or :Medium parameter |
-| reset::Bool | If to reset it before interactionStep! |
-| basePar::Symbol | Where it should be stored in the BASEPARAMETERS parameters |
-| position::Int64 | Position inside this Base Parameter. |
+| dtype::DataType | Type of data |
+| scope::Symbol | If :agent, :model or :medium parameter |
+| update::Bool | If the variable is updated |
+| variable::Bool | Whether if this parameter is described with a Differential Equation |
+| variableMedium::Bool | Whether if this parameter is described with a PDE |
 """
 mutable struct UserParameter
-    dtype::Symbol
+    dtype::DataType
     scope::Symbol
-    reset::Bool
-    basePar::Symbol
-    position::Int64
+    update::Bool
+    variable::Bool
+    variableMedium::Bool
+
+    function UserParameter(dataType,scope)
+        return new(dataType,scope,false,false,false)
+    end
 end
 
 """

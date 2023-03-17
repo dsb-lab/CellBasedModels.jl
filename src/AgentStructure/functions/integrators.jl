@@ -1,85 +1,38 @@
-#######################################################################################################
-# Get the equations
-#######################################################################################################
-"""
-    function addToList(x,agent;type)
+# #######################################################################################################
+# # Get the equations
+# #######################################################################################################
+# """
+#     function addToList(x,agent;type)
 
-Add the code from dt or dW (type) terms to the Corresponding `Equation` structure. Give errors if some code is already present or if SDE is not implemented for that particular integrator.
-"""
-function addToList(x,agent;type)
+# Add the code from dt or dW (type) terms to the Corresponding `Equation` structure. Give errors if some code is already present or if SDE is not implemented for that particular integrator.
+# """
+# function addToList(x,agent;type)
 
-    if type == :Deterministic
+#     if type == :Deterministic
 
-        sym = [i for i in keys(agent.declaredVariables)][end]
-        if agent.declaredVariables[sym].deterministic != 0
-            error("Deterministic term dt(  ) has been defined more than one for variable $sym." )
-        end
-        agent.declaredVariables[sym].deterministic = x
-        agent.declaredVariables[sym].positiondt = sum([j.positiondt > 0 for (i,j) in pairs(agent.declaredVariables)]) + 1
+#         sym = [i for i in keys(agent.declaredVariables)][end]
+#         if agent.declaredVariables[sym].deterministic != 0
+#             error("Deterministic term dt(  ) has been defined more than one for variable $sym." )
+#         end
+#         agent.declaredVariables[sym].deterministic = x
+#         agent.declaredVariables[sym].positiondt = sum([j.positiondt > 0 for (i,j) in pairs(agent.declaredVariables)]) + 1
 
-    elseif type == :Stochastic 
+#     elseif type == :Stochastic 
 
-        sym = [i for i in keys(agent.declaredVariables)][end]
-        if agent.declaredVariables[sym].stochastic != 0
-            error("Stochastic term dW(  ) has been defined more than one for variable $sym." )
-        elseif !INTEGRATOR[agent.integrator].stochasticImplemented
-            error("Stochastic integration has not been implemented for this method." )
-        end
-        agent.declaredVariables[sym].stochastic = x
-        agent.declaredVariables[sym].positiondW = sum([j.positiondW > 0 for (i,j) in pairs(agent.declaredVariables)]) + 1
+#         sym = [i for i in keys(agent.declaredVariables)][end]
+#         if agent.declaredVariables[sym].stochastic != 0
+#             error("Stochastic term dW(  ) has been defined more than one for variable $sym." )
+#         elseif !INTEGRATOR[agent.integrator].stochasticImplemented
+#             error("Stochastic integration has not been implemented for this method." )
+#         end
+#         agent.declaredVariables[sym].stochastic = x
+#         agent.declaredVariables[sym].positiondW = sum([j.positiondW > 0 for (i,j) in pairs(agent.declaredVariables)]) + 1
 
-    end
+#     end
 
-    return x
+#     return x
 
-end
-
-"""
-    function getEquation(sym,code,agent)
-
-Give errors if the symbol for an equation is not vald for an SDE or ODE.
-Go over the possible dt and dW terms in the equation and add them to the structure `Equation`.
-"""
-function getEquation(sym,code,agent)
-
-    if sym in POSITIONPARAMETERS[end:-1:agent.dims+1]
-
-        error("Position parameter $sym not existing for a model with $(agent.dims) dimensions.")
-
-    elseif sym in keys(agent.declaredSymbols)
-
-        if agent.declaredSymbols[sym].scope != :Local
-            error("Only parameters that are local can be defined as variables.")
-        elseif sym in keys(agent.declaredVariables)
-            error("Equation for symbol $sym has been defined more than once.")
-        end
-
-    end
-
-    agent.declaredVariables[sym] = Equation(0,0,0,0,0)
-    agent.declaredVariables[sym].position = length(keys(agent.declaredVariables))
-
-    code = postwalk(x->@capture(x,dt(m_)) ? addToList(m,agent,type=:Deterministic) : x, code)
-    code = postwalk(x->@capture(x,dW(m_)) ? addToList(m,agent,type=:Stochastic) : x, code)
-
-    return code
-
-end
-
-"""
-    function getEquations!(agent)
-
-Go over the code in updateVariable and get the equations defined in the code.
-"""
-function getEquations!(agent)
-
-    code = agent.declaredUpdates[:UpdateVariable]
-
-    code = postwalk(x->@capture(x,d(s_)=g_) ? getEquation(s,g,agent) : x, code)
-
-    return
-
-end
+# end
 
 #######################################################################################################
 # Convert the equations
