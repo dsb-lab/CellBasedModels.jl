@@ -27,7 +27,7 @@ These parameters are defined with all the properties in the constant BASEPARAMET
 ||NMedium|Size of the grid in which the medium is being computed. This is necessary to be declared if medium parameters are declared by the user.|
 ||nMax_|Maximum number of agents that can be present in the community.|
 |**Id tracking**|||
-||id|Unique identifier of the agent.|
+||id|Unique identifier of the com.agent.|
 ||idMax_|Maximum identifier that has been declared in the community.|
 |**Simulation space**|||
 ||simBox|Simulation box in which cells are moving. This is necessary to define a region of space in which a medium will be simulated or for computing neighbors with CellLinked methods.|
@@ -44,13 +44,13 @@ These parameters are defined with all the properties in the constant BASEPARAMET
 ||nMaxNeighbors|Maximum number of neighbors. Necessary for Verlet-like algorithms.|
 ||cellEdge|Distance of the grid used to compute neighbors.|
 ||flagRecomputeNeighbors_|Marked as 1 if recomputation of neighbors has to be performed.|
-||neighborN_|Number of neighbors for each agent. Used in Verlet-like algorithms.|
-||neighborList_|Matrix containing the neighbors of each Agent. Used in Verlet-like algorithms.|
+||neighborN_|Number of neighbors for each com.agent. Used in Verlet-like algorithms.|
+||neighborList_|Matrix containing the neighbors of each com.Agent. Used in Verlet-like algorithms.|
 ||neighborTimeLastRecompute_|Time storing the information of last neighbor recomputation. Used in Verlet time algorithm.|
 ||posOld_|Stores the position of each agent in the last VerletDistance neighbor computation.|
 ||accumulatedDistance_|Stores the accumulated displaced distance of each agent in the last VerletDistance neighbor computation.|
 ||nCells_|Number of cells in each dimensions of the grid. Used in CellLinked algorithms.|
-||cellAssignedToAgent_|Cell assigned to each agent. Used in CellLinked algorithms.|
+||cellAssignedToAgent_|Cell assigned to each com.agent. Used in CellLinked algorithms.|
 ||cellNumAgents_|Number of agents assigned to each cell. Used in CellLinked algorithms.|
 ||cellCumSum_|Cumulative number of agents in the cell list. Used in CellLinked algorithms.|
 |**Position**|||
@@ -169,10 +169,10 @@ mutable struct Community
     cellCumSum_
     meshLateralSize_
 
-    parameters
-    parametersUpdated
-    vars
-    varsMedium
+    parameters::OrderedDict{Symbol,AbstractArray}
+    parametersUpdated::OrderedDict{Symbol,AbstractArray}
+    vars::AbstractArray
+    varsMedium::AbstractArray
 
     # Constructors
     function Community(agent::Agent; args...)
@@ -200,18 +200,11 @@ mutable struct Community
         end
 
         #Creating the appropiate data arrays for parameters
-        vars = zeros(Float64,length([1 for (i,j) in pairs(agent.parameters) if j.variable]),dict[:N][1])
-        varsMedium = zeros(Float64,length([1 for (i,j) in pairs(agent.parameters) if j.variableMedium]),dict[:nCells_]...)
-
         parameters = OrderedDict{Symbol,Array}()
         parametersUpdated = OrderedDict{Symbol,Array}()
         for (sym,struc) in pairs(agent.parameters)
             if struc.scope == :agent
-                if struc.variable
-                    @views parameters[sym] = vars[struc.pos,:]
-                else
-                    parameters[sym] = zeros(struc.dtype,dict[:N][1])
-                end
+                parameters[sym] = zeros(struc.dtype,dict[:N][1])
                 if struc.update
                     parametersUpdated[sym] = zeros(struc.dtype,dict[:N][1])
                 end
@@ -221,27 +214,17 @@ mutable struct Community
                     parametersUpdated[sym] = zeros(struc.dtype,1)
                 end
             else
-                if struc.variable
-                    if agent.dims == 1
-                        @views parameters[sym] = varsMedium[struc.pos,:]
-                    elseif agent.dims == 2
-                        @views parameters[sym] = varsMedium[struc.pos,:,:]
-                    else
-                        @views parameters[sym] = varsMedium[struc.pos,:,:,:]
-                    end
-                else
-                    parameters[sym] = zeros(struc.dtype,dict[:nCells_]...)
-                end
+                parameters[sym] = zeros(struc.dtype,dict[:NMedium]...)
                 if struc.update
-                    parametersUpdated[sym] = zeros(struc.dtype,dict[:nCells_]...)
+                    parametersUpdated[sym] = zeros(struc.dtype,dict[:NMedium]...)
                 end
             end
         end
     
-        com = new(agent, false, Platform(256,1), nothing, Community[], [j for (i,j) in pairs(dict)]...,parameters,parametersUpdated,vars,varsMedium)
+        com = new(agent, false, Platform(256,1), nothing, Community[], [j for (i,j) in pairs(dict)]...,parameters,parametersUpdated,zeros(0),zeros(0))
 
         for sym in keys(args)
-            if sym in keys(agent.parameters)
+            if sym in keys(com.agent.parameters)
                 setproperty!(com,sym,args[sym])
             end
         end
@@ -295,8 +278,8 @@ function Base.getindex(community::Community,timePoint::Number)
             end
         end
 
-        for (i,sym) in enumerate(POSITIONPARAMETERS[1:1:community.agent.dims])
-            if !community.agent.posUpdated_[i]
+        for (i,sym) in enumerate(POSITIONPARAMETERS[1:1:community.com.agent.dims])
+            if !community.com.agent.posUpdated_[i]
                 p = getfield(community,sym)
                 setfield!(com,sym,p)
             end
@@ -447,20 +430,10 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
     #Add preallocated agents to maximum
     setfield!(com, :nMax_, com.N .+ preallocateAgents)
 
-    #Start with the new parameters equal to the old positions just in case
-    if com.agent.posUpdated_[1]
-        setfield!(com,:xNew_,copy(com.x))
+    #Start with the new parameters equal to the old positions, just in case
+    for i in keys(com.parametersUpdated)
+        com.parametersUpdated[i] .= com.parameters[i]
     end
-    if com.agent.posUpdated_[2]
-        setfield!(com,:yNew_,copy(com.y))
-    end
-    if com.agent.posUpdated_[3]
-        setfield!(com,:yNew_,copy(com.y))
-    end
-    setfield!(com,:liMNew_,copy(com.liM_))
-    setfield!(com,:lfMNew_,copy(com.lfM_))
-    setfield!(com,:gfMNew_,copy(com.gfM_))
-    setfield!(com,:giMNew_,copy(com.giM_))
 
     # Transform to the correct platform the parameters
     platform = com.agent.platform
@@ -482,12 +455,43 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
         end
     end            
 
+    # Transform to the correct platform the parameters
+    CUDA.@allowscalar setfield!(com, :vars, zeros(Float64,length([1 for (i,j) in pairs(com.agent.parameters) if j.variable]),com.N[1]))
+    CUDA.@allowscalar setfield!(com, :varsMedium, zeros(Float64,length([1 for (i,j) in pairs(com.agent.parameters) if j.variableMedium]),com.nCells_...))    
+
+    for (sym,prop) in pairs(com.agent.parameters)
+        p = getproperty(com,sym)
+        if prop.scope == :agent
+            com.parameters[sym] = Array{prop.dtype}([p;zeros(prop.dtype,preallocateAgents)])
+            if prop.update
+                com.parametersUpdated[sym] = Array{prop.dtype}([p;zeros(prop.dtype,preallocateAgents)])
+            end
+        elseif prop.scope in [:model,:medium]
+            com.parameters[sym] = Array{prop.dtype}(p)
+            if prop.update
+                com.parametersUpdated[sym] = Array{prop.dtype}(p)
+            end
+        end
+    end
+    #Transform to the appropiate methods
+    if platform == :GPU
+        setfield!(com,:vars, cu(com.vars))
+        setfield!(com,:varsMedium, cu(com.varsMedium))
+        for sym in keys(com.parameters)
+            com.parameters[sym] = cu(com.parameters[sym])
+        end
+        for sym in keys(com.parametersUpdated)
+            com.parametersUpdated[sym] = cu(com.parametersUpdated[sym])
+        end
+    end
+
+    linkVariables(com)
+
     #Set loaded to true
     setfield!(com,:loaded,true)
 
     #Compute neighbors and interactions for the first time
-    computeNeighbors!(com)
-    interactionStep!(com)
+    # computeNeighbors!(com)
 
     if typeof(com.fileSaving) <: String
         com.fileSaving = jldopen(com.fileSaving, "a+")
@@ -526,9 +530,28 @@ function bringFromPlatform!(com::Community)
         end
     end            
 
+    # Transform to the correct platform the parameters
+    for (sym,prop) in pairs(com.agent.parameters)
+        p = com.parameters[sym]
+        if prop.scope == :agent
+            com.parameters[sym] = Array{prop.dtype}(p[1:N])
+            if prop.update
+                com.parametersUpdated[sym] = Array{prop.dtype}(p[1:N])
+            end
+        elseif prop.scope in [:model,:medium]
+            com.parameters[sym] = Array{prop.dtype}(p)
+            if prop.update
+                com.parametersUpdated[sym] = Array{prop.dtype}(p)
+            end
+        end
+    end
+
+    CUDA.@allowscalar setfield!(com, :vars, zeros(Float64,0))
+    CUDA.@allowscalar setfield!(com, :varsMedium, zeros(Float64,0))    
+
     setfield!(com, :nMax_, com.N)
 
-    #Set loaded to true
+    #Set loaded to false
     setfield!(com,:loaded,false)
 
     if typeof(com.fileSaving) <: JLD2.JLDFile
@@ -548,4 +571,32 @@ function checkLoaded(com)
     if !com.loaded
         error("Community must be loaded to platform with `loadToPlatform!` before being able to compute any step.")
     end
+end
+
+function linkVariables(com::Community)
+
+    for (sym,struc) in pairs(com.agent.parameters)
+        if struc.scope == :agent
+            if struc.variable
+                com.vars[struc.pos,:] .= com.parameters[sym]
+                @views com.parameters[sym] = com.vars[struc.pos,:]
+            end
+        elseif struc.scope == :model
+            nothing
+        else
+            if struc.variableMedium
+                if com.agent.dims == 1
+                    com.varsMedium[struc.pos,:] .= com.parameters[sym]
+                    @views com.parameters[sym] = com.varsMedium[struc.pos,:]
+                elseif com.agent.dims == 2
+                    com.varsMedium[struc.pos,:,:] .= com.parameters[sym]
+                    @views com.parameters[sym] = com.varsMedium[struc.pos,:,:]
+                else
+                    com.varsMedium[struc.pos,:,:,:] .= com.parameters[sym]
+                    @views com.parameters[sym] = com.varsMedium[struc.pos,:,:,:]
+                end
+            end
+        end
+    end
+
 end

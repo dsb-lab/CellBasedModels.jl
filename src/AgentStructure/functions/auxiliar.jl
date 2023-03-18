@@ -74,9 +74,9 @@ function agentArgs(sym=nothing;l=3,params=BASEPARAMETERS,posparams=POSITIONPARAM
 
     pars = [i for i in keys(params)]
 
-    for i in posparams[3:-1:1+l]
-        popat!(pars,findfirst(pars.==i))
-    end
+    # for i in posparams[3:-1:1+l]
+    #     popat!(pars,findfirst(pars.==i))
+    # end
 
     if sym === nothing
         return Any[pars...]
@@ -379,6 +379,38 @@ function vectorize(code,agent)
     return code
 
 end
+
+"""
+    function vectorize2(code,agent)
+
+Function that transforms the code provided in Agent to the vectorized form for wrapping around an executable function.
+"""
+function vectorize2(code,agent)
+
+    #For user declared symbols
+    for (sym,prop) in pairs(agent.declaredSymbols)
+
+        if :Local == prop.scope
+            code = postwalk(x->@capture(x,g_) && g == sym ? :($g[i1_]) : x, code)
+        elseif :Global == prop.scope
+            code = postwalk(x->@capture(x,g_) && g == sym ? :($g[1]) : x, code)
+        elseif :Medium == prop.scope
+            args = [:gridPosx_,:gridPosy_,:gridPosz_][1:agent.dims]
+            code = postwalk(x->@capture(x,g_.j) && g == sym ? :($g[$(args...)]) : x, code)
+        elseif :Atomic == prop.scope
+            nothing
+        else
+            error("Symbol $bs with type $(prop[2]) doesn't has not vectorization implemented.")
+        end
+
+    end
+
+    code = randomAdapt(code, agent)
+
+    return code
+
+end
+
 
 """
     function clean(code,it=5)

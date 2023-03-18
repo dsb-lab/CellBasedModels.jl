@@ -187,25 +187,35 @@ end
         all([all( com[s] .== 1 ) for s in [:li,:gi,:gf,:gi2,:gf2,:dt]])
     end
 
-    # #loadToPlatform
-    # @test begin agent = Agent(3,
-    #     localInt=[:li],
-    #     localIntInteraction=[:lii],
-    #     localFloat=[:lf],
-    #     localFloatInteraction=[:lfi],
-    #     globalFloat=[:gf],
-    #     globalInt=[:gi],
-    #     globalFloatInteraction=[:gfi],
-    #     globalIntInteraction=[:gii],
-    #     medium=[:m]
-    #     )
+    #loadToPlatform
+    @test begin agent = Agent(3,
+            agentParameters=OrderedDict(
+                :li=>Int64,
+                :li2=>Int64,
+                :lii=>Int64,
+                :lf=>Float64,
+                :lf2=>Float64
+            ),
+            modelParameters=OrderedDict(
+                :gi=>Int64,
+                :gi2=>Int64,
+                :gii=>Int64,
+                :gf=>Float64,
+                :gf2=>Float64,
+                :gfi=>Float64
+            ),
+            mediumParameters=OrderedDict(
+                :m=>Float64
+            ),
+            compile=false
+        )
 
-    #     com = Community(agent,N=[100],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
-    #     loadToPlatform!(com,preallocateAgents=10)
-    #     bringFromPlatform!(com)
+        com = Community(agent,N=[100],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
+        loadToPlatform!(com,preallocateAgents=10)
+        # bringFromPlatform!(com)
 
-    #     true
-    # end
+        true
+    end
 
     # #local
     # @testset "local" begin

@@ -150,7 +150,6 @@ mutable struct Agent
     dims::Int    
 
     positionParameters::OrderedDict{Symbol,DataType}
-    idParameter::OrderedDict{Symbol,DataType}
 
     parameters::OrderedDict{Symbol,UserParameter}
     
@@ -163,7 +162,6 @@ mutable struct Agent
         
     function Agent()
         new(0,
-            OrderedDict{Symbol,DataType}(),
             OrderedDict{Symbol,DataType}(),
             OrderedDict{Symbol,DataType}(),
             Dict{Symbol,Expr}(),
@@ -184,7 +182,6 @@ mutable struct Agent
             :y=>Float64,
             :z=>Float64,
         ),
-        idParameter=OrderedDict([:id=>Int64]),
         baseModelInit::Vector{Agent}=Agent[],
         baseModelEnd::Vector{Agent}=Agent[],
 
@@ -218,11 +215,6 @@ mutable struct Agent
         for (i,sym) in enumerate(keys(positionParameters))
             if i <= dims
                 agent.parameters[sym] = UserParameter(positionParameters[sym],:agent)
-            end
-        end
-        for (i,sym) in enumerate(keys(idParameter))
-            if i <= 1
-                agent.parameters[sym] = UserParameter(idParameter[sym],:agent)
             end
         end
 
@@ -340,7 +332,7 @@ end
 
 function Base.show(io::IO,abm::Agent)
     print("PARAMETERS\n")
-    for (i,j) in pairs(abm.declaredSymbols)
+    for (i,j) in pairs(abm.parameters)
         if string(i)[end] != '_' #Only print parameters used by the user 
             println("\t",i," (",j.dtype," ",j.scope,")")
         end
