@@ -68,96 +68,124 @@ end
 
 @testset "community" begin
 
-    # #Create community
-    # @test_nowarn begin agent = Agent(3,
-    #     localInt=[:li],
-    #     localIntInteraction=[:lii],
-    #     localFloat=[:lf],
-    #     localFloatInteraction=[:lfi],
-    #     globalFloat=[:gf],
-    #     globalInt=[:gi],
-    #     globalFloatInteraction=[:gfi],
-    #     globalIntInteraction=[:gii],
-    #     medium=[:m],
-    #     updateGlobal=quote 
-    #         gi += 1
-    #         gf += 1
-    #         gfi += 1
-    #         gii += 1
-    #     end,
-    #     updateLocal=quote 
-    #         li += 1
-    #         lf += 1
-    #         lfi += 1
-    #         lii += 1     
-    #         gii += 1       
-    #     end,
-    #     updateInteraction=quote 
-    #         lfi += 1
-    #     end,
-    #     updateMedium=quote 
-    #         m += 1
-    #     end,
-    #     updateMediumInteraction=quote
-    #         m -= 1
-    #     end,
-    #     updateVariable=quote 
-    #         d( x ) = dt( -x )
-    #     end
-    #     )
+    #Create community
+    @test_nowarn begin agent = Agent(3,
+        agentParameters=OrderedDict(
+            :li=>Int64,
+            :li2=>Int64,
+            :lii=>Int64,
+            :lf=>Float64,
+            :lf2=>Float64
+        ),
+        modelParameters=OrderedDict(
+            :gi=>Int64,
+            :gi2=>Int64,
+            :gii=>Int64,
+            :gf=>Float64,
+            :gf2=>Float64,
+            :gfi=>Float64
+        ),
+        mediumParameters=OrderedDict(
+            :m=>Float64
+        ),
+        updateGlobal=quote 
+            gi += 1
+            gf += 1
+            gfi += 1
+            gii += 1
+        end,
+        updateLocal=quote 
+            li += 1
+            lf += 1
+            lfi += 1
+            lii += 1     
+            gii += 1       
+        end,
+        updateInteraction=quote 
+            lfi += 1
+        end,
+        updateMedium=quote 
+            m += 1
+        end,
+        updateMediumInteraction=quote
+            m -= 1
+        end,
+        updateVariable=quote 
+            d( x ) = dt( -x )
+        end,
+        compile=false
+        )
 
-    #     com = Community(agent,N=[10],NMedium=[1,1,1],simBox=[0. 1;0. 1;0 1])
-    # end
+        com = Community(agent,N=[10],NMedium=[1,1,1],simBox=[0. 1;0. 1;0 1])
+    end
 
-    # #Get properties
-    # @test_nowarn begin agent = Agent(3,
-    #     localInt=[:li],
-    #     localIntInteraction=[:lii],
-    #     localFloat=[:lf],
-    #     localFloatInteraction=[:lfi],
-    #     globalFloat=[:gf,:gf2],
-    #     globalInt=[:gi,:gi2],
-    #     globalFloatInteraction=[:gfi],
-    #     globalIntInteraction=[:gii],
-    #     medium=[:m]
-    #     )
+    #Get properties
+    @test_nowarn begin agent = Agent(3,
+            agentParameters=OrderedDict(
+                :li=>Int64,
+                :li2=>Int64,
+                :lii=>Int64,
+                :lf=>Float64,
+                :lf2=>Float64
+            ),
+            modelParameters=OrderedDict(
+                :gi=>Int64,
+                :gi2=>Int64,
+                :gii=>Int64,
+                :gf=>Float64,
+                :gf2=>Float64,
+                :gfi=>Float64
+            ),
+            mediumParameters=OrderedDict(
+                :m=>Float64
+            )
+        )
 
-    #     com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
-    #     com.li
-    #     com[:li]
-    #     com.gf
-    #     com[:gf]
-    #     com.gf2
-    #     com[:gf2]
-    #     com.agent
-    #     com.loaded
-    # end
+        com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
+        com.li
+        com[:li]
+        com.gf
+        com[:gf]
+        com.gf2
+        com[:gf2]
+        com.agent
+        com.loaded
+    end
 
-    # #Set properties
-    # @test begin agent = Agent(3,
-    #     localInt=[:li],
-    #     localIntInteraction=[:lii],
-    #     localFloat=[:lf],
-    #     localFloatInteraction=[:lfi],
-    #     globalFloat=[:gf,:gf2],
-    #     globalInt=[:gi,:gi2],
-    #     globalFloatInteraction=[:gfi],
-    #     globalIntInteraction=[:gii],
-    #     medium=[:m]
-    #     )
+    #Set properties
+    @test begin agent = Agent(3,
+            agentParameters=OrderedDict(
+                :li=>Int64,
+                :li2=>Int64,
+                :lii=>Int64,
+                :lf=>Float64,
+                :lf2=>Float64
+            ),
+            modelParameters=OrderedDict(
+                :gi=>Int64,
+                :gi2=>Int64,
+                :gii=>Int64,
+                :gf=>Float64,
+                :gf2=>Float64,
+                :gfi=>Float64
+            ),
+            mediumParameters=OrderedDict(
+                :m=>Float64
+            ),
+        )
 
-    #     com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
-    #     com.li = ones(Int64,10)
-    #     com[:li] = ones(Int64,10)
-    #     com.li .= 1.
-    #     com.gi = 1
-    #     com.gf = 1. 
-    #     com.gi2 = 1
-    #     com.gf2 = 1. 
-    #     com.dt = 1
+        com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
+        com.li = ones(Int64,10)
+        com[:li] = ones(Int64,10)
+        com.li .= 1.
+        com.gi = 1
+        com.gf = 1. 
+        com.gi2 = 1
+        com.gf2 = 1. 
+        com.dt = 1
 
-    #     all( com.gi2 .== 1 )
-    # end
+        all([all( com[s] .== 1 ) for s in [:li,:gi,:gf,:gi2,:gf2,:dt]])
+    end
 
     # #loadToPlatform
     # @test begin agent = Agent(3,
@@ -888,24 +916,27 @@ end
 
     # end
 
-    @testset "Medium" begin
+    # @testset "Medium" begin
         
-        @test begin
+    #     @test begin
             
-            agent = Agent(2,
-                medium = [:a,:b],
-                updateMedium = quote
-                    ∂t( a ) = ∂2( a ) + react( δx(5. -xₘ)*δy(5. -yₘ)*2 )
-                end
-            )
+    #         agent = Agent(1,
+    #             medium = [:a,:b],
+    #             updateMedium = quote
+    #                 ∂t( a ) = ∂2( 2*a ) #+ react( δx(5. - xₘ) )
 
-            com = Community(agent,NMedium=[11,11],simBox=[0 10;0 10.],dt=[.2])
-            evolve!(com,steps=1000)
-            println(round.(com.mediumM_,digits=2))
-            # println(round.(com.mediumMNew_,digits=2))
+    #                 dirichletXmin( a ) = 1
+    #                 neumannXmax( a ) = 0
+    #             end
+    #         )
 
-        end
+    #         com = Community(agent,NMedium=[11],simBox=[0 10],dt=[.1])
+    #         evolve!(com,steps=10000)
+    #         println(round.(com.mediumM_,digits=2))
+    #         println(round.(com.mediumMNew_,digits=2))
 
-    end
+    #     end
+
+    # end
 
 end

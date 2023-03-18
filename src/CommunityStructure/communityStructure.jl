@@ -168,33 +168,11 @@ mutable struct Community
     cellNumAgents_
     cellCumSum_
     meshLateralSize_
-    x
-    y
-    z
-    xNew_
-    yNew_
-    zNew_
-    varAux_
-    varAuxΔW_
-    liNM_
-    liM_
-    liMNew_
-    lii_
-    lfNM_
-    lfM_
-    lfMNew_
-    lfi_
-    gfNM_
-    gfM_
-    gfMNew_
-    gfi_
-    giNM_
-    giM_
-    giMNew_
-    gii_
-    mediumNM_
-    mediumM_
-    mediumMNew_
+
+    parameters
+    parametersUpdated
+    vars
+    varsMedium
 
     # Constructors
     function Community(agent::Agent; args...)
@@ -204,7 +182,7 @@ mutable struct Community
             for i in prop.necessaryFor
                 if i == agent.neighbors && !(sym in keys(args))
                     error("Parameter $sym has to be declared in the community for neighborhood style $i.")
-                elseif i == :Medium && length(getSymbolsThat(agent.declaredSymbols,:scope,:Medium)) > 0 && !(sym in keys(args))
+                elseif i == :Medium && length(getSymbolsThat(agent.parameters,:scope,:medium)) > 0 && !(sym in keys(args))
                     error("Parameter $sym has to be declared in the community for models with medium parameters.")
                 end
             end
@@ -220,11 +198,50 @@ mutable struct Community
                 dict[sym] = prop.initialize(dict,agent)
             end
         end
+
+        #Creating the appropiate data arrays for parameters
+        vars = zeros(Float64,length([1 for (i,j) in pairs(agent.parameters) if j.variable]),dict[:N][1])
+        varsMedium = zeros(Float64,length([1 for (i,j) in pairs(agent.parameters) if j.variableMedium]),dict[:nCells_]...)
+
+        parameters = OrderedDict{Symbol,Array}()
+        parametersUpdated = OrderedDict{Symbol,Array}()
+        for (sym,struc) in pairs(agent.parameters)
+            if struc.scope == :agent
+                if struc.variable
+                    @views parameters[sym] = vars[struc.pos,:]
+                else
+                    parameters[sym] = zeros(struc.dtype,dict[:N][1])
+                end
+                if struc.update
+                    parametersUpdated[sym] = zeros(struc.dtype,dict[:N][1])
+                end
+            elseif struc.scope == :model
+                parameters[sym] = zeros(struc.dtype,1)
+                if struc.update
+                    parametersUpdated[sym] = zeros(struc.dtype,1)
+                end
+            else
+                if struc.variable
+                    if agent.dims == 1
+                        @views parameters[sym] = varsMedium[struc.pos,:]
+                    elseif agent.dims == 2
+                        @views parameters[sym] = varsMedium[struc.pos,:,:]
+                    else
+                        @views parameters[sym] = varsMedium[struc.pos,:,:,:]
+                    end
+                else
+                    parameters[sym] = zeros(struc.dtype,dict[:nCells_]...)
+                end
+                if struc.update
+                    parametersUpdated[sym] = zeros(struc.dtype,dict[:nCells_]...)
+                end
+            end
+        end
     
-        com = new(agent, false, Platform(256,1), nothing, Community[], [j for (i,j) in pairs(dict)]...)
+        com = new(agent, false, Platform(256,1), nothing, Community[], [j for (i,j) in pairs(dict)]...,parameters,parametersUpdated,vars,varsMedium)
 
         for sym in keys(args)
-            if sym in keys(agent.declaredSymbols)
+            if sym in keys(agent.parameters)
                 setproperty!(com,sym,args[sym])
             end
         end
@@ -241,7 +258,7 @@ mutable struct Community
             dict[sym] = nothing
         end
     
-        return new(nothing, nothing, nothing, nothing,Community[], [j for (i,j) in pairs(dict)]...)
+        return new(nothing, nothing, nothing, nothing,Community[], [j for (i,j) in pairs(dict)]...,nothing,nothing,nothing,nothing)
 
     end
 
@@ -320,23 +337,8 @@ function Base.getproperty(com::Community,var::Symbol)
     if var in fieldnames(Community)
         return getfield(com,var)
     else
-        if var in keys(com.agent.declaredSymbols)
-            x = com.agent.declaredSymbols[var].basePar
-            pos = com.agent.declaredSymbols[var].position
-            scope = com.agent.declaredSymbols[var].scope
-            if scope == :Local
-                return @views getfield(com,x)[:,pos]
-            elseif scope == :Global
-                return @views getfield(com,x)[pos:pos]
-            elseif scope == :Medium
-                if com.agent.dims == 1
-                    return @views getfield(com,x)[:,pos]
-                elseif com.agent.dims == 2
-                    return @views getfield(com,x)[:,:,pos]
-                elseif com.agent.dims == 3
-                    return @views getfield(com,x)[:,:,:,pos]
-                end
-            end
+        if var in keys(com.agent.parameters)
+            return com.parameters[var]
         else
             error("Parameter ", var, " not found in the community.")
         end
@@ -352,7 +354,7 @@ end
 
 function Base.setproperty!(com::Community,var::Symbol,v)
 
-    if !(var in keys(com.agent.declaredSymbols)) && !(var in fieldnames(Community))
+    if !(var in keys(com.agent.parameters)) && !(var in fieldnames(Community))
         error(var," is not in community.")
     elseif var in fieldnames(Community)
         if var in keys(BASEPARAMETERS)
@@ -365,14 +367,7 @@ function Base.setproperty!(com::Community,var::Symbol,v)
             error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
         end
     else
-        x = com.agent.declaredSymbols[var].basePar
-        pos = com.agent.declaredSymbols[var].position
-        scope = com.agent.declaredSymbols[var].scope
-        if scope == :Local
-            getfield(com,x)[:,pos] .= v
-        elseif scope == :Global
-            getfield(com,x)[pos:pos] .= v            
-        end
+        com.parameters[var] .= v
     end
 
 end

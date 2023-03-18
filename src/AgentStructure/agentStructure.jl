@@ -6,6 +6,7 @@ Sets to true the the variable field of UserParameters
 function getEquation(sym,code,agent)
 
     agent.parameters[sym].variable = true
+    agent.parameters[sym].pos = sum([j.variable for (i,j) in agent.parameters])
 
     return code
 
@@ -36,6 +37,7 @@ Sets to true the the variableMedium field of UserParameters
 function getEquationMedium(sym,code,agent)
 
     agent.parameters[sym].variableMedium = true
+    agent.parameters[sym].pos = sum([j.variableMedium for (i,j) in agent.parameters])
 
     return code
 

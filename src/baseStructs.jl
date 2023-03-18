@@ -65,6 +65,7 @@ Structure that contains the properties of each of the user declared parameters.
 | update::Bool | If the variable is updated |
 | variable::Bool | Whether if this parameter is described with a Differential Equation |
 | variableMedium::Bool | Whether if this parameter is described with a PDE |
+| pos::Int | Position that ocupies at the integration matrix |
 """
 mutable struct UserParameter
     dtype::DataType
@@ -72,9 +73,10 @@ mutable struct UserParameter
     update::Bool
     variable::Bool
     variableMedium::Bool
+    pos::Int
 
     function UserParameter(dataType,scope)
-        return new(dataType,scope,false,false,false)
+        return new(dataType,scope,false,false,false,0)
     end
 end
 
