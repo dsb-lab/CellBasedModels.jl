@@ -9,8 +9,7 @@ Functions that returns the special code based on the arguments provided to `addA
 function addAgentCode(arguments,agent::Agent)
 
     #List parameters that can be updated by the user
-    updateargs = [sym for (sym,prop) in pairs(agent.declaredSymbols) if !(prop.reset) && prop.scope == :Local]
-    updateargs = [updateargs...,POSITIONPARAMETERS[1:agent.dims]...]
+    updateargs = [sym for (sym,prop) in pairs(agent.parameters) if prop.scope == :agent]
     #Checks that the correct parameters has been declared and not others
     args = []
     addCell = BASESYMBOLS[:AddCell].symbol
@@ -19,7 +18,7 @@ function addAgentCode(arguments,agent::Agent)
         found = @capture(i,g_ = f_)
         if found
             if !(g in updateargs)
-                error(g, " is not a local parameter of the agent.")
+                error(g, " is not an agent parameter.")
             end
         else
             error(i, " is not a valid assignation of code when declaring addAgent. A Valid one should be of the form parameterOfAgent = value")
@@ -33,7 +32,7 @@ function addAgentCode(arguments,agent::Agent)
             error("id must not be declared when calling addAgent. It is assigned automatically.")
         end
 
-        push!(code.args,:($(i.args[1]).$addCell=$(i.args[2])))
+        push!(code.args,:($g[i1New_]=$f))
         push!(args,i.args[1])
 
     end
@@ -41,7 +40,7 @@ function addAgentCode(arguments,agent::Agent)
     #Add parameters to agent that have not been user defined
     for i in updateargs
         if !(i in args)
-            push!(code.args,:($i.$addCell=$i))
+            push!(code.args,:($i[i1New_]=$i))
         end
     end
 
@@ -85,6 +84,75 @@ function addEventAddAgent(code::Expr,agent::Agent)
     end
 
     return code
+end
+
+"""
+    macro addAgentCode(arguments)
+
+Macro that returns the special code based on the arguments provided to `addAgent`.
+"""
+macro addAgent(arguments...)
+
+    agent = AGENT
+    #List parameters that can be updated by the user
+    updateargs = [sym for (sym,prop) in pairs(agent.parameters) if prop.scope == :agent]
+    #Checks that the correct parameters has been declared and not others
+    args = []
+    addCell = BASESYMBOLS[:AddCell].symbol
+    code = quote end
+    for i in arguments
+        found = @capture(i,g_[h_] = f_)
+        if found
+            if !(g in updateargs)
+                error(g, " is not an agent parameter.")
+            end
+        else
+            error(i, " is not a valid assignation of code when declaring addAgent. A Valid one should be of the form parameterOfAgent = value")
+        end
+
+        if g in args
+           error(g," has been declared more than once in addAgent.") 
+        end
+
+        if i.args[1] == :id
+            error("id must not be declared when calling addAgent. It is assigned automatically.")
+        end
+
+        push!(code.args,:($g[i1New_]=$f))
+        push!(args,g)
+
+    end
+
+    #Add parameters to agent that have not been user defined
+    for i in updateargs
+        if !(i in args)
+            push!(code.args,:($i[i1New_]=$i[i1_]))
+        end
+    end
+
+    #Make code
+    dtype = DTYPE[:Int][agent.platform]
+    code = quote
+            i1New_ = N+Threads.atomic_add!(NAdd_,$(dtype)(1)) + 1
+            idNew_ = Threads.atomic_add!(idMax_,$(dtype)(1)) + 1
+            if nMax_ >= i1New_
+                flagNeighbors_[i1New_] = 1
+                id[i1New_] = idNew_
+                flagRecomputeNeighbors_ = 1
+                flagNeighbors_[i1New_] = 1
+                flagSurvive_[i1New_] = 1
+                $code
+            else
+                Threads.atomic_add!(NAdd_,$(dtype)(-1))
+            end
+        end
+
+    #Adapt code to platform
+    code = cudaAdapt(code,agent)
+
+    code = vectorize(code)
+
+    return esc(code)
 end
 
 ######################################################################################################
@@ -138,6 +206,37 @@ function addEventRemoveAgent(code::Expr,agent::Agent)
 
 end
 
+"""
+    macro removeAgent()
+
+Macro that returns the special code based on the arguments provided to `removeAgent()`.
+"""
+macro removeAgent()
+
+    agent = AGENT
+    code = quote end
+
+    #Add 1 to the number of removed
+    #Add the cell position to the list of removed
+    #Set survived to 0
+    dtype = DTYPE[:Int][agent.platform]
+    code = quote
+            idNew_ = Threads.atomic_add!(NRemove_,$(dtype)(1)) + 1
+            holeFromRemoveAt_[idNew_] = i1_ 
+            flagSurvive_[i1_] = 0
+            flagRecomputeNeighbors_ = 1
+            flagNeighbors_[i1_] = 1
+        end
+
+    code = vectorize(code)
+
+    #Adapt to platform
+    code = cudaAdapt(code,agent)
+
+    return esc(code)
+
+end
+
 ######################################################################################################
 # local function
 ######################################################################################################
@@ -159,13 +258,15 @@ function localFunction(agent)
         #Put in loop
         code = makeSimpleLoop(code,agent)
 
-        agent.declaredUpdatesCode[:UpdateLocal_] = :(($(agentArgs()...),) -> $code)
-        agent.declaredUpdatesFunction[:UpdateLocal_] = Main.eval(:($(agent.declaredUpdatesCode[:UpdateLocal_])))
-        aux = addCuda(:(community.agent.declaredUpdatesFunction[:UpdateLocal_]($(agentArgs(:community)...))),agent) #Add code to execute kernel in cuda if GPU
+        func = :(updateLocal_($(agentArgs2(agent)...),) = $code)
+        # agent.declaredUpdatesFunction[:UpdateLocal_] = Main.eval(:($(agent.declaredUpdatesCode[:UpdateLocal_])))
+        aux = addCuda(:(updateLocal_($(agentArgs2(agent,sym=:community)...))),agent) #Add code to execute kernel in cuda if GPU
         agent.declaredUpdatesCode[:UpdateLocal] = :(function (community)
+                                                        $func
                                                         $aux
                                                         return 
                                                     end)
+        # println(agent.declaredUpdatesCode[:UpdateLocal])
         agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(
             :($(agent.declaredUpdatesCode[:UpdateLocal]))
         )

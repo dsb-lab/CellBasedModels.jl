@@ -66,7 +66,7 @@ Return sym coming from UserParameter.basePar to new. (e.g. liM_ -> liMNew_)
 baseParameterNew(sym) = Meta.parse(string(split(string(sym),"_")[1],"New_"))
 
 """
-    function agentArgs(sym=nothing;l=3,params=BASEPARAMETERS,posparams=POSITIONPARAMETERS) 
+    function agentArgs(sym=nothing;l=3,params=BASEPARAMETERS) 
 
 Function that returns the arguments obervable for the constructed functions. If symbol is given, it substitutes by the fielnames in form of by *sym.fieldname*.
 """
@@ -82,6 +82,19 @@ function agentArgs(sym=nothing;l=3,params=BASEPARAMETERS,posparams=POSITIONPARAM
         return Any[pars...]
     else
         return Any[:($sym.$i) for i in pars]
+    end
+
+end
+
+function agentArgs2(agent;sym=nothing,l=3,params=BASEPARAMETERS,posparams=POSITIONPARAMETERS) 
+
+    pars = [i for i in keys(params)]
+    args = [i for i in keys(agent.parameters)]
+
+    if sym === nothing
+        return Any[pars...,args...]
+    else
+        return [Any[:($sym.$i) for i in pars];Any[:($sym.parameters[Symbol($i)]) for i in String.(args)]]
     end
 
 end
@@ -310,7 +323,7 @@ end
 
 Function that transforms the code provided in Agent to the vectorized form for wrapping around an executable function.
 """
-function vectorize(code,agent)
+function vectorize2(code,agent)
 
     #For user declared symbols
     for (sym,prop) in pairs(agent.declaredSymbols)
@@ -381,20 +394,23 @@ function vectorize(code,agent)
 end
 
 """
-    function vectorize2(code,agent)
+    function vectorize(code,agent)
 
 Function that transforms the code provided in Agent to the vectorized form for wrapping around an executable function.
 """
-function vectorize2(code,agent)
+function vectorize(code,agent)
 
     #For user declared symbols
-    for (sym,prop) in pairs(agent.declaredSymbols)
+    code = postwalk(x->@capture(x,id) ? :(id[i1_]) : x, code)
+    code = postwalk(x->@capture(x,id[f_][f2_]) ? :(id[$f2]) : x, code) #avoid double indexing
+    for (sym,prop) in pairs(agent.parameters)
 
-        if :Local == prop.scope
+        if :agent == prop.scope
             code = postwalk(x->@capture(x,g_) && g == sym ? :($g[i1_]) : x, code)
-        elseif :Global == prop.scope
+            code = postwalk(x->@capture(x,g_[f_][f2_]) && g == sym ? :($g[$f2]) : x, code) #avoid double indexing
+        elseif :model == prop.scope
             code = postwalk(x->@capture(x,g_) && g == sym ? :($g[1]) : x, code)
-        elseif :Medium == prop.scope
+        elseif :medium == prop.scope
             args = [:gridPosx_,:gridPosy_,:gridPosz_][1:agent.dims]
             code = postwalk(x->@capture(x,g_.j) && g == sym ? :($g[$(args...)]) : x, code)
         elseif :Atomic == prop.scope
@@ -405,9 +421,23 @@ function vectorize2(code,agent)
 
     end
 
+    #For global parameters
+    for bs in [sym for (sym,prop) in pairs(BASEPARAMETERS) if :Global == prop.shape[1]]
+
+        code = postwalk(x->@capture(x,g_) && g == bs ? :($bs[1]) : x, code)
+        code = postwalk(x->@capture(x,g_[p1_][p2_]) && g == bs ? :($bs[1]) : x, code) #Undo if it was already vectorized
+
+    end
+
     code = randomAdapt(code, agent)
 
     return code
+
+end
+
+function vectorize(code)
+
+    return vectorize(code,AGENT)
 
 end
 

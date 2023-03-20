@@ -28,7 +28,7 @@ include("./AgentStructure/functions/auxiliar.jl")
 export Agent
 include("./AgentStructure/agentStructure.jl")
 #     #Local
-export localStep!
+export localStep!, @addAgent, @removeAgent
 include("./AgentStructure/functions/local.jl")
 #     #Global
 export globalStep!
@@ -45,6 +45,7 @@ include("./AgentStructure/functions/update.jl")
     #Integrators
 export integrationStep!
 include("./AgentStructure/functions/integrators.jl")
+include("./AgentStructure/functions/integratorsDiffequation.jl")
     #Medium
 export integrationMediumStep!
 include("./AgentStructure/functions/medium.jl")
@@ -67,8 +68,8 @@ export Fitting
 include("./fitting/fitting.jl")
 
 #Implemented Models
-export Models
-include("./implementedModels/models.jl")
+# export Models
+# include("./implementedModels/models.jl")
 
 # #Visualization functions
 # export plotSpheres, plotRods, videoRods

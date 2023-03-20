@@ -207,89 +207,101 @@ end
             mediumParameters=OrderedDict(
                 :m=>Float64
             ),
+            platform=:GPU,
             compile=false
         )
 
         com = Community(agent,N=[100],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
+
         loadToPlatform!(com,preallocateAgents=10)
-        # bringFromPlatform!(com)
+
+        bringFromPlatform!(com)
 
         true
     end
 
-    # #local
-    # @testset "local" begin
+    #local
+    @testset "local" begin
 
-    #     @testPlatform(
-    #         (@test begin
-    #             agent = Agent(1,platform=PLATFORM,
-    #                         localInt=[:li],
-    #                         localIntInteraction=[:lii],
-    #                         localFloat=[:lf],
-    #                         localFloatInteraction=[:lfi],
-    #                         globalFloat=[:gf],
-    #                         globalInt=[:gi],
-    #                         globalFloatInteraction=[:gfi],
-    #                         globalIntInteraction=[:gii],
-    #                         updateLocal = quote
-    #                             x = x + 1.
-    #                             if id == 3
-    #                                 removeAgent()
-    #                             elseif id == 5
-    #                                 addAgent(lf = 5)
-    #                             end
-    #                         end
-    #                         );
-    #             com = Community(agent,N=[10]);
-    #             loadToPlatform!(com,preallocateAgents=1);
-    #             localStep!(com)
+        @testPlatform(
+            (@test begin
+                agent = Agent(1,platform=PLATFORM,
+                            agentParameters=OrderedDict(
+                                :li=>Int64,
+                                :li2=>Int64,
+                                :lii=>Int64,
+                                :lf=>Float64,
+                                :lf2=>Float64
+                            ),
+                            modelParameters=OrderedDict(
+                                :gi=>Int64,
+                                :gi2=>Int64,
+                                :gii=>Int64,
+                                :gf=>Float64,
+                                :gf2=>Float64,
+                                :gfi=>Float64
+                            ),
+                            updateLocal = quote
+                                x = x + 1.
+                                if id == 3
+                                    @removeAgent()
+                                elseif id == 5
+                                    @addAgent(lf = 5)
+                                end
+                            end
+                            );
+                com = Community(agent,N=[10]);
+                loadToPlatform!(com,preallocateAgents=1);
+                localStep!(com)
 
-    #             aux = false
-    #             if PLATFORM == :CPU
-    #                 aux = (com.N[1] == 10) &
-    #                         (com.NAdd_[] .== 1) &
-    #                         (com.NRemove_[] .== 1) &
-    #                         (com.idMax_[] .== 11) &
-    #                         (com.flagNeighbors_[3] == 1)  &
-    #                         (com.flagNeighbors_[11] == 1) &
-    #                         (com.lfMNew_[11,1] ≈ 5) &
-    #                         (com.id[11] == 11)
-    #             else 
-    #                 aux = (CUDA.@allowscalar com.N[1] .== 10) &
-    #                         (CUDA.@allowscalar com.NAdd_[1] .== 1) &
-    #                         (CUDA.@allowscalar com.NRemove_[1] .== 1) &
-    #                         (CUDA.@allowscalar com.idMax_[1] .== 11) &
-    #                         (CUDA.@allowscalar com.flagNeighbors_[3] == 1)  &
-    #                         (CUDA.@allowscalar com.flagNeighbors_[11] == 1) &
-    #                         (CUDA.@allowscalar com.lfMNew_[11,1] ≈ 5) &
-    #                         (CUDA.@allowscalar com.id[11] == 11)
-    #             end
+                aux = false
+                if PLATFORM == :CPU
+                    aux = (com.N[1] == 10) &
+                            (com.NAdd_[] .== 1) &
+                            (com.NRemove_[] .== 1) &
+                            (com.idMax_[] .== 11) &
+                            (com.flagNeighbors_[3] == 1)  &
+                            (com.flagNeighbors_[11] == 1) &
+                            (com.lf[11] ≈ 5) &
+                            (com.id[11] == 11)
+                else 
+                    aux = (CUDA.@allowscalar com.N[1] .== 10) &
+                            (CUDA.@allowscalar com.NAdd_[1] .== 1) &
+                            (CUDA.@allowscalar com.NRemove_[1] .== 1) &
+                            (CUDA.@allowscalar com.idMax_[1] .== 11) &
+                            (CUDA.@allowscalar com.flagNeighbors_[3] == 1)  &
+                            (CUDA.@allowscalar com.flagNeighbors_[11] == 1) &
+                            (CUDA.@allowscalar com.lf[11] ≈ 5) &
+                            (CUDA.@allowscalar com.id[11] == 11)
+                end
 
-    #             aux
-    #         end)
-    #     )
+                aux
+            end)
+        )
 
-        # @testPlatform(
-        #     (@test begin
-        #         agent = Agent(1,platform=PLATFORM,
-        #                     localFloat=[:lf],
-        #                     updateLocal = quote
-        #                         addAgent(lf = 5)
-        #                         addAgent(lf = 5)
-        #                         removeAgent()
-        #                     end
-        #                     );
-        #         com = Community(agent,N=[1]);
-        #         loadToPlatform!(com,preallocateAgents=3);
-        #         localStep!(com)
-        #         println("NAdd_: ",com.NAdd_[])
-        #         update!(com)
+        @testPlatform(
+            (@test begin
+                agent = Agent(1,platform=PLATFORM,
+                            agentParameters=OrderedDict(
+                                :lf=>Float64
+                            ),
+                            updateLocal = quote
+                                addAgent(lf = 5)
+                                addAgent(lf = 5)
+                                removeAgent()
+                            end
+                            );
+                com = Community(agent,N=[1]);
+                loadToPlatform!(com,preallocateAgents=3);
+                localStep!(com)
+                # println("NAdd_: ",com.NAdd_[])
+                update!(com)
 
-        #         true
-        #     end)
-        # )
+                true
+            end)
+        )
 
-    # end
+    end
     
     # #global
     # @testset "global" begin

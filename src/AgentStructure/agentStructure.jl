@@ -278,17 +278,17 @@ mutable struct Agent
             end
         end
 
-        #Make explicit the updates by adding the .new tag
-        potentiallyUpdatingVars = [i for (i,var) in pairs(agent.parameters)]
-        for i in keys(agent.declaredUpdates)
-            code = agent.declaredUpdates[i]
-            for sym in potentiallyUpdatingVars
-                for op in UPDATINGOPERATORS
-                    code = postwalk(x-> isexpr(x,op) ? change(sym,x) : x, code)
-                end
-            end
-            agent.declaredUpdates[i] = code
-        end
+        # #Make explicit the updates by adding the .new tag
+        # potentiallyUpdatingVars = [i for (i,var) in pairs(agent.parameters)]
+        # for i in keys(agent.declaredUpdates)
+        #     code = agent.declaredUpdates[i]
+        #     for sym in potentiallyUpdatingVars
+        #         for op in UPDATINGOPERATORS
+        #             code = postwalk(x-> isexpr(x,op) ? change(sym,x) : x, code)
+        #         end
+        #     end
+        #     agent.declaredUpdates[i] = code
+        # end
 
         #Change variables updated to modifiable
         for update in keys(agent.declaredUpdates)
@@ -308,21 +308,27 @@ mutable struct Agent
         end
 
         #Check if there are removed agents
+        agent.removalOfAgents_ = true
         for update in keys(agent.declaredUpdates)
             if inexpr(agent.declaredUpdates[update],:removeAgent)
                 agent.removalOfAgents_ = true
             end
+            if inexpr(agent.declaredUpdates[update],:@removeAgent)
+                agent.removalOfAgents_ = true
+            end
         end        
+
+        global AGENT = agent
 
         #Make compiled functions
         if compile 
             localFunction(agent)
-            globalFunction(agent)
-            neighborsFunction(agent)
-            interactionFunction(agent)
-            integratorFunction(agent)
-            integrator2Function(agent)
-            integratorMediumFunction(agent)
+            # globalFunction(agent)
+            # neighborsFunction(agent)
+            # interactionFunction(agent)
+            # integratorFunction(agent)
+            # integrator2Function(agent)
+            # integratorMediumFunction(agent)
         end
 
         return agent

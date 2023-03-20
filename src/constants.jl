@@ -5,6 +5,8 @@ DTYPE = Dict(
 ZEROS =  Dict([:CPU=>zeros,:GPU=>CUDA.zeros])
 ARRAY = Dict([:CPU=>Array,:GPU=>CuArray])
 
+AGENT = 0
+
 #Parameters
 BASEPARAMETERS = OrderedDict(
                                                    #dtype    #Shape                     #SaveLevel  #Origin      #Reassign    #Protected #Reset    #Necessaryfor                         #Initialize
