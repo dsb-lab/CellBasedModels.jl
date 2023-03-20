@@ -237,6 +237,25 @@ macro removeAgent()
 
 end
 
+"""
+    macro loopOverNeighbors(code)
+
+For the updateInteraction loop, create the double loop to go over all the agents and neighbors.
+"""
+macro loopOverNeighbors(it, code)
+
+    agent = AGENT
+
+    code = neighborsLoop(code,it,agent)
+
+    code = postwalk(x->@capture(x,i_) && i == :i2_ ? it : x, code )
+
+    # println(prettify(code))
+
+    return esc(code)
+
+end
+
 ######################################################################################################
 # local function
 ######################################################################################################
@@ -258,9 +277,9 @@ function localFunction(agent)
         #Put in loop
         code = makeSimpleLoop(code,agent)
 
-        func = :(updateLocal_($(agentArgs2(agent)...),) = $code)
+        func = :(updateLocal_($(agentArgs(agent)...),) = $code)
         # agent.declaredUpdatesFunction[:UpdateLocal_] = Main.eval(:($(agent.declaredUpdatesCode[:UpdateLocal_])))
-        aux = addCuda(:(updateLocal_($(agentArgs2(agent,sym=:community)...))),agent) #Add code to execute kernel in cuda if GPU
+        aux = addCuda(:(updateLocal_($(agentArgs(agent,sym=:community)...))),agent) #Add code to execute kernel in cuda if GPU
         agent.declaredUpdatesCode[:UpdateLocal] = :(function (community)
                                                         $func
                                                         $aux

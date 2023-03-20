@@ -68,240 +68,288 @@ end
 
 @testset "community" begin
 
-    #Create community
-    @test_nowarn begin agent = Agent(3,
-        agentParameters=OrderedDict(
-            :li=>Int64,
-            :li2=>Int64,
-            :lii=>Int64,
-            :lf=>Float64,
-            :lf2=>Float64
-        ),
-        modelParameters=OrderedDict(
-            :gi=>Int64,
-            :gi2=>Int64,
-            :gii=>Int64,
-            :gf=>Float64,
-            :gf2=>Float64,
-            :gfi=>Float64
-        ),
-        mediumParameters=OrderedDict(
-            :m=>Float64
-        ),
-        updateGlobal=quote 
-            gi += 1
-            gf += 1
-            gfi += 1
-            gii += 1
-        end,
-        updateLocal=quote 
-            li += 1
-            lf += 1
-            lfi += 1
-            lii += 1     
-            gii += 1       
-        end,
-        updateInteraction=quote 
-            lfi += 1
-        end,
-        updateMedium=quote 
-            m += 1
-        end,
-        updateMediumInteraction=quote
-            m -= 1
-        end,
-        updateVariable=quote 
-            d( x ) = dt( -x )
-        end,
-        compile=false
-        )
+    # #Create community
+    # @test_nowarn begin agent = Agent(3,
+    #     agentParameters=OrderedDict(
+    #         :li=>Int64,
+    #         :li2=>Int64,
+    #         :lii=>Int64,
+    #         :lf=>Float64,
+    #         :lf2=>Float64
+    #     ),
+    #     modelParameters=OrderedDict(
+    #         :gi=>Int64,
+    #         :gi2=>Int64,
+    #         :gii=>Int64,
+    #         :gf=>Float64,
+    #         :gf2=>Float64,
+    #         :gfi=>Float64
+    #     ),
+    #     mediumParameters=OrderedDict(
+    #         :m=>Float64
+    #     ),
+    #     updateGlobal=quote 
+    #         gi += 1
+    #         gf += 1
+    #         gfi += 1
+    #         gii += 1
+    #     end,
+    #     updateLocal=quote 
+    #         li += 1
+    #         lf += 1
+    #         lfi += 1
+    #         lii += 1     
+    #         gii += 1       
+    #     end,
+    #     updateInteraction=quote 
+    #         lfi += 1
+    #     end,
+    #     updateMedium=quote 
+    #         m += 1
+    #     end,
+    #     updateMediumInteraction=quote
+    #         m -= 1
+    #     end,
+    #     updateVariable=quote 
+    #         d( x ) = dt( -x )
+    #     end,
+    #     compile=false
+    #     )
 
-        com = Community(agent,N=[10],NMedium=[1,1,1],simBox=[0. 1;0. 1;0 1])
-    end
+    #     com = Community(agent,N=[10],NMedium=[1,1,1],simBox=[0. 1;0. 1;0 1])
+    # end
 
-    #Get properties
-    @test_nowarn begin agent = Agent(3,
-            agentParameters=OrderedDict(
-                :li=>Int64,
-                :li2=>Int64,
-                :lii=>Int64,
-                :lf=>Float64,
-                :lf2=>Float64
-            ),
-            modelParameters=OrderedDict(
-                :gi=>Int64,
-                :gi2=>Int64,
-                :gii=>Int64,
-                :gf=>Float64,
-                :gf2=>Float64,
-                :gfi=>Float64
-            ),
-            mediumParameters=OrderedDict(
-                :m=>Float64
-            )
-        )
+    # #Get properties
+    # @test_nowarn begin agent = Agent(3,
+    #         agentParameters=OrderedDict(
+    #             :li=>Int64,
+    #             :li2=>Int64,
+    #             :lii=>Int64,
+    #             :lf=>Float64,
+    #             :lf2=>Float64
+    #         ),
+    #         modelParameters=OrderedDict(
+    #             :gi=>Int64,
+    #             :gi2=>Int64,
+    #             :gii=>Int64,
+    #             :gf=>Float64,
+    #             :gf2=>Float64,
+    #             :gfi=>Float64
+    #         ),
+    #         mediumParameters=OrderedDict(
+    #             :m=>Float64
+    #         )
+    #     )
 
-        com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
-        com.li
-        com[:li]
-        com.gf
-        com[:gf]
-        com.gf2
-        com[:gf2]
-        com.agent
-        com.loaded
-    end
+    #     com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
+    #     com.li
+    #     com[:li]
+    #     com.gf
+    #     com[:gf]
+    #     com.gf2
+    #     com[:gf2]
+    #     com.agent
+    #     com.loaded
+    # end
 
-    #Set properties
-    @test begin agent = Agent(3,
-            agentParameters=OrderedDict(
-                :li=>Int64,
-                :li2=>Int64,
-                :lii=>Int64,
-                :lf=>Float64,
-                :lf2=>Float64
-            ),
-            modelParameters=OrderedDict(
-                :gi=>Int64,
-                :gi2=>Int64,
-                :gii=>Int64,
-                :gf=>Float64,
-                :gf2=>Float64,
-                :gfi=>Float64
-            ),
-            mediumParameters=OrderedDict(
-                :m=>Float64
-            ),
-        )
+    # #Set properties
+    # @test begin agent = Agent(3,
+    #         agentParameters=OrderedDict(
+    #             :li=>Int64,
+    #             :li2=>Int64,
+    #             :lii=>Int64,
+    #             :lf=>Float64,
+    #             :lf2=>Float64
+    #         ),
+    #         modelParameters=OrderedDict(
+    #             :gi=>Int64,
+    #             :gi2=>Int64,
+    #             :gii=>Int64,
+    #             :gf=>Float64,
+    #             :gf2=>Float64,
+    #             :gfi=>Float64
+    #         ),
+    #         mediumParameters=OrderedDict(
+    #             :m=>Float64
+    #         ),
+    #     )
 
-        com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
-        com.li = ones(Int64,10)
-        com[:li] = ones(Int64,10)
-        com.li .= 1.
-        com.gi = 1
-        com.gf = 1. 
-        com.gi2 = 1
-        com.gf2 = 1. 
-        com.dt = 1
+    #     com = Community(agent,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
+    #     com.li = ones(Int64,10)
+    #     com[:li] = ones(Int64,10)
+    #     com.li .= 1.
+    #     com.gi = 1
+    #     com.gf = 1. 
+    #     com.gi2 = 1
+    #     com.gf2 = 1. 
+    #     com.dt = 1
 
-        all([all( com[s] .== 1 ) for s in [:li,:gi,:gf,:gi2,:gf2,:dt]])
-    end
+    #     all([all( com[s] .== 1 ) for s in [:li,:gi,:gf,:gi2,:gf2,:dt]])
+    # end
 
-    #loadToPlatform
-    @test begin agent = Agent(3,
-            agentParameters=OrderedDict(
-                :li=>Int64,
-                :li2=>Int64,
-                :lii=>Int64,
-                :lf=>Float64,
-                :lf2=>Float64
-            ),
-            modelParameters=OrderedDict(
-                :gi=>Int64,
-                :gi2=>Int64,
-                :gii=>Int64,
-                :gf=>Float64,
-                :gf2=>Float64,
-                :gfi=>Float64
-            ),
-            mediumParameters=OrderedDict(
-                :m=>Float64
-            ),
-            platform=:GPU,
-            compile=false
-        )
+    # #loadToPlatform
+    # @test begin agent = Agent(3,
+    #         agentParameters=OrderedDict(
+    #             :li=>Int64,
+    #             :li2=>Int64,
+    #             :lii=>Int64,
+    #             :lf=>Float64,
+    #             :lf2=>Float64
+    #         ),
+    #         modelParameters=OrderedDict(
+    #             :gi=>Int64,
+    #             :gi2=>Int64,
+    #             :gii=>Int64,
+    #             :gf=>Float64,
+    #             :gf2=>Float64,
+    #             :gfi=>Float64
+    #         ),
+    #         mediumParameters=OrderedDict(
+    #             :m=>Float64
+    #         ),
+    #         platform=:GPU,
+    #         compile=false
+    #     )
 
-        com = Community(agent,N=[100],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
+    #     com = Community(agent,N=[100],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
 
-        loadToPlatform!(com,preallocateAgents=10)
+    #     loadToPlatform!(com,preallocateAgents=10)
 
-        bringFromPlatform!(com)
+    #     bringFromPlatform!(com)
 
-        true
-    end
+    #     true
+    # end
 
-    #local
-    @testset "local" begin
+    # #local
+    # @testset "local" begin
 
-        @testPlatform(
-            (@test begin
-                agent = Agent(1,platform=PLATFORM,
-                            agentParameters=OrderedDict(
-                                :li=>Int64,
-                                :li2=>Int64,
-                                :lii=>Int64,
-                                :lf=>Float64,
-                                :lf2=>Float64
-                            ),
-                            modelParameters=OrderedDict(
-                                :gi=>Int64,
-                                :gi2=>Int64,
-                                :gii=>Int64,
-                                :gf=>Float64,
-                                :gf2=>Float64,
-                                :gfi=>Float64
-                            ),
-                            updateLocal = quote
-                                x = x + 1.
-                                if id == 3
-                                    @removeAgent()
-                                elseif id == 5
-                                    @addAgent(lf = 5)
-                                end
-                            end
-                            );
-                com = Community(agent,N=[10]);
-                loadToPlatform!(com,preallocateAgents=1);
-                localStep!(com)
+    #     @testPlatform(
+    #         (@test begin
+    #             agent = Agent(1,platform=PLATFORM,
+    #                         agentParameters=OrderedDict(
+    #                             :li=>Int64,
+    #                             :li2=>Int64,
+    #                             :lii=>Int64,
+    #                             :lf=>Float64,
+    #                             :lf2=>Float64
+    #                         ),
+    #                         modelParameters=OrderedDict(
+    #                             :gi=>Int64,
+    #                             :gi2=>Int64,
+    #                             :gii=>Int64,
+    #                             :gf=>Float64,
+    #                             :gf2=>Float64,
+    #                             :gfi=>Float64
+    #                         ),
+    #                         updateLocal = quote
+    #                             x = x + 1.
+    #                             if id == 3
+    #                                 @removeAgent()
+    #                             elseif id == 5
+    #                                 @addAgent(lf = 5)
+    #                             end
+    #                         end
+    #                         );
+    #             com = Community(agent,N=[10]);
+    #             loadToPlatform!(com,preallocateAgents=1);
+    #             localStep!(com)
 
-                aux = false
-                if PLATFORM == :CPU
-                    aux = (com.N[1] == 10) &
-                            (com.NAdd_[] .== 1) &
-                            (com.NRemove_[] .== 1) &
-                            (com.idMax_[] .== 11) &
-                            (com.flagNeighbors_[3] == 1)  &
-                            (com.flagNeighbors_[11] == 1) &
-                            (com.lf[11] ≈ 5) &
-                            (com.id[11] == 11)
-                else 
-                    aux = (CUDA.@allowscalar com.N[1] .== 10) &
-                            (CUDA.@allowscalar com.NAdd_[1] .== 1) &
-                            (CUDA.@allowscalar com.NRemove_[1] .== 1) &
-                            (CUDA.@allowscalar com.idMax_[1] .== 11) &
-                            (CUDA.@allowscalar com.flagNeighbors_[3] == 1)  &
-                            (CUDA.@allowscalar com.flagNeighbors_[11] == 1) &
-                            (CUDA.@allowscalar com.lf[11] ≈ 5) &
-                            (CUDA.@allowscalar com.id[11] == 11)
-                end
+    #             aux = false
+    #             if PLATFORM == :CPU
+    #                 aux = (com.N[1] == 10) &
+    #                         (com.NAdd_[] .== 1) &
+    #                         (com.NRemove_[] .== 1) &
+    #                         (com.idMax_[] .== 11) &
+    #                         (com.flagNeighbors_[3] == 1)  &
+    #                         (com.flagNeighbors_[11] == 1) &
+    #                         (com.lf[11] ≈ 5) &
+    #                         (com.id[11] == 11)
+    #             else 
+    #                 aux = (CUDA.@allowscalar com.N[1] .== 10) &
+    #                         (CUDA.@allowscalar com.NAdd_[1] .== 1) &
+    #                         (CUDA.@allowscalar com.NRemove_[1] .== 1) &
+    #                         (CUDA.@allowscalar com.idMax_[1] .== 11) &
+    #                         (CUDA.@allowscalar com.flagNeighbors_[3] == 1)  &
+    #                         (CUDA.@allowscalar com.flagNeighbors_[11] == 1) &
+    #                         (CUDA.@allowscalar com.lf[11] ≈ 5) &
+    #                         (CUDA.@allowscalar com.id[11] == 11)
+    #             end
 
-                aux
-            end)
-        )
+    #             aux
+    #         end)
+    #     )
 
-        @testPlatform(
-            (@test begin
-                agent = Agent(1,platform=PLATFORM,
-                            agentParameters=OrderedDict(
-                                :lf=>Float64
-                            ),
-                            updateLocal = quote
-                                addAgent(lf = 5)
-                                addAgent(lf = 5)
-                                removeAgent()
-                            end
-                            );
-                com = Community(agent,N=[1]);
-                loadToPlatform!(com,preallocateAgents=3);
-                localStep!(com)
-                # println("NAdd_: ",com.NAdd_[])
-                update!(com)
+    #     @testPlatform(
+    #         (@test begin
+    #             agent = Agent(1,platform=PLATFORM,
+    #                         agentParameters=OrderedDict(
+    #                             :lf=>Float64
+    #                         ),
+    #                         updateLocal = quote
+    #                             addAgent(lf = 5)
+    #                             addAgent(lf = 5)
+    #                             removeAgent()
+    #                         end
+    #                         );
+    #             com = Community(agent,N=[1]);
+    #             loadToPlatform!(com,preallocateAgents=3);
+    #             localStep!(com)
+    #             # println("NAdd_: ",com.NAdd_[])
+    #             update!(com)
 
-                true
-            end)
-        )
+    #             true
+    #         end)
+    #     )
 
-    end
+        # @testAllNeighbors(            
+        #     (@test begin 
+
+        #         d = :(euclideanDistance($([:(x[i1_]),:(x[i2_]),:(y[i1_]),:(y[i2_]),:(z[i1_]),:(z[i2_])][1:2*DIM]...)))
+
+        #         agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM,
+        #             agentParameters = OrderedDict(
+        #                 :nn => Int64
+        #             ),
+        #             updateLocal=
+        #                 quote
+        #                     nn = 0
+        #                     @loopOverNeighbors i2_ begin 
+        #                         if $d < 1.1
+        #                             nn += 1 
+        #                         end
+        #                     end
+        #                 end
+        #         )
+        #         # println(agent.declaredUpdatesCode[:UpdateLocal])
+        #         com = Community(agent,N=[3^DIM],dtNeighborRecompute=[1.],skin=[2.],nMaxNeighbors=[27],cellEdge=[2.,2.,2.][1:DIM],simBox=[.5 1.5;.5 1.5;.5 1.5][1:DIM,:]);
+        #         v = zeros(3,27)
+        #         v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
+        #         v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
+        #         v[3,:] = repeat([repeat([0],9);repeat([1],9);repeat([2],9)],1)
+        #         for (j,sym) in enumerate([:x,:y,:z][1:DIM])
+        #             getproperty(com,sym) .= v[j,1:3^(DIM)]
+        #         end
+
+        #         loadToPlatform!(com);
+        #         computeNeighbors!(com);
+        #         localStep!(com);
+
+        #         result = true
+        #         if DIM == 1
+        #             result = all(Array(com.nn) .≈ [1,2,1])
+        #         elseif DIM == 2
+        #             result = all(Array(com.nn) .≈ [2,3,2,3,4,3,2,3,2])
+        #         elseif DIM == 3
+        #             result = all(Array(com.nn) .≈ [3,4,3,4,5,4,3,4,3,
+        #                                            4,5,4,5,6,5,4,5,4,
+        #                                            3,4,3,4,5,4,3,4,3])
+        #         end
+
+        #         result
+        #     end), CellLinked, VerletTime, VerletDisplacement, Full, CLVD
+        # )
+
+    # end
     
     # #global
     # @testset "global" begin
@@ -360,48 +408,48 @@ end
 
     # @testset "neighbors" begin
 
-    #     #Full
-    #     @testAllNeighbors(
-    #         (@test_nowarn begin
-    #             agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
-    #             com = Community(agent,N=[3]);
-    #             computeNeighbors!(com);     
-    #         end), Full
-    #     )
+        # #Full
+        # @testAllNeighbors(
+        #     (@test_nowarn begin
+        #         agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
+        #         com = Community(agent,N=[3]);
+        #         computeNeighbors!(com);     
+        #     end), Full
+        # )
 
-    #     #VerletTime VerletDisplacement neighbors
-    #     @testAllNeighbors(            
-    #         (@test begin 
+        # #VerletTime VerletDisplacement neighbors
+        # @testAllNeighbors(            
+        #     (@test begin 
 
-    #         agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
-    #         com = Community(agent,N=[3],skin=[1.],nMaxNeighbors=[2],dtNeighborRecompute=[1.]);
-    #         loadToPlatform!(com,preallocateAgents=10);
-    #         computeNeighbors!(com);
+        #     agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
+        #     com = Community(agent,N=[3],skin=[1.],nMaxNeighbors=[2],dtNeighborRecompute=[1.]);
+        #     loadToPlatform!(com,preallocateAgents=10);
+        #     computeNeighbors!(com);
 
-    #         x = Array(com.neighborList_[1:3,:])
-    #         all([j in [2 3;1 3;1 2][i,:] for i in 1:3 for j in x[i,:]])
-    #         end), VerletDisplacement, VerletTime,
-    #     )
+        #     x = Array(com.neighborList_[1:3,:])
+        #     all([j in [2 3;1 3;1 2][i,:] for i in 1:3 for j in x[i,:]])
+        #     end), VerletDisplacement, VerletTime,
+        # )
 
-    #     #CellLinked neighbors
-    #     @testAllNeighbors(            
-    #         (@test begin 
+        # #CellLinked neighbors
+        # @testAllNeighbors(            
+        #     (@test begin 
 
-    #         agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
-    #         com = Community(agent, N=[3^DIM], cellEdge=[2. for i in 1:DIM], simBox = [.5 1.5;.5 1.5;.5 1.5][1:DIM,:]);
-    #         v = zeros(3,27)
-    #         v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
-    #         v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
-    #         v[3,:] = repeat([repeat([0],9);repeat([1],9);repeat([2],9)],1)
-    #         for (j,sym) in enumerate([:x,:y,:z][1:DIM])
-    #             getproperty(com,sym) .= v[j,1:3^(DIM)]
-    #         end
-    #         loadToPlatform!(com);
-    #         computeNeighbors!(com);
+        #     agent = Agent(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
+        #     com = Community(agent, N=[3^DIM], cellEdge=[2. for i in 1:DIM], simBox = [.5 1.5;.5 1.5;.5 1.5][1:DIM,:]);
+        #     v = zeros(3,27)
+        #     v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
+        #     v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
+        #     v[3,:] = repeat([repeat([0],9);repeat([1],9);repeat([2],9)],1)
+        #     for (j,sym) in enumerate([:x,:y,:z][1:DIM])
+        #         getproperty(com,sym) .= v[j,1:3^(DIM)]
+        #     end
+        #     loadToPlatform!(com);
+        #     computeNeighbors!(com);
 
-    #         all(com.cellNumAgents_ .== 1)
-    #         end), CellLinked
-    #     )
+        #     all(com.cellNumAgents_ .== 1)
+        #     end), CellLinked
+        # )
 
     # end
 

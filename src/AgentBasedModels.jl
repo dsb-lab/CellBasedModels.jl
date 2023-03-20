@@ -28,7 +28,7 @@ include("./AgentStructure/functions/auxiliar.jl")
 export Agent
 include("./AgentStructure/agentStructure.jl")
 #     #Local
-export localStep!, @addAgent, @removeAgent
+export localStep!, @addAgent, @removeAgent, @loopOverNeighbors
 include("./AgentStructure/functions/local.jl")
 #     #Global
 export globalStep!
@@ -40,8 +40,8 @@ include("./AgentStructure/functions/neighbors.jl")
 export interactionStep!
 include("./AgentStructure/functions/interactions.jl")
     #Local update
-export update!
-include("./AgentStructure/functions/update.jl")
+# export update!
+# include("./AgentStructure/functions/update.jl")
     #Integrators
 export integrationStep!
 include("./AgentStructure/functions/integrators.jl")

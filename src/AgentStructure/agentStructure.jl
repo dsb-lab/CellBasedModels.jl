@@ -324,7 +324,7 @@ mutable struct Agent
         if compile 
             localFunction(agent)
             # globalFunction(agent)
-            # neighborsFunction(agent)
+            neighborsFunction(agent)
             # interactionFunction(agent)
             # integratorFunction(agent)
             # integrator2Function(agent)

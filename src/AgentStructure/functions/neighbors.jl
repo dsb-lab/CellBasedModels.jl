@@ -42,27 +42,27 @@ end
 
 For the updateInteraction loop, create the double loop to go over all the agents and neighbors.
 """
-function neighborsLoop(code,agent)
+function neighborsLoop(code,it,agent)
 
     if agent.neighbors == :Full
 
-        code = neighborsFullLoop(code,agent)
+        code = neighborsFullLoop(code,it,agent)
 
     elseif agent.neighbors == :VerletTime
 
-        code = neighborsVerletLoop(code,agent)
+        code = neighborsVerletLoop(code,it,agent)
 
     elseif agent.neighbors == :VerletDisplacement
 
-        code = neighborsVerletLoop(code,agent)
+        code = neighborsVerletLoop(code,it,agent)
 
     elseif agent.neighbors == :CellLinked
 
-        code = neighborsCellLinkedLoop(code,agent)
+        code = neighborsCellLinkedLoop(code,it,agent)
 
     elseif agent.neighbors == :CLVD
 
-        code = neighborsVerletLoop(code,agent)
+        code = neighborsVerletLoop(code,it,agent)
 
     else
 
@@ -91,9 +91,9 @@ end
 
 Wrapper loop for full neighbors algorithm.
 """
-function neighborsFullLoop(code,agent)
+function neighborsFullLoop(code,it,agent)
 
-    return makeSimpleLoop(:(for i2_ in 1:1:N[1]; if i1_ != i2_; $code; end; end), agent)
+    return :(for $it in 1:1:N[1]; if i1_ != $it; $code; end; end)
 
 end
 
@@ -114,15 +114,14 @@ end
 
 Wrapper loop for verlet neighbors algorithms.
 """
-function neighborsVerletLoop(code,agent) #Macro to create the second loop in functions
+function neighborsVerletLoop(code,it,agent) #Macro to create the second loop in functions
     
     #Go over the list of neighbors
-    code = postwalk(x->@capture(x,h_) && h == :i2_ ? :(neighborList_[i1_,i2_]) : x, code)
+    code = postwalk(x->@capture(x,h_) && h == it ? :(neighborList_[i1_,$it]) : x, code)
     #make loop
-    code = makeSimpleLoop(:(for i2_ in 1:1:neighborN_[i1_]; $code; end), agent)
+    code = :(for $it in 1:1:neighborN_[i1_]; $code; end)
     
     return code
-
 
 end
 
@@ -142,7 +141,7 @@ Adds the following functions to the library:
 """
 macro verletNeighbors(platform, args...) #Macro to make the verletNeighbor loops
 
-    base = agentArgs(l=length(args))
+    base = agentArgsNeighbors(args)
 
     args2 = []
     for i in args
@@ -232,7 +231,7 @@ Adds the following functions to the library:
 """
 macro neighborsVerletTime(platform, args...)
 
-    base = agentArgs(:community,l=length(args))
+    base = agentArgsNeighbors(args,sym=:community)
     
     namef = Meta.parse("verletNeighbors$(platform)!")
     name = Meta.parse(string("neighborsVerletTime$(length(args))$(platform)!"))
@@ -306,7 +305,7 @@ Adds the following functions to the library:
 """
 macro verletDisplacement(platform, args...)
 
-    base = agentArgs(l=length(args))
+    base = agentArgsNeighbors(args)
     
     args3 = []
     for (pos,i) in enumerate(args)
@@ -387,7 +386,7 @@ Adds the following functions to the library:
 """
 macro verletResetDisplacement(platform, args...)
 
-    base = agentArgs(l=length(args))
+    base = agentArgsNeighbors(args)
     
     up = quote end
     for (pos,i) in enumerate(args)
@@ -466,7 +465,7 @@ Adds the following functions to the library:
 """
 macro neighborsVerletDisplacement(platform, args...)
 
-    base = agentArgs(:community,l=length(args))
+    base = agentArgsNeighbors(args,sym=:community)
     name = Meta.parse(string("neighborsVerletDisplacement$(length(args))$(platform)!"))
 
     nameNeigh = Meta.parse(string("verletNeighbors$(platform)!"))
@@ -622,7 +621,7 @@ end
 
 Wrapper loop for cell linked neighbors algorithm.
 """
-function neighborsCellLinkedLoop(code,agent)
+function neighborsCellLinkedLoop(code,it,agent)
 
     args = Any[:(pos_),:(i3_)]
     for i in 1:agent.dims
@@ -652,8 +651,6 @@ function neighborsCellLinkedLoop(code,agent)
                 end
             end 
 
-    code = makeSimpleLoop(code, agent)
-
     return code
 
 end
@@ -674,7 +671,7 @@ Adds the following functions to the library:
 """
 macro assignCells(platform, args...)
 
-    base = agentArgs(l=length(args))
+    base = agentArgsNeighbors(args)
 
     args2 = Any[:(cellEdge[1])]
     for (i,j) in enumerate(args)
@@ -751,7 +748,7 @@ Adds the following functions to the library:
 """
 macro sortAgentsInCells(platform, args...)
 
-    base = agentArgs(l=length(args))
+    base = agentArgsNeighbors(args)
 
     args2 = Any[:(cellEdge[1])]
     for (i,j) in enumerate(args)
@@ -834,7 +831,7 @@ Adds the following functions to the library:
 """
 macro neighborsCellLinked(platform, args...)
 
-    base = agentArgs(:community,l=length(args))
+    base = agentArgsNeighbors(args,sym=:community)
 
     name = Meta.parse(string("neighborsCellLinked$(length(args))$(platform)!"))
     namef = Meta.parse(string("assignCells$(length(args))$(platform)!"))
@@ -906,7 +903,7 @@ Adds the following functions to the library:
 """
 macro verletNeighborsCLVD(platform, args...) #Macro to make the verletNeighbor loops
 
-    base = agentArgs(l=length(args))
+    base = agentArgsNeighbors(args)
 
     args2 = []
     for i in args
@@ -1032,7 +1029,7 @@ Adds the following functions to the library:
 """
 macro neighborsCLVD(platform, args...)
 
-    base = agentArgs(:community,l=length(args))
+    base = agentArgsNeighbors(args,sym=:community)
 
     nameDisp = Meta.parse(string("verletDisplacement$(platform)!"))
     nameResDisp = Meta.parse(string("verletResetDisplacement$(platform)!"))
