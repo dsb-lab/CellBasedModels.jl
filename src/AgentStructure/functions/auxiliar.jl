@@ -66,27 +66,23 @@ Return sym coming from UserParameter.basePar to new. (e.g. liM_ -> liMNew_)
 baseParameterNew(sym) = Meta.parse(string(split(string(sym),"_")[1],"New_"))
 
 """
-    function agentArgs(sym=nothing;l=3,params=BASEPARAMETERS) 
+    function agentArgs(sym=nothing;params=BASEPARAMETERS) 
 
 Function that returns the arguments obervable for the constructed functions. If symbol is given, it substitutes by the fielnames in form of by *sym.fieldname*.
 """
-function agentArgs(sym=nothing;l=3,params=BASEPARAMETERS,posparams=POSITIONPARAMETERS) 
+function agentArgsNeighbors(args;sym=nothing,params=BASEPARAMETERS) 
 
     pars = [i for i in keys(params)]
 
-    # for i in posparams[3:-1:1+l]
-    #     popat!(pars,findfirst(pars.==i))
-    # end
-
     if sym === nothing
-        return Any[pars...]
+        return Any[pars...,args...]
     else
-        return Any[:($sym.$i) for i in pars]
+        return [Any[:($sym.$i) for i in pars];Any[:($sym.parameters[Symbol($i)]) for i in String.(args)]]
     end
 
 end
 
-function agentArgs2(agent;sym=nothing,l=3,params=BASEPARAMETERS,posparams=POSITIONPARAMETERS) 
+function agentArgs(agent;sym=nothing,l=3,params=BASEPARAMETERS) 
 
     pars = [i for i in keys(params)]
     args = [i for i in keys(agent.parameters)]
@@ -270,13 +266,13 @@ function addCuda(code,agent;oneThread=false)
 end
 
 """
-    function cudaAdapt(code,agent)
+    function cudaAdapt(code,platform)
 
 Adapt specific CPU forms of calling parameters (e.g. Atomic) to CUDA valid code (Atomic -> size 1 CuArray).
 """
-function cudaAdapt(code,agent)
+function cudaAdapt(code,platform)
 
-    if agent.platform == :GPU
+    if platform == :GPU
 
         #Adapt atomic
         code = postwalk(x->@capture(x,Threads.atomic_add!(p1_,p2_)) ? :(CUDA.atomic_add!(CUDA.pointer($p1,1),$p2)) : x , code)
@@ -403,21 +399,25 @@ function vectorize(code,agent)
     #For user declared symbols
     code = postwalk(x->@capture(x,id) ? :(id[i1_]) : x, code)
     code = postwalk(x->@capture(x,id[f_][f2_]) ? :(id[$f2]) : x, code) #avoid double indexing
-    for (sym,prop) in pairs(agent.parameters)
+    if typeof(agent) !== Int64 #Avoid empty AGENT
+        for (sym,prop) in pairs(agent.parameters)
 
-        if :agent == prop.scope
-            code = postwalk(x->@capture(x,g_) && g == sym ? :($g[i1_]) : x, code)
-            code = postwalk(x->@capture(x,g_[f_][f2_]) && g == sym ? :($g[$f2]) : x, code) #avoid double indexing
-        elseif :model == prop.scope
-            code = postwalk(x->@capture(x,g_) && g == sym ? :($g[1]) : x, code)
-        elseif :medium == prop.scope
-            args = [:gridPosx_,:gridPosy_,:gridPosz_][1:agent.dims]
-            code = postwalk(x->@capture(x,g_.j) && g == sym ? :($g[$(args...)]) : x, code)
-        elseif :Atomic == prop.scope
-            nothing
-        else
-            error("Symbol $bs with type $(prop[2]) doesn't has not vectorization implemented.")
+            if :agent == prop.scope
+                code = postwalk(x->@capture(x,g_) && g == sym ? :($g[i1_]) : x, code)
+                code = postwalk(x->@capture(x,g_[f_][f2_]) && g == sym ? :($g[$f2]) : x, code) #avoid double indexing
+            elseif :model == prop.scope
+                code = postwalk(x->@capture(x,g_) && g == sym ? :($g[1]) : x, code)
+            elseif :medium == prop.scope
+                args = [:gridPosx_,:gridPosy_,:gridPosz_][1:agent.dims]
+                code = postwalk(x->@capture(x,g_.j) && g == sym ? :($g[$(args...)]) : x, code)
+            elseif :Atomic == prop.scope
+                nothing
+            else
+                error("Symbol $bs with type $(prop[2]) doesn't has not vectorization implemented.")
+            end
         end
+
+        code = randomAdapt(code, agent)
 
     end
 
@@ -428,8 +428,6 @@ function vectorize(code,agent)
         code = postwalk(x->@capture(x,g_[p1_][p2_]) && g == bs ? :($bs[1]) : x, code) #Undo if it was already vectorized
 
     end
-
-    code = randomAdapt(code, agent)
 
     return code
 

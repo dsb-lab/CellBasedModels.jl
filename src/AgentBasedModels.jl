@@ -40,8 +40,8 @@ include("./AgentStructure/functions/neighbors.jl")
 export interactionStep!
 include("./AgentStructure/functions/interactions.jl")
     #Local update
-# export update!
-# include("./AgentStructure/functions/update.jl")
+export update!
+include("./AgentStructure/functions/update.jl")
     #Integrators
 export integrationStep!
 include("./AgentStructure/functions/integrators.jl")
