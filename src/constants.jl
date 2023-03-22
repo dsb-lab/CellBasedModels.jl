@@ -71,17 +71,18 @@ NEIGHBORSYMBOLS = [:Full, :VerletTime, :VerletDisplacement, :CellLinked, :CLVD]
 UPDATES = [
   :UpdateGlobal, 
   :UpdateLocal, 
-  :UpdateInteraction, 
   :UpdateMedium, 
-  :UpdateMediumInteraction, 
-  :UpdateVariable
+  :UpdateVariableDeterministic,
+  :UpdateVariableStochastic
 ]
 
 PLATFORMS = [:CPU,:GPU]
 
 SAVING = [:RAM,:JLD]
 
-INTEGRATOR = OrderedDict(
+DEFAULTSOLVEROPTIONS = ((:save_everystep,false),(:dense,false))
+
+SOLVERS = OrderedDict(
     :Euler => Integrator(
                     1,
                     true,

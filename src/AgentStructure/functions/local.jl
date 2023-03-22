@@ -231,7 +231,7 @@ macro removeAgent()
     code = vectorize(code)
 
     #Adapt to platform
-    code = cudaAdapt(code,agent)
+    code = cudaAdapt(code,agent.platform)
 
     return esc(code)
 

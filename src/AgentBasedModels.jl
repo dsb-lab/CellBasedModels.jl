@@ -17,6 +17,7 @@ export prettify
 import SpecialFunctions
 using ProgressMeter
 using Test
+using DifferentialEquations
 
 #Constants
 include("./baseStructs.jl")
@@ -44,7 +45,7 @@ export update!
 include("./AgentStructure/functions/update.jl")
     #Integrators
 export integrationStep!
-include("./AgentStructure/functions/integrators.jl")
+# include("./AgentStructure/functions/integrators.jl")
 include("./AgentStructure/functions/integratorsDiffequation.jl")
     #Medium
 export integrationMediumStep!

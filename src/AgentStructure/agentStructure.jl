@@ -159,6 +159,10 @@ mutable struct Agent
     neighbors::Symbol
     platform::Symbol
     removalOfAgents_::Bool
+    solveAlgorithm::Union{Symbol,DEAlgorithm}
+    solveKwargs::Dict{Symbol,Any}
+    solveMediumAlgorithm::Union{Symbol,DEAlgorithm}
+    solveMediumKwargs::Dict{Symbol,Any}
         
     function Agent()
         new(0,
@@ -170,31 +174,40 @@ mutable struct Agent
             :Full,
             :CPU,
             false,
+            :Euler,
+            Dict{Symbol,Any}(),
+            Euler(),
+            Dict{Symbol,Any}(),
             )
     end
 
-    function Agent(dims;
-        agentParameters=OrderedDict{Symbol,DataType}(),
-        modelParameters=OrderedDict{Symbol,DataType}(),
-        mediumParameters=OrderedDict{Symbol,DataType}(),
-        positionParameters=OrderedDict(
-            :x=>Float64,
-            :y=>Float64,
-            :z=>Float64,
-        ),
-        baseModelInit::Vector{Agent}=Agent[],
-        baseModelEnd::Vector{Agent}=Agent[],
+    function Agent(
+            dims;
+            agentParameters=OrderedDict{Symbol,DataType}(),
+            modelParameters=OrderedDict{Symbol,DataType}(),
+            mediumParameters=OrderedDict{Symbol,DataType}(),
+            positionParameters=OrderedDict(
+                :x=>Float64,
+                :y=>Float64,
+                :z=>Float64,
+            ),
+            baseModelInit::Vector{Agent}=Agent[],
+            baseModelEnd::Vector{Agent}=Agent[],
 
-        neighbors::Symbol=:Full,
-        platform::Symbol=:CPU,
+            updateGlobal::Expr=quote end,
+            updateLocal::Expr=quote end,
+            updateMedium::Expr=quote end,
+            updateVariableDeterministic::Expr=quote end,
+            updateVariableStochastic::Expr=quote end,
 
-        updateGlobal::Expr=quote end,
-        updateLocal::Expr=quote end,
-        updateInteraction::Expr=quote end,
-        updateMedium::Expr=quote end,
-        updateMediumInteraction::Expr=quote end,
-        updateVariable::Expr=quote end,
-        compile = true,
+            neighbors::Symbol=:Full,
+            platform::Symbol=:CPU,    
+            solveAlgorithm::Union{Symbol,DEAlgorithm} = :Euler,
+            solveKwargs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
+            solveMediumAlgorithm::Union{Symbol,DEAlgorithm} = Euler(),
+            solveMediumKwargs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
+
+            compile = true,
         )
 
         agent = Agent()
@@ -209,6 +222,28 @@ mutable struct Agent
             agent.platform = platform
         else
             error("Platform ", platform, " not defined. Specify among: ", PLATFORM)
+        end
+        if typeof(solveAlgorithm) == Symbol
+            if solveAlgorithm in keys(SOLVERS)
+                agent.solveAlgorithm = solveAlgorithm
+            else
+                error("solveAlgorithm does not exist. Possible algorithms are: $(SOLVERS...) or DifferentialEquations algorithms from ODE or SDE." )
+            end
+        else
+            agent.solveAlgorithm = solveAlgorithm
+        end
+        agent.solveKwargs = solveKwargs
+        for (s,val) in DEFAULTSOLVEROPTIONS
+            if !(s in keys(agent.solveKwargs))
+                agent.solveKwargs[s] = val
+            end
+        end
+        agent.solveMediumAlgorithm = solveMediumAlgorithm
+        agent.solveMediumKwargs = solveMediumKwargs
+        for (s,val) in DEFAULTSOLVEROPTIONS
+            if !(s in keys(agent.solveMediumKwargs))
+                agent.solveMediumKwargs[s] = val
+            end
         end
 
         #Add basic agent symbols
@@ -226,9 +261,9 @@ mutable struct Agent
                             ]
             params = 0
             if typeof(arg) == DataType
-                params = Dict([i=>j for (i,j) in zip(fieldnames(arg),fieldtypes(arg))])
+                params = OrderedDict([i=>j for (i,j) in zip(fieldnames(arg),fieldtypes(arg))])
             else
-                params = arg
+                params = OrderedDict(arg)
             end
             for (par,dataType) in pairs(params)
                 checkDeclared(par,agent)
@@ -257,11 +292,10 @@ mutable struct Agent
             end
         end
         for (update,code) in zip(UPDATES, [updateGlobal, 
-                                            updateLocal, 
-                                            updateInteraction, 
+                                            updateLocal,  
                                             updateMedium, 
-                                            updateMediumInteraction, 
-                                            updateVariable])
+                                            updateVariableDeterministic,
+                                            updateVariableStochastic])
             if update in keys(agent.declaredUpdates)
                 push!(agent.declaredUpdates[update].args, code)
             else
@@ -290,21 +324,31 @@ mutable struct Agent
         #     agent.declaredUpdates[i] = code
         # end
 
-        #Change variables updated to modifiable
-        for update in keys(agent.declaredUpdates)
+        # #Change variables updated to modifiable
+        # for update in keys(agent.declaredUpdates)
 
-            for (sym,var) in pairs(agent.parameters)
-                if inexpr(agent.declaredUpdates[update],:($sym.new))
-                    agent.parameters[sym].update = true
-                elseif inexpr(agent.declaredUpdates[update],BASESYMBOLS[:AddAgentMacro].symbol) && agent.parameters[sym].scope == :agent #If add agents, all local parameters are modifiable
-                    agent.parameters[sym].update = true
-                end
-            end
+        #     for (sym,var) in pairs(agent.parameters)
+        #         if inexpr(agent.declaredUpdates[update],:($sym.new))
+        #             agent.parameters[sym].update = true
+        #         elseif inexpr(agent.declaredUpdates[update],BASESYMBOLS[:AddAgentMacro].symbol) && agent.parameters[sym].scope == :agent #If add agents, all local parameters are modifiable
+        #             agent.parameters[sym].update = true
+        #         end
+        #     end
 
-            getEquations!(agent)
+        #     getEquations!(agent)
 
-            getEquationsMedium!(agent)
+        #     getEquationsMedium!(agent)
 
+        # end
+
+        #Variables
+        count = 0
+        for sym in keys(agent.parameters)
+            if inexpr(updateVariableDeterministic,:(dt($sym))) || inexpr(updateVariableStochastic,:(dt($sym)))
+                count += 1
+                agent.parameters[sym].variable = true            
+                agent.parameters[sym].pos = count
+            end        
         end
 
         #Check if there are removed agents
@@ -327,7 +371,7 @@ mutable struct Agent
             neighborsFunction(agent)
             # interactionFunction(agent)
             # integratorFunction(agent)
-            # integrator2Function(agent)
+            integrator2Function(agent)
             # integratorMediumFunction(agent)
         end
 

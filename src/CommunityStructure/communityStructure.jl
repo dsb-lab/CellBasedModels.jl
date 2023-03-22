@@ -174,6 +174,8 @@ mutable struct Community
     vars::AbstractArray
     varsMedium::AbstractArray
 
+    deProblem
+
     # Constructors
     function Community(agent::Agent; args...)
 
@@ -221,7 +223,7 @@ mutable struct Community
             end
         end
     
-        com = new(agent, false, Platform(256,1), nothing, Community[], [j for (i,j) in pairs(dict)]...,parameters,parametersUpdated,zeros(0),zeros(0))
+        com = new(agent, false, Platform(256,1), nothing, Community[], [j for (i,j) in pairs(dict)]...,parameters,parametersUpdated,zeros(0),zeros(0),nothing)
 
         for sym in keys(args)
             if sym in keys(com.agent.parameters)
@@ -455,10 +457,6 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
         end
     end            
 
-    # Transform to the correct platform the parameters
-    CUDA.@allowscalar setfield!(com, :vars, zeros(Float64,length([1 for (i,j) in pairs(com.agent.parameters) if j.variable]),com.N[1]))
-    CUDA.@allowscalar setfield!(com, :varsMedium, zeros(Float64,length([1 for (i,j) in pairs(com.agent.parameters) if j.variableMedium]),com.nCells_...))    
-
     for (sym,prop) in pairs(com.agent.parameters)
         p = getproperty(com,sym)
         if prop.scope == :agent
@@ -483,6 +481,48 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
         for sym in keys(com.parametersUpdated)
             com.parametersUpdated[sym] = cu(com.parametersUpdated[sym])
         end
+    end
+
+    # Transform to the correct platform the parameters
+    agent = com.agent
+    vars = zeros(Float64,length([1 for (i,j) in pairs(com.agent.parameters) if j.variable]),com.N[1])
+    varsMedium = zeros(Float64,length([1 for (i,j) in pairs(com.agent.parameters) if j.variableMedium]),com.nCells_...)
+
+    for (sym,struc) in pairs(com.agent.parameters)
+        if struc.scope == :agent && struc.variable
+            if struc.variable
+                vars[struc.pos,:] .= com.parameters[sym]
+            end
+        end
+    end
+
+    params = agentArgs(agent)
+    paramsRemove = Tuple([sym for (sym,prop) in pairs(agent.parameters) if (prop.variable)])
+    params = Tuple([com[i] for i in params if !(inexpr(i,paramsRemove))])
+
+    if isemptyupdaterule(agent,:UpdateVariableStochastic)
+
+        problem = SDEProblem(
+                com.agent.declaredUpdatesFunction[:IntegratorODE], 
+                com.agent.declaredUpdatesFunction[:IntegratorSDE], 
+                vars, 
+                (0,10.), 
+                params
+            )
+        setfield!(com,:deProblem, DifferentialEquations.init(problem, EM(), dt=CUDA.@allowscalar(com.t[1])))
+
+    elseif isemptyupdaterule(agent,:UpdateVariableDeterministic)
+        
+        println(prettify(com.agent.declaredUpdatesCode[:IntegratorODE]))
+
+        problem = ODEProblem(
+            com.agent.declaredUpdatesFunction[:IntegratorODE], 
+            vars, 
+            (0,10.), 
+            params
+        )
+        setfield!(com,:deProblem, DifferentialEquations.init(problem, Euler(), dt=CUDA.@allowscalar(com.dt[1])))
+
     end
 
     linkVariables(com)
@@ -576,10 +616,10 @@ end
 function linkVariables(com::Community)
 
     for (sym,struc) in pairs(com.agent.parameters)
-        if struc.scope == :agent
+        if struc.scope == :agent && struc.variable
             if struc.variable
-                com.vars[struc.pos,:] .= com.parameters[sym]
-                @views com.parameters[sym] = com.vars[struc.pos,:]
+                com.deProblem.u[struc.pos,:] .= com.parameters[sym]
+                @views com.parameters[sym] = com.deProblem.u[struc.pos,:]
             end
         elseif struc.scope == :model
             nothing

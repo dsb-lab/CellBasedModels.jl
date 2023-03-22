@@ -616,15 +616,26 @@ end
                             # updateMediumInteraction=quote
                             #     m -= 1
                             # end,
-                            # updateVariable=quote 
-                            #     d(x) = dt(-x)
-                            # end,
+                            updateVariableDeterministic=quote 
+                                dt(x) = -0.1*x
+                            end,
                             platform=:CPU#PLATFORM
                         )
-                com = Community(agent,N=[3],NMedium=[2,2,2],simBox=[0 1.;0 1;0 1]);
+                com = Community(agent,N=[3],NMedium=[2,2,2],simBox=[0 1.;0 1;0 1],x=1,dt=[.1]);
                             
                 loadToPlatform!(com);
-                localStep!(com)
+
+                # println(com.deProblem)
+                println("x: ",com.x)
+
+                # localStep!(com)
+                for i in 1:1
+                    integrationStep!(com)
+                end
+
+                # println(com.deProblem)
+                println("x: ",com.x,"\n")
+                println()
 
                 update!(com)
 

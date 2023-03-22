@@ -16,8 +16,6 @@ macro kernelListSurvived!(platform)
 
     name = Meta.parse("kernelListSurvived$(platform)!")
 
-    println(name)
-
     code = 
         quote
             count = 1
