@@ -287,15 +287,15 @@ macro update!(platform)
         #List and fill holes left from agent removal
         kernel1 = quote
             kernel1 = @cuda launch=false $(Meta.parse("kernelListSurvived$(platform)!"))(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_)
-            kernel1(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_;threads=community.platform.threads,blocks=community.platform.threads)
+            kernel1(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_;threads=community.threads_,blocks=community.blocks_)
         end
         kernel2 = quote
             kernel2 = @cuda launch=false $(Meta.parse("kernelFillHolesBase$(platform)!"))($(localSymbols...))
-            kernel2($(localSymbols...);threads=community.platform.threads,blocks=community.platform.threads)
+            kernel2($(localSymbols...);threads=community.threads_,blocks=community.blocks_)
         end
         kernel3 = quote
             kernel3 = @cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
-            kernel3(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.platform.threads,blocks=community.platform.threads)
+            kernel3(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.threads_,blocks=community.blocks_)
         end
     end
 
@@ -338,8 +338,8 @@ macro update!(platform)
             #Update time
             community.t .+= community.dt
             #Update GPU execution
-            setfield!(community,:platform,AgentBasedModels.Platform(256,ceil(Int,Array{Float64}(getfield(community,:N))[1]/256)))
-
+            setGPUParameters!(community)
+            
             return 
 
         end

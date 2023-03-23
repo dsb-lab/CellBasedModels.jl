@@ -573,8 +573,62 @@ end
 
     #Update
     @testset "update" begin
+
+        # #Local
+        # @testPlatform(
+        #     (@test begin
+        #             agent = Agent(3,
+        #                         agentParameters = OrderedDict(
+        #                             :li => Int64,
+        #                             :lii => Int64,
+        #                             :lf => Float64,
+        #                             :lfi => Float64,
+        #                         ),
+        #                         modelParameters = OrderedDict(
+        #                             :gf => Float64,
+        #                             :gi => Int64,
+        #                             :gfi => Float64,
+        #                             :gii => Int64,
+        #                         ),
+        #                         mediumParameters = OrderedDict(
+        #                             :m => Float64
+        #                         ),
+        #                         updateLocal=quote 
+        #                             li = id
+        #                             lf = id
+        #                             lfi = id
+        #                             lii = id         
+        #                             lfi = 0
+        #                             @loopOverNeighbors i2_ begin
+        #                                 lfi += id
+        #                             end  
+        #                             if id == 2
+        #                                 @removeAgent()
+        #                             end
+        #                         end,
+        #                         platform=PLATFORM,
+        #                     )
+        #             com = Community(agent,N=[3],NMedium=[2,2,2],simBox=[0 1.;0 1;0 1],x=1,dt=[.1]);
+                                
+        #             loadToPlatform!(com);
+
+        #             localStep!(com)
+
+        #             update!(com)
+
+        #             a = []
+        #             for i in [:li,:lii,:lf,:lfi]
+        #                 CUDA.@allowscalar push!(a, (com[i][2] .== com[i][3]))
+        #             end                
+
+        #             all(a)
+        #     end), 
+        # )        
+
+        # ODEs
         @testPlatform(
             (@test begin
+                aa = []
                 for algorithm in [:Euler,:Heun,:RungeKutta4,DifferentialEquations.Euler(),DifferentialEquations.Heun()]
                     agent = Agent(3,
                                 agentParameters = OrderedDict(
@@ -592,61 +646,26 @@ end
                                 mediumParameters = OrderedDict(
                                     :m => Float64
                                 ),
-                                # updateGlobal=quote 
-                                #     gi += 1
-                                #     gf += 1
-                                #     gfi += 1
-                                #     gii += 1
-                                # end,
-                                updateLocal=quote 
-                                    li = id
-                                    lf = id
-                                    lfi = id
-                                    lii = id         
-                                    lfi = 0
-                                    @loopOverNeighbors i2_ begin
-                                        lfi += id
-                                    end  
-                                    if id == 2
-                                        @removeAgent()
-                                    end
-                                end,
-                                # updateMedium=quote 
-                                #     m += 1
-                                # end,
-                                # updateMediumInteraction=quote
-                                #     m -= 1
-                                # end,
                                 updateVariableDeterministic=quote 
                                     dt(x) = -0.5*x
                                 end,
-                                platform=:CPU,#PLATFORM,
+                                platform=PLATFORM,
                                 solveAlgorithm=algorithm
                             )
                     com = Community(agent,N=[3],NMedium=[2,2,2],simBox=[0 1.;0 1;0 1],x=1,dt=[.1]);
                                 
                     loadToPlatform!(com);
 
-                    println(algorithm)
-                    println("x: ",com.x)
-
-                    # localStep!(com)
-                    for i in 1:10
+                    a = []
+                    for i in 1:100
                         integrationStep!(com)
-                        println("x: ",com.x)
+                        update!(com)
+                        push!(a, all(abs.(com.deProblem.u .- exp.(-.5 .* com.t)).<0.05))
                     end
 
-                    println()
-
-                    update!(com)
-
-                    a = []
-                    for i in [:li,:lii,:lf,:lfi]
-                        push!(a, (com[i][2] .== com[i][3]))
-                    end                
-
-                    all(a)
+                    push!(aa,all(a))
                 end
+                all(aa)
             end), 
         )        
 

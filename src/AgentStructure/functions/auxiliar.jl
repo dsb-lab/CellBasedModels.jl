@@ -93,9 +93,9 @@ function agentArgs(agent;sym=nothing,l=3,params=BASEPARAMETERS)
     args = [i for i in keys(agent.parameters)]
 
     if sym === nothing
-        return Any[pars...,args...]
+        return Any[pars...,args...,:threads_,:blocks_]
     else
-        return [Any[:($sym.$i) for i in pars];Any[:($sym.parameters[Symbol($i)]) for i in String.(args)]]
+        return [Any[:($sym.$i) for i in pars];Any[:($sym.parameters[Symbol($i)]) for i in String.(args)];Any[:($sym.platform.threads),:($sym.platform.blocks)]]
     end
 
 end
@@ -253,8 +253,7 @@ function addCuda(code,platform::Symbol;oneThread=false)
         
         else
 
-            code = :(CUDA.@sync @cuda threads=community.platform.threads blocks=community.platform.blocks $code)
-            # code = :(@cuda threads=5 blocks=5 $code)
+            code = :(CUDA.@sync @cuda threads=community.threads_ blocks=community.blocks_ $code)
 
         end
 
@@ -315,6 +314,12 @@ CUDATHREADS1D = quote
     index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
     stride = gridDim().x * blockDim().x
 end
+
+function setGPUParameters!(community)
+    setfield!(community,:threads_,256)
+    setfield!(community,:blocks_,ceil(Int,Array{Float64}(getfield(community,:N))[1]/256))
+end
+
 
 ##############################################################################################################################
 # Vectorize parameters

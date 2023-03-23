@@ -8,8 +8,7 @@ Creates the final code provided to Agent in `updateVariable` as a function and a
 """
 function integratorFunction(agent)
 
-    if [i for i in prettify(agent.declaredUpdates[:UpdateVariableDeterministic]).args if typeof(i) != LineNumberNode] != [] || 
-        [i for i in prettify(agent.declaredUpdates[:UpdateVariableStochastic]).args if typeof(i) != LineNumberNode] != []
+    if isemptyupdaterule(agent,:UpdateVariableDeterministic) || isemptyupdaterule(agent,:UpdateVariableStochastic)
 
         unwrap = quote end
         for (sym,prop) in pairs(agent.parameters)
@@ -20,7 +19,6 @@ function integratorFunction(agent)
                 push!(unwrap.args, :(@views $sym = var_[$pos,:]))
             end
         end
-        # params = Tuple([sym for (sym,prop) in pairs(agent.parameters) if !(prop.variable)])
         params = agentArgs(agent)
         paramsRemove = Tuple([sym for (sym,prop) in pairs(agent.parameters) if (prop.variable)])
         params = Tuple([i for i in params if !(i in paramsRemove)])
@@ -34,18 +32,34 @@ function integratorFunction(agent)
         code = vectorize(code,agent)
 
         code = makeSimpleLoop(code,agent)
-        agent.declaredUpdatesCode[:IntegratorODE] = 
-            quote
-                function (dVar_,var_,p_,t_)
-                    ($(params...),) = p_
-                    $unwrap
-                    $code
-                    return
+
+        if agent.platform == :CPU
+            agent.declaredUpdatesCode[:IntegratorODE] = 
+                quote
+                    function (dVar_,var_,p_,t_)
+                        ($(params...),) = p_
+                        $unwrap
+                        $code
+                        return
+                    end
                 end
-            end
+        else
+            agent.declaredUpdatesCode[:IntegratorODE] = 
+                quote
+                    function (dVar_,var_,p_,t_)
+                        function kernel(dVar_,var_,$(params...))
+                            $unwrap
+                            $code
+                        end
+                        @cuda threads=p_[end-1] blocks=p_[end] kernel(dVar_,var_,p_...)
+
+                        return
+                    end
+                end
+        end
         agent.declaredUpdatesFunction[:IntegratorODE] = Main.eval(agent.declaredUpdatesCode[:IntegratorODE])
 
-        #Get deterministic function
+        #Get stochastic function
         code = agent.declaredUpdates[:UpdateVariableStochastic]
         for sym in keys(agent.parameters)
             dsym = Meta.parse(string(sym,"__"))
@@ -54,15 +68,30 @@ function integratorFunction(agent)
         code = vectorize(code,agent)
 
         code = makeSimpleLoop(code,agent)
-        agent.declaredUpdatesCode[:IntegratorSDE] = 
-            quote
-                function (dVar,var,p,t)
-                    ($(params...),) = p
-                    $unwrap
-                    $code
-                    return
+        if agent.platform == :CPU
+            agent.declaredUpdatesCode[:IntegratorSDE] = 
+                quote
+                    function (dVar_,var_,p_,t_)
+                        ($(params...),) = p_
+                        $unwrap
+                        $code
+                        return
+                    end
                 end
-            end
+        else
+            agent.declaredUpdatesCode[:IntegratorSDE] = 
+                quote
+                    function (dVar_,var_,p_,t_)
+                        function kernel(dVar_,var_,$(params...))
+                            $unwrap
+                            $code
+                        end
+                        @cuda threads=p_[end-1] blocks=p_[end] kernel(dVar_,var_,p_...)
+
+                        return
+                    end
+                end
+        end
         agent.declaredUpdatesFunction[:IntegratorSDE] = Main.eval(agent.declaredUpdatesCode[:IntegratorSDE])
 
         #Put all together

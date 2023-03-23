@@ -134,7 +134,8 @@ mutable struct Community
 
     agent
     loaded
-    platform
+    threads_
+    blocks_
     fileSaving
     pastTimes
 
@@ -223,7 +224,10 @@ mutable struct Community
             end
         end
     
-        com = new(agent, false, Platform(256,1), nothing, Community[], [j for (i,j) in pairs(dict)]...,parameters,parametersUpdated,zeros(0),zeros(0),nothing)
+        com = new(agent, false, 256, 1, nothing, Community[], [j for (i,j) in pairs(dict)]...,parameters,parametersUpdated,zeros(0),zeros(0),nothing)
+
+        #Set GPU threads and blocks
+        setGPUParameters!(com)
 
         for sym in keys(args)
             if sym in keys(com.agent.parameters)
@@ -430,6 +434,8 @@ Preallocating is necesssary as if more agents will be added during the evolution
 function loadToPlatform!(com::Community;preallocateAgents::Int=0)
 
     #Add preallocated agents to maximum
+    N = com.N[1]
+    nCells_ = copy(com.nCells_)
     setfield!(com, :nMax_, com.N .+ preallocateAgents)
 
     #Start with the new parameters equal to the old positions, just in case
@@ -471,22 +477,11 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
             end
         end
     end
-    #Transform to the appropiate methods
-    if platform == :GPU
-        setfield!(com,:vars, cu(com.vars))
-        setfield!(com,:varsMedium, cu(com.varsMedium))
-        for sym in keys(com.parameters)
-            com.parameters[sym] = cu(com.parameters[sym])
-        end
-        for sym in keys(com.parametersUpdated)
-            com.parametersUpdated[sym] = cu(com.parametersUpdated[sym])
-        end
-    end
 
     # Transform to the correct platform the parameters
     agent = com.agent
-    vars = zeros(Float64,length([1 for (i,j) in pairs(com.agent.parameters) if j.variable]),com.N[1])
-    varsMedium = zeros(Float64,length([1 for (i,j) in pairs(com.agent.parameters) if j.variableMedium]),com.nCells_...)
+    vars = zeros(Float64,length([1 for (i,j) in pairs(com.agent.parameters) if j.variable]),N)
+    varsMedium = zeros(Float64,length([1 for (i,j) in pairs(com.agent.parameters) if j.variableMedium]),nCells_...)
 
     for (sym,struc) in pairs(com.agent.parameters)
         if struc.scope == :agent && struc.variable
@@ -496,9 +491,23 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
         end
     end
 
+    #Transform to the correct platform
+    if platform == :GPU
+        setfield!(com,:vars, cu(com.vars))
+        setfield!(com,:varsMedium, cu(com.varsMedium))
+        for sym in keys(com.parameters)
+            com.parameters[sym] = cu(com.parameters[sym])
+        end
+        for sym in keys(com.parametersUpdated)
+            com.parametersUpdated[sym] = cu(com.parametersUpdated[sym])
+        end
+        vars = cu(vars)
+        varsMedium = cu(varsMedium)
+    end
+
     params = agentArgs(agent)
     paramsRemove = Tuple([sym for (sym,prop) in pairs(agent.parameters) if (prop.variable)])
-    params = Tuple([com[i] for i in params if !(inexpr(i,paramsRemove))])
+    params = Tuple([com[i] for i in params if !(i in paramsRemove)])
 
     if isemptyupdaterule(agent,:UpdateVariableStochastic)
 

@@ -362,20 +362,18 @@ mutable struct Agent
             end
         end        
 
-        global AGENT = agent
+        global AGENT = deepcopy(agent)
 
         #Make compiled functions
         if compile 
             localFunction(agent)
             # globalFunction(agent)
             neighborsFunction(agent)
-            # interactionFunction(agent)
-            # integratorFunction(agent)
             integratorFunction(agent)
             # integratorMediumFunction(agent)
         end
 
-        return agent
+        return agent        
     end
 
 end
