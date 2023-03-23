@@ -176,6 +176,7 @@ mutable struct Community
     varsMedium::AbstractArray
 
     deProblem
+    deProblemMedium
 
     # Constructors
     function Community(agent::Agent; args...)
@@ -224,7 +225,7 @@ mutable struct Community
             end
         end
     
-        com = new(agent, false, 256, 1, nothing, Community[], [j for (i,j) in pairs(dict)]...,parameters,parametersUpdated,zeros(0),zeros(0),nothing)
+        com = new(agent, false, 256, 1, nothing, Community[], [j for (i,j) in pairs(dict)]...,parameters,parametersUpdated,zeros(0),zeros(0),nothing,nothing)
 
         #Set GPU threads and blocks
         setGPUParameters!(com)
@@ -247,7 +248,7 @@ mutable struct Community
             dict[sym] = nothing
         end
     
-        return new(nothing, nothing, nothing, nothing,Community[], [j for (i,j) in pairs(dict)]...,nothing,nothing,nothing,nothing)
+        return new(nothing, nothing, nothing, nothing,Community[], [j for (i,j) in pairs(dict)]...,nothing,nothing,nothing,nothing,nothing)
 
     end
 
@@ -436,6 +437,7 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
     #Add preallocated agents to maximum
     N = com.N[1]
     nCells_ = copy(com.nCells_)
+    dt = com.dt[1]
     setfield!(com, :nMax_, com.N .+ preallocateAgents)
 
     #Start with the new parameters equal to the old positions, just in case
@@ -461,6 +463,7 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
         else
             setfield!(com,sym,ARRAY[platform]{DTYPE[prop.dtype][platform]}(getproperty(com,sym)))
         end
+
     end            
 
     for (sym,prop) in pairs(com.agent.parameters)
@@ -516,9 +519,10 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
                 com.agent.declaredUpdatesFunction[:IntegratorSDE], 
                 vars, 
                 (0,10.), 
-                params
+                params,
+                dt=0.1
             )
-        setfield!(com,:deProblem, DifferentialEquations.init(problem, com.agent.solveAlgorithm, dt=CUDA.@allowscalar(com.t[1])))
+        setfield!(com,:deProblem, DifferentialEquations.init( problem, com.agent.solveAlgorithm, dt=dt, save_everystep=false, dense = false, saveat = false ) )
 
     elseif isemptyupdaterule(agent,:UpdateVariableDeterministic)
         
@@ -528,7 +532,24 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
             (0,10.), 
             params
         )
-        setfield!(com,:deProblem, DifferentialEquations.init(problem, com.agent.solveAlgorithm, dt=CUDA.@allowscalar(com.dt[1])))
+        setfield!(com,:deProblem, DifferentialEquations.init( problem, com.agent.solveAlgorithm, dt=dt, save_everystep=false, dense = false, saveat = false ) )
+
+    end
+
+    params = agentArgs(agent)
+    paramsRemove = Tuple([sym for (sym,prop) in pairs(agent.parameters) if (prop.variableMedium)])
+    params = Tuple([i for i in params if !(i in paramsRemove)])
+
+    if isemptyupdaterule(agent,:UpdateVariableMedium)
+
+        problem = SDEProblem(
+                com.agent.declaredUpdatesFunction[:IntegratorODE], 
+                com.agent.declaredUpdatesFunction[:IntegratorSDE], 
+                vars, 
+                (0,10.), 
+                params
+            )
+        setfield!(com,:deProblemMedium, DifferentialEquations.init(problem, com.agent.solveAlgorithm, dt=CUDA.@allowscalar(com.t[1])))
 
     end
 

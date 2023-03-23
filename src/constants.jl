@@ -73,7 +73,8 @@ UPDATES = [
   :UpdateLocal, 
   :UpdateMedium, 
   :UpdateVariableDeterministic,
-  :UpdateVariableStochastic
+  :UpdateVariableStochastic,
+  :UpdateVariableMedium
 ]
 
 PLATFORMS = [:CPU,:GPU]
@@ -82,40 +83,13 @@ SAVING = [:RAM,:JLD]
 
 DEFAULTSOLVEROPTIONS = ((:save_everystep,false),(:dense,false))
 
-SOLVERS = OrderedDict(
-    :Euler => Integrator(
-                    1,
-                    true,
-                    (   
-                        (1),
-                    )
-                ),
-    :Heun => Integrator(
-                    2,
-                    true,
-                    (
-                        (1,),
-                        (1/2,1/2)
-                    )
-                ),
-    :RungeKutta4 => Integrator(
-                    4,
-                    true,
-                    (
-                        (1/2,),
-                        (0,  1/2),
-                        (0,  0,  1),
-                        (1/6,2/6,2/6,1/6)
-                    )
-                ))
-
-INTEGRATORMEDIUM = OrderedDict(
-    :Centered => IntegratorMedium(
-                    (-.5,0,.5),
-                    (.5,-1,.5),
-                    (1)
-                ),
-    )
+SOLVERS = [
+        :Euler,
+        :Heun,
+        :RungeKutta4,
+        :EM,
+        :EulerHeun
+    ]
 
 PLATFORM = [:CPU,:GPU]
 

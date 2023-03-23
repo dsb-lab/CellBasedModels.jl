@@ -199,6 +199,7 @@ mutable struct Agent
             updateMedium::Expr=quote end,
             updateVariableDeterministic::Expr=quote end,
             updateVariableStochastic::Expr=quote end,
+            updateVariableMedium::Expr=quote end,
 
             neighbors::Symbol=:Full,
             platform::Symbol=:CPU,    
@@ -224,10 +225,10 @@ mutable struct Agent
             error("Platform ", platform, " not defined. Specify among: ", PLATFORM)
         end
         if typeof(solveAlgorithm) == Symbol
-            if solveAlgorithm in keys(SOLVERS)
+            if solveAlgorithm in SOLVERS
                 agent.solveAlgorithm = solveAlgorithm
             else
-                error("solveAlgorithm does not exist. Possible algorithms are: $(SOLVERS...) or DifferentialEquations algorithms from ODE or SDE." )
+                error("solveAlgorithm $solveAlgorithm does not exist. Possible algorithms are: $(SOLVERS) or DifferentialEquations algorithms from ODE or SDE." )
             end
         else
             agent.solveAlgorithm = solveAlgorithm
@@ -295,7 +296,8 @@ mutable struct Agent
                                             updateLocal,  
                                             updateMedium, 
                                             updateVariableDeterministic,
-                                            updateVariableStochastic])
+                                            updateVariableStochastic,
+                                            updateVariableMedium])
             if update in keys(agent.declaredUpdates)
                 push!(agent.declaredUpdates[update].args, code)
             else
@@ -347,6 +349,16 @@ mutable struct Agent
             if inexpr(updateVariableDeterministic,:(dt($sym))) || inexpr(updateVariableStochastic,:(dt($sym)))
                 count += 1
                 agent.parameters[sym].variable = true            
+                agent.parameters[sym].pos = count
+            end        
+        end
+
+        #Variables
+        count = 0
+        for sym in keys(agent.parameters)
+            if inexpr(updateVariableMedium,:(dt($sym)))
+                count += 1
+                agent.parameters[sym].variableMedium = true            
                 agent.parameters[sym].pos = count
             end        
         end
