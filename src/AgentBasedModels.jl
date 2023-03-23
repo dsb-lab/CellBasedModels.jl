@@ -19,6 +19,8 @@ using ProgressMeter
 using Test
 using DifferentialEquations
 
+export DifferentialEquations
+
 #Constants
 include("./baseStructs.jl")
 include("./constants.jl")
@@ -28,33 +30,27 @@ include("./AgentStructure/functions/auxiliar.jl")
 #Agent
 export Agent
 include("./AgentStructure/agentStructure.jl")
-#     #Local
+    #Local
 export localStep!, @addAgent, @removeAgent, @loopOverNeighbors
 include("./AgentStructure/functions/local.jl")
-#     #Global
+    #Global
 export globalStep!
 include("./AgentStructure/functions/global.jl")
-#     #Neighbors
+    #Neighbors
 export computeNeighbors!
 include("./AgentStructure/functions/neighbors.jl")
-#     #Local interactions
-export interactionStep!
-include("./AgentStructure/functions/interactions.jl")
     #Local update
 export update!
 include("./AgentStructure/functions/update.jl")
     #Integrators
 export integrationStep!
-# include("./AgentStructure/functions/integrators.jl")
-include("./AgentStructure/functions/integratorsDiffequation.jl")
+include("./AgentStructure/functions/integration.jl")
     #Medium
 export integrationMediumStep!
 include("./AgentStructure/functions/medium.jl")
     #Step
 export step!, evolve!
 include("./AgentStructure/functions/step.jl")
-# include("./AgentStructure/compile/integrator/implicitEuler.jl")
-# include("./AgentStructure/compile/integrator/verletVelocity.jl")
 
 #Community
 export Community, loadToPlatform!, bringFromPlatform!, getParameter
@@ -63,6 +59,9 @@ export saveJLD2, saveRAM!, loadJLD2
 include("./CommunityStructure/IO.jl")
 export initializeSpheresCommunity, packagingCompactHexagonal, packagingCubic
 include("./CommunityStructure/initializers.jl")
+
+#Custom integrators
+include("./customIntegrators.jl")
 
 #Optimization tools
 export Fitting

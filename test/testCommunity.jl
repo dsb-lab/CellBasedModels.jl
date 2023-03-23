@@ -575,77 +575,79 @@ end
     @testset "update" begin
         @testPlatform(
             (@test begin
-                agent = Agent(3,
-                            agentParameters = OrderedDict(
-                                :li => Int64,
-                                :lii => Int64,
-                                :lf => Float64,
-                                :lfi => Float64,
-                            ),
-                            modelParameters = OrderedDict(
-                                :gf => Float64,
-                                :gi => Int64,
-                                :gfi => Float64,
-                                :gii => Int64,
-                            ),
-                            mediumParameters = OrderedDict(
-                                :m => Float64
-                            ),
-                            # updateGlobal=quote 
-                            #     gi += 1
-                            #     gf += 1
-                            #     gfi += 1
-                            #     gii += 1
-                            # end,
-                            updateLocal=quote 
-                                li = id
-                                lf = id
-                                lfi = id
-                                lii = id         
-                                lfi = 0
-                                @loopOverNeighbors i2_ begin
-                                    lfi += id
-                                end  
-                                if id == 2
-                                    @removeAgent()
-                                end
-                            end,
-                            # updateMedium=quote 
-                            #     m += 1
-                            # end,
-                            # updateMediumInteraction=quote
-                            #     m -= 1
-                            # end,
-                            updateVariableDeterministic=quote 
-                                dt(x) = -0.1*x
-                            end,
-                            platform=:CPU#PLATFORM
-                        )
-                com = Community(agent,N=[3],NMedium=[2,2,2],simBox=[0 1.;0 1;0 1],x=1,dt=[.1]);
-                            
-                loadToPlatform!(com);
+                for algorithm in [:Euler,:Heun,:RungeKutta4,DifferentialEquations.Euler(),DifferentialEquations.Heun()]
+                    agent = Agent(3,
+                                agentParameters = OrderedDict(
+                                    :li => Int64,
+                                    :lii => Int64,
+                                    :lf => Float64,
+                                    :lfi => Float64,
+                                ),
+                                modelParameters = OrderedDict(
+                                    :gf => Float64,
+                                    :gi => Int64,
+                                    :gfi => Float64,
+                                    :gii => Int64,
+                                ),
+                                mediumParameters = OrderedDict(
+                                    :m => Float64
+                                ),
+                                # updateGlobal=quote 
+                                #     gi += 1
+                                #     gf += 1
+                                #     gfi += 1
+                                #     gii += 1
+                                # end,
+                                updateLocal=quote 
+                                    li = id
+                                    lf = id
+                                    lfi = id
+                                    lii = id         
+                                    lfi = 0
+                                    @loopOverNeighbors i2_ begin
+                                        lfi += id
+                                    end  
+                                    if id == 2
+                                        @removeAgent()
+                                    end
+                                end,
+                                # updateMedium=quote 
+                                #     m += 1
+                                # end,
+                                # updateMediumInteraction=quote
+                                #     m -= 1
+                                # end,
+                                updateVariableDeterministic=quote 
+                                    dt(x) = -0.5*x
+                                end,
+                                platform=:CPU,#PLATFORM,
+                                solveAlgorithm=algorithm
+                            )
+                    com = Community(agent,N=[3],NMedium=[2,2,2],simBox=[0 1.;0 1;0 1],x=1,dt=[.1]);
+                                
+                    loadToPlatform!(com);
 
-                # println(com.deProblem)
-                println("x: ",com.x)
+                    println(algorithm)
+                    println("x: ",com.x)
 
-                # localStep!(com)
-                for i in 1:1
-                    integrationStep!(com)
+                    # localStep!(com)
+                    for i in 1:10
+                        integrationStep!(com)
+                        println("x: ",com.x)
+                    end
+
+                    println()
+
+                    update!(com)
+
+                    a = []
+                    for i in [:li,:lii,:lf,:lfi]
+                        push!(a, (com[i][2] .== com[i][3]))
+                    end                
+
+                    all(a)
                 end
-
-                # println(com.deProblem)
-                println("x: ",com.x,"\n")
-                println()
-
-                update!(com)
-
-                a = []
-                for i in [:li,:lii,:lf,:lfi]
-                    push!(a, (com[i][2] .== com[i][3]))
-                end                
-
-                all(a)
-            end)
+            end), 
         )        
 
         # # Add agent

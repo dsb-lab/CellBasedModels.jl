@@ -371,7 +371,7 @@ mutable struct Agent
             neighborsFunction(agent)
             # interactionFunction(agent)
             # integratorFunction(agent)
-            integrator2Function(agent)
+            integratorFunction(agent)
             # integratorMediumFunction(agent)
         end
 

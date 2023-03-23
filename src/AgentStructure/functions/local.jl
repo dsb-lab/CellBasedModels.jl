@@ -250,8 +250,6 @@ macro loopOverNeighbors(it, code)
 
     code = postwalk(x->@capture(x,i_) && i == :i2_ ? it : x, code )
 
-    # println(prettify(code))
-
     return esc(code)
 
 end
@@ -285,7 +283,6 @@ function localFunction(agent)
                                                         $aux
                                                         return 
                                                     end)
-        # println(agent.declaredUpdatesCode[:UpdateLocal])
         agent.declaredUpdatesFunction[:UpdateLocal] = Main.eval(
             :($(agent.declaredUpdatesCode[:UpdateLocal]))
         )

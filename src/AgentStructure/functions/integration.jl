@@ -2,11 +2,11 @@
 # Convert the equations
 #######################################################################################################
 """
-    function integrator2Function(agent)
+    function integratorFunction(agent)
 
 Creates the final code provided to Agent in `updateVariable` as a function and adds it to the Agent.
 """
-function integrator2Function(agent)
+function integratorFunction(agent)
 
     if [i for i in prettify(agent.declaredUpdates[:UpdateVariableDeterministic]).args if typeof(i) != LineNumberNode] != [] || 
         [i for i in prettify(agent.declaredUpdates[:UpdateVariableStochastic]).args if typeof(i) != LineNumberNode] != []

@@ -509,19 +509,17 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
                 (0,10.), 
                 params
             )
-        setfield!(com,:deProblem, DifferentialEquations.init(problem, EM(), dt=CUDA.@allowscalar(com.t[1])))
+        setfield!(com,:deProblem, DifferentialEquations.init(problem, com.agent.solveAlgorithm, dt=CUDA.@allowscalar(com.t[1])))
 
     elseif isemptyupdaterule(agent,:UpdateVariableDeterministic)
         
-        println(prettify(com.agent.declaredUpdatesCode[:IntegratorODE]))
-
         problem = ODEProblem(
             com.agent.declaredUpdatesFunction[:IntegratorODE], 
             vars, 
             (0,10.), 
             params
         )
-        setfield!(com,:deProblem, DifferentialEquations.init(problem, Euler(), dt=CUDA.@allowscalar(com.dt[1])))
+        setfield!(com,:deProblem, DifferentialEquations.init(problem, com.agent.solveAlgorithm, dt=CUDA.@allowscalar(com.dt[1])))
 
     end
 
