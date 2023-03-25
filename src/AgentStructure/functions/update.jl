@@ -306,7 +306,7 @@ macro update!(platform)
             community.NAdd_[] = 0
             community.NRemove_[] = 0
             #Clear flags
-            if community.agent.removalOfAgents_
+            if community.abm.removalOfAgents_
                 @views community.flagSurvive_[1:community.N[1]] .= 1
             end
         end
@@ -317,7 +317,7 @@ macro update!(platform)
             community.NAdd_ .= 0
             community.NRemove_ .= 0
             #Clear flags
-            if community.agent.removalOfAgents_
+            if community.abm.removalOfAgents_
                 community.flagSurvive_ .= 1
             end
         end
@@ -329,7 +329,7 @@ macro update!(platform)
             $kernel1
             $kernel2
             #Update parameters
-            for (sym,prop) in pairs(community.agent.parameters)
+            for (sym,prop) in pairs(community.abm.parameters)
                 if prop.scope == :agent
                     $kernel3
                 end
@@ -358,7 +358,7 @@ function update!(community)
 
     checkLoaded(community)
 
-    if community.agent.platform == :CPU
+    if community.abm.platform == :CPU
         updateCPU!(community)
     else
         updateGPU!(community)

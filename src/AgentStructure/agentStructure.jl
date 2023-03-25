@@ -1,28 +1,28 @@
 """
-    function getEquation(sym,code,agent)
+    function getEquation(sym,code,abm)
 
 Sets to true the the variable field of UserParameters
 """
-function getEquation(sym,code,agent)
+function getEquation(sym,code,abm)
 
-    agent.parameters[sym].variable = true
-    agent.parameters[sym].pos = sum([j.variable for (i,j) in agent.parameters])
+    abm.parameters[sym].variable = true
+    abm.parameters[sym].pos = sum([j.variable for (i,j) in abm.parameters])
 
     return code
 
 end
 
 """
-    function getEquations!(agent)
+    function getEquations!(abm)
 
 Go over the code in updateVariable and looks for parameters defined as variables.
 """
-function getEquations!(agent)
+function getEquations!(abm)
 
-    for update in keys(agent.declaredUpdates)
-        code = agent.declaredUpdates[update]
+    for update in keys(abm.declaredUpdates)
+        code = abm.declaredUpdates[update]
 
-        code = postwalk(x->@capture(x,d(s_)=g_) ? getEquation(s,x,agent) : x, code)
+        code = postwalk(x->@capture(x,d(s_)=g_) ? getEquation(s,x,abm) : x, code)
     end
 
     return
@@ -30,31 +30,31 @@ function getEquations!(agent)
 end
 
 """
-    function getEquationMedium(sym,code,agent)
+    function getEquationMedium(sym,code,abm)
 
 Sets to true the the variableMedium field of UserParameters
 """
-function getEquationMedium(sym,code,agent)
+function getEquationMedium(sym,code,abm)
 
-    agent.parameters[sym].variableMedium = true
-    agent.parameters[sym].pos = sum([j.variableMedium for (i,j) in agent.parameters])
+    abm.parameters[sym].variableMedium = true
+    abm.parameters[sym].pos = sum([j.variableMedium for (i,j) in abm.parameters])
 
     return code
 
 end
 
 """
-    function getEquationsMedium!(agent)
+    function getEquationsMedium!(abm)
 
 Go over the code in updateVariable and looks for parameters defined as medium variables.
 """
-function getEquationsMedium!(agent)
+function getEquationsMedium!(abm)
 
-    for update in keys(agent.declaredUpdates)
+    for update in keys(abm.declaredUpdates)
 
-        code = agent.declaredUpdates[update]
+        code = abm.declaredUpdates[update]
 
-        code = postwalk(x->@capture(x,∂t(s_)=g_) ? getEquationMedium(s,x,agent) : x, code)
+        code = postwalk(x->@capture(x,∂t(s_)=g_) ? getEquationMedium(s,x,abm) : x, code)
 
     end
 
@@ -63,7 +63,7 @@ function getEquationsMedium!(agent)
 end
 
 """
-    mutable struct Agent
+    mutable struct ABM
 
 Basic structure which contains the user defined parmeters of the model, the user rules of the agents, both in high level definition and the functions already compiled.
 
@@ -86,11 +86,11 @@ Basic structure which contains the user defined parmeters of the model, the user
 
 # Constructors
 
-    function Agent()
+    function ABM()
 
-Generates an empty instance of Agent to be filled.
+Generates an empty instance of ABM to be filled.
 
-    function Agent(dims;
+    function ABM(dims;
         localInt::Vector{Symbol}=Symbol[],
         localIntInteraction::Vector{Symbol}=Symbol[],
         localFloat::Vector{Symbol}=Symbol[],
@@ -100,18 +100,18 @@ Generates an empty instance of Agent to be filled.
         globalFloatInteraction::Vector{Symbol}=Symbol[],
         globalIntInteraction::Vector{Symbol}=Symbol[],
         medium::Vector{Symbol}=Symbol[],
-        baseModelInit::Vector{Agent}=Agent[],
-        baseModelEnd::Vector{Agent}=Agent[],
+        baseModelInit::Vector{ABM}=ABM[],
+        baseModelEnd::Vector{ABM}=ABM[],
         neighbors::Symbol=:Full,
         integrator::Symbol=:Euler,
         integratorMedium::Symbol=:Centered,
         platform::Symbol=:CPU,
         saving::Symbol=:RAM,
         updateGlobal::Expr=quote end,
-        updateLocal::Expr=quote end,
+        agentRule::Expr=quote end,
         updateInteraction::Expr=quote end,
-        updateMedium::Expr=quote end,
-        updateMediumInteraction::Expr=quote end,
+        mediumODE::Expr=quote end,
+        mediumODEInteraction::Expr=quote end,
         updateVariable::Expr=quote end
         )
 
@@ -129,23 +129,23 @@ Generates an agent based model with defined parameters and rules.
 || globalFloatInteraction::Vector{Symbol}=Symbol[] | User defined global float interacting parameters. |
 || globalIntInteraction::Vector{Symbol}=Symbol[] | User defined global integer interacting parameters. |
 || medium::Vector{Symbol}=Symbol[] | User defined medium (float) parameters. |
-|| baseModelInit::Vector{Agent}=Agent[] | Models inherited to construct this model and which rules apply before this one. |
-|| baseModelEnd::Vector{Agent}=Agent[] | Models inherited to construct this model and which rules apply after this one. |
+|| baseModelInit::Vector{ABM}=ABM[] | Models inherited to construct this model and which rules apply before this one. |
+|| baseModelEnd::Vector{ABM}=ABM[] | Models inherited to construct this model and which rules apply after this one. |
 || neighbors::Symbol=:Full | Type of neighbor method used. |
 || integrator::Symbol=:Euler | Type of integrator used. |
 || integratorMedium::Symbol=:Centered | Type of discretizer used for the spatial medium. |
 || platform::Symbol=:CPU | Platform in which the agent will run. |
 || saving::Symbol=:RAM | Saving platform. |
 || updateGlobal::Expr=quote end | Update rule for global parameters. |
-|| updateLocal::Expr=quote end | Update rule for local parameters. |
+|| agentRule::Expr=quote end | Update rule for local parameters. |
 || updateInteraction::Expr=quote end | Update rule for interacting parameters. |
-|| updateMedium::Expr=quote end | Update rule for medium parameters. |
-|| updateMediumInteraction::Expr=quote end | Update rule for medium interaction parameters. |
+|| mediumODE::Expr=quote end | Update rule for medium parameters. |
+|| mediumODEInteraction::Expr=quote end | Update rule for medium interaction parameters. |
 || updateVariable::Expr=quote end | Update rule for diferential equation defining evolution of parameters. |
 
 For a more extense explanation of how to define rules and parameters, read `Usage` in the documentation.
 """
-mutable struct Agent
+mutable struct ABM
 
     dims::Int    
 
@@ -159,12 +159,8 @@ mutable struct Agent
     neighbors::Symbol
     platform::Symbol
     removalOfAgents_::Bool
-    solveAlgorithm::Union{Symbol,DEAlgorithm}
-    solveKwargs::Dict{Symbol,Any}
-    solveMediumAlgorithm::Union{Symbol,DEAlgorithm}
-    solveMediumKwargs::Dict{Symbol,Any}
         
-    function Agent()
+    function ABM()
         new(0,
             OrderedDict{Symbol,DataType}(),
             OrderedDict{Symbol,DataType}(),
@@ -174,91 +170,64 @@ mutable struct Agent
             :Full,
             :CPU,
             false,
-            :Euler,
-            Dict{Symbol,Any}(),
-            Euler(),
-            Dict{Symbol,Any}(),
             )
     end
 
-    function Agent(
+    function ABM(
             dims;
-            agentParameters=OrderedDict{Symbol,DataType}(),
-            modelParameters=OrderedDict{Symbol,DataType}(),
-            mediumParameters=OrderedDict{Symbol,DataType}(),
+
+            agent=OrderedDict{Symbol,DataType}(),
+            agentRule::Expr=quote end,
+            agentODE::Expr=quote end,
+            agentSDE::Expr=quote end,
+
+            model=OrderedDict{Symbol,DataType}(),
+            modelRule::Expr=quote end,
+
+            medium=OrderedDict{Symbol,DataType}(),
+            mediumODE::Expr=quote end,
+
             positionParameters=OrderedDict(
                 :x=>Float64,
                 :y=>Float64,
                 :z=>Float64,
             ),
-            baseModelInit::Vector{Agent}=Agent[],
-            baseModelEnd::Vector{Agent}=Agent[],
 
-            updateGlobal::Expr=quote end,
-            updateLocal::Expr=quote end,
-            updateMedium::Expr=quote end,
-            updateVariableDeterministic::Expr=quote end,
-            updateVariableStochastic::Expr=quote end,
-            updateVariableMedium::Expr=quote end,
+            baseModelInit::Vector{ABM}=ABM[],
+            baseModelEnd::Vector{ABM}=ABM[],
 
             neighbors::Symbol=:Full,
             platform::Symbol=:CPU,    
-            solveAlgorithm::Union{Symbol,DEAlgorithm} = :Euler,
-            solveKwargs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
-            solveMediumAlgorithm::Union{Symbol,DEAlgorithm} = Euler(),
-            solveMediumKwargs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
             compile = true,
         )
 
-        agent = Agent()
+        abm = ABM()
 
-        agent.dims = dims
+        abm.dims = dims
         if neighbors in NEIGHBORSYMBOLS
-            agent.neighbors = neighbors
+            abm.neighbors = neighbors
         else
             error("Neighbors algorithm ", neighbors, " not defined. Specify among: ", NEIGHBORSYMBOLS)
         end
         if platform in PLATFORM
-            agent.platform = platform
+            abm.platform = platform
         else
             error("Platform ", platform, " not defined. Specify among: ", PLATFORM)
-        end
-        if typeof(solveAlgorithm) == Symbol
-            if solveAlgorithm in SOLVERS
-                agent.solveAlgorithm = solveAlgorithm
-            else
-                error("solveAlgorithm $solveAlgorithm does not exist. Possible algorithms are: $(SOLVERS) or DifferentialEquations algorithms from ODE or SDE." )
-            end
-        else
-            agent.solveAlgorithm = solveAlgorithm
-        end
-        agent.solveKwargs = solveKwargs
-        for (s,val) in DEFAULTSOLVEROPTIONS
-            if !(s in keys(agent.solveKwargs))
-                agent.solveKwargs[s] = val
-            end
-        end
-        agent.solveMediumAlgorithm = solveMediumAlgorithm
-        agent.solveMediumKwargs = solveMediumKwargs
-        for (s,val) in DEFAULTSOLVEROPTIONS
-            if !(s in keys(agent.solveMediumKwargs))
-                agent.solveMediumKwargs[s] = val
-            end
         end
 
         #Add basic agent symbols
         for (i,sym) in enumerate(keys(positionParameters))
             if i <= dims
-                agent.parameters[sym] = UserParameter(positionParameters[sym],:agent)
+                abm.parameters[sym] = UserParameter(positionParameters[sym],:agent)
             end
         end
 
         #Parameters
         for (arg,scope) = [
-                            (agentParameters,:agent),
-                            (modelParameters,:model),
-                            (mediumParameters,:medium)            
+                            (agent,:agent),
+                            (model,:model),
+                            (medium,:medium)            
                             ]
             params = 0
             if typeof(arg) == DataType
@@ -267,8 +236,8 @@ mutable struct Agent
                 params = OrderedDict(arg)
             end
             for (par,dataType) in pairs(params)
-                checkDeclared(par,agent)
-                agent.parameters[par] = UserParameter(dataType,scope)
+                checkDeclared(par,abm)
+                abm.parameters[par] = UserParameter(dataType,scope)
             end
         end
 
@@ -276,8 +245,8 @@ mutable struct Agent
         for base in [baseModelInit; baseModelEnd]
             for (i,j) in pairs(base.parameters)
                 if !(i in keys(BASEPARAMETERS))
-                    checkDeclared(i,agent)
-                    agent.parameters[i] = j
+                    checkDeclared(i,abm)
+                    abm.parameters[i] = j
                 end
             end
         end
@@ -285,112 +254,84 @@ mutable struct Agent
         #Add Updates
         for a in baseModelInit
             for (update,code) in pairs(a.declaredUpdates)
-                if update in keys(agent.declaredUpdates)
-                    push!(agent.declaredUpdates[update].args, copy(code))
+                if update in keys(abm.declaredUpdates)
+                    push!(abm.declaredUpdates[update].args, copy(code))
                 else
-                    agent.declaredUpdates[update] = copy(code)
+                    abm.declaredUpdates[update] = copy(code)
                 end
             end
         end
-        for (update,code) in zip(UPDATES, [updateGlobal, 
-                                            updateLocal,  
-                                            updateMedium, 
-                                            updateVariableDeterministic,
-                                            updateVariableStochastic,
-                                            updateVariableMedium])
-            if update in keys(agent.declaredUpdates)
-                push!(agent.declaredUpdates[update].args, code)
+        for (update,code) in (
+                                (:modelRule,modelRule), 
+                                (:agentRule,agentRule), 
+                                (:agentODE,agentODE), 
+                                (:agentSDE,agentSDE), 
+                                (:mediumODE,mediumODE), 
+                            )
+            if update in keys(abm.declaredUpdates)
+                push!(abm.declaredUpdates[update].args, code)
             else
-                agent.declaredUpdates[update] = code
+                abm.declaredUpdates[update] = code
             end
         end
         for a in baseModelEnd
             for (update,code) in pairs(a.declaredUpdates)
-                if update in keys(agent.declaredUpdates)
-                    push!(agent.declaredUpdates[update].args, copy(code))
+                if update in keys(abm.declaredUpdates)
+                    push!(abm.declaredUpdates[update].args, copy(code))
                 else
-                    agent.declaredUpdates[update] = copy(code)
+                    abm.declaredUpdates[update] = copy(code)
                 end
             end
         end
 
-        # #Make explicit the updates by adding the .new tag
-        # potentiallyUpdatingVars = [i for (i,var) in pairs(agent.parameters)]
-        # for i in keys(agent.declaredUpdates)
-        #     code = agent.declaredUpdates[i]
-        #     for sym in potentiallyUpdatingVars
-        #         for op in UPDATINGOPERATORS
-        #             code = postwalk(x-> isexpr(x,op) ? change(sym,x) : x, code)
-        #         end
-        #     end
-        #     agent.declaredUpdates[i] = code
-        # end
-
-        # #Change variables updated to modifiable
-        # for update in keys(agent.declaredUpdates)
-
-        #     for (sym,var) in pairs(agent.parameters)
-        #         if inexpr(agent.declaredUpdates[update],:($sym.new))
-        #             agent.parameters[sym].update = true
-        #         elseif inexpr(agent.declaredUpdates[update],BASESYMBOLS[:AddAgentMacro].symbol) && agent.parameters[sym].scope == :agent #If add agents, all local parameters are modifiable
-        #             agent.parameters[sym].update = true
-        #         end
-        #     end
-
-        #     getEquations!(agent)
-
-        #     getEquationsMedium!(agent)
-
-        # end
-
         #Variables
         count = 0
-        for sym in keys(agent.parameters)
-            if inexpr(updateVariableDeterministic,:(dt($sym))) || inexpr(updateVariableStochastic,:(dt($sym)))
+        for sym in keys(abm.parameters)
+            if inexpr(agentODE,:(dt($sym))) || inexpr(agentSDE,:(dt($sym)))
                 count += 1
-                agent.parameters[sym].variable = true            
-                agent.parameters[sym].pos = count
+                abm.parameters[sym].variable = true            
+                abm.parameters[sym].pos = count
             end        
         end
 
-        #Variables
+        #Variablesmedium
         count = 0
-        for sym in keys(agent.parameters)
-            if inexpr(updateVariableMedium,:(dt($sym)))
+        for sym in keys(abm.parameters)
+            if inexpr(mediumODE,:(dt($sym)))
                 count += 1
-                agent.parameters[sym].variableMedium = true            
-                agent.parameters[sym].pos = count
+                abm.parameters[sym].variableMedium = true            
+                abm.parameters[sym].pos = count
             end        
         end
 
         #Check if there are removed agents
-        agent.removalOfAgents_ = true
-        for update in keys(agent.declaredUpdates)
-            if inexpr(agent.declaredUpdates[update],:removeAgent)
-                agent.removalOfAgents_ = true
+        abm.removalOfAgents_ = true
+        for update in keys(abm.declaredUpdates)
+            if inexpr(abm.declaredUpdates[update],:removeAgent)
+                abm.removalOfAgents_ = true
             end
-            if inexpr(agent.declaredUpdates[update],:@removeAgent)
-                agent.removalOfAgents_ = true
+            if inexpr(abm.declaredUpdates[update],:@removeAgent)
+                abm.removalOfAgents_ = true
             end
         end        
 
-        global AGENT = deepcopy(agent)
+        global AGENT = deepcopy(abm)
 
         #Make compiled functions
         if compile 
-            localFunction(agent)
-            # globalFunction(agent)
-            neighborsFunction(agent)
-            integratorFunction(agent)
-            # integratorMediumFunction(agent)
+            agentRuleFunction(abm)
+            agentDEFunction(abm)
+            mediumDEFunction(abm)
+            neighborsFunction(abm)
+            # globalFunction(abm)
         end
 
-        return agent        
+        return abm        
     end
 
 end
 
-function Base.show(io::IO,abm::Agent)
+function Base.show(io::IO,abm::ABM)
     print("PARAMETERS\n")
     for (i,j) in pairs(abm.parameters)
         if string(i)[end] != '_' #Only print parameters used by the user 
@@ -408,23 +349,23 @@ function Base.show(io::IO,abm::Agent)
 end
 
 """
-    function checkDeclared(a::Symbol, agent::Agent) 
-    function checkDeclared(a::Array{Symbol}, agent::Agent) 
+    function checkDeclared(a::Symbol, abm::ABM) 
+    function checkDeclared(a::Array{Symbol}, abm::ABM) 
 
 Check if a symbol is already declared in the model or inherited models.
 """
-function checkDeclared(a::Array{Symbol}, agent::Agent) 
+function checkDeclared(a::Array{Symbol}, abm::ABM) 
 
     for s in a
-        checkDeclared(s,agent)
+        checkDeclared(s,abm)
     end
 
 end
 
-function checkDeclared(a::Symbol, agent::Agent) 
+function checkDeclared(a::Symbol, abm::ABM) 
 
-    if a in keys(agent.parameters)
-        error("Symbol ", a, " already declared in the agent.")
+    if a in keys(abm.parameters)
+        error("Symbol ", a, " already declared in the abm.")
     end
 
 end
@@ -474,10 +415,10 @@ end
 #     return code
 # end
 
-# function addUpdates!(p::Agent)
+# function addUpdates!(p::ABM)
 
 #     ##Assign updates of variable types
-#     for par in [keys(p.declaredSymbols)...,POSITIONPARAMETERS[1:agent.dims]...]
+#     for par in [keys(p.declaredSymbols)...,POSITIONPARAMETERS[1:abm.dims]...]
 
 #         #Find updates
 #         for up in keys(p.declaredUpdates)

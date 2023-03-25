@@ -95,7 +95,7 @@ function agentArgs(agent;sym=nothing,l=3,params=BASEPARAMETERS)
     if sym === nothing
         return Any[pars...,args...,:threads_,:blocks_]
     else
-        return [Any[:($sym.$i) for i in pars];Any[:($sym.parameters[Symbol($i)]) for i in String.(args)];Any[:($sym.platform.threads),:($sym.platform.blocks)]]
+        return [Any[:($sym.$i) for i in pars];Any[:($sym.parameters[Symbol($i)]) for i in String.(args)];Any[:($sym.threads_),:($sym.blocks_)]]
     end
 
 end
@@ -208,11 +208,11 @@ function makeSimpleLoop(code,agent;nloops=nothing)
         if nloops === nothing
             return :($CUDATHREADS1D; @inbounds for i1_ in index:stride:N[1]; $code; end)
         elseif nloops == 1
-            return :($CUDATHREADS1D; @inbounds for i1_ in index:stride:N[1]; $code; end)
+            return :($CUDATHREADS1D; @inbounds for i1_ in index:stride:NMedium[1]; $code; end)
         elseif nloops == 2
-            return :($CUDATHREADS2D; @inbounds for i1_ in index:stride:N[1]; for i2_ in indexY:strideY:N[2]; $code; end; end)
+            return :($CUDATHREADS2D; @inbounds for i1_ in index:stride:NMedium[1]; for i2_ in indexY:strideY:NMedium[2]; $code; end; end)
         elseif nloops == 3
-            return :($CUDATHREADS3D; @inbounds for i1_ in index:stride:N[1]; for i2_ in indexY:strideY:N[2]; for i3_ in indexZ:strideZ:N[3]; $code; end; end; end)
+            return :($CUDATHREADS3D; @inbounds for i1_ in index:stride:NMedium[1]; for i2_ in indexY:strideY:NMedium[2]; for i3_ in indexZ:strideZ:NMedium[3]; $code; end; end; end)
         end
 
     end

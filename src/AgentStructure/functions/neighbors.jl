@@ -1,33 +1,33 @@
 """
-    function neighborsFunction(agent)
+    function neighborsFunction(abm)
 
-Assigns the neighbors computation method to the agent.
+Assigns the neighbors computation method to the abm.
 """
-function neighborsFunction(agent)
+function neighborsFunction(abm)
 
-    if agent.neighbors == :Full
+    if abm.neighbors == :Full
 
-        agent.declaredUpdatesFunction[:ComputeNeighbors] = neighborsFull!
+        abm.declaredUpdatesFunction[:ComputeNeighbors] = neighborsFull!
     
-    elseif agent.neighbors == :VerletTime
+    elseif abm.neighbors == :VerletTime
 
-        agent.declaredUpdatesFunction[:ComputeNeighbors] = 
-                eval(Meta.parse(string("neighborsVerletTime$(agent.dims)$(agent.platform)!")))
+        abm.declaredUpdatesFunction[:ComputeNeighbors] = 
+                eval(Meta.parse(string("neighborsVerletTime$(abm.dims)$(abm.platform)!")))
 
-    elseif agent.neighbors == :VerletDisplacement
+    elseif abm.neighbors == :VerletDisplacement
     
-        agent.declaredUpdatesFunction[:ComputeNeighbors] = 
-                eval(Meta.parse(string("neighborsVerletDisplacement$(agent.dims)$(agent.platform)!")))
+        abm.declaredUpdatesFunction[:ComputeNeighbors] = 
+                eval(Meta.parse(string("neighborsVerletDisplacement$(abm.dims)$(abm.platform)!")))
     
-    elseif agent.neighbors == :CellLinked
+    elseif abm.neighbors == :CellLinked
     
-        agent.declaredUpdatesFunction[:ComputeNeighbors] = 
-                eval(Meta.parse(string("neighborsCellLinked$(agent.dims)$(agent.platform)!")))
+        abm.declaredUpdatesFunction[:ComputeNeighbors] = 
+                eval(Meta.parse(string("neighborsCellLinked$(abm.dims)$(abm.platform)!")))
     
-    elseif agent.neighbors == :CLVD
+    elseif abm.neighbors == :CLVD
 
-        agent.declaredUpdatesFunction[:ComputeNeighbors] = 
-                eval(Meta.parse(string("neighborsCLVD$(agent.dims)$(agent.platform)!")))
+        abm.declaredUpdatesFunction[:ComputeNeighbors] = 
+                eval(Meta.parse(string("neighborsCLVD$(abm.dims)$(abm.platform)!")))
     
     else
     
@@ -38,31 +38,31 @@ function neighborsFunction(agent)
 end
 
 """
-    function neighborsLoop(code,agent)
+    function neighborsLoop(code,abm)
 
 For the updateInteraction loop, create the double loop to go over all the agents and neighbors.
 """
-function neighborsLoop(code,it,agent)
+function neighborsLoop(code,it,abm)
 
-    if agent.neighbors == :Full
+    if abm.neighbors == :Full
 
-        code = neighborsFullLoop(code,it,agent)
+        code = neighborsFullLoop(code,it,abm)
 
-    elseif agent.neighbors == :VerletTime
+    elseif abm.neighbors == :VerletTime
 
-        code = neighborsVerletLoop(code,it,agent)
+        code = neighborsVerletLoop(code,it,abm)
 
-    elseif agent.neighbors == :VerletDisplacement
+    elseif abm.neighbors == :VerletDisplacement
 
-        code = neighborsVerletLoop(code,it,agent)
+        code = neighborsVerletLoop(code,it,abm)
 
-    elseif agent.neighbors == :CellLinked
+    elseif abm.neighbors == :CellLinked
 
-        code = neighborsCellLinkedLoop(code,it,agent)
+        code = neighborsCellLinkedLoop(code,it,abm)
 
-    elseif agent.neighbors == :CLVD
+    elseif abm.neighbors == :CLVD
 
-        code = neighborsVerletLoop(code,it,agent)
+        code = neighborsVerletLoop(code,it,abm)
 
     else
 
@@ -77,21 +77,21 @@ end
 """
     function computeNeighbors!(community)
 
-Function that computes the neighbors of the community according the defined neighbor algorithm in Agent.
+Function that computes the neighbors of the community according the defined neighbor algorithm in ABM.
 """
 function computeNeighbors!(community)
 
-    community.agent.declaredUpdatesFunction[:ComputeNeighbors](community)
+    community.abm.declaredUpdatesFunction[:ComputeNeighbors](community)
 
 end
 
 #Full
 """
-    function neighborsFullLoop(code,agent)
+    function neighborsFullLoop(code,abm)
 
 Wrapper loop for full neighbors algorithm.
 """
-function neighborsFullLoop(code,it,agent)
+function neighborsFullLoop(code,it,abm)
 
     return :(for $it in 1:1:N[1]; if i1_ != $it; $code; end; end)
 
@@ -110,11 +110,11 @@ end
 
 #Verlet
 """
-    function neighborsVerletLoop(code,agent)
+    function neighborsVerletLoop(code,abm)
 
 Wrapper loop for verlet neighbors algorithms.
 """
-function neighborsVerletLoop(code,it,agent) #Macro to create the second loop in functions
+function neighborsVerletLoop(code,it,abm) #Macro to create the second loop in functions
     
     #Go over the list of neighbors
     code = postwalk(x->@capture(x,h_) && h == it ? :(neighborList_[i1_,$it]) : x, code)
@@ -540,7 +540,7 @@ Functions generated that computes Verlet lists for CPU/GPU and 1/2/3 dimensions 
     cellPos(edge,x,xMin,xMax,nX,y,yMin,yMax,nY)
     cellPos(edge,x,xMin,xMax,nX,y,yMin,yMax,nY,z,zMin,zMax,nZ)
 
-Function that returns the position of the agent in a cell list given their coordinates and cell grid properties.
+Function that returns the position of the abm in a cell list given their coordinates and cell grid properties.
 """
 cellPos(edge,x,xMin,xMax,nX) = if x > xMax nX elseif x < xMin 1 else Int((x-xMin)÷edge)+2 end
 cellPos(edge,x,xMin,xMax,nX,y,yMin,yMax,nY) = cellPos(edge,x,xMin,xMax,nX) + nX*(cellPos(edge,y,yMin,yMax,nY)-1)
@@ -617,25 +617,25 @@ function cellPosNeigh(pos,i,nX,nY,nZ)
 end
 
 """
-    function neighborsCellLinkedLoop(code,agent)
+    function neighborsCellLinkedLoop(code,abm)
 
 Wrapper loop for cell linked neighbors algorithm.
 """
-function neighborsCellLinkedLoop(code,it,agent)
+function neighborsCellLinkedLoop(code,it,abm)
 
     args = Any[:(pos_),:(i3_)]
-    for i in 1:agent.dims
+    for i in 1:abm.dims
         append!(args,[:(nCells_[$i])])
     end
 
     args2 = Any[:(cellEdge[1])]
-    for (i,j) in enumerate(POSITIONPARAMETERS[1:agent.dims])
+    for (i,j) in enumerate(POSITIONPARAMETERS[1:abm.dims])
         append!(args2,[:($j[i1_]),:(simBox[$i,1]),:(simBox[$i,2]),:(nCells_[$i])])
     end
 
     code = quote 
                 pos_ = AgentBasedModels.cellPos($(args2...))
-                for i3_ in 1:1:$(3^agent.dims) #Go over the posible neighbor cells
+                for i3_ in 1:1:$(3^abm.dims) #Go over the posible neighbor cells
                     posNeigh_ = AgentBasedModels.cellPosNeigh($(args...)) #Obtain the position of the neighbor cell
                     # println(i1_," ",i3_," ",posNeigh_)
                     if posNeigh_ != -1 #Ignore cells outside the boundaries
@@ -658,7 +658,7 @@ end
 """
     macro assignCells(platform, args...)
 
-Macro to generate the code to assign agent to a cell.
+Macro to generate the code to assign abm to a cell.
 
 Adds the following functions to the library:
 

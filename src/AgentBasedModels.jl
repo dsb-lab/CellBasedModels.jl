@@ -28,44 +28,44 @@ export euclideanDistance, manhattanDistance
 include("./AgentStructure/functions/auxiliar.jl")
 
 #Agent
-export Agent
+export ABM
 include("./AgentStructure/agentStructure.jl")
-    #Local
-export localStep!, @addAgent, @removeAgent, @loopOverNeighbors
-include("./AgentStructure/functions/local.jl")
-    #Global
-export globalStep!
-include("./AgentStructure/functions/global.jl")
+    #Agent Rule
+export agentStepRule!, @addAgent, @removeAgent, @loopOverNeighbors
+include("./AgentStructure/functions/agentRule.jl")
+    #Agent DE
+export agentStepDE!
+include("./AgentStructure/functions/agentDE.jl")
+    #Medium DE
+export mediumStepDE!
+include("./AgentStructure/functions/mediumDE.jl")
+#     #Global
+# export globalStep!
+# include("./AgentStructure/functions/global.jl")
     #Neighbors
 export computeNeighbors!
 include("./AgentStructure/functions/neighbors.jl")
-    #Local update
+    #Update
 export update!
 include("./AgentStructure/functions/update.jl")
-    #Integrators
-export integrationStep!
-include("./AgentStructure/functions/integration.jl")
-    #Medium
-export integrationMediumStep!
-include("./AgentStructure/functions/medium.jl")
-    #Step
-export step!, evolve!
-include("./AgentStructure/functions/step.jl")
+#     #Step
+# export step!, evolve!
+# include("./AgentStructure/functions/step.jl")
 
 #Community
 export Community, loadToPlatform!, bringFromPlatform!, getParameter
 include("./CommunityStructure/communityStructure.jl")
-export saveJLD2, saveRAM!, loadJLD2
-include("./CommunityStructure/IO.jl")
-export initializeSpheresCommunity, packagingCompactHexagonal, packagingCubic
-include("./CommunityStructure/initializers.jl")
+# export saveJLD2, saveRAM!, loadJLD2
+# include("./CommunityStructure/IO.jl")
+# export initializeSpheresCommunity, packagingCompactHexagonal, packagingCubic
+# include("./CommunityStructure/initializers.jl")
 
 #Custom integrators
 include("./customIntegrators.jl")
 
-#Optimization tools
-export Fitting
-include("./fitting/fitting.jl")
+# #Optimization tools
+# export Fitting
+# include("./fitting/fitting.jl")
 
 #Implemented Models
 # export Models

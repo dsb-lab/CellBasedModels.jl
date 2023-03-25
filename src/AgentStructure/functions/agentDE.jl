@@ -2,16 +2,16 @@
 # Convert the equations
 #######################################################################################################
 """
-    function integratorFunction(agent)
+    function agentDEFunction(abm)
 
 Creates the final code provided to Agent in `updateVariable` as a function and adds it to the Agent.
 """
-function integratorFunction(agent)
+function agentDEFunction(abm)
 
-    if isemptyupdaterule(agent,:UpdateVariableDeterministic) || isemptyupdaterule(agent,:UpdateVariableStochastic)
+    if isemptyupdaterule(abm,:agentODE) || isemptyupdaterule(abm,:agentSDE)
 
         unwrap = quote end
-        for (sym,prop) in pairs(agent.parameters)
+        for (sym,prop) in pairs(abm.parameters)
             if prop.variable
                 pos = prop.pos
                 dsym = Meta.parse(string(sym,"__"))
@@ -19,22 +19,22 @@ function integratorFunction(agent)
                 push!(unwrap.args, :(@views $sym = var_[$pos,:]))
             end
         end
-        params = agentArgs(agent)
-        paramsRemove = Tuple([sym for (sym,prop) in pairs(agent.parameters) if (prop.variable)])
+        params = agentArgs(abm)
+        paramsRemove = Tuple([sym for (sym,prop) in pairs(abm.parameters) if (prop.variable)])
         params = Tuple([i for i in params if !(i in paramsRemove)])
 
         #Get deterministic function
-        code = agent.declaredUpdates[:UpdateVariableDeterministic]
-        for sym in keys(agent.parameters)
+        code = abm.declaredUpdates[:agentODE]
+        for sym in keys(abm.parameters)
             dsym = Meta.parse(string(sym,"__"))
             code = postwalk(x->@capture(x,dt(s_)) && s == sym ? :($dsym[i1_]) : x, code)
         end
-        code = vectorize(code,agent)
+        code = vectorize(code,abm)
 
-        code = makeSimpleLoop(code,agent)
+        code = makeSimpleLoop(code,abm)
 
-        if agent.platform == :CPU
-            agent.declaredUpdatesCode[:IntegratorODE] = 
+        if abm.platform == :CPU
+            abm.declaredUpdatesCode[:agentODE] = 
                 quote
                     function (dVar_,var_,p_,t_)
                         ($(params...),) = p_
@@ -44,7 +44,7 @@ function integratorFunction(agent)
                     end
                 end
         else
-            agent.declaredUpdatesCode[:IntegratorODE] = 
+            abm.declaredUpdatesCode[:agentODE] = 
                 quote
                     function (dVar_,var_,p_,t_)
                         function kernel(dVar_,var_,$(params...))
@@ -57,19 +57,19 @@ function integratorFunction(agent)
                     end
                 end
         end
-        agent.declaredUpdatesFunction[:IntegratorODE] = Main.eval(agent.declaredUpdatesCode[:IntegratorODE])
+        abm.declaredUpdatesFunction[:agentODE] = Main.eval(abm.declaredUpdatesCode[:agentODE])
 
         #Get stochastic function
-        code = agent.declaredUpdates[:UpdateVariableStochastic]
-        for sym in keys(agent.parameters)
+        code = abm.declaredUpdates[:agentSDE]
+        for sym in keys(abm.parameters)
             dsym = Meta.parse(string(sym,"__"))
             code = postwalk(x->@capture(x,dt(s_)) && s == sym ? :($dsym[i1_]) : x, code)
         end
-        code = vectorize(code,agent)
+        code = vectorize(code,abm)
 
-        code = makeSimpleLoop(code,agent)
-        if agent.platform == :CPU
-            agent.declaredUpdatesCode[:IntegratorSDE] = 
+        code = makeSimpleLoop(code,abm)
+        if abm.platform == :CPU
+            abm.declaredUpdatesCode[:agentSDE] = 
                 quote
                     function (dVar_,var_,p_,t_)
                         ($(params...),) = p_
@@ -79,7 +79,7 @@ function integratorFunction(agent)
                     end
                 end
         else
-            agent.declaredUpdatesCode[:IntegratorSDE] = 
+            abm.declaredUpdatesCode[:agentSDE] = 
                 quote
                     function (dVar_,var_,p_,t_)
                         function kernel(dVar_,var_,$(params...))
@@ -92,10 +92,10 @@ function integratorFunction(agent)
                     end
                 end
         end
-        agent.declaredUpdatesFunction[:IntegratorSDE] = Main.eval(agent.declaredUpdatesCode[:IntegratorSDE])
+        abm.declaredUpdatesFunction[:agentSDE] = Main.eval(abm.declaredUpdatesCode[:agentSDE])
 
         #Put all together
-        agent.declaredUpdatesCode[:IntegratorStep] = 
+        abm.declaredUpdatesCode[:agentDE] = 
         quote
             function (community,)
                 
@@ -104,9 +104,9 @@ function integratorFunction(agent)
                 return
             end
         end
-        agent.declaredUpdatesFunction[:IntegratorStep] = Main.eval(agent.declaredUpdatesCode[:IntegratorStep])
+        abm.declaredUpdatesFunction[:agentDE] = Main.eval(abm.declaredUpdatesCode[:agentDE])
     else
-        agent.declaredUpdatesFunction[:IntegratorStep] = Main.eval(:((community) -> nothing))
+        abm.declaredUpdatesFunction[:agentDE] = Main.eval(:((community) -> nothing))
     end
 
     return
@@ -114,15 +114,15 @@ function integratorFunction(agent)
 end
 
 """
-    function integrationStep!(community)
+    function agentStepDE!(community)
 
 Function that computes a integration step of the community a time step `dt` using the defined Integrator defined in Agent.
 """
-function integrationStep!(community)
+function agentStepDE!(community)
 
     checkLoaded(community)
 
-    community.agent.declaredUpdatesFunction[:IntegratorStep](community)
+    community.abm.declaredUpdatesFunction[:agentDE](community)
 
     return 
 

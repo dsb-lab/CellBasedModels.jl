@@ -70,11 +70,10 @@ NEIGHBORSYMBOLS = [:Full, :VerletTime, :VerletDisplacement, :CellLinked, :CLVD]
 
 UPDATES = [
   :UpdateGlobal, 
-  :UpdateLocal, 
-  :UpdateMedium, 
-  :UpdateVariableDeterministic,
-  :UpdateVariableStochastic,
-  :UpdateVariableMedium
+  :AgentRule, 
+  :AgentODE,
+  :AgentSDE,
+  :MediumODE
 ]
 
 PLATFORMS = [:CPU,:GPU]
