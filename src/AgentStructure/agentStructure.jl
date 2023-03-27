@@ -284,26 +284,6 @@ mutable struct ABM
             end
         end
 
-        #Variables
-        count = 0
-        for sym in keys(abm.parameters)
-            if inexpr(agentODE,:(dt($sym))) || inexpr(agentSDE,:(dt($sym)))
-                count += 1
-                abm.parameters[sym].variable = true            
-                abm.parameters[sym].pos = count
-            end        
-        end
-
-        #Variablesmedium
-        count = 0
-        for sym in keys(abm.parameters)
-            if inexpr(mediumODE,:(dt($sym)))
-                count += 1
-                abm.parameters[sym].variableMedium = true            
-                abm.parameters[sym].pos = count
-            end        
-        end
-
         #Check if there are removed agents
         abm.removalOfAgents_ = true
         for update in keys(abm.declaredUpdates)
@@ -314,6 +294,8 @@ mutable struct ABM
                 abm.removalOfAgents_ = true
             end
         end        
+
+        addUpdates!(abm)
 
         global AGENT = deepcopy(abm)
 
@@ -377,14 +359,21 @@ Function called by update to add the .new if it is an update expression (e.g. x 
 """
 function change(x,code)
 
-    new = BASESYMBOLS[:UpdateSymbol].symbol
     if code.args[1] == x
-        code.args[1] = :($x.$new)
+        code.args[1] = Meta.parse(string(x,"__"))
     end
-    for op in [BASESYMBOLS[:InteractionIndex1],BASESYMBOLS[:InteractionIndex2]]
-        if code.args[1] == :($x.$op)
-            code.args[1] = :($x.$new.$op)
-        end
+
+    return code
+end
+
+"""
+Function that adds the new operator to all the times the symbol s is being updated. e.g. update(x=1,x) -> x__ = 1.
+The modifications are also done in the keyword arguments of the macro functions as addAgent.
+"""
+function update(code,s)
+
+    for op in UPDATINGOPERATORS
+        code = postwalk(x-> isexpr(x,op) ? change(s,x) : x, code)
     end
 
     return code
@@ -401,51 +390,80 @@ end
 #     return code
 # end
 
-# """
-# Function that adds the new operator to all the times the symbol s is being updated. e.g. update(x=1,x) -> x.new = 1.
-# The modifications are also done in the keyword arguments of the macro functions as addAgent.
-# """
-# function update(code,s)
+function addUpdates!(abm::ABM)
 
-#     for op in UPDATINGOPERATORS
-#         code = postwalk(x-> isexpr(x,op) ? change(s,x) : x, code)
-#     end
-#     code = postwalk(x-> isexpr(x,:call) ? updateMacroFunctions(s,x) : x, code) #Update keyarguments of macrofunctions
+    ##Assign updates of variable types
 
-#     return code
-# end
+    #Write updates
+    for up in keys(abm.declaredUpdates)
+        for sym in keys(abm.parameters)
+            abm.declaredUpdates[up] = update(abm.declaredUpdates[up],sym)
+        end
+    end
+    #Add updates ignoring @addAgent
+    for up in keys(abm.declaredUpdates)
+        for sym in keys(abm.parameters)
+            code = abm.declaredUpdates[up]
+            code = postwalk(x->@capture(x,@addAgent(g__)) ? :(_) : x , code)
+            if inexpr(code,new(sym))
+                abm.parameters[sym].update = true
+            end
+        end
+    end
 
-# function addUpdates!(p::ABM)
+    #Variables
+    count = 0
+    vAgent, agentODE = captureVariables(abm.declaredUpdates[:agentODE])
+    v2, agentSDE = captureVariables(abm.declaredUpdates[:agentSDE])
+    append!(vAgent,v2)
+    for sym in vAgent
+        if sym in keys(abm.parameters)
+            if abm.parameters[sym].scope == :agent && abm.parameters[sym].update
+                error("An agent parameter cannot be updated at the same time in a agentRule and in a agentODE or agentSDE. If you want to modify it, set it with inplace($sym) when assigning it.")
+            elseif abm.parameters[sym].scope == :agent
+                count += 1
+                abm.parameters[sym].variable = true            
+                abm.parameters[sym].pos = count
+            else
+                error("dt in agentODE and agentSDE can only be assigned to agent parameters. Declared with parameter $sym.")
+            end
+        end        
+    end
+    abm.declaredUpdates[:agentODE] = agentODE
+    abm.declaredUpdates[:agentSDE] = agentSDE
 
-#     ##Assign updates of variable types
-#     for par in [keys(p.declaredSymbols)...,POSITIONPARAMETERS[1:abm.dims]...]
+    #Variablesmedium
+    count = 0
+    vMedium, mediumODE = captureVariables(abm.declaredUpdates[:mediumODE])
+    for sym in vMedium
+        if sym in keys(abm.parameters)
+            if abm.parameters[sym].scope == :agent && abm.parameters[sym].update
+                error("An agent parameter cannot be updated at the same time in a mediumRule and in a mediumODE or mediumSDE. If you want to modify it, set it with inplace($sym) when assigning it.")
+            elseif abm.parameters[sym].scope == :agent
+                count += 1
+                abm.parameters[sym].variableMedium = true            
+                abm.parameters[sym].pos = count
+            else
+                error("dt in mediumODE can only be assigned to agent parameters. Declared with parameter $sym.")
+            end
+        end        
+    end
+    abm.declaredUpdates[:mediumODE] = mediumODE
 
-#         #Find updates
-#         for up in keys(p.declaredUpdates)
+    #Error if dt in other place
+    for up in keys(abm.declaredUpdates)
+        if !(up in [:agentODE,:agentSDE,:mediumODE])
+            v, _ = captureVariables(abm.declaredUpdates[up])
+            if !isempty(v)
+                error("Cannot declared a differential equation with the dt() function in $up. The following variables have been declared erroneously:  $(v...) . ")
+            end
+        end
+    end
 
-#             code =  postwalk(x->@capture(x, c_.new)  && c == par.name ? :ARGS_ : x , p.declaredUpdates[up]) #remove agent updates
-#             code =  postwalk(x->@capture(x, c_.g_.new) && c == par.name && g in INTERACTIONSYMBOLS ? :ARGS_ : x , code)
-            
-#             if inexpr(code,:ARGS_) && !(par in keys(p.declaredSymbols))
-#                 parNew = Meta.parse(string(par,"New_"))
-#                 p.declaredSymbols[parNew] = [p.declaredUpdates[1],p.declaredUpdates[2],:New]
-#             end
-
-#         end
-
-#         #Find variables
-#         for up in keys(p.declaredUpdates)
-
-#             code =  postwalk(x->@capture(x, g_(c_) = f_) && c == par.name && g == DIFFSYMBOL ? :ARGS_ : x , p.declaredUpdates[up])
-            
-#             if inexpr(code,:ARGS_) && !(par in keys(p.declaredSymbols))
-#                 parNew = Meta.parse(string(par,"New_"))
-#                 p.declaredSymbols[parNew] = [p.declaredUpdates[1],p.declaredUpdates[2],:New]
-#             end
-
-#         end
-
-#     end        
+    #Remove inplace operators
+    for (up,code) in pairs(abm.declaredUpdates)
+        abm.declaredUpdates[up] = postwalk(x->@capture(x,inplace(g_)) ? g : x , code)
+    end
     
-#     return
-# end
+    return
+end

@@ -24,7 +24,7 @@ export DifferentialEquations
 #Constants
 include("./baseStructs.jl")
 include("./constants.jl")
-export euclideanDistance, manhattanDistance
+export euclideanDistance, manhattanDistance, new
 include("./AgentStructure/functions/auxiliar.jl")
 
 #Agent

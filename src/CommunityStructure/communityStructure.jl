@@ -153,6 +153,7 @@ mutable struct Community
     flagSurvive_
     holeFromRemoveAt_
     repositionAgentInPos_
+
     skin
     dtNeighborRecompute
     nMaxNeighbors
@@ -168,10 +169,10 @@ mutable struct Community
     cellAssignedToAgent_
     cellNumAgents_
     cellCumSum_
+
     meshLateralSize_
 
     parameters::OrderedDict{Symbol,AbstractArray}
-    parametersUpdated::OrderedDict{Symbol,AbstractArray}
     vars::AbstractArray
     varsMedium::AbstractArray
 
@@ -223,27 +224,27 @@ mutable struct Community
 
         #Creating the appropiate data arrays for parameters
         parameters = OrderedDict{Symbol,Array}()
-        parametersUpdated = OrderedDict{Symbol,Array}()
         for (sym,struc) in pairs(abm.parameters)
+            symUp = Meta.parse(string(sym,"__"))
             if struc.scope == :agent
                 parameters[sym] = zeros(struc.dtype,dict[:N][1])
                 if struc.update
-                    parametersUpdated[sym] = zeros(struc.dtype,dict[:N][1])
+                    parameters[symUp] = zeros(struc.dtype,dict[:N][1])
                 end
             elseif struc.scope == :model
                 parameters[sym] = zeros(struc.dtype,1)
                 if struc.update
-                    parametersUpdated[sym] = zeros(struc.dtype,1)
+                    parameters[symUp] = zeros(struc.dtype,1)
                 end
             else
                 parameters[sym] = zeros(struc.dtype,dict[:NMedium]...)
                 if struc.update
-                    parametersUpdated[sym] = zeros(struc.dtype,dict[:NMedium]...)
+                    parameters[symUp] = zeros(struc.dtype,dict[:NMedium]...)
                 end
             end
         end
     
-        com = new(abm, false, 256, 1, nothing, Community[], [j for (i,j) in pairs(dict)]...,parameters,parametersUpdated,zeros(0),zeros(0),nothing,agentAlg,agentSolveArgs,nothing,mediumAlg,mediumSolveArgs)
+        com = new(abm, false, 256, 1, nothing, Community[], [j for (i,j) in pairs(dict)]...,parameters,zeros(0),zeros(0),nothing,agentAlg,agentSolveArgs,nothing,mediumAlg,mediumSolveArgs)
 
         #Set GPU threads and blocks
         setGPUParameters!(com)
@@ -266,7 +267,7 @@ mutable struct Community
             dict[sym] = nothing
         end
     
-        return new(nothing, nothing, nothing, nothing,Community[], [j for (i,j) in pairs(dict)]...,nothing,nothing,nothing,nothing,Euler(),Dict{Symbol,Any}(),nothing,Euler(),Dict{Symbol,Any}())
+        return new(nothing, nothing, nothing, nothing,Community[], [j for (i,j) in pairs(dict)]...,nothing,nothing,nothing,Euler(),Dict{Symbol,Any}(),nothing,Euler(),Dict{Symbol,Any}())
 
     end
 
@@ -345,7 +346,7 @@ function Base.getproperty(com::Community,var::Symbol)
     if var in fieldnames(Community)
         return getfield(com,var)
     else
-        if var in keys(com.abm.parameters)
+        if var in keys(com.parameters)
             return com.parameters[var]
         else
             error("Parameter ", var, " not found in the community.")
@@ -456,11 +457,15 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
     N = com.N[1]
     NMedium = copy(com.NMedium)
     dt = com.dt[1]
+    nMax = N + preallocateAgents
     setfield!(com, :nMax_, com.N .+ preallocateAgents)
 
     #Start with the new parameters equal to the old positions, just in case
-    for i in keys(com.parametersUpdated)
-        com.parametersUpdated[i] .= com.parameters[i]
+    for (sym,prop) in pairs(com.abm.parameters)
+        symNew = new(sym)
+        if prop.update
+            com.parameters[symNew] .= com.parameters[sym]
+        end
     end
 
     # Transform to the correct platform the parameters
@@ -489,19 +494,19 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
         if prop.scope == :agent
             com.parameters[sym] = Array{prop.dtype}([p;zeros(prop.dtype,preallocateAgents)])
             if prop.update
-                com.parametersUpdated[sym] = Array{prop.dtype}([p;zeros(prop.dtype,preallocateAgents)])
+                com.parameters[new(sym)] = Array{prop.dtype}([p;zeros(prop.dtype,preallocateAgents)])
             end
         elseif prop.scope in [:model,:medium]
             com.parameters[sym] = Array{prop.dtype}(p)
             if prop.update
-                com.parametersUpdated[sym] = Array{prop.dtype}(p)
+                com.parameters[new(sym)] = Array{prop.dtype}(p)
             end
         end
     end
 
     # Transform to the correct platform the parameters
     abm = com.abm
-    vars = zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variable]),N)
+    vars = zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variable]),nMax)
     varsMedium = zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variableMedium]),NMedium...)
 
     for (sym,struc) in pairs(com.abm.parameters)

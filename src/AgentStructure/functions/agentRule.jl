@@ -96,6 +96,8 @@ macro addAgent(arguments...)
     abm = AGENT
     #List parameters that can be updated by the user
     updateargs = [sym for (sym,prop) in pairs(abm.parameters) if prop.scope == :agent]
+    updateargs2 = [new(sym) for (sym,prop) in pairs(abm.parameters) if prop.scope == :agent]
+    append!(updateargs2,updateargs)
     #Checks that the correct parameters has been declared and not others
     args = []
     addCell = BASESYMBOLS[:AddCell].symbol
@@ -103,7 +105,7 @@ macro addAgent(arguments...)
     for i in arguments
         found = @capture(i,g_[h_] = f_)
         if found
-            if !(g in updateargs)
+            if !(g in updateargs2)
                 error(g, " is not an agent parameter.")
             end
         else
@@ -118,15 +120,23 @@ macro addAgent(arguments...)
             error("id must not be declared when calling addAgent. It is assigned automatically.")
         end
 
-        push!(code.args,:($g[i1New_]=$f))
+        if abm.parameters[old(g)].update
+            push!(code.args,:($(new(old(g)))[i1New_]=$f))
+        else
+            push!(code.args,:($(old(g))[i1New_]=$f))
+        end
         push!(args,g)
 
     end
 
     #Add parameters to agent that have not been user defined
     for i in updateargs
-        if !(i in args)
-            push!(code.args,:($i[i1New_]=$i[i1_]))
+        if !(i in args) && !(new(i) in args)
+            if abm.parameters[i].update
+                push!(code.args,:($(new(i))[i1New_]=$i[i1_]))
+            else
+                push!(code.args,:($i[i1New_]=$i[i1_]))
+            end
         end
     end
 

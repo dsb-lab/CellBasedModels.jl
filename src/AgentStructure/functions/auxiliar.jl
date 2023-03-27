@@ -91,11 +91,18 @@ function agentArgs(agent;sym=nothing,l=3,params=BASEPARAMETERS)
 
     pars = [i for i in keys(params)]
     args = [i for i in keys(agent.parameters)]
+    argsUp = [new(i) for (i,prop) in pairs(agent.parameters) if prop.update]
 
     if sym === nothing
-        return Any[pars...,args...,:threads_,:blocks_]
+        return Any[pars...,
+                    args...,
+                    argsUp...,
+                    :threads_,:blocks_]
     else
-        return [Any[:($sym.$i) for i in pars];Any[:($sym.parameters[Symbol($i)]) for i in String.(args)];Any[:($sym.threads_),:($sym.blocks_)]]
+        return [Any[:($sym.$i) for i in pars];
+                Any[:($sym.parameters[Symbol($i)]) for i in String.(args)];
+                Any[:($sym.parameters[Symbol($i)]) for i in String.(argsUp)];
+                Any[:($sym.threads_),:($sym.blocks_)]]
     end
 
 end
@@ -414,12 +421,16 @@ function vectorize(code,agent)
 
             if :agent == prop.scope
                 code = postwalk(x->@capture(x,g_) && g == sym ? :($g[i1_]) : x, code)
+                code = postwalk(x->@capture(x,g_) && g == new(sym) ? :($g[i1_]) : x, code)
                 code = postwalk(x->@capture(x,g_[f_][f2_]) && g == sym ? :($g[$f2]) : x, code) #avoid double indexing
+                code = postwalk(x->@capture(x,g_[f_][f2_]) && g == new(sym) ? :($g[$f2]) : x, code) #avoid double indexing
             elseif :model == prop.scope
                 code = postwalk(x->@capture(x,g_) && g == sym ? :($g[1]) : x, code)
+                code = postwalk(x->@capture(x,g_) && g == new(sym) ? :($g[1]) : x, code)
             elseif :medium == prop.scope
                 args = [:gridPosx_,:gridPosy_,:gridPosz_][1:agent.dims]
-                code = postwalk(x->@capture(x,g_.j) && g == sym ? :($g[$(args...)]) : x, code)
+                code = postwalk(x->@capture(x,g_) && g == sym ? :($g[$(args...)]) : x, code)
+                code = postwalk(x->@capture(x,g_) && g == new(sym) ? :($g[$(args...)]) : x, code)
             elseif :Atomic == prop.scope
                 nothing
             else
@@ -527,3 +538,33 @@ function randomAdapt(code, p)
     return code
     
 end
+
+function captureVariables(code)
+    function add(a,s)
+        push!(a,s)
+        unique!(a)
+        return Meta.parse(string(s,"__"))
+    end
+    a = []
+    code = postwalk(x->@capture(x,dt(m_)) ? add(a,m) : x, code)
+    return a, code
+end
+
+function new(sym)
+    return Meta.parse(string(sym,"__"))
+end
+
+function old(sym)
+
+    if string(sym)[end-1:end] == "__"
+        return Meta.parse(string(sym)[1:end-2])
+    else
+        return sym
+    end
+end
+
+
+########################################################
+# Macros
+########################################################
+

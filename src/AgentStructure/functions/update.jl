@@ -184,76 +184,39 @@ end
 @kernelFillHolesParameters! CPU
 @kernelFillHolesParameters! GPU
 
-# ######################################################################################################
-# # code to save updated parameters .new in the base array
-# ######################################################################################################
-# """
-#     macro updateParameters!(arg, platform)
+macro kernelUpdateParameters!(platform)
 
-# Macro to generate the code that assigns the updated parameters assigned in XXXNew_ to the base parameter XXX_ in BASEPARAMETERS.
+    #Make assignements
+    if platform == :CPU
+        code = quote
+            for i in 1:1:N[1]
+                par[i] = parNew[i]
+            end
+        end
+    else
+        code = quote
+            index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+            stride = gridDim().x * blockDim().x
+            for i in index:stride:N[1]
+                par[i] = parNew[i]
+            end
+        end
+    end
 
-# Creates the functions:
+    return :(
+        function $(Meta.parse("kernelUpdateParameters$(platform)!"))(N,par,parNew)
 
-#     updateParametersCPU!(community)
-#     updateParametersGPU!(community)
-# """
-# macro updateParameters!(arg, platform)
+            $code
 
-#     #get base parameters
-#     baseParameters = eval(arg)
-#     #Get local symbols
-#     newSymbols = [i for i in keys(baseParameters) if occursin("New_",string(i))]
-#     oldSymbols = [Meta.parse(string(split(string(i),"New_")[1],"_")) for i in newSymbols]
-#     old = []
-#     for i in oldSymbols
-#         if !(i in keys(baseParameters)) 
-#             push!(old,Meta.parse(string(split(string(i),"_")[1])))
-#         else 
-#             push!(old,i)
-#         end
-#     end
-#     oldSymbols = old
+            return
 
-#     #Make code
-#     code = quote end
-#     for (n,o) in zip(newSymbols, oldSymbols)
-#         s = string((n,o))
-#         if :Local in baseParameters[n].shape && length(baseParameters[n].shape) > 1 && platform == :CPU #Only views if cpu, rest, pure copy
-#             push!(code.args,
-#                 quote
-#                     if length(community.$n) > 0
-#                         @views community.$o[1:community.N[1],:] .= community.$n[1:community.N[1],:]
-#                     end
-#                 end
-#             )
-#         else
-#             push!(code.args,
-#                 quote
-#                     if length(community.$n) > 0
-#                         community.$o .= community.$n
-#                     end
-#                 end
-#             )
-#         end
-#     end
+        end
+    )
 
-#     #Make function
-#     name = Meta.parse("updateParameters$(platform)!")
+end
 
-#     return :(
-#         function $name(community)
-
-#             $code
-
-#             return
-
-#         end
-#     )
-
-# end
-
-# @updateParameters! BASEPARAMETERS CPU
-# @updateParameters! BASEPARAMETERS GPU
+@kernelUpdateParameters! CPU
+@kernelUpdateParameters! GPU
 
 ######################################################################################################
 # full update code
@@ -279,9 +242,10 @@ macro update!(platform)
     localSymbols = [:(community.$i) for i in localSymbols]
 
     if platform == :CPU
-        kernel1 = addCuda(:($(Meta.parse("kernelListSurvived$(platform)!"))(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_)),platform)
-        kernel2 = addCuda(:($(Meta.parse("kernelFillHolesBase$(platform)!"))($(localSymbols...))),platform)
-        kernel3 = addCuda(:($(Meta.parse("kernelFillHolesParameters$(platform)!"))(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)),platform)
+        kernel1 = :($(Meta.parse("kernelListSurvived$(platform)!"))(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_))
+        kernel2 = :($(Meta.parse("kernelFillHolesBase$(platform)!"))($(localSymbols...)))
+        kernel3 = :($(Meta.parse("kernelFillHolesParameters$(platform)!"))(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_))
+        kernel4 = :($(Meta.parse("kernelUpdateParameters$(platform)!"))(community.N,community.parameters[sym],community.parameters[new(sym)]))
 
     else
         #List and fill holes left from agent removal
@@ -295,7 +259,11 @@ macro update!(platform)
         end
         kernel3 = quote
             kernel3 = @cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
-            kernel3(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.threads_,blocks=community.blocks_)
+            kernel3(community.parameters[new(sym)],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.threads_,blocks=community.blocks_)
+        end
+        kernel4 = quote
+            kernel4 = @cuda launch=false $(Meta.parse("kernelUpdateParameters$(platform)!"))(community.N,community.parameters[sym],community.parameters[new(sym)])
+            kernel4(community.N,community.parameters[sym],community.parameters[new(sym)];threads=community.threads_,blocks=community.blocks_)
         end
     end
 
@@ -328,13 +296,23 @@ macro update!(platform)
             #List and fill holes left from agent removal
             $kernel1
             $kernel2
-            #Update parameters
+            #Allocate parameters
             for (sym,prop) in pairs(community.abm.parameters)
                 if prop.scope == :agent
                     $kernel3
                 end
             end
             $code
+            #Allocate parameters
+            for (sym,prop) in pairs(community.abm.parameters)
+                if prop.scope == :agent && prop.update
+                    $kernel4
+                elseif prop.scope == :model && prop.update
+                    community[sym] .= community[new(sym)]
+                elseif prop.scope == :medium && prop.update
+                    community[sym] .= community[new(sym)]
+                end
+            end
             #Update time
             community.t .+= community.dt
             #Update GPU execution
