@@ -221,9 +221,9 @@ mutable struct Community
                     parameters[symUp] = zeros(struc.dtype,1)
                 end
             else
-                parameters[sym] = zeros(struc.dtype,dict[:NMedium]...)
+                parameters[sym] = zeros(struc.dtype,NMedium...)
                 if struc.update
-                    parameters[symUp] = zeros(struc.dtype,dict[:NMedium]...)
+                    parameters[symUp] = zeros(struc.dtype,NMedium...)
                 end
             end
         end
@@ -257,8 +257,6 @@ mutable struct Community
 
         for sym in keys(args)
             if sym in keys(com.abm.parameters)
-                println(sym)
-                println(com[sym])
                 setproperty!(com,sym,args[sym])
             end
         end
@@ -269,7 +267,6 @@ mutable struct Community
         agentRuleFunction(com)
         agentDEFunction(com)
         mediumDEFunction(com)
-        # globalFunction(abm)
 
         return com
 
@@ -310,31 +307,6 @@ function cuAdapt(array,com)
     end
 
     return code
-
-end
-
-function initializeAuxiliarParameters!(com::Community)
-
-    setfield!(com, :id, cuAdapt([1:com.N;zeros(com.nMax_-com.N)],com))
-    setfield!(com, :idMax_, cuAdapt(Threads.Atomic{Int64}(com.N),com))
-    setfield!(com, :NAdd_, cuAdapt(Threads.Atomic{Int64}(0),com))
-    setfield!(com, :NRemove_, cuAdapt(Threads.Atomic{Int64}(0),com))
-    setfield!(com, :NSurvive_, cuAdapt(Threads.Atomic{Int64}(0),com))
-    setfield!(com, :flagSurvive_, cuAdapt(if com.abm.removalOfAgents_; ones(Int64,com.nMax_); else ones(Int64,0); end,com))
-    setfield!(com, :holeFromRemoveAt_, cuAdapt(if com.abm.removalOfAgents_; zeros(Int64,com.nMax_); else zeros(Int64,0); end,com))
-    setfield!(com, :repositionAgentInPos_, cuAdapt(if com.abm.removalOfAgents_; zeros(Int64,com.nMax_); else zeros(Int64,0); end,com))
-    setfield!(com, :flagRecomputeNeighbors_, cuAdapt([1],com))
-    if com.abm.dims > 0
-        setfield!(com, :dx, (com[:simBox][1,2] .- com[:simBox][1,1])./com.NMedium[1])
-    end
-    if com.abm.dims > 1
-        setfield!(com, :dy, (com[:simBox][2,2] .- com[:simBox][2,1])./com.NMedium[2])
-    end
-    if com.abm.dims > 2
-        setfield!(com, :dz, (com[:simBox][3,2] .- com[:simBox][3,1])./com.NMedium[3])
-    end
-
-    return 
 
 end
 
@@ -508,6 +480,31 @@ end
 ######################################################################################################
 # Load to platform
 ######################################################################################################
+function initializeAuxiliarParameters!(com::Community)
+
+    setfield!(com, :id, cuAdapt([1:com.N;zeros(com.nMax_-com.N)],com))
+    setfield!(com, :idMax_, cuAdapt(Threads.Atomic{Int64}(com.N),com))
+    setfield!(com, :NAdd_, cuAdapt(Threads.Atomic{Int64}(0),com))
+    setfield!(com, :NRemove_, cuAdapt(Threads.Atomic{Int64}(0),com))
+    setfield!(com, :NSurvive_, cuAdapt(Threads.Atomic{Int64}(0),com))
+    setfield!(com, :flagSurvive_, cuAdapt(if com.abm.removalOfAgents_; ones(Int64,com.nMax_); else ones(Int64,0); end,com))
+    setfield!(com, :holeFromRemoveAt_, cuAdapt(if com.abm.removalOfAgents_; zeros(Int64,com.nMax_); else zeros(Int64,0); end,com))
+    setfield!(com, :repositionAgentInPos_, cuAdapt(if com.abm.removalOfAgents_; zeros(Int64,com.nMax_); else zeros(Int64,0); end,com))
+    setfield!(com, :flagRecomputeNeighbors_, cuAdapt([1],com))
+    if com.abm.dims > 0
+        setfield!(com, :dx, (com[:simBox][1,2] .- com[:simBox][1,1])./com.NMedium[1])
+    end
+    if com.abm.dims > 1
+        setfield!(com, :dy, (com[:simBox][2,2] .- com[:simBox][2,1])./com.NMedium[2])
+    end
+    if com.abm.dims > 2
+        setfield!(com, :dz, (com[:simBox][3,2] .- com[:simBox][3,1])./com.NMedium[3])
+    end
+
+    return 
+
+end
+
 """
     function loadToPlatform!(com::Community;preallocateAgents::Int=0)
 
@@ -534,27 +531,6 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
             com.parameters[symNew] .= com.parameters[sym]
         end
     end
-
-    # Transform to the correct platform the parameters
-    platform = com.platform
-    for (sym,prop) in pairs(BASEPARAMETERS)
-
-        if :Atomic in prop.shape && platform == :CPU #Do nothing if CPU and atomic
-            nothing
-        elseif :Atomic in prop.shape && platform == :GPU #Convert atomic to matrix for CUDA
-            setfield!(com,sym,cuAdapt([getproperty(com,sym)[]],com))
-        elseif :Local in prop.shape
-            p = getproperty(com,sym)
-            if length(p) > 0
-                setfield!(com,sym,cuAdapt([p;zeros(eltype(p),preallocateAgents,size(p)[2:end]...)],com))
-            else
-                setfield!(com,sym,cuAdapt(getproperty(com,sym),com))
-            end
-        else
-            setfield!(com,sym,cuAdapt(getproperty(com,sym),com))
-        end
-
-    end            
 
     for (sym,prop) in pairs(com.abm.parameters)
         p = getproperty(com,sym)
@@ -591,7 +567,7 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
     end
 
     #Transform to the correct platform
-    if platform == :GPU
+    if typeof(com.platform) <: GPU
         setfield!(com,:vars, cu(com.vars))
         setfield!(com,:varsMedium, cu(com.varsMedium))
         for sym in keys(com.parameters)
@@ -604,9 +580,14 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
         varsMedium = cu(varsMedium)
     end
 
+    #Neighbors
+    initialize!(com.neighbors,com)
+
+    #Assign differential models
     params = agentArgs(com)
+    paramsCom = agentArgs(com,sym=:com)
     paramsRemove = Tuple([sym for (sym,prop) in pairs(abm.parameters) if (prop.variable)])
-    params = Tuple([com[i] for i in params if !(i in paramsRemove)])
+    params = Tuple([if occursin("neighbors.", string(j)); getfield(com.neighbors,i); else com[i]; end for (i,j) in zip(params,paramsCom) if !(i in paramsRemove)])
 
     if isemptyupdaterule(abm,:agentSDE)
 
@@ -653,8 +634,9 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
     end
 
     params = agentArgs(com)
+    paramsCom = agentArgs(com,sym=:com)
     paramsRemove = Tuple([sym for (sym,prop) in pairs(abm.parameters) if (prop.variableMedium)])
-    params = Tuple([com[i] for i in params if !(i in paramsRemove)])
+    params = Tuple([if occursin("neighbors.", string(j)); getfield(com.neighbors,i); else com[i]; end for (i,j) in zip(params,paramsCom) if !(i in paramsRemove)])
 
     if isemptyupdaterule(abm,:mediumODE)
 
@@ -683,9 +665,6 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
     #Set loaded to true
     setfield!(com,:loaded,true)
 
-    #Neighbors
-    initialize!(com.neighbors,com)
-
     #Compute neighbors and interactions for the first time
     # computeNeighbors!(com)
 
@@ -704,48 +683,39 @@ It locks the possibility of accessing and manipulating the data by indexing and 
 """
 function bringFromPlatform!(com::Community)
 
-    N = Array(com.N)[1]
-    # Transform to the correct platform the parameters
-    platform = com.abm.platform
-    for (sym,prop) in pairs(BASEPARAMETERS)
-        type = DTYPE[prop.dtype][:CPU]
-        if :Atomic in prop.shape && platform == :CPU #Do nothing if CPU and atomic
-            nothing
-        elseif :Atomic in prop.shape && platform == :GPU #Convert atomic to matrix for CUDA
-            setfield!(com,sym,Threads.Atomic{type}(Array(getproperty(com,sym))[1]))
-        elseif :Local in prop.shape
-            p = getproperty(com,sym)
-            if length(p) > 0
-                setfield!(com,sym,ARRAY[:CPU]{type}(p[1:N,[1:x for x in size(p)[2:end]]...]))
-            else
-                setfield!(com,sym,ARRAY[:CPU]{type}(p))
-            end
-        else
-            p = getproperty(com,sym)
-            setfield!(com,sym,ARRAY[:CPU]{type}(p))
-        end
-    end            
-
+    N = com.N
     # Transform to the correct platform the parameters
     for (sym,prop) in pairs(com.abm.parameters)
         p = com.parameters[sym]
         if prop.scope == :agent
-            com.parameters[sym] = Array{prop.dtype}(p[1:N])
+            com.parameters[sym] = Array(p[1:N])
             if prop.update
-                com.parametersUpdated[sym] = Array{prop.dtype}(p[1:N])
+                p = com.parameters[new(sym)]
+                com.parameters[new(sym)] = Array(p[1:N])
             end
         elseif prop.scope in [:model,:medium]
-            com.parameters[sym] = Array{prop.dtype}(p)
+            com.parameters[sym] = Array(p)
             if prop.update
-                com.parametersUpdated[sym] = Array{prop.dtype}(p)
+                p = com.parameters[new(sym)]
+                com.parameters[new(sym)] = Array(p)
             end
         end
     end
 
-    CUDA.@allowscalar setfield!(com, :vars, zeros(Float64,0))
-    CUDA.@allowscalar setfield!(com, :varsMedium, zeros(Float64,0))    
+    # setfield!(com, :vars, zeros(Float64,0))
+    # setfield!(com, :varsMedium, zeros(Float64,0))    
 
-    setfield!(com, :nMax_, com.N)
+    # for i in fieldnames(Community)
+    #     if string(i)[end:end] == "_"
+    #         setfield!(com,i) = nothing
+    #     end
+    # end
+    # neig = com.neighbors
+    # for i in fieldnames(typeof(neig))
+    #     if string(i)[end:end] == "_"
+    #         setfield!(neig,i) = nothing
+    #     end
+    # end
 
     #Set loaded to false
     setfield!(com,:loaded,false)

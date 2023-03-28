@@ -18,7 +18,7 @@ end
 
 Wrapper loop for full neighbors algorithm.
 """
-function neighborsLoop(code,it,neig::Full)
+function neighborsLoop(code,it,neig::Full,dims)
 
     return :(for $it in 1:1:N[1]; if i1_ != $it; $code; end; end)
 
@@ -47,7 +47,7 @@ end
 
 Wrapper loop for verlet neighbors algorithms.
 """
-function neighborsVerletLoop(code,it,neig::Verlet) #Macro to create the second loop in functions
+function neighborsLoop(code,it,neig::Verlet,dims) #Macro to create the second loop in functions
     
     #Go over the list of neighbors
     code = postwalk(x->@capture(x,h_) && h == it ? :(neighborList_[i1_,$it]) : x, code)
@@ -271,13 +271,13 @@ function initialize!(neig::VerletDisplacement,com)
     if typeof(com.platform) <: CPU
         neig.neighborN_ = zeros(Int64,com.nMax_)
         neig.neighborList_ =  zeros(Int64,com.nMax_,neig.nMaxNeighbors)
-        neig.posOld_ =  zeros(Int64,com.nMax_,com.abm.dims)
-        neig.accumulatedDistance_ = zeros(Int64,com.nMax_)
+        neig.posOld_ =  zeros(Float64,com.nMax_,com.abm.dims)
+        neig.accumulatedDistance_ = zeros(Float64,com.nMax_)
     else
         neig.neighborN_ = CUDA.zeros(Int64,com.nMax_)
         neig.neighborList_ =  CUDA.zeros(Int64,com.nMax_,neig.nMaxNeighbors)
-        neig.posOld_ =  CUDA.zeros(Int64,com.nMax_,com.abm.dims)
-        neig.accumulatedDistance_ = CUDA.zeros(Int64,com.nMax_)
+        neig.posOld_ =  CUDA.zeros(com.nMax_,com.abm.dims)
+        neig.accumulatedDistance_ = CUDA.zeros(com.nMax_)
     end
     neig.f_ = eval(Meta.parse("neighborsVerletDisplacement$(com.abm.dims)$(typeof(com.platform))!"))
 
@@ -640,21 +640,21 @@ end
 
 Wrapper loop for cell linked neighbors algorithm.
 """
-function neighborsCellLinkedLoop(code,it,abm)
+function neighborsLoop(code,it,neig::CellLinked,dims)
 
     args = Any[:(pos_),:(i3_)]
-    for i in 1:abm.dims
+    for i in 1:dims
         append!(args,[:(nCells_[$i])])
     end
 
     args2 = Any[:(cellEdge[1])]
-    for (i,j) in enumerate(POSITIONPARAMETERS[1:abm.dims])
+    for (i,j) in enumerate(POSITIONPARAMETERS[1:dims])
         append!(args2,[:($j[i1_]),:(simBox[$i,1]),:(simBox[$i,2]),:(nCells_[$i])])
     end
 
     code = quote 
                 pos_ = AgentBasedModels.cellPos($(args2...))
-                for i3_ in 1:1:$(3^abm.dims) #Go over the posible neighbor cells
+                for i3_ in 1:1:$(3^dims) #Go over the posible neighbor cells
                     posNeigh_ = AgentBasedModels.cellPosNeigh($(args...)) #Obtain the position of the neighbor cell
                     # println(i1_," ",i3_," ",posNeigh_)
                     if posNeigh_ != -1 #Ignore cells outside the boundaries
@@ -906,7 +906,7 @@ Functions generated to compute neighbors according to cell linked algorithm.
 @neighborsCellLinked GPU x y z
 
 #CLVD
-mutable struct CLVD <: Neighbors
+mutable struct CLVD <: Verlet
 
     skin
     nMaxNeighbors
@@ -935,8 +935,8 @@ function initialize!(neig::CLVD,com)
     if typeof(com.platform) <: CPU
         neig.neighborN_ = zeros(Int64,com.nMax_)
         neig.neighborList_ =  zeros(Int64,com.nMax_,neig.nMaxNeighbors)
-        neig.posOld_ =  zeros(Int64,com.nMax_,com.abm.dims)
-        neig.accumulatedDistance_ = zeros(Int64,com.nMax_)
+        neig.posOld_ =  zeros(Float64,com.nMax_,com.abm.dims)
+        neig.accumulatedDistance_ = zeros(Float64,com.nMax_)
         neig.nCells_ = ceil.(Int64,(com.simBox[:,2].-com.simBox[:,1])./neig.cellEdge .+2)
         neig.cellAssignedToAgent_ = zeros(Int64,com.nMax_)
         neig.cellNumAgents_ =  zeros(Int64,prod(neig.nCells_))
@@ -944,8 +944,8 @@ function initialize!(neig::CLVD,com)
     else
         neig.neighborN_ = CUDA.zeros(Int64,com.nMax_)
         neig.neighborList_ =  CUDA.zeros(Int64,com.nMax_,neig.nMaxNeighbors)
-        neig.posOld_ =  CUDA.zeros(Int64,com.nMax_,com.abm.dims)
-        neig.accumulatedDistance_ = CUDA.zeros(Int64,com.nMax_)
+        neig.posOld_ =  CUDA.zeros(com.nMax_,com.abm.dims)
+        neig.accumulatedDistance_ = CUDA.zeros(com.nMax_)
         neig.nCells_ = cu(ceil.(Int64,(com.simBox[:,2].-com.simBox[:,1])./neig.cellEdge .+2))
         neig.cellAssignedToAgent_ = cu(zeros(Int64,com.nMax_))
         neig.cellNumAgents_ =  cu(zeros(Int64,prod(neig.nCells_)))

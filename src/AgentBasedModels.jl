@@ -41,7 +41,7 @@ include("./neighbors.jl")
 export ABM
 include("./AgentStructure/agentStructure.jl")
     #Agent Rule
-export agentStepRule!, @addAgent, @removeAgent, @loopOverNeighbors
+export agentStepRule!, @addAgent, @removeAgent, @loopOverNeighbors, @loopOverAgents, @loopOverMedium
 include("./AgentStructure/functions/agentRule.jl")
     #Agent DE
 export agentStepDE!

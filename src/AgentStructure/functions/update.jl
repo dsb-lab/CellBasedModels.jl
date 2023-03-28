@@ -255,7 +255,8 @@ macro update!(platform)
         kernel1 = :($(Meta.parse("kernelListSurvived$(platform)!"))(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_))
         kernel2a = :($(Meta.parse("kernelFillHolesParameters$(platform)!"))(getfield(community,sym),community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_))
         kernel2b = :($(Meta.parse("kernelFillHolesParameters$(platform)!"))(getfield(community.neighbors,sym),community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_))
-        kernel3 = :($(Meta.parse("kernelFillHolesParameters$(platform)!"))(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_))
+        kernel3a = :($(Meta.parse("kernelFillHolesParameters$(platform)!"))(community.parameters[new(sym)],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_))
+        kernel3b = :($(Meta.parse("kernelFillHolesParameters$(platform)!"))(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_))
         kernel4 = :($(Meta.parse("kernelUpdateParameters$(platform)!"))(community.N,community.parameters[sym],community.parameters[new(sym)]))
 
     else
@@ -272,9 +273,13 @@ macro update!(platform)
             kernel3 = @cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(getfield(community.neighbors,sym),community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
             kernel3(getfield(community.neighbors,sym),community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.threads_,blocks=community.blocks_)
         end
-        kernel3 = quote
-            kernel3 = @cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
-            kernel3(community.parameters[new(sym)],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.threads_,blocks=community.blocks_)
+        kernel3a = quote
+            kernel3a = @cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(community.parameters[new(sym)],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
+            kernel3a(community.parameters[new(sym)],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.threads_,blocks=community.blocks_)
+        end
+        kernel3b = quote
+            kernel3b = @cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
+            kernel3b(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.threads_,blocks=community.blocks_)
         end
         kernel4 = quote
             kernel4 = @cuda launch=false $(Meta.parse("kernelUpdateParameters$(platform)!"))(community.N,community.parameters[sym],community.parameters[new(sym)])
@@ -328,8 +333,10 @@ macro update!(platform)
             end
             #Allocate parameters
             for (sym,prop) in pairs(community.abm.parameters)
-                if prop.scope == :agent
-                    $kernel3
+                if prop.scope == :agent && prop.update
+                    $kernel3a
+                elseif prop.scope == :agent
+                    $kernel3b
                 end
             end
             $code

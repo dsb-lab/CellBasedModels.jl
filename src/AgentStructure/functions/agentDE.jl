@@ -32,7 +32,9 @@ function agentDEFunction(com)
         end
         code = vectorize(code,com)
 
-        code = makeSimpleLoop(code,com)
+        if ! contains(string(code),"@loopOverAgents")
+            code = makeSimpleLoop(code,com)
+        end
 
         if typeof(com.platform) <: CPU
             abm.declaredUpdatesCode[:agentODE] = 
@@ -68,7 +70,10 @@ function agentDEFunction(com)
         end
         code = vectorize(code,com)
 
-        code = makeSimpleLoop(code,com)
+        if ! contains(string(code),"@loopOverAgents")
+            code = makeSimpleLoop(code,com)
+        end
+
         if typeof(com.platform) <: CPU
             abm.declaredUpdatesCode[:agentSDE] = 
                 quote

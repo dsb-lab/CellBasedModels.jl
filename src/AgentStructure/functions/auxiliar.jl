@@ -94,7 +94,7 @@ end
 function agentArgs(com;sym=nothing,l=3,params=BASEPARAMETERS) 
 
     pars = [i for i in keys(params)]
-    parsCom = [i for i in fieldnames(typeof(com.neighbors)) if typeof(getfield(com.neighbors,i)) <: Function]
+    parsCom = [i for i in fieldnames(typeof(com.neighbors)) if  i != :f_]
     args = [i for i in keys(com.abm.parameters)]
     argsUp = [new(i) for (i,prop) in pairs(com.abm.parameters) if prop.update]
 
@@ -107,34 +107,12 @@ function agentArgs(com;sym=nothing,l=3,params=BASEPARAMETERS)
     else
         return [
                 Any[:($sym.$i) for i in pars];
-                Any[:($sym.neighbors.$i) for i in String.(parsCom)];
+                Any[:($sym.neighbors.$i) for i in parsCom];
                 Any[:($sym.parameters[Symbol($i)]) for i in String.(args)];
                 Any[:($sym.parameters[Symbol($i)]) for i in String.(argsUp)];
                 ]
     end
 
-end
-
-"""
-    macro agentArgs(code)
-    macro agentArgs(name,code)
-
-Macro that substitutes the symbol :ARGS in **code** by the fieldnames of the structure Community. If **name** is given, it substitutes by the fielnames in form of by *name.fieldname*.
-"""
-macro agentArgs(code)
-
-    code = postwalk(x->@capture(x,ARGS) ? :($(agentArgs())...) : x, code)
-
-    return code
-
-end
-
-macro agentArgs(name,code)
-
-    code = postwalk(x->@capture(x,ARGS) ? :($(agentArgs(name))...) : x, code)
-
-    return code
-    
 end
 
 """
@@ -215,7 +193,7 @@ function makeSimpleLoop(code,com;nloops=nothing)
         elseif nloops == 2
             return :(@inbounds Threads.@threads for i1_ in 1:1:NMedium[1]; for i2_ in 1:1:NMedium[2]; $code; end; end)
         elseif nloops == 3
-            return :(@inbounds Threads.@threads for i1_ in 1:1:NMedium[1]; for i2_ in 1:1:NMedium[2];  for i3_ in 1:1:NMedium[2]; $code; end; end; end)
+            return :(@inbounds Threads.@threads for i1_ in 1:1:NMedium[1]; for i2_ in 1:1:NMedium[2];  for i3_ in 1:1:NMedium[3]; $code; end; end; end)
         end
 
     else com.platform <: GPU
@@ -333,80 +311,80 @@ end
 ##############################################################################################################################
 # Vectorize parameters
 ##############################################################################################################################
-"""
-    function vectorize(code,agent)
+# """
+#     function vectorize(code,agent)
 
-Function that transforms the code provided in Agent to the vectorized form for wrapping around an executable function.
-"""
-function vectorize2(code,agent)
+# Function that transforms the code provided in Agent to the vectorized form for wrapping around an executable function.
+# """
+# function vectorize2(code,agent)
 
-    #For user declared symbols
-    for (sym,prop) in pairs(agent.declaredSymbols)
+#     #For user declared symbols
+#     for (sym,prop) in pairs(agent.declaredSymbols)
 
-        bs = prop.basePar
-        bsn = baseParameterNew(bs)
-        pos = prop.position
-        if :Local == prop.scope
-            code = postwalk(x->@capture(x,g_.p1_.p2_) && g == sym && p1 == BASESYMBOLS[:UpdateSymbol].symbol && p2 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bsn[i1_,$pos]) : x, code)
-            code = postwalk(x->@capture(x,g_.p1_.p2_) && g == sym && p1 == BASESYMBOLS[:UpdateSymbol].symbol && p2 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bsn[i2_,$pos]) : x, code)
-            code = postwalk(x->@capture(x,g_.p1_.p2_) && g == sym && p2 == BASESYMBOLS[:UpdateSymbol].symbol && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bsn[i1_,$pos]) : x, code)
-            code = postwalk(x->@capture(x,g_.p1_.p2_) && g == sym && p2 == BASESYMBOLS[:UpdateSymbol].symbol && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bsn[i2_,$pos]) : x, code)
-            code = postwalk(x->@capture(x,g_.p1_) && g == sym && p1 == BASESYMBOLS[:UpdateSymbol].symbol ? :($bsn[i1_,$pos]) : x, code)
-            code = postwalk(x->@capture(x,g_) && g == sym ? :($bs[i1_,$pos]) : x, code)
-            code = postwalk(x->@capture(x,g_[p1_][p2_]) && g == sym ? :($bs[$p2,$pos]) : x, code) #Undo if it was already vectorized
-            code = postwalk(x->@capture(x,g_.p1_) && g == sym && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bs[i1_,$pos]) : x, code)
-            code = postwalk(x->@capture(x,g_.p1_) && g == sym && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bs[i2_,$pos]) : x, code)
-            code = postwalk(x->@capture(x,g_[h__].p1_) && g == sym && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bs[i1_,$pos]) : x, code)
-            code = postwalk(x->@capture(x,g_[h__].p1_) && g == sym && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bs[i2_,$pos]) : x, code)
-            code = postwalk(x->@capture(x,g_[h__].p1_) && g == bs && p1 == BASESYMBOLS[:AddCell].symbol ? :($bsn[i1New_,$pos]) : x, code)
-        elseif :Global == prop.scope
-            code = postwalk(x->@capture(x,g_.p1_) && g == sym && p1 == BASESYMBOLS[:UpdateSymbol].symbol ? :($bsn[$pos]) : x, code)
-            code = postwalk(x->@capture(x,g_) && g == sym ? :($bs[$pos]) : x, code)
-        elseif :Medium == prop.scope
-            args = [:gridPosx_,:gridPosy_,:gridPosz_][1:agent.dims]
-            code = postwalk(x->@capture(x,g_.j) && g == sym ? :($bs[$(args...)]) : x, code)
-        elseif :Atomic == prop.scope
-            nothing
-        else
-            error("Symbol $bs with type $(prop[2]) doesn't has not vectorization implemented.")
-        end
+#         bs = prop.basePar
+#         bsn = baseParameterNew(bs)
+#         pos = prop.position
+#         if :Local == prop.scope
+#             code = postwalk(x->@capture(x,g_.p1_.p2_) && g == sym && p1 == BASESYMBOLS[:UpdateSymbol].symbol && p2 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bsn[i1_,$pos]) : x, code)
+#             code = postwalk(x->@capture(x,g_.p1_.p2_) && g == sym && p1 == BASESYMBOLS[:UpdateSymbol].symbol && p2 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bsn[i2_,$pos]) : x, code)
+#             code = postwalk(x->@capture(x,g_.p1_.p2_) && g == sym && p2 == BASESYMBOLS[:UpdateSymbol].symbol && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bsn[i1_,$pos]) : x, code)
+#             code = postwalk(x->@capture(x,g_.p1_.p2_) && g == sym && p2 == BASESYMBOLS[:UpdateSymbol].symbol && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bsn[i2_,$pos]) : x, code)
+#             code = postwalk(x->@capture(x,g_.p1_) && g == sym && p1 == BASESYMBOLS[:UpdateSymbol].symbol ? :($bsn[i1_,$pos]) : x, code)
+#             code = postwalk(x->@capture(x,g_) && g == sym ? :($bs[i1_,$pos]) : x, code)
+#             code = postwalk(x->@capture(x,g_[p1_][p2_]) && g == sym ? :($bs[$p2,$pos]) : x, code) #Undo if it was already vectorized
+#             code = postwalk(x->@capture(x,g_.p1_) && g == sym && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bs[i1_,$pos]) : x, code)
+#             code = postwalk(x->@capture(x,g_.p1_) && g == sym && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bs[i2_,$pos]) : x, code)
+#             code = postwalk(x->@capture(x,g_[h__].p1_) && g == sym && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bs[i1_,$pos]) : x, code)
+#             code = postwalk(x->@capture(x,g_[h__].p1_) && g == sym && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bs[i2_,$pos]) : x, code)
+#             code = postwalk(x->@capture(x,g_[h__].p1_) && g == bs && p1 == BASESYMBOLS[:AddCell].symbol ? :($bsn[i1New_,$pos]) : x, code)
+#         elseif :Global == prop.scope
+#             code = postwalk(x->@capture(x,g_.p1_) && g == sym && p1 == BASESYMBOLS[:UpdateSymbol].symbol ? :($bsn[$pos]) : x, code)
+#             code = postwalk(x->@capture(x,g_) && g == sym ? :($bs[$pos]) : x, code)
+#         elseif :Medium == prop.scope
+#             args = [:gridPosx_,:gridPosy_,:gridPosz_][1:agent.dims]
+#             code = postwalk(x->@capture(x,g_.j) && g == sym ? :($bs[$(args...)]) : x, code)
+#         elseif :Atomic == prop.scope
+#             nothing
+#         else
+#             error("Symbol $bs with type $(prop[2]) doesn't has not vectorization implemented.")
+#         end
 
-    end
+#     end
 
-    #For local parameters
-    for bs in [sym for (sym,prop) in pairs(BASEPARAMETERS) if :Local == prop.shape[1]]
+#     #For local parameters
+#     for bs in [sym for (sym,prop) in pairs(BASEPARAMETERS) if :Local == prop.shape[1]]
 
-        bsn = baseParameterNew(bs)
-        code = postwalk(x->@capture(x,g_.p1_.p2_) && g == bs && p1 == BASESYMBOLS[:UpdateSymbol].symbol && p2 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bsn[i1_]) : x, code)
-        code = postwalk(x->@capture(x,g_.p1_.p2_) && g == bs && p1 == BASESYMBOLS[:UpdateSymbol].symbol && p2 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bsn[i2_]) : x, code)
-        code = postwalk(x->@capture(x,g_.p1_.p2_) && g == bs && p2 == BASESYMBOLS[:UpdateSymbol].symbol && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bsn[i1_]) : x, code)
-        code = postwalk(x->@capture(x,g_.p1_.p2_) && g == bs && p2 == BASESYMBOLS[:UpdateSymbol].symbol && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bsn[i2_]) : x, code)
-        code = postwalk(x->@capture(x,g_.p1_) && g == bs && p1 == BASESYMBOLS[:UpdateSymbol].symbol ? :($bsn[i1_]) : x, code)
-        code = postwalk(x->@capture(x,g_) && g == bs ? :($bs[i1_]) : x, code)
-        code = postwalk(x->@capture(x,g_[p1_][p2__]) && g == bs ? :($bs[$(p2...)]) : x, code) #Undo if it was already vectorized
-        code = postwalk(x->@capture(x,g_.p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bs[i1_]) : x, code)
-        code = postwalk(x->@capture(x,g_.p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bs[i2_]) : x, code)
-        code = postwalk(x->@capture(x,g_[i1_].p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bs[i1_]) : x, code)
-        code = postwalk(x->@capture(x,g_[i2_].p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bs[i2_]) : x, code)
-        code = postwalk(x->@capture(x,g_[h__].p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bs[i1_,$(h[2])]) : x, code)
-        code = postwalk(x->@capture(x,g_[h__].p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bs[i2_,$(h[2])]) : x, code)
-        code = postwalk(x->@capture(x,g_[h__].p1_) && g == bs && p1 == BASESYMBOLS[:AddCell].symbol ? :($bsn[i1New_]) : x, code)
+#         bsn = baseParameterNew(bs)
+#         code = postwalk(x->@capture(x,g_.p1_.p2_) && g == bs && p1 == BASESYMBOLS[:UpdateSymbol].symbol && p2 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bsn[i1_]) : x, code)
+#         code = postwalk(x->@capture(x,g_.p1_.p2_) && g == bs && p1 == BASESYMBOLS[:UpdateSymbol].symbol && p2 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bsn[i2_]) : x, code)
+#         code = postwalk(x->@capture(x,g_.p1_.p2_) && g == bs && p2 == BASESYMBOLS[:UpdateSymbol].symbol && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bsn[i1_]) : x, code)
+#         code = postwalk(x->@capture(x,g_.p1_.p2_) && g == bs && p2 == BASESYMBOLS[:UpdateSymbol].symbol && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bsn[i2_]) : x, code)
+#         code = postwalk(x->@capture(x,g_.p1_) && g == bs && p1 == BASESYMBOLS[:UpdateSymbol].symbol ? :($bsn[i1_]) : x, code)
+#         code = postwalk(x->@capture(x,g_) && g == bs ? :($bs[i1_]) : x, code)
+#         code = postwalk(x->@capture(x,g_[p1_][p2__]) && g == bs ? :($bs[$(p2...)]) : x, code) #Undo if it was already vectorized
+#         code = postwalk(x->@capture(x,g_.p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bs[i1_]) : x, code)
+#         code = postwalk(x->@capture(x,g_.p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bs[i2_]) : x, code)
+#         code = postwalk(x->@capture(x,g_[i1_].p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bs[i1_]) : x, code)
+#         code = postwalk(x->@capture(x,g_[i2_].p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bs[i2_]) : x, code)
+#         code = postwalk(x->@capture(x,g_[h__].p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bs[i1_,$(h[2])]) : x, code)
+#         code = postwalk(x->@capture(x,g_[h__].p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bs[i2_,$(h[2])]) : x, code)
+#         code = postwalk(x->@capture(x,g_[h__].p1_) && g == bs && p1 == BASESYMBOLS[:AddCell].symbol ? :($bsn[i1New_]) : x, code)
 
-    end
+#     end
 
-    #For global parameters
-    for bs in [sym for (sym,prop) in pairs(BASEPARAMETERS) if :Global == prop.shape[1]]
+#     #For global parameters
+#     for bs in [sym for (sym,prop) in pairs(BASEPARAMETERS) if :Global == prop.shape[1]]
 
-        code = postwalk(x->@capture(x,g_) && g == bs ? :($bs[1]) : x, code)
-        code = postwalk(x->@capture(x,g_[p1_][p2_]) && g == bs ? :($bs[1]) : x, code) #Undo if it was already vectorized
+#         code = postwalk(x->@capture(x,g_) && g == bs ? :($bs[1]) : x, code)
+#         code = postwalk(x->@capture(x,g_[p1_][p2_]) && g == bs ? :($bs[1]) : x, code) #Undo if it was already vectorized
 
-    end
+#     end
 
-    code = randomAdapt(code, agent)
+#     code = randomAdapt(code, agent)
 
-    return code
+#     return code
 
-end
+# end
 
 """
     function vectorize(code,agent)
@@ -431,7 +409,7 @@ function vectorize(code,com)
                 code = postwalk(x->@capture(x,g_) && g == sym ? :($g[1]) : x, code)
                 code = postwalk(x->@capture(x,g_) && g == new(sym) ? :($g[1]) : x, code)
             elseif :medium == prop.scope
-                args = [:gridPosx_,:gridPosy_,:gridPosz_][1:agent.dims]
+                args = [:i1_,:i2_,:i3_][1:agent.dims]
                 code = postwalk(x->@capture(x,g_) && g == sym ? :($g[$(args...)]) : x, code)
                 code = postwalk(x->@capture(x,g_) && g == new(sym) ? :($g[$(args...)]) : x, code)
             elseif :Atomic == prop.scope
@@ -572,13 +550,13 @@ end
 
 macro loopOverMedium(it1, code)
 
-    abm = AGENT
+    com = COMUNITY
 
-    if abm.dims != 1
+    if com.abm.dims != 1
         error("This macri requires to specify $(abm.dims) iterators.")
     end
 
-    code = makeSimpleLoop(code,abm,nLoops=abm.dims)
+    code = makeSimpleLoop(code,com,nloops=com.abm.dims)
 
     code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
 
@@ -588,13 +566,13 @@ end
 
 macro loopOverMedium(it1, it2, code)
 
-    abm = AGENT
+    com = COMUNITY
 
-    if abm.dims != 2
+    if com.abm.dims != 2
         error("This macri requires to specify $(abm.dims) iterators.")
     end
 
-    code = makeSimpleLoop(code,abm,nLoops=abm.dims)
+    code = makeSimpleLoop(code,com,nloops=com.abm.dims)
 
     code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
 
@@ -604,13 +582,13 @@ end
 
 macro loopOverMedium(it1, it2, it3, code)
 
-    abm = AGENT
+    com = COMUNITY
 
-    if abm.dims != 3
+    if com.abm.dims != 3
         error("This macri requires to specify $(abm.dims) iterators.")
     end
 
-    code = makeSimpleLoop(code,abm,nLoops=abm.dims)
+    code = makeSimpleLoop(code,com,nloops=com.abm.dims)
 
     code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
 
@@ -620,11 +598,30 @@ end
 
 macro loopOverAgents(it1, code)
 
-    abm = AGENT
+    com = COMUNITY
 
-    code = makeSimpleLoop(code,abm)
+    code = makeSimpleLoop(code,com)
 
     code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
+
+    return esc(code)
+
+end
+
+macro loopOverAgents(code)
+
+    if !(isa(code, Expr) && code.head === :for)
+        throw(ArgumentError("@threads requires a `for` loop expression"))
+    end
+
+    it = code.args[1].args[1]
+    code = code.args[2]
+
+    com = COMUNITY
+
+    code = makeSimpleLoop(code,com)
+
+    code = postwalk(x->@capture(x,i_) && i == :i1_ ? it : x, code )
 
     return esc(code)
 
@@ -637,9 +634,29 @@ For the updateInteraction loop, create the double loop to go over all the agents
 """
 macro loopOverNeighbors(it1, it2, code)
 
-    abm = AGENT
+    com = COMUNITY
 
-    code = neighborsLoop(code,it2,abm)
+    code = neighborsLoop(code,it2,com.neighbors,com.abm.dims)
+
+    code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
+    code = postwalk(x->@capture(x,i_) && i == :i2_ ? it2 : x, code )
+
+    return esc(code)
+
+end
+
+macro loopOverNeighbors(it1, code)
+
+    if !(isa(code, Expr) && code.head === :for)
+        throw(ArgumentError("@threads requires a `for` loop expression"))
+    end
+
+    it2 = code.args[1].args[1]
+    code = code.args[2]
+
+    com = COMUNITY
+
+    code = neighborsLoop(code,it2,com.neighbors,com.abm.dims)
 
     code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
     code = postwalk(x->@capture(x,i_) && i == :i2_ ? it2 : x, code )

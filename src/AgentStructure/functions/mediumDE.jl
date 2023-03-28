@@ -28,7 +28,7 @@ function mediumDEFunction(com)
                 end
             end
         end
-        params = agentArgs(abm)
+        params = agentArgs(com)
         paramsRemove = Tuple([sym for (sym,prop) in pairs(abm.parameters) if (prop.variableMedium)])
         params = Tuple([i for i in params if !(i in paramsRemove)])
 
@@ -40,7 +40,9 @@ function mediumDEFunction(com)
         end
         code = vectorize(code,com)
 
-        code = makeSimpleLoop(code,com,nloops=abm.dims)
+        if ! contains(string(code),"@loopOverMedium")
+            code = makeSimpleLoop(code,com,nloops=abm.dims)
+        end
         
         if typeof(com.platform) <: CPU
             abm.declaredUpdatesCode[:mediumODE] = 
@@ -66,7 +68,6 @@ function mediumDEFunction(com)
                     end
                 end
         end
-        # println((abm.declaredUpdatesCode[:mediumODE]))
         abm.declaredUpdatesFunction[:mediumODE] = Main.eval(abm.declaredUpdatesCode[:mediumODE])
 
         #Put all together
@@ -74,7 +75,7 @@ function mediumDEFunction(com)
         quote
             function (community,)
                 
-                CUDA.@allowscalar AgentBasedModels.DifferentialEquations.step!(community.deProblemMedium,community.dt[1],true)
+                AgentBasedModels.DifferentialEquations.step!(community.deProblemMedium,community.dt,true)
 
                 return
 

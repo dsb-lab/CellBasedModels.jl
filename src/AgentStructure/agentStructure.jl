@@ -327,6 +327,10 @@ function change(x,code)
         code.args[1] = Meta.parse(string(x,"__"))
     end
 
+    if @capture(code.args[1],g_[h__]) && g == x
+        code.args[1] = Meta.parse(string(x,"__[$(h...)]"))
+    end
+
     return code
 end
 
@@ -401,9 +405,9 @@ function addUpdates!(abm::ABM)
     vMedium, mediumODE = captureVariables(abm.declaredUpdates[:mediumODE])
     for sym in vMedium
         if sym in keys(abm.parameters)
-            if abm.parameters[sym].scope == :agent && abm.parameters[sym].update
+            if abm.parameters[sym].scope == :medium && abm.parameters[sym].update
                 error("An agent parameter cannot be updated at the same time in a mediumRule and in a mediumODE or mediumSDE. If you want to modify it, set it with inplace($sym) when assigning it.")
-            elseif abm.parameters[sym].scope == :agent
+            elseif abm.parameters[sym].scope == :medium
                 count += 1
                 abm.parameters[sym].variableMedium = true            
                 abm.parameters[sym].pos = count

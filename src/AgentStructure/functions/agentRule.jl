@@ -221,15 +221,14 @@ Macro that returns the special code based on the arguments provided to `removeAg
 """
 macro removeAgent()
 
-    abm = AGENT
+    com = COMUNITY
     code = quote end
 
     #Add 1 to the number of removed
     #Add the cell position to the list of removed
     #Set survived to 0
-    dtype = DTYPE[:Int][abm.platform]
     code = quote
-            idNew_ = Threads.atomic_add!(NRemove_,$(dtype)(1)) + 1
+            idNew_ = Threads.atomic_add!(NRemove_,1) + 1
             holeFromRemoveAt_[idNew_] = i1_ 
             flagSurvive_[i1_] = 0
             flagRecomputeNeighbors_ = 1
@@ -239,7 +238,7 @@ macro removeAgent()
     code = vectorize(code)
 
     #Adapt to platform
-    code = cudaAdapt(code,abm.platform)
+    code = cudaAdapt(code,com.platform)
 
     return esc(code)
 
@@ -265,7 +264,9 @@ function agentRuleFunction(com)
         #Vectorize
         code = vectorize(code,com)
         #Put in loop
-        code = makeSimpleLoop(code,com)
+        if ! contains(string(code),"@loopOverAgents")
+            code = makeSimpleLoop(code,com)
+        end
 
         func = :(agentRule_($(agentArgs(com)...),) = $code)
         # abm.declaredUpdatesFunction[:AgentRule_] = Main.eval(:($(abm.declaredUpdatesCode[:AgentRule_])))
