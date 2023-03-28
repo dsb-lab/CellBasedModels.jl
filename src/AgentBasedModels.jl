@@ -25,6 +25,10 @@ export DifferentialEquations
 include("./baseStructs.jl")
 include("./constants.jl")
 
+#Custom integrators
+export CustomEuler, CustomHeun, CustomRungeKutta4, CustomEM, CustomEulerHeun
+include("./customIntegrators.jl")
+
 #Platforms
 export CPU, GPU
 include("./platforms.jl")
@@ -62,13 +66,10 @@ include("./AgentStructure/functions/update.jl")
 #Community
 export Community, loadToPlatform!, bringFromPlatform!, getParameter
 include("./CommunityStructure/communityStructure.jl")
-# export saveJLD2, saveRAM!, loadJLD2
-# include("./CommunityStructure/IO.jl")
+export saveJLD2, saveRAM!, loadJLD2
+include("./CommunityStructure/IO.jl")
 # export initializeSpheresCommunity, packagingCompactHexagonal, packagingCubic
 # include("./CommunityStructure/initializers.jl")
-
-#Custom integrators
-include("./customIntegrators.jl")
 
 # #Optimization tools
 # export Fitting

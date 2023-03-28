@@ -1,3 +1,5 @@
+abstract type CustomAlgorithm end
+
 ################################################################
 # ODE
 ################################################################
@@ -8,7 +10,7 @@
 # Euler
 ##########################################
 
-mutable struct CustomEuler
+mutable struct CustomEuler <: CustomAlgorithm
 
     f
     p
@@ -20,6 +22,12 @@ mutable struct CustomEuler
     function CustomEuler(problem,kwargs)
 
         return new(problem.f,problem.p,problem.u0,problem.tspan[1],copy(problem.u0),kwargs[:dt])
+
+    end
+
+    function CustomEuler()
+
+        return new(nothing,nothing,nothing,nothing,nothing,nothing)
 
     end
 
@@ -47,7 +55,7 @@ end
 # Heun
 ##########################################
 
-mutable struct CustomHeun
+mutable struct CustomHeun <: CustomAlgorithm
 
     f
     p
@@ -62,6 +70,13 @@ mutable struct CustomHeun
         return new(problem.f,problem.p,problem.u0,problem.tspan[1],copy(problem.u0),copy(problem.u0),kwargs[:dt])
 
     end
+
+    function CustomHeun()
+
+        return new(nothing,nothing,nothing,nothing,nothing,nothing,nothing)
+
+    end
+
 
 end
 
@@ -98,7 +113,7 @@ end
 ##########################################
 # RungeKutta4
 ##########################################
-mutable struct CustomRungeKutta4
+mutable struct CustomRungeKutta4 <: CustomAlgorithm
 
     f
     p
@@ -114,6 +129,12 @@ mutable struct CustomRungeKutta4
     function CustomRungeKutta4(problem,kwargs)
 
         return new(problem.f,problem.p,problem.u0,problem.tspan[1],copy(problem.u0),copy(problem.u0),copy(problem.u0),copy(problem.u0),copy(problem.u0),kwargs[:dt])
+
+    end
+
+    function CustomRungeKutta4()
+
+        return new(nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing)
 
     end
 
@@ -179,7 +200,7 @@ end
 ##########################################
 # EM
 ##########################################
-mutable struct CustomEM
+mutable struct CustomEM <: CustomAlgorithm
 
     f
     g
@@ -194,6 +215,12 @@ mutable struct CustomEM
     function CustomEM(problem,kwargs)
 
         return new(problem.f,problem.g,problem.p,problem.u0,problem.tspan[1],copy(problem.u0),copy(problem.u0),copy(problem.u0),kwargs[:dt])
+
+    end
+
+    function CustomEM()
+
+        return new(nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing)
 
     end
 
@@ -225,7 +252,7 @@ end
 ##########################################
 # EulerHeun
 ##########################################
-mutable struct CustomEulerHeun
+mutable struct CustomEulerHeun <: CustomAlgorithm
 
     f
     g
@@ -243,6 +270,12 @@ mutable struct CustomEulerHeun
     function CustomEulerHeun(problem,kwargs)
 
         return new(problem.f,problem.g,problem.p,problem.u0,problem.tspan[1],copy(problem.u0),copy(problem.u0),copy(problem.u0),copy(problem.u0),copy(problem.u0),copy(problem.u0),kwargs[:dt])
+
+    end
+
+    function CustomEulerHeun()
+
+        return new(nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing)
 
     end
 
@@ -290,25 +323,25 @@ end
 # Init
 ################################################################
 
-function DifferentialEquations.init(problem::DifferentialEquations.SciMLBase.AbstractDEProblem,alg::Symbol;kwargs...)
+function DifferentialEquations.init(problem::DifferentialEquations.SciMLBase.AbstractDEProblem,alg::CustomAlgorithm;kwargs...)
 
-    if alg == :Euler
+    if typeof(alg) <: CustomEuler
 
         return CustomEuler(problem,kwargs)
 
-    elseif alg == :Heun
+    elseif typeof(alg) <: CustomHeun
 
         return CustomHeun(problem,kwargs)
 
-    elseif alg == :RungeKutta4
+    elseif typeof(alg) <: CustomRungeKutta4
 
         return CustomRungeKutta4(problem,kwargs)
 
-    elseif alg == :EM
+    elseif typeof(alg) <: CustomEM
 
         return CustomEM(problem,kwargs)
 
-    elseif alg == :EulerHeun
+    elseif typeof(alg) <: CustomEulerHeun
 
         return CustomEulerHeun(problem,kwargs)
 

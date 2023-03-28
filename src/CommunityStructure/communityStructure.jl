@@ -108,7 +108,7 @@ mutable struct Community
     abm
     loaded
     fileSaving
-    pastTimes
+    pastTimes::Array{Community}
 
     t
     dt
@@ -130,23 +130,6 @@ mutable struct Community
     dx
     dy
     dz
-    # flagNeighbors_
-
-    # skin
-    # dtNeighborRecompute
-    # nMaxNeighbors
-    # cellEdge
-    # flagRecomputeNeighbors_
-    # flagNeighbors_
-    # neighborN_
-    # neighborList_
-    # neighborTimeLastRecompute_
-    # posOld_
-    # accumulatedDistance_
-    # nCells_
-    # cellAssignedToAgent_
-    # cellNumAgents_
-    # cellCumSum_
 
     parameters::OrderedDict{Symbol,AbstractArray}
     vars::AbstractArray
@@ -169,9 +152,11 @@ mutable struct Community
             dt,
             t = 0,
             N = 1,
+            id = 1:N,
+            fileSaving = nothing,
             NMedium = nothing,
             simBox = nothing,
-            agentAlg::Union{Symbol,DEAlgorithm} = :Euler,
+            agentAlg::Union{CustomAlgorithm,DEAlgorithm} = CustomEuler(),
             agentSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
             mediumAlg::Union{Symbol,Any} = Euler(),
             mediumSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
@@ -188,13 +173,6 @@ mutable struct Community
             error("NMedium kargument must be defined when medium models are declared")
         end
         
-        #Check algorithm
-        if typeof(agentAlg) == Symbol
-            if !(agentAlg in SOLVERS)
-                error("solveAlgorithm $solveAlgorithm does not exist. Possible algorithms are: $(SOLVERS) or DifferentialEquations algorithms from ODE or SDE." )
-            end
-        end
-
         #Creating the appropiate data matrices for the different parameters
         dict = OrderedDict()
         for (sym,prop) in pairs(BASEPARAMETERS)
@@ -231,14 +209,14 @@ mutable struct Community
         com = new(
             deepcopy(abm), 
             false, 
-            nothing, 
+            fileSaving, 
             Community[], 
             t, 
             dt, 
             N, 
             NMedium, 
             simBox,
-            1:N,
+            id,
             [nothing for i in 1:12]...,
             parameters,
             zeros(0),
@@ -273,14 +251,18 @@ mutable struct Community
     end
 
     function Community()
-
-        #Creating the appropiate data matrices for the different parameters
-        dict = OrderedDict()
-        for (sym,prop) in pairs(BASEPARAMETERS)
-            dict[sym] = nothing
-        end
     
-        return new(nothing, nothing, nothing, nothing,Community[], [j for (i,j) in pairs(dict)]...,nothing,nothing,Full(),nothing,Euler(),Dict{Symbol,Any}(),nothing,Euler(),Dict{Symbol,Any}())
+        return new(
+            nothing, 
+            nothing, 
+            nothing, 
+            Community[],
+            [nothing for i in 1:18]...,
+            OrderedDict{Symbol,Union{AbstractArray,Nothing}}(),
+            zeros(0),
+            zeros(0),
+            [nothing for i in 1:8]...            
+            )
 
     end
 
@@ -316,7 +298,11 @@ end
 
 # Overload show
 function Base.show(io::IO,com::Community)
-    println("Community with ", com.N[1], " agents.")
+    if com.N === nothing
+        println("Empty Community.")
+    else
+        println("Community with ", com.N, " agents.")
+    end
 end
 
 # Overload ways of calling and assigning the parameters in community
@@ -400,18 +386,10 @@ end
 
 function Base.setproperty!(com::Community,var::Symbol,v)
 
-    if !(var in keys(com.abm.parameters)) && !(var in fieldnames(Community))
+    if var in fieldnames(Community)
+        setfield!(com,var,v)
+    elseif !(var in keys(com.abm.parameters))
         error(var," is not in community.")
-    elseif var in fieldnames(Community)
-        if var in keys(BASEPARAMETERS)
-            if BASEPARAMETERS[var].protected
-                error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
-            else
-                getfield(com,var) .= v
-            end
-        else
-            error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
-        end
     else
         com.parameters[var] .= v
     end
@@ -482,7 +460,7 @@ end
 ######################################################################################################
 function initializeAuxiliarParameters!(com::Community)
 
-    setfield!(com, :id, cuAdapt([1:com.N;zeros(com.nMax_-com.N)],com))
+    setfield!(com, :id, cuAdapt([com.id;zeros(com.nMax_-com.N)],com))
     setfield!(com, :idMax_, cuAdapt(Threads.Atomic{Int64}(com.N),com))
     setfield!(com, :NAdd_, cuAdapt(Threads.Atomic{Int64}(0),com))
     setfield!(com, :NRemove_, cuAdapt(Threads.Atomic{Int64}(0),com))
@@ -525,12 +503,6 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
     initializeAuxiliarParameters!(com)
 
     #Start with the new parameters equal to the old positions, just in case
-    for (sym,prop) in pairs(com.abm.parameters)
-        symNew = new(sym)
-        if prop.update
-            com.parameters[symNew] .= com.parameters[sym]
-        end
-    end
 
     for (sym,prop) in pairs(com.abm.parameters)
         p = getproperty(com,sym)
@@ -542,7 +514,7 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
         elseif prop.scope in [:model,:medium]
             com.parameters[sym] = Array{prop.dtype}(p)
             if prop.update
-                com.parameters[new(sym)] = Array{prop.dtype}(p)
+                com.parameters[new(sym)] = copy(Array{prop.dtype}(p))
             end
         end
     end
@@ -690,32 +662,28 @@ function bringFromPlatform!(com::Community)
         if prop.scope == :agent
             com.parameters[sym] = Array(p[1:N])
             if prop.update
-                p = com.parameters[new(sym)]
-                com.parameters[new(sym)] = Array(p[1:N])
+                com.parameters[new(sym)] = zeros(0)
             end
         elseif prop.scope in [:model,:medium]
             com.parameters[sym] = Array(p)
             if prop.update
-                p = com.parameters[new(sym)]
-                com.parameters[new(sym)] = Array(p)
+                com.parameters[new(sym)] = zeros(0)
             end
         end
     end
 
-    # setfield!(com, :vars, zeros(Float64,0))
-    # setfield!(com, :varsMedium, zeros(Float64,0))    
-
-    # for i in fieldnames(Community)
-    #     if string(i)[end:end] == "_"
-    #         setfield!(com,i) = nothing
-    #     end
-    # end
-    # neig = com.neighbors
-    # for i in fieldnames(typeof(neig))
-    #     if string(i)[end:end] == "_"
-    #         setfield!(neig,i) = nothing
-    #     end
-    # end
+    for i in fieldnames(Community)
+        if string(i)[end:end] == "_"
+            setfield!(com,i) = nothing
+        end
+    end
+    com.id = Array(com.id)[1:N]
+    neig = com.neighbors
+    for i in fieldnames(typeof(neig))
+        if string(i)[end:end] == "_"
+            setfield!(neig,i) = nothing
+        end
+    end
 
     #Set loaded to false
     setfield!(com,:loaded,false)
