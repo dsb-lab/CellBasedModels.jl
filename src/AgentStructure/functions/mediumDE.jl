@@ -6,8 +6,9 @@
 
 Creates the final code provided to ABM in `updateVariable` as a function and adds it to the ABM.
 """
-function mediumDEFunction(abm)
+function mediumDEFunction(com)
 
+    abm = com.abm
     if isemptyupdaterule(abm,:mediumODE)
 
         unwrap = quote end
@@ -37,11 +38,11 @@ function mediumDEFunction(abm)
             dsym = Meta.parse(string(sym,"__"))
             code = postwalk(x->@capture(x,dt(s_)) && s == sym ? :($dsym[i1_]) : x, code)
         end
-        code = vectorize(code,abm)
+        code = vectorize(code,com)
 
-        code = makeSimpleLoop(code,abm,nloops=abm.dims)
+        code = makeSimpleLoop(code,com,nloops=abm.dims)
         
-        if abm.platform == :CPU
+        if typeof(com.platform) <: CPU
             abm.declaredUpdatesCode[:mediumODE] = 
                 quote
                     function (dVar_,var_,p_,t_)
@@ -64,7 +65,6 @@ function mediumDEFunction(abm)
                         return
                     end
                 end
-            println(prettify(abm.declaredUpdatesCode[:mediumODE]))
         end
         # println((abm.declaredUpdatesCode[:mediumODE]))
         abm.declaredUpdatesFunction[:mediumODE] = Main.eval(abm.declaredUpdatesCode[:mediumODE])

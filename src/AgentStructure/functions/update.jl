@@ -33,8 +33,8 @@ macro kernelListSurvived!(platform)
             end
         end
 
-    code = vectorize(code)
-    code = cudaAdapt(code, platform)
+    #For global parameters
+    code = cudaAdapt(code, eval(platform))
 
     code = :(  function $name(N,NAdd_,NRemove_,flagSurvive_,repositionAgentInPos_)
 
@@ -54,93 +54,95 @@ end
 ######################################################################################################
 # code to fill the holes left by cells that did not survived
 ######################################################################################################
-"""
-    macro kernelFillHolesBase!()
+# """
+#     macro kernelFillHolesBase!()
 
-Macro to generate the function to fill the holes left by dead agents with the survived agents listed by `listSurvivedGPU!` over all the parameters that have :Local dimension (are proportional to agents).
+# Macro to generate the function to fill the holes left by dead agents with the survived agents listed by `listSurvivedGPU!` over all the parameters that have :Local dimension (are proportional to agents).
 
-Creates the function:
+# Creates the function:
 
-    kernelFillHolesBaseCPU!(community)
-    kernelFillHolesBaseGPU!(community)
-"""
-macro kernelFillHolesBase!(platform)
+#     kernelFillHolesBaseCPU!(community)
+#     kernelFillHolesBaseGPU!(community)
+# """
+# macro kernelFillHolesBase!(platform)
 
-    #get base parameters
-    baseParameters = BASEPARAMETERS
-    #Get local symbols
-    localSymbols = getSymbolsThat(BASEPARAMETERS,:shape,:Local)
-    #Remove the ones related with reassigning position
-    popat!(localSymbols,findfirst(localSymbols.==:holeFromRemoveAt_))
-    popat!(localSymbols,findfirst(localSymbols.==:repositionAgentInPos_))
-    #Make assignements
-    code = quote end
-    for sym in localSymbols
-        if length(baseParameters[sym].shape)==1
-            push!(code.args,
-                quote
-                    if length($sym) > 0
-                        $sym[posNew] = $sym[posOld]
-                    end
-                end
-            )
-        elseif length(baseParameters[sym].shape)==2
-            push!(code.args,
-                quote
-                    if length($sym) > 0
-                        for i2_ in 1:1:size($sym)[2]
-                            $sym[posNew,i2_] = $sym[posOld,i2_]
-                        end
-                    end
-                end
-            )
-        end
-    end
-    if platform == :CPU
-        code = quote
-            for i in 1:1:NRemove_[]
-                posNew = holeFromRemoveAt_[i]
-                posOld = repositionAgentInPos_[i]
-                flagSurvive_[posOld] = 0
-                if posNew < posOld
-                    $code
-                end
-            end
-        end
-    else
-        code = quote
-            index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
-            stride = gridDim().x * blockDim().x
-            for i in index:stride:NRemove_[1]
-                posNew = holeFromRemoveAt_[i]
-                posOld = repositionAgentInPos_[i]
-                flagSurvive_[posOld] = 0
-                if posNew < posOld
-                    $code
-                end
-            end
-        end
-    end
-    # code = vectorize(code)
-    code = cudaAdapt(code,platform)
+#     #get base parameters
+#     baseParameters = BASEPARAMETERS
+#     #Get local symbols
+#     localSymbols = [
+#         :flagSurvive_
+#     ]
+#     #Remove the ones related with reassigning position
+#     popat!(localSymbols,findfirst(localSymbols.==:holeFromRemoveAt_))
+#     popat!(localSymbols,findfirst(localSymbols.==:repositionAgentInPos_))
+#     #Make assignements
+#     code = quote end
+#     for sym in localSymbols
+#         if length(baseParameters[sym].shape)==1
+#             push!(code.args,
+#                 quote
+#                     if length($sym) > 0
+#                         $sym[posNew] = $sym[posOld]
+#                     end
+#                 end
+#             )
+#         elseif length(baseParameters[sym].shape)==2
+#             push!(code.args,
+#                 quote
+#                     if length($sym) > 0
+#                         for i2_ in 1:1:size($sym)[2]
+#                             $sym[posNew,i2_] = $sym[posOld,i2_]
+#                         end
+#                     end
+#                 end
+#             )
+#         end
+#     end
+#     if platform == :CPU
+#         code = quote
+#             for i in 1:1:NRemove_[]
+#                 posNew = holeFromRemoveAt_[i]
+#                 posOld = repositionAgentInPos_[i]
+#                 flagSurvive_[posOld] = 0
+#                 if posNew < posOld
+#                     $code
+#                 end
+#             end
+#         end
+#     else
+#         code = quote
+#             index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+#             stride = gridDim().x * blockDim().x
+#             for i in index:stride:NRemove_[1]
+#                 posNew = holeFromRemoveAt_[i]
+#                 posOld = repositionAgentInPos_[i]
+#                 flagSurvive_[posOld] = 0
+#                 if posNew < posOld
+#                     $code
+#                 end
+#             end
+#         end
+#     end
+#     # code = vectorize(code)
+#     code = cudaAdapt(code,platform)
 
-    localSymbols = getSymbolsThat(BASEPARAMETERS,:shape,:Local)
-    localSymbols=[localSymbols;[:NRemove_]]
+#     localSymbols = getSymbolsThat(BASEPARAMETERS,:shape,:Local)
+#     localSymbols=[localSymbols;[:NRemove_]]
 
-    return :(
-        function $(Meta.parse("kernelFillHolesBase$(platform)!"))($(localSymbols...))
+#     return :(
+#         function $(Meta.parse("kernelFillHolesBase$(platform)!"))($(localSymbols...))
 
-            $code
+#             $code
 
-            return
+#             return
 
-        end
-    )
+#         end
+#     )
 
-end
+# end
 
-@kernelFillHolesBase! CPU
-@kernelFillHolesBase! GPU
+# @kernelFillHolesBase! CPU
+# @kernelFillHolesBase! GPU
 
 macro kernelFillHolesParameters!(platform)
 
@@ -151,7 +153,13 @@ macro kernelFillHolesParameters!(platform)
                 posNew = holeFromRemoveAt_[i]
                 posOld = repositionAgentInPos_[i]
                 if posNew < posOld
-                    par[posNew] = par[posOld]
+                    if length(size(par)) == 1
+                        par[posNew] = par[posOld]
+                    else
+                        for j in 1:size(par)[2]
+                            par[posNew,j] = par[posOld,j]
+                        end
+                    end
                 end
             end
         end
@@ -163,7 +171,13 @@ macro kernelFillHolesParameters!(platform)
                 posNew = holeFromRemoveAt_[i]
                 posOld = repositionAgentInPos_[i]
                 if posNew < posOld
-                    par[posNew] = par[posOld]
+                    if length(size(par)) == 1
+                        par[posNew] = par[posOld]
+                    else
+                        for j in 1:size(par)[2]
+                            par[posNew,j] = par[posOld,j]
+                        end
+                    end
                 end
             end
         end
@@ -237,13 +251,10 @@ And updates the number of agents and resets the corresponding parmaeters after u
 """
 macro update!(platform)
 
-    localSymbols = getSymbolsThat(BASEPARAMETERS,:shape,:Local)
-    localSymbols=[localSymbols;[:NRemove_]]
-    localSymbols = [:(community.$i) for i in localSymbols]
-
     if platform == :CPU
         kernel1 = :($(Meta.parse("kernelListSurvived$(platform)!"))(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_))
-        kernel2 = :($(Meta.parse("kernelFillHolesBase$(platform)!"))($(localSymbols...)))
+        kernel2a = :($(Meta.parse("kernelFillHolesParameters$(platform)!"))(getfield(community,sym),community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_))
+        kernel2b = :($(Meta.parse("kernelFillHolesParameters$(platform)!"))(getfield(community.neighbors,sym),community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_))
         kernel3 = :($(Meta.parse("kernelFillHolesParameters$(platform)!"))(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_))
         kernel4 = :($(Meta.parse("kernelUpdateParameters$(platform)!"))(community.N,community.parameters[sym],community.parameters[new(sym)]))
 
@@ -253,9 +264,13 @@ macro update!(platform)
             kernel1 = @cuda launch=false $(Meta.parse("kernelListSurvived$(platform)!"))(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_)
             kernel1(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_;threads=community.threads_,blocks=community.blocks_)
         end
-        kernel2 = quote
-            kernel2 = @cuda launch=false $(Meta.parse("kernelFillHolesBase$(platform)!"))($(localSymbols...))
-            kernel2($(localSymbols...);threads=community.threads_,blocks=community.blocks_)
+        kernel2a = quote
+            kernel3 = @cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(getfield(community,sym),community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
+            kernel3(getfield(community,sym),community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.threads_,blocks=community.blocks_)
+        end
+        kernel2b = quote
+            kernel3 = @cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(getfield(community.neighbors,sym),community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
+            kernel3(getfield(community.neighbors,sym),community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.threads_,blocks=community.blocks_)
         end
         kernel3 = quote
             kernel3 = @cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
@@ -270,18 +285,18 @@ macro update!(platform)
     code = quote end
     if platform == :CPU
         code = quote
-            community.N[1] += community.NAdd_[] - community.NRemove_[] 
+            setfield!(community,:N, community.N + community.NAdd_[] - community.NRemove_[] )
             community.NAdd_[] = 0
             community.NRemove_[] = 0
             #Clear flags
             if community.abm.removalOfAgents_
-                @views community.flagSurvive_[1:community.N[1]] .= 1
+                @views community.flagSurvive_[1:community.N] .= 1
             end
         end
     else
         code = quote
             #Update number of agents
-            community.N .+= community.NAdd_ - community.NRemove_
+            CUDA.@allowscalar setfield!(community,:N, community.N + community.NAdd_[1] - community.NRemove_[1] )
             community.NAdd_ .= 0
             community.NRemove_ .= 0
             #Clear flags
@@ -295,7 +310,22 @@ macro update!(platform)
 
             #List and fill holes left from agent removal
             $kernel1
-            $kernel2
+            for sym in [:id,:vars,:varsMedium]
+                p = getfield(community,sym)
+                if size(p)[1] == community.nMax_
+                    $kernel2a
+                end
+            end
+            for sym in fieldnames(typeof(community.neighbors))
+                p = getfield(community.neighbors,sym)
+                if !(typeof(p) <: Function)
+                    if length(size(p)) > 0
+                        if size(p)[1] == community.nMax_
+                            $kernel2b
+                        end
+                    end
+                end
+            end
             #Allocate parameters
             for (sym,prop) in pairs(community.abm.parameters)
                 if prop.scope == :agent
@@ -314,9 +344,9 @@ macro update!(platform)
                 end
             end
             #Update time
-            community.t .+= community.dt
+            setfield!(community,:t, community.t + community.dt)
             #Update GPU execution
-            setGPUParameters!(community)
+            platformUpdate!(community.platform,community)
             
             return 
 
@@ -336,7 +366,7 @@ function update!(community)
 
     checkLoaded(community)
 
-    if community.abm.platform == :CPU
+    if typeof(community.platform) <: CPU
         updateCPU!(community)
     else
         updateGPU!(community)

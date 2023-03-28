@@ -68,16 +68,16 @@ function addAgentCode(arguments,abm::ABM)
 end
 
 """
-    function addEventAddAgent(code::Expr,abm::ABM)
+    function addEventAddAgent(code::Expr,com)
 
 Functions that goes over all the calls to `addAgent` and inserts the compiled code provided by `addGlobalAgentCode`.
 """
-function addEventAddAgent(code::Expr,abm::ABM)
+function addEventAddAgent(code::Expr,com)
 
     if inexpr(code,:addAgent)
         
         #Substitute code
-        code = postwalk(x->@capture(x,addAgent(g__)) ? addAgentCode(g,abm) : x , code)
+        code = postwalk(x->@capture(x,addAgent(g__)) ? addAgentCode(g,com.abm) : x , code)
 
         return code
 
@@ -100,7 +100,6 @@ macro addAgent(arguments...)
     append!(updateargs2,updateargs)
     #Checks that the correct parameters has been declared and not others
     args = []
-    addCell = BASESYMBOLS[:AddCell].symbol
     code = quote end
     for i in arguments
         found = @capture(i,g_[h_] = f_)
@@ -141,19 +140,18 @@ macro addAgent(arguments...)
     end
 
     #Make code
-    dtype = DTYPE[:Int][abm.platform]
     code = quote
-            i1New_ = N+Threads.atomic_add!(NAdd_,$(dtype)(1)) + 1
-            idNew_ = Threads.atomic_add!(idMax_,$(dtype)(1)) + 1
+            i1New_ = N+Threads.atomic_add!(NAdd_,1) + 1
+            idNew_ = Threads.atomic_add!(idMax_,1) + 1
             if nMax_ >= i1New_
-                flagNeighbors_[i1New_] = 1
+                # flagNeighbors_[i1New_] = 1
                 id[i1New_] = idNew_
                 flagRecomputeNeighbors_ = 1
-                flagNeighbors_[i1New_] = 1
+                # flagNeighbors_[i1New_] = 1
                 flagSurvive_[i1New_] = 1
                 $code
             else
-                Threads.atomic_add!(NAdd_,$(dtype)(-1))
+                Threads.atomic_add!(NAdd_,-1)
             end
         end
 
@@ -197,18 +195,18 @@ function removeAgentCode(abm::ABM)
 end
 
 """
-    function addEventRemoveAgent(code::Expr,abm::ABM)
+    function addEventRemoveAgent(code::Expr,com)
 
 Functions that goes over all the calls to `removeAgent` and inserts the compiled code provided by `addGlobalAgentCode`.
 """
-function addEventRemoveAgent(code::Expr,abm::ABM)
+function addEventRemoveAgent(code::Expr,com)
 
     if inexpr(code,:removeAgent)
 
         #Make true indicator of survival at the beginning of the code
         pushfirst!(code.args,:(flagSurvive_[i1_] = 1))
         #Transform code removeAgent
-        code = postwalk(x->@capture(x,removeAgent()) ? removeAgentCode(abm) : x , code)
+        code = postwalk(x->@capture(x,removeAgent()) ? removeAgentCode(com.abm) : x , code)
 
     end
 
@@ -235,30 +233,13 @@ macro removeAgent()
             holeFromRemoveAt_[idNew_] = i1_ 
             flagSurvive_[i1_] = 0
             flagRecomputeNeighbors_ = 1
-            flagNeighbors_[i1_] = 1
+            # flagNeighbors_[i1_] = 1
         end
 
     code = vectorize(code)
 
     #Adapt to platform
     code = cudaAdapt(code,abm.platform)
-
-    return esc(code)
-
-end
-
-"""
-    macro loopOverNeighbors(code)
-
-For the updateInteraction loop, create the double loop to go over all the agents and neighbors.
-"""
-macro loopOverNeighbors(it, code)
-
-    abm = AGENT
-
-    code = neighborsLoop(code,it,abm)
-
-    code = postwalk(x->@capture(x,i_) && i == :i2_ ? it : x, code )
 
     return esc(code)
 
@@ -272,22 +253,23 @@ end
 
 Creates the final code provided to ABM in `agentRule` as a function and adds it to the ABM.
 """
-function agentRuleFunction(abm)
+function agentRuleFunction(com)
 
+    abm = com.abm
     if [i for i in prettify(abm.declaredUpdates[:agentRule]).args if typeof(i) != LineNumberNode] != []
         code = abm.declaredUpdates[:agentRule]
 
         #Custom functions
-        code = addEventAddAgent(code,abm)
-        code = addEventRemoveAgent(code,abm)
+        code = addEventAddAgent(code,com)
+        code = addEventRemoveAgent(code,com)
         #Vectorize
-        code = vectorize(code,abm)
+        code = vectorize(code,com)
         #Put in loop
-        code = makeSimpleLoop(code,abm)
+        code = makeSimpleLoop(code,com)
 
-        func = :(agentRule_($(agentArgs(abm)...),) = $code)
+        func = :(agentRule_($(agentArgs(com)...),) = $code)
         # abm.declaredUpdatesFunction[:AgentRule_] = Main.eval(:($(abm.declaredUpdatesCode[:AgentRule_])))
-        aux = addCuda(:(agentRule_($(agentArgs(abm,sym=:community)...))),abm) #Add code to execute kernel in cuda if GPU
+        aux = addCuda(:(agentRule_($(agentArgs(com,sym=:community)...))),com) #Add code to execute kernel in cuda if GPU
         abm.declaredUpdatesCode[:agentRule] = :(function (community)
                                                         $func
                                                         $aux

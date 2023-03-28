@@ -24,8 +24,18 @@ export DifferentialEquations
 #Constants
 include("./baseStructs.jl")
 include("./constants.jl")
+
+#Platforms
+export CPU, GPU
+include("./platforms.jl")
+
+#Auxiliar
 export euclideanDistance, manhattanDistance, new
 include("./AgentStructure/functions/auxiliar.jl")
+
+#Neighbors
+export computeNeighbors!, Full, VerletTime, VerletDisplacement, CellLinked, CLVD
+include("./neighbors.jl")
 
 #Agent
 export ABM
@@ -42,15 +52,12 @@ include("./AgentStructure/functions/mediumDE.jl")
 #     #Global
 # export globalStep!
 # include("./AgentStructure/functions/global.jl")
-    #Neighbors
-export computeNeighbors!
-include("./AgentStructure/functions/neighbors.jl")
     #Update
 export update!
 include("./AgentStructure/functions/update.jl")
 #     #Step
 # export step!, evolve!
-# include("./AgentStructure/functions/step.jl")
+# include("./AgentStructure/functions/step.jl")   
 
 #Community
 export Community, loadToPlatform!, bringFromPlatform!, getParameter

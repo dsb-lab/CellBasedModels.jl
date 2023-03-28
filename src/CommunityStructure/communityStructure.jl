@@ -53,33 +53,6 @@ These parameters are defined with all the properties in the constant BASEPARAMET
 ||cellAssignedToAgent_|Cell assigned to each com.abm. Used in CellLinked algorithms.|
 ||cellNumAgents_|Number of agents assigned to each cell. Used in CellLinked algorithms.|
 ||cellCumSum_|Cumulative number of agents in the cell list. Used in CellLinked algorithms.|
-|**Position**|||
-||x|Position of the agent in the x axis.|
-||y|Position of the agent in the y axis.|
-||z|Position of the agent in the z axis.|
-||xNew_|Position of the agent in the x axis if updated during a step.|
-||yNew_|Position of the agent in the y axis if updated during a step.|
-||zNew_|Position of the agent in the z axis if updated during a step.|
-|**User declared parameters**|||
-||liNM_|Matrix storing user-defined Local Integer parameters that are not modifiable.|
-||liM_|Matrix storing user-defined Local Integer parameters that are modifiable.|
-||liMNew_|Matrix storing user-defined Local Integer parameters that are modifiable after a step.|
-||lii_|Matrix storing user-defined Local Integer parameters that are reset to zero after every step.|
-||lfNM_|Matrix storing user-defined Local Float parameters that are not modifiable.|
-||lfM_|Matrix storing user-defined Local Float parameters that are not modifiable.|
-||lfMNew_|Matrix storing user-defined Local Float parameters that are not modifiable after a step.|
-||lfi_|Matrix storing user-defined Local Float parameters that are reset to zero after every step.|
-||gfNM_|Matrix storing user-defined Global Integer parameters that are not modifiable.|
-||gfM_|Matrix storing user-defined Global Integer parameters that are not modifiable.|
-||gfMNew_|Matrix storing user-defined Global Integer parameters that are not modifiable after a step.|
-||gfi_|Matrix storing user-defined Global Integer parameters that are reset to zero after every step.|
-||giNM_|Matrix storing user-defined Global Integer parameters that are not modifiable.|
-||giM_|Matrix storing user-defined Global Integer parameters that are not modifiable.|
-||giMNew_|Matrix storing user-defined Global Integer parameters that are not modifiable after a step.|
-||gii_|Matrix storing user-defined Global Integer parameters that are reset to zero after every step.|
-||mediumNM_|Matrix storing user-defined Medium (Float) parameters that are not modifiable.|
-||mediumM_|Matrix storing user-defined Medium (Float) parameters that are not modifiable.|
-||mediumMNew_|Matrix storing user-defined Medium (Float) parameters that are not modifiable after a step.| 
 
 **Constructors**
 
@@ -134,8 +107,6 @@ mutable struct Community
 
     abm
     loaded
-    threads_
-    blocks_
     fileSaving
     pastTimes
 
@@ -143,38 +114,47 @@ mutable struct Community
     dt
     N
     NMedium
-    nMax_
-    id
-    idMax_
     simBox
+
+    id
+
+    nMax_
+    idMax_
     NAdd_
     NRemove_
     NSurvive_
     flagSurvive_
     holeFromRemoveAt_
     repositionAgentInPos_
-
-    skin
-    dtNeighborRecompute
-    nMaxNeighbors
-    cellEdge
     flagRecomputeNeighbors_
-    flagNeighbors_
-    neighborN_
-    neighborList_
-    neighborTimeLastRecompute_
-    posOld_
-    accumulatedDistance_
-    nCells_
-    cellAssignedToAgent_
-    cellNumAgents_
-    cellCumSum_
+    dx
+    dy
+    dz
+    # flagNeighbors_
 
-    meshLateralSize_
+    # skin
+    # dtNeighborRecompute
+    # nMaxNeighbors
+    # cellEdge
+    # flagRecomputeNeighbors_
+    # flagNeighbors_
+    # neighborN_
+    # neighborList_
+    # neighborTimeLastRecompute_
+    # posOld_
+    # accumulatedDistance_
+    # nCells_
+    # cellAssignedToAgent_
+    # cellNumAgents_
+    # cellCumSum_
 
     parameters::OrderedDict{Symbol,AbstractArray}
     vars::AbstractArray
     varsMedium::AbstractArray
+
+    neighbors
+
+    platform
 
     deProblem
     agentAlg
@@ -185,25 +165,29 @@ mutable struct Community
 
     # Constructors
     function Community(
-            abm::ABM;
+            abm::ABM; 
+            dt,
+            t = 0,
+            N = 1,
+            NMedium = nothing,
+            simBox = nothing,
             agentAlg::Union{Symbol,DEAlgorithm} = :Euler,
             agentSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
             mediumAlg::Union{Symbol,Any} = Euler(),
-            mediumSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),            
+            mediumSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
+            neighborsAlg::Neighbors = Full(),       
+            platform::Platform = CPU(),     
             args...
         )
 
         #Check args compulsory to be declared in the community given the agent model
-        for (sym,prop) in pairs(BASEPARAMETERS)
-            for i in prop.necessaryFor
-                if i == abm.neighbors && !(sym in keys(args))
-                    error("Parameter $sym has to be declared in the community for neighborhood style $i.")
-                elseif i == :Medium && length(getSymbolsThat(abm.parameters,:scope,:medium)) > 0 && !(sym in keys(args))
-                    error("Parameter $sym has to be declared in the community for models with medium parameters.")
-                end
-            end
+        if length([i for (i,j) in pairs(abm.parameters) if j.scope == :medium]) > 0 && simBox === nothing
+            error("simBox karguments must be defined when medium models are declared")
         end
-
+        if length([i for (i,j) in pairs(abm.parameters) if j.scope == :medium]) > 0 && NMedium === nothing
+            error("NMedium kargument must be defined when medium models are declared")
+        end
+        
         #Check algorithm
         if typeof(agentAlg) == Symbol
             if !(agentAlg in SOLVERS)
@@ -227,9 +211,9 @@ mutable struct Community
         for (sym,struc) in pairs(abm.parameters)
             symUp = Meta.parse(string(sym,"__"))
             if struc.scope == :agent
-                parameters[sym] = zeros(struc.dtype,dict[:N][1])
+                parameters[sym] = zeros(struc.dtype,N)
                 if struc.update
-                    parameters[symUp] = zeros(struc.dtype,dict[:N][1])
+                    parameters[symUp] = zeros(struc.dtype,N)
                 end
             elseif struc.scope == :model
                 parameters[sym] = zeros(struc.dtype,1)
@@ -244,16 +228,48 @@ mutable struct Community
             end
         end
     
-        com = new(abm, false, 256, 1, nothing, Community[], [j for (i,j) in pairs(dict)]...,parameters,zeros(0),zeros(0),nothing,agentAlg,agentSolveArgs,nothing,mediumAlg,mediumSolveArgs)
+        com = new(
+            deepcopy(abm), 
+            false, 
+            nothing, 
+            Community[], 
+            t, 
+            dt, 
+            N, 
+            NMedium, 
+            simBox,
+            1:N,
+            [nothing for i in 1:12]...,
+            parameters,
+            zeros(0),
+            zeros(0),
+            neighborsAlg,
+            platform,
+            nothing,
+            agentAlg,
+            agentSolveArgs,
+            nothing,
+            mediumAlg,
+            mediumSolveArgs)
 
         #Set GPU threads and blocks
-        setGPUParameters!(com)
+        platformUpdate!(com.platform,com)
 
         for sym in keys(args)
             if sym in keys(com.abm.parameters)
+                println(sym)
+                println(com[sym])
                 setproperty!(com,sym,args[sym])
             end
         end
+
+        global COMUNITY = com
+
+        #Make compiled functions
+        agentRuleFunction(com)
+        agentDEFunction(com)
+        mediumDEFunction(com)
+        # globalFunction(abm)
 
         return com
 
@@ -267,9 +283,58 @@ mutable struct Community
             dict[sym] = nothing
         end
     
-        return new(nothing, nothing, nothing, nothing,Community[], [j for (i,j) in pairs(dict)]...,nothing,nothing,nothing,Euler(),Dict{Symbol,Any}(),nothing,Euler(),Dict{Symbol,Any}())
+        return new(nothing, nothing, nothing, nothing,Community[], [j for (i,j) in pairs(dict)]...,nothing,nothing,Full(),nothing,Euler(),Dict{Symbol,Any}(),nothing,Euler(),Dict{Symbol,Any}())
 
     end
+
+end
+
+"""
+    function cudaAdapt(code,platform)
+
+Adapt specific CPU forms of calling parameters (e.g. Atomic) to CUDA valid code (Atomic -> size 1 CuArray).
+"""
+function cuAdapt(array,com)
+
+    if typeof(com.platform) <: GPU
+
+        #Adapt atomic
+        if typeof(array) <: Atomic
+            return CUDA.ones(1).*array[]
+        else
+            return cu(array)
+        end
+
+    else
+        return array
+    end
+
+    return code
+
+end
+
+function initializeAuxiliarParameters!(com::Community)
+
+    setfield!(com, :id, cuAdapt([1:com.N;zeros(com.nMax_-com.N)],com))
+    setfield!(com, :idMax_, cuAdapt(Threads.Atomic{Int64}(com.N),com))
+    setfield!(com, :NAdd_, cuAdapt(Threads.Atomic{Int64}(0),com))
+    setfield!(com, :NRemove_, cuAdapt(Threads.Atomic{Int64}(0),com))
+    setfield!(com, :NSurvive_, cuAdapt(Threads.Atomic{Int64}(0),com))
+    setfield!(com, :flagSurvive_, cuAdapt(if com.abm.removalOfAgents_; ones(Int64,com.nMax_); else ones(Int64,0); end,com))
+    setfield!(com, :holeFromRemoveAt_, cuAdapt(if com.abm.removalOfAgents_; zeros(Int64,com.nMax_); else zeros(Int64,0); end,com))
+    setfield!(com, :repositionAgentInPos_, cuAdapt(if com.abm.removalOfAgents_; zeros(Int64,com.nMax_); else zeros(Int64,0); end,com))
+    setfield!(com, :flagRecomputeNeighbors_, cuAdapt([1],com))
+    if com.abm.dims > 0
+        setfield!(com, :dx, (com[:simBox][1,2] .- com[:simBox][1,1])./com.NMedium[1])
+    end
+    if com.abm.dims > 1
+        setfield!(com, :dy, (com[:simBox][2,2] .- com[:simBox][2,1])./com.NMedium[2])
+    end
+    if com.abm.dims > 2
+        setfield!(com, :dz, (com[:simBox][3,2] .- com[:simBox][3,1])./com.NMedium[3])
+    end
+
+    return 
 
 end
 
@@ -454,11 +519,13 @@ Preallocating is necesssary as if more agents will be added during the evolution
 function loadToPlatform!(com::Community;preallocateAgents::Int=0)
 
     #Add preallocated agents to maximum
-    N = com.N[1]
+    N = com.N
     NMedium = copy(com.NMedium)
-    dt = com.dt[1]
+    dt = com.dt
     nMax = N + preallocateAgents
-    setfield!(com, :nMax_, com.N .+ preallocateAgents)
+    setfield!(com, :nMax_, com.N + preallocateAgents)
+
+    initializeAuxiliarParameters!(com)
 
     #Start with the new parameters equal to the old positions, just in case
     for (sym,prop) in pairs(com.abm.parameters)
@@ -469,22 +536,22 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
     end
 
     # Transform to the correct platform the parameters
-    platform = com.abm.platform
+    platform = com.platform
     for (sym,prop) in pairs(BASEPARAMETERS)
 
         if :Atomic in prop.shape && platform == :CPU #Do nothing if CPU and atomic
             nothing
         elseif :Atomic in prop.shape && platform == :GPU #Convert atomic to matrix for CUDA
-            setfield!(com,sym,ARRAY[platform]{DTYPE[prop.dtype][platform]}([getproperty(com,sym)[]]))
+            setfield!(com,sym,cuAdapt([getproperty(com,sym)[]],com))
         elseif :Local in prop.shape
             p = getproperty(com,sym)
             if length(p) > 0
-                setfield!(com,sym,ARRAY[platform]{DTYPE[prop.dtype][platform]}([p;zeros(eltype(p),preallocateAgents,size(p)[2:end]...)]))
+                setfield!(com,sym,cuAdapt([p;zeros(eltype(p),preallocateAgents,size(p)[2:end]...)],com))
             else
-                setfield!(com,sym,ARRAY[platform]{DTYPE[prop.dtype][platform]}(getproperty(com,sym)))
+                setfield!(com,sym,cuAdapt(getproperty(com,sym),com))
             end
         else
-            setfield!(com,sym,ARRAY[platform]{DTYPE[prop.dtype][platform]}(getproperty(com,sym)))
+            setfield!(com,sym,cuAdapt(getproperty(com,sym),com))
         end
 
     end            
@@ -537,7 +604,7 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
         varsMedium = cu(varsMedium)
     end
 
-    params = agentArgs(abm)
+    params = agentArgs(com)
     paramsRemove = Tuple([sym for (sym,prop) in pairs(abm.parameters) if (prop.variable)])
     params = Tuple([com[i] for i in params if !(i in paramsRemove)])
 
@@ -585,7 +652,7 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
 
     end
 
-    params = agentArgs(abm)
+    params = agentArgs(com)
     paramsRemove = Tuple([sym for (sym,prop) in pairs(abm.parameters) if (prop.variableMedium)])
     params = Tuple([com[i] for i in params if !(i in paramsRemove)])
 
@@ -615,6 +682,9 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
 
     #Set loaded to true
     setfield!(com,:loaded,true)
+
+    #Neighbors
+    initialize!(com.neighbors,com)
 
     #Compute neighbors and interactions for the first time
     # computeNeighbors!(com)

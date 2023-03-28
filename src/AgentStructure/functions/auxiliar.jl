@@ -75,34 +75,42 @@ baseParameterNew(sym) = Meta.parse(string(split(string(sym),"_")[1],"New_"))
 
 Function that returns the arguments obervable for the constructed functions. If symbol is given, it substitutes by the fielnames in form of by *sym.fieldname*.
 """
-function agentArgsNeighbors(args;sym=nothing,params=BASEPARAMETERS) 
-
-    pars = [i for i in keys(params)]
+function agentArgsNeighbors(args,neig;sym=nothing) 
 
     if sym === nothing
-        return Any[pars...,args...]
+        pars = [:N,:simBox,:flagRecomputeNeighbors_]
+        pars = [pars;[i for i in args]]
+        pars = [pars;[i for i in fieldnames(neig) if i != :f_]]
+        return pars
     else
-        return [Any[:($sym.$i) for i in pars];Any[:($sym.parameters[Symbol($i)]) for i in String.(args)]]
+        pars = [:($sym.N),:($sym.simBox),:($sym.flagRecomputeNeighbors_)]
+        pars = [pars;[:($sym.$i) for i in args]]
+        pars = [pars;[:($sym.neighbors.$i) for i in fieldnames(neig) if i != :f_]]
+        return pars
     end
 
 end
 
-function agentArgs(agent;sym=nothing,l=3,params=BASEPARAMETERS) 
+function agentArgs(com;sym=nothing,l=3,params=BASEPARAMETERS) 
 
     pars = [i for i in keys(params)]
-    args = [i for i in keys(agent.parameters)]
-    argsUp = [new(i) for (i,prop) in pairs(agent.parameters) if prop.update]
+    parsCom = [i for i in fieldnames(typeof(com.neighbors)) if typeof(getfield(com.neighbors,i)) <: Function]
+    args = [i for i in keys(com.abm.parameters)]
+    argsUp = [new(i) for (i,prop) in pairs(com.abm.parameters) if prop.update]
 
     if sym === nothing
         return Any[pars...,
+                    parsCom...,
                     args...,
                     argsUp...,
-                    :threads_,:blocks_]
+                    ]
     else
-        return [Any[:($sym.$i) for i in pars];
+        return [
+                Any[:($sym.$i) for i in pars];
+                Any[:($sym.neighbors.$i) for i in String.(parsCom)];
                 Any[:($sym.parameters[Symbol($i)]) for i in String.(args)];
                 Any[:($sym.parameters[Symbol($i)]) for i in String.(argsUp)];
-                Any[:($sym.threads_),:($sym.blocks_)]]
+                ]
     end
 
 end
@@ -196,9 +204,9 @@ end
 
 Wrap code in loop iterating over the Community agents in the correct platform and dimensions (for medium).
 """
-function makeSimpleLoop(code,agent;nloops=nothing)
+function makeSimpleLoop(code,com;nloops=nothing)
 
-    if agent.platform == :CPU
+    if typeof(com.platform) <: CPU
         
         if nloops === nothing
             return :(@inbounds Threads.@threads for i1_ in 1:1:N[1]; $code; end)
@@ -210,7 +218,7 @@ function makeSimpleLoop(code,agent;nloops=nothing)
             return :(@inbounds Threads.@threads for i1_ in 1:1:NMedium[1]; for i2_ in 1:1:NMedium[2];  for i3_ in 1:1:NMedium[2]; $code; end; end; end)
         end
 
-    else agent.platform == :GPU
+    else com.platform <: GPU
 
         if nloops === nothing
             return :($CUDATHREADS1D; @inbounds for i1_ in index:stride:N[1]; $code; end)
@@ -250,9 +258,9 @@ end
 Add cuda macro to execute the kernel with the correspondent number of threads and blocks.
 If one thread, launches the kernel just with one thread.
 """
-function addCuda(code,platform::Symbol;oneThread=false)
+function addCuda(code,platform::Platform;oneThread=false)
 
-    if platform == :GPU
+    if typeof(platform) <: GPU
 
         if oneThread
 
@@ -260,7 +268,7 @@ function addCuda(code,platform::Symbol;oneThread=false)
         
         else
 
-            code = :(CUDA.@sync @cuda threads=community.threads_ blocks=community.blocks_ $code)
+            code = :(CUDA.@sync @cuda threads=community.platform.threads blocks=community.platform.blocks $code)
 
         end
 
@@ -270,9 +278,9 @@ function addCuda(code,platform::Symbol;oneThread=false)
 
 end
 
-function addCuda(code,agent;oneThread=false)
+function addCuda(code,com;oneThread=false)
 
-    return addCuda(code,agent.platform,oneThread=oneThread)
+    return addCuda(code,com.platform,oneThread=oneThread)
 
 end
 
@@ -283,7 +291,7 @@ Adapt specific CPU forms of calling parameters (e.g. Atomic) to CUDA valid code 
 """
 function cudaAdapt(code,platform)
 
-    if platform == :GPU
+    if typeof(platform) <: GPU
 
         #Adapt atomic
         code = postwalk(x->@capture(x,Threads.atomic_add!(p1_,p2_)) ? :(CUDA.atomic_add!(CUDA.pointer($p1,1),$p2)) : x , code)
@@ -321,12 +329,6 @@ CUDATHREADS1D = quote
     index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
     stride = gridDim().x * blockDim().x
 end
-
-function setGPUParameters!(community)
-    setfield!(community,:threads_,256)
-    setfield!(community,:blocks_,ceil(Int,Array{Float64}(getfield(community,:N))[1]/256))
-end
-
 
 ##############################################################################################################################
 # Vectorize parameters
@@ -411,8 +413,9 @@ end
 
 Function that transforms the code provided in Agent to the vectorized form for wrapping around an executable function.
 """
-function vectorize(code,agent)
+function vectorize(code,com)
 
+    agent = com.abm
     #For user declared symbols
     code = postwalk(x->@capture(x,id) ? :(id[i1_]) : x, code)
     code = postwalk(x->@capture(x,id[f_][f2_]) ? :(id[$f2]) : x, code) #avoid double indexing
@@ -438,7 +441,7 @@ function vectorize(code,agent)
             end
         end
 
-        code = randomAdapt(code, agent)
+        code = randomAdapt(code, com)
 
     end
 
@@ -456,7 +459,7 @@ end
 
 function vectorize(code)
 
-    return vectorize(code,AGENT)
+    return vectorize(code,COMUNITY)
 
 end
 
@@ -563,8 +566,189 @@ function old(sym)
     end
 end
 
-
 ########################################################
 # Macros
 ########################################################
+
+macro loopOverMedium(it1, code)
+
+    abm = AGENT
+
+    if abm.dims != 1
+        error("This macri requires to specify $(abm.dims) iterators.")
+    end
+
+    code = makeSimpleLoop(code,abm,nLoops=abm.dims)
+
+    code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
+
+    return esc(code)
+
+end
+
+macro loopOverMedium(it1, it2, code)
+
+    abm = AGENT
+
+    if abm.dims != 2
+        error("This macri requires to specify $(abm.dims) iterators.")
+    end
+
+    code = makeSimpleLoop(code,abm,nLoops=abm.dims)
+
+    code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
+
+    return esc(code)
+
+end
+
+macro loopOverMedium(it1, it2, it3, code)
+
+    abm = AGENT
+
+    if abm.dims != 3
+        error("This macri requires to specify $(abm.dims) iterators.")
+    end
+
+    code = makeSimpleLoop(code,abm,nLoops=abm.dims)
+
+    code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
+
+    return esc(code)
+
+end
+
+macro loopOverAgents(it1, code)
+
+    abm = AGENT
+
+    code = makeSimpleLoop(code,abm)
+
+    code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
+
+    return esc(code)
+
+end
+
+"""
+    macro loopOverNeighbors(code)
+
+For the updateInteraction loop, create the double loop to go over all the agents and neighbors.
+"""
+macro loopOverNeighbors(it1, it2, code)
+
+    abm = AGENT
+
+    code = neighborsLoop(code,it2,abm)
+
+    code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
+    code = postwalk(x->@capture(x,i_) && i == :i2_ ? it2 : x, code )
+
+    return esc(code)
+
+end
+
+macro ∂(dim,code)
+
+    abm = AGENT
+
+    medium = [i for (i,prop) in abm.parameters if prop.scope == :medium]
+
+    if dim == 1 && abm.dims == 1
+
+        code1p = postwalk(x->@capture(x,m_[g_]) && m in medium ? :($m[$g+1]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_]) && m in medium ? :($m[$g-1]) : x, code)
+
+        return :(($code1p -$code1m)/(dx^2))
+
+    elseif dim == 1 && abm.dims == 2
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g+1,$g2]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g-1,$g2]) : x, code)
+
+        return :(($code1p -$code1m)/(dx^2))
+
+    elseif dim == 1 && abm.dims == 3
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g+1,$g2,$g3]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g-1,$g2,$g3]) : x, code)
+
+        return :(($code1p -$code1m)/(dx^2))
+
+    elseif dim == 2 && abm.dims == 2
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g,$g2+1]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g,$g2-1]) : x, code)
+
+        return :(($code1p -$code1m)/(dy^2))
+
+    elseif dim == 2 && abm.dims == 3
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2+1,$g3]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2-1,$g3]) : x, code)
+
+        return :(($code1p -$code1m)/(dy^2))
+
+    elseif dim == 3 && abm.dims == 3
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2,$g3+1]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2,$g3-1]) : x, code)
+
+        return :(($code1p -$code1m)/(dz^2))
+
+    end
+
+end
+
+macro ∂2(dim,code)
+
+    abm = AGENT
+
+    medium = [i for (i,prop) in abm.parameters if prop.scope == :medium]
+
+    if dim == 1 && abm.dims == 1
+
+        code1p = postwalk(x->@capture(x,m_[g_]) && m in medium ? :($m[$g+1]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_]) && m in medium ? :($m[$g-1]) : x, code)
+
+        return :(($code1p -2*$code +$code1m)/(dx^2))
+
+    elseif dim == 1 && abm.dims == 2
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g+1,$g2]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g-1,$g2]) : x, code)
+
+        return :(($code1p -2*$code +$code1m)/(dx^2))
+
+    elseif dim == 1 && abm.dims == 3
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g+1,$g2,$g3]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g-1,$g2,$g3]) : x, code)
+
+        return :(($code1p -2*$code +$code1m)/(dx^2))
+
+    elseif dim == 2 && abm.dims == 2
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g,$g2+1]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g,$g2-1]) : x, code)
+
+        return :(($code1p -2*$code +$code1m)/(dy^2))
+
+    elseif dim == 2 && abm.dims == 3
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2+1,$g3]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2-1,$g3]) : x, code)
+
+        return :(($code1p -2*$code +$code1m)/(dy^2))
+
+    elseif dim == 3 && abm.dims == 3
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2,$g3+1]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2,$g3-1]) : x, code)
+
+        return :(($code1p -2*$code +$code1m)/(dz^2))
+
+    end
+
+end
 

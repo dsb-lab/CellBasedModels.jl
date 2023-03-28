@@ -2,12 +2,13 @@
 # Convert the equations
 #######################################################################################################
 """
-    function agentDEFunction(abm)
+    function agentDEFunction(com)
 
 Creates the final code provided to Agent in `updateVariable` as a function and adds it to the Agent.
 """
-function agentDEFunction(abm)
+function agentDEFunction(com)
 
+    abm = com.abm
     if isemptyupdaterule(abm,:agentODE) || isemptyupdaterule(abm,:agentSDE)
 
         unwrap = quote end
@@ -19,7 +20,7 @@ function agentDEFunction(abm)
                 push!(unwrap.args, :(@views $sym = var_[$pos,:]))
             end
         end
-        params = agentArgs(abm)
+        params = agentArgs(com)
         paramsRemove = Tuple([sym for (sym,prop) in pairs(abm.parameters) if (prop.variable)])
         params = Tuple([i for i in params if !(i in paramsRemove)])
 
@@ -29,11 +30,11 @@ function agentDEFunction(abm)
             dsym = Meta.parse(string(sym,"__"))
             code = postwalk(x->@capture(x,dt(s_)) && s == sym ? :($dsym[i1_]) : x, code)
         end
-        code = vectorize(code,abm)
+        code = vectorize(code,com)
 
-        code = makeSimpleLoop(code,abm)
+        code = makeSimpleLoop(code,com)
 
-        if abm.platform == :CPU
+        if typeof(com.platform) <: CPU
             abm.declaredUpdatesCode[:agentODE] = 
                 quote
                     function (dVar_,var_,p_,t_)
@@ -65,10 +66,10 @@ function agentDEFunction(abm)
             dsym = Meta.parse(string(sym,"__"))
             code = postwalk(x->@capture(x,dt(s_)) && s == sym ? :($dsym[i1_]) : x, code)
         end
-        code = vectorize(code,abm)
+        code = vectorize(code,com)
 
-        code = makeSimpleLoop(code,abm)
-        if abm.platform == :CPU
+        code = makeSimpleLoop(code,com)
+        if typeof(com.platform) <: CPU
             abm.declaredUpdatesCode[:agentSDE] = 
                 quote
                     function (dVar_,var_,p_,t_)

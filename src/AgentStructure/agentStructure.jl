@@ -91,22 +91,14 @@ Basic structure which contains the user defined parmeters of the model, the user
 Generates an empty instance of ABM to be filled.
 
     function ABM(dims;
-        localInt::Vector{Symbol}=Symbol[],
-        localIntInteraction::Vector{Symbol}=Symbol[],
-        localFloat::Vector{Symbol}=Symbol[],
-        localFloatInteraction::Vector{Symbol}=Symbol[],
-        globalFloat::Vector{Symbol}=Symbol[],
-        globalInt::Vector{Symbol}=Symbol[],
-        globalFloatInteraction::Vector{Symbol}=Symbol[],
-        globalIntInteraction::Vector{Symbol}=Symbol[],
+        agent::Vector{Symbol}=Symbol[],
+        model::Vector{Symbol}=Symbol[],
         medium::Vector{Symbol}=Symbol[],
         baseModelInit::Vector{ABM}=ABM[],
         baseModelEnd::Vector{ABM}=ABM[],
         neighbors::Symbol=:Full,
         integrator::Symbol=:Euler,
         integratorMedium::Symbol=:Centered,
-        platform::Symbol=:CPU,
-        saving::Symbol=:RAM,
         updateGlobal::Expr=quote end,
         agentRule::Expr=quote end,
         updateInteraction::Expr=quote end,
@@ -156,8 +148,7 @@ mutable struct ABM
     declaredUpdates::Dict{Symbol,Expr}
     declaredUpdatesCode::Dict{Symbol,Expr}
     declaredUpdatesFunction::Dict{Symbol,Function}
-    neighbors::Symbol
-    platform::Symbol
+
     removalOfAgents_::Bool
         
     function ABM()
@@ -167,9 +158,6 @@ mutable struct ABM
             Dict{Symbol,Expr}(),
             Dict{Symbol,Expr}(),
             Dict{Symbol,Function}(),
-            :Full,
-            :CPU,
-            false,
             )
     end
 
@@ -195,26 +183,11 @@ mutable struct ABM
 
             baseModelInit::Vector{ABM}=ABM[],
             baseModelEnd::Vector{ABM}=ABM[],
-
-            neighbors::Symbol=:Full,
-            platform::Symbol=:CPU,    
-
-            compile = true,
         )
 
         abm = ABM()
 
         abm.dims = dims
-        if neighbors in NEIGHBORSYMBOLS
-            abm.neighbors = neighbors
-        else
-            error("Neighbors algorithm ", neighbors, " not defined. Specify among: ", NEIGHBORSYMBOLS)
-        end
-        if platform in PLATFORM
-            abm.platform = platform
-        else
-            error("Platform ", platform, " not defined. Specify among: ", PLATFORM)
-        end
 
         #Add basic agent symbols
         for (i,sym) in enumerate(keys(positionParameters))
@@ -298,15 +271,6 @@ mutable struct ABM
         addUpdates!(abm)
 
         global AGENT = deepcopy(abm)
-
-        #Make compiled functions
-        if compile 
-            agentRuleFunction(abm)
-            agentDEFunction(abm)
-            mediumDEFunction(abm)
-            neighborsFunction(abm)
-            # globalFunction(abm)
-        end
 
         return abm        
     end
