@@ -3,6 +3,7 @@ using AgentBasedModels
 using Test
 using DataFrames
 import MacroTools: prettify
+using OrderedCollections
 
 if CUDA.has_cuda()
     TESTPLATFORMS = ["CPU","GPU"]
@@ -13,8 +14,10 @@ end
 
 # testplatforms = ["gpu"]
 
-# include("testAgent.jl")
+include("testAgent.jl")
 # include("testCommunity.jl")
 # include("testOptimization.jl")
-include("testModels.jl")
+# include("testModels.jl")
 # include("testMedium.jl")
+
+# include("testGPU.jl")

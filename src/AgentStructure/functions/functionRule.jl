@@ -252,35 +252,38 @@ end
 
 Creates the final code provided to ABM in `agentRule` as a function and adds it to the ABM.
 """
-function agentRuleFunction(com)
+function functionRule(com,scope)
+
+    ref = addSymbol(scope,"Rule")
 
     abm = com.abm
-    if [i for i in prettify(abm.declaredUpdates[:agentRule]).args if typeof(i) != LineNumberNode] != []
-        code = abm.declaredUpdates[:agentRule]
+    if !isemptyupdaterule(abm,ref)
+        code = abm.declaredUpdates[ref]
 
         #Custom functions
         code = addEventAddAgent(code,com)
         code = addEventRemoveAgent(code,com)
         #Vectorize
         code = vectorize(code,com)
+        code = vectorizeMediumInAgents(code,com)
         #Put in loop
         if ! contains(string(code),"@loopOverAgents")
             code = makeSimpleLoop(code,com)
         end
 
-        func = :(agentRule_($(agentArgs(com)...),) = $code)
+        func = :(rule_($(agentArgs(com)...),) = $code)
         # abm.declaredUpdatesFunction[:AgentRule_] = Main.eval(:($(abm.declaredUpdatesCode[:AgentRule_])))
-        aux = addCuda(:(agentRule_($(agentArgs(com,sym=:community)...))),com) #Add code to execute kernel in cuda if GPU
-        abm.declaredUpdatesCode[:agentRule] = :(function (community)
+        aux = addCuda(:(rule_($(agentArgs(com,sym=:community)...))),scope,com) #Add code to execute kernel in cuda if GPU
+        abm.declaredUpdatesCode[ref] = :(function (community)
                                                         $func
                                                         $aux
                                                         return 
                                                     end)
-        abm.declaredUpdatesFunction[:agentRule] = Main.eval(
-            :($(abm.declaredUpdatesCode[:agentRule]))
+        abm.declaredUpdatesFunction[ref] = Main.eval(
+            :($(abm.declaredUpdatesCode[ref]))
         )
     else
-        abm.declaredUpdatesFunction[:agentRule] = Main.eval(:((community) -> nothing))
+        abm.declaredUpdatesFunction[ref] = Main.eval(:((community) -> nothing))
     end
 
 end
@@ -295,6 +298,36 @@ function agentStepRule!(community)
     checkLoaded(community)
 
     community.abm.declaredUpdatesFunction[:agentRule](community)
+
+    return 
+
+end
+
+"""
+    function agentStepRule!(community)
+
+Function that computes a local step of the community a time step `dt`.
+"""
+function modelStepRule!(community)
+
+    checkLoaded(community)
+
+    community.abm.declaredUpdatesFunction[:modelRule](community)
+
+    return 
+
+end
+
+"""
+    function agentStepRule!(community)
+
+Function that computes a local step of the community a time step `dt`.
+"""
+function mediumStepRule!(community)
+
+    checkLoaded(community)
+
+    community.abm.declaredUpdatesFunction[:mediumRule](community)
 
     return 
 

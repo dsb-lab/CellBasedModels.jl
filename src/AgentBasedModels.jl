@@ -19,7 +19,7 @@ using ProgressMeter
 using Test
 using DifferentialEquations
 
-export DifferentialEquations
+export DifferentialEquations, OrderedDict
 
 #Constants
 include("./baseStructs.jl")
@@ -34,7 +34,7 @@ export CPU, GPU
 include("./platforms.jl")
 
 #Auxiliar
-export euclideanDistance, manhattanDistance, new
+export cellInMesh, euclideanDistance, manhattanDistance, new
 include("./AgentStructure/functions/auxiliar.jl")
 
 #Neighbors
@@ -44,18 +44,12 @@ include("./neighbors.jl")
 #Agent
 export ABM
 include("./AgentStructure/agentStructure.jl")
-    #Agent Rule
-export agentStepRule!, @addAgent, @removeAgent, @loopOverNeighbors, @loopOverAgents, @loopOverMedium
-include("./AgentStructure/functions/agentRule.jl")
-    #Agent DE
-export agentStepDE!
-include("./AgentStructure/functions/agentDE.jl")
-    #Medium DE
-export mediumStepDE!
-include("./AgentStructure/functions/mediumDE.jl")
-#     #Global
-# export globalStep!
-# include("./AgentStructure/functions/global.jl")
+    #Rule
+export agentStepRule!, modelStepRule!, mediumStepRule!, @addAgent, @removeAgent, @loopOverNeighbors, @loopOverAgents, @loopOverMedium
+include("./AgentStructure/functions/functionRule.jl")
+    #DE
+export agentStepDE!, modelStepDE!, mediumStepDE!
+include("./AgentStructure/functions/functionDE.jl")
     #Update
 export update!
 include("./AgentStructure/functions/update.jl")

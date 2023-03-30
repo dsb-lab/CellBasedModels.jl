@@ -1,68 +1,4 @@
 """
-    function getEquation(sym,code,abm)
-
-Sets to true the the variable field of UserParameters
-"""
-function getEquation(sym,code,abm)
-
-    abm.parameters[sym].variable = true
-    abm.parameters[sym].pos = sum([j.variable for (i,j) in abm.parameters])
-
-    return code
-
-end
-
-"""
-    function getEquations!(abm)
-
-Go over the code in updateVariable and looks for parameters defined as variables.
-"""
-function getEquations!(abm)
-
-    for update in keys(abm.declaredUpdates)
-        code = abm.declaredUpdates[update]
-
-        code = postwalk(x->@capture(x,d(s_)=g_) ? getEquation(s,x,abm) : x, code)
-    end
-
-    return
-
-end
-
-"""
-    function getEquationMedium(sym,code,abm)
-
-Sets to true the the variableMedium field of UserParameters
-"""
-function getEquationMedium(sym,code,abm)
-
-    abm.parameters[sym].variableMedium = true
-    abm.parameters[sym].pos = sum([j.variableMedium for (i,j) in abm.parameters])
-
-    return code
-
-end
-
-"""
-    function getEquationsMedium!(abm)
-
-Go over the code in updateVariable and looks for parameters defined as medium variables.
-"""
-function getEquationsMedium!(abm)
-
-    for update in keys(abm.declaredUpdates)
-
-        code = abm.declaredUpdates[update]
-
-        code = postwalk(x->@capture(x,∂t(s_)=g_) ? getEquationMedium(s,x,abm) : x, code)
-
-    end
-
-    return
-
-end
-
-"""
     mutable struct ABM
 
 Basic structure which contains the user defined parmeters of the model, the user rules of the agents, both in high level definition and the functions already compiled.
@@ -158,6 +94,7 @@ mutable struct ABM
             Dict{Symbol,Expr}(),
             Dict{Symbol,Expr}(),
             Dict{Symbol,Function}(),
+            false
             )
     end
 
@@ -171,9 +108,13 @@ mutable struct ABM
 
             model=OrderedDict{Symbol,DataType}(),
             modelRule::Expr=quote end,
+            modelODE::Expr=quote end,
+            modelSDE::Expr=quote end,
 
             medium=OrderedDict{Symbol,DataType}(),
+            mediumRule::Expr=quote end,
             mediumODE::Expr=quote end,
+            mediumSDE::Expr=quote end,
 
             positionParameters=OrderedDict(
                 :x=>Float64,
@@ -192,25 +133,27 @@ mutable struct ABM
         #Add basic agent symbols
         for (i,sym) in enumerate(keys(positionParameters))
             if i <= dims
-                abm.parameters[sym] = UserParameter(positionParameters[sym],:agent)
+                abm.parameters[sym] = UserParameter(i,positionParameters[sym],:agent)
             end
         end
 
-        #Parameters
+        #Go over parameter inputs and add them to list
         for (arg,scope) = [
                             (agent,:agent),
                             (model,:model),
                             (medium,:medium)            
                             ]
+            #Promote input to ordered dictionary
             params = 0
-            if typeof(arg) == DataType
+            if typeof(arg) == DataType #Transform structures like Agent to dictionary
                 params = OrderedDict([i=>j for (i,j) in zip(fieldnames(arg),fieldtypes(arg))])
             else
                 params = OrderedDict(arg)
             end
+            #Add parameters
             for (par,dataType) in pairs(params)
                 checkDeclared(par,abm)
-                abm.parameters[par] = UserParameter(dataType,scope)
+                abm.parameters[par] = UserParameter(par,dataType,scope)
             end
         end
 
@@ -235,11 +178,15 @@ mutable struct ABM
             end
         end
         for (update,code) in (
-                                (:modelRule,modelRule), 
                                 (:agentRule,agentRule), 
                                 (:agentODE,agentODE), 
                                 (:agentSDE,agentSDE), 
+                                (:modelRule,modelRule), 
+                                (:modelODE,modelODE), 
+                                (:modelSDE,modelSDE), 
+                                (:mediumRule,mediumRule), 
                                 (:mediumODE,mediumODE), 
+                                (:mediumSDE,mediumSDE), 
                             )
             if update in keys(abm.declaredUpdates)
                 push!(abm.declaredUpdates[update].args, code)
@@ -258,16 +205,13 @@ mutable struct ABM
         end
 
         #Check if there are removed agents
-        abm.removalOfAgents_ = true
         for update in keys(abm.declaredUpdates)
-            if inexpr(abm.declaredUpdates[update],:removeAgent)
-                abm.removalOfAgents_ = true
-            end
-            if inexpr(abm.declaredUpdates[update],:@removeAgent)
+            if occursin("@removeAgent",string(abm.declaredUpdates[update]))
                 abm.removalOfAgents_ = true
             end
         end        
 
+        checkCustomCode(abm)
         addUpdates!(abm)
 
         global AGENT = deepcopy(abm)
@@ -358,6 +302,9 @@ end
 #     return code
 # end
 
+"""
+Function that adds to the UserParameters is they are updated, variables or variables medium and adds a position assignation when generating the matrices.
+"""
 function addUpdates!(abm::ABM)
 
     ##Assign updates of variable types
@@ -380,52 +327,28 @@ function addUpdates!(abm::ABM)
     end
 
     #Variables
-    count = 0
-    vAgent, agentODE = captureVariables(abm.declaredUpdates[:agentODE])
-    v2, agentSDE = captureVariables(abm.declaredUpdates[:agentSDE])
-    append!(vAgent,v2)
-    for sym in vAgent
-        if sym in keys(abm.parameters)
-            if abm.parameters[sym].scope == :agent && abm.parameters[sym].update
-                error("An agent parameter cannot be updated at the same time in a agentRule and in a agentODE or agentSDE. If you want to modify it, set it with inplace($sym) when assigning it.")
-            elseif abm.parameters[sym].scope == :agent
-                count += 1
-                abm.parameters[sym].variable = true            
-                abm.parameters[sym].pos = count
-            else
-                error("dt in agentODE and agentSDE can only be assigned to agent parameters. Declared with parameter $sym.")
-            end
-        end        
-    end
-    abm.declaredUpdates[:agentODE] = agentODE
-    abm.declaredUpdates[:agentSDE] = agentSDE
-
-    #Variablesmedium
-    count = 0
-    vMedium, mediumODE = captureVariables(abm.declaredUpdates[:mediumODE])
-    for sym in vMedium
-        if sym in keys(abm.parameters)
-            if abm.parameters[sym].scope == :medium && abm.parameters[sym].update
-                error("An agent parameter cannot be updated at the same time in a mediumRule and in a mediumODE or mediumSDE. If you want to modify it, set it with inplace($sym) when assigning it.")
-            elseif abm.parameters[sym].scope == :medium
-                count += 1
-                abm.parameters[sym].variableMedium = true            
-                abm.parameters[sym].pos = count
-            else
-                error("dt in mediumODE can only be assigned to agent parameters. Declared with parameter $sym.")
-            end
-        end        
-    end
-    abm.declaredUpdates[:mediumODE] = mediumODE
-
-    #Error if dt in other place
-    for up in keys(abm.declaredUpdates)
-        if !(up in [:agentODE,:agentSDE,:mediumODE])
-            v, _ = captureVariables(abm.declaredUpdates[up])
-            if !isempty(v)
-                error("Cannot declared a differential equation with the dt() function in $up. The following variables have been declared erroneously:  $(v...) . ")
-            end
+    for scope in [:agent,:model,:medium]
+        ode = addSymbol(scope,"ODE")
+        sde = addSymbol(scope,"SDE")
+        count = 0
+        vAgent, agentODE = captureVariables(abm.declaredUpdates[ode])
+        v2, agentSDE = captureVariables(abm.declaredUpdates[sde])
+        append!(vAgent,v2)
+        for sym in unique(vAgent)
+            if sym in keys(abm.parameters)
+                if abm.parameters[sym].scope == scope && abm.parameters[sym].update
+                    error("$sym parameter is trying to be updated somewhere other than $ode/$sde at the same time. To avoid problems between both rules overwriting the same parameter write inplace($sym).")
+                elseif abm.parameters[sym].scope == scope
+                    count += 1
+                    abm.parameters[sym].variable = true            
+                    abm.parameters[sym].pos = count
+                else
+                    error("dt in $ode and $sde can only be assigned to agent parameters. Declared with $(abm.parameters[sym].scope) parameter $sym.")
+                end
+            end        
         end
+        abm.declaredUpdates[ode] = agentODE
+        abm.declaredUpdates[sde] = agentSDE
     end
 
     #Remove inplace operators
@@ -434,4 +357,50 @@ function addUpdates!(abm::ABM)
     end
     
     return
+end
+
+function checkCustomCode(abm)
+
+    #Error if dt in other place
+    for up in keys(abm.declaredUpdates)
+
+        #dt()
+        if !(up in [:agentODE,:agentSDE,:modelODE,:modelSDE,:mediumODE,:mediumSDE])
+            v, _ = captureVariables(abm.declaredUpdates[up])
+            if !isempty(v)
+                error("Cannot declared a differential equation with the dt() function in $up. The following variables have been declared erroneously:  $(v...) . ")
+            end
+        end
+
+        #@addAgent
+        if !(up in [:agentRule])
+            if occursin("@addAgent",string(abm.declaredUpdates[up]))
+                error("@addAgent can only be declared in agentRule")
+            end
+        end
+
+        #@removeAgent
+        if !(up in [:agentRule])
+            if occursin("@removeAgent",string(abm.declaredUpdates[up]))
+                error("@removeAgent can only be declared in agentRule")
+            end
+        end
+
+        #@loopOverNeighbors
+        if !(up in [:agentRule,:agentODE,:agentSDE])
+            if occursin("@loopOverNeighbors",string(abm.declaredUpdates[up]))
+                error("@loopOverNeighbors can only be declared in agent code")
+            end
+        end
+
+        #@loopOverMedium
+        if !(up in [:mediumRule,:mediumODE,:mediumSDE])
+            if occursin("@loopOverMedium",string(abm.declaredUpdates[up]))
+                error("@loopOverMedium can only be declared in agent code")
+            end
+        end
+
+    end
+
+
 end

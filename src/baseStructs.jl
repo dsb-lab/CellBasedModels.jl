@@ -38,18 +38,20 @@ Structure that contains the properties of each of the user declared parameters.
 | scope::Symbol | If :agent, :model or :medium parameter |
 | update::Bool | If the variable is updated |
 | variable::Bool | Whether if this parameter is described with a Differential Equation |
-| variableMedium::Bool | Whether if this parameter is described with a PDE |
 | pos::Int | Position that ocupies at the integration matrix |
 """
 mutable struct UserParameter
-    dtype::DataType
+    dtype
     scope::Symbol
     update::Bool
     variable::Bool
-    variableMedium::Bool
     pos::Int
 
-    function UserParameter(dataType,scope)
-        return new(dataType,scope,false,false,false,0)
+    function UserParameter(name, dataType, scope)
+        if scope in [:agent,:medium] && !(dataType <: Number)
+            error("Parameters of agent and medium must be of type Number. $name is defined with type $dataType.")
+        else
+            return new(dataType,scope,false,false,0)
+        end
     end
 end

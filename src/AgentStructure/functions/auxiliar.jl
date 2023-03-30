@@ -27,6 +27,7 @@ manhattanDistance(x1,x2) = abs(x1-x2)
 manhattanDistance(x1,x2,y1,y2) = abs(x1-x2)+abs(y1-y2)
 manhattanDistance(x1,x2,y1,y2,z1,z2) = abs(x1-x2)+abs(y1-y2)+abs(z1-z2)
 
+cellInMesh(edge,x,xMin,xMax,nX) = if x > xMax nX elseif x < xMin 1 else Int((x-xMin)÷edge)+1 end
 
 ##############################################################################################################################
 # Delta functions
@@ -42,8 +43,13 @@ functionδ(x,meshSize) = Float32(abs(x) < meshSize/2)
 ##############################################################################################################################
 # Agent functions
 ##############################################################################################################################
-isemptyupdaterule(agent,rule) = [i for i in prettify(agent.declaredUpdates[rule]).args if typeof(i) != LineNumberNode] != []
-
+function isemptyupdaterule(agent,rule) 
+    if rule in keys(agent.declaredUpdates)
+        return [i for i in prettify(agent.declaredUpdates[rule]).args if typeof(i) != LineNumberNode] == []
+    else
+        return true
+    end
+end
 ##############################################################################################################################
 # Agent functions
 ##############################################################################################################################
@@ -97,12 +103,14 @@ function agentArgs(com;sym=nothing,l=3,params=BASEPARAMETERS)
     parsCom = [i for i in fieldnames(typeof(com.neighbors)) if  i != :f_]
     args = [i for i in keys(com.abm.parameters)]
     argsUp = [new(i) for (i,prop) in pairs(com.abm.parameters) if prop.update]
+    parsPlat = [i for i in fieldnames(typeof(com.platform))]
 
     if sym === nothing
         return Any[pars...,
                     parsCom...,
                     args...,
                     argsUp...,
+                    parsPlat...
                     ]
     else
         return [
@@ -110,6 +118,7 @@ function agentArgs(com;sym=nothing,l=3,params=BASEPARAMETERS)
                 Any[:($sym.neighbors.$i) for i in parsCom];
                 Any[:($sym.parameters[Symbol($i)]) for i in String.(args)];
                 Any[:($sym.parameters[Symbol($i)]) for i in String.(argsUp)];
+                Any[:($sym.platform.$i) for i in parsPlat];
                 ]
     end
 
@@ -196,7 +205,7 @@ function makeSimpleLoop(code,com;nloops=nothing)
             return :(@inbounds Threads.@threads for i1_ in 1:1:NMedium[1]; for i2_ in 1:1:NMedium[2];  for i3_ in 1:1:NMedium[3]; $code; end; end; end)
         end
 
-    else com.platform <: GPU
+    else typeof(com.platform) <: GPU
 
         if nloops === nothing
             return :($CUDATHREADS1D; @inbounds for i1_ in index:stride:N[1]; $code; end)
@@ -236,7 +245,8 @@ end
 Add cuda macro to execute the kernel with the correspondent number of threads and blocks.
 If one thread, launches the kernel just with one thread.
 """
-function addCuda(code,platform::Platform;oneThread=false)
+function addCuda(code,scope,platform::Platform;oneThread=false)
+
 
     if typeof(platform) <: GPU
 
@@ -246,7 +256,7 @@ function addCuda(code,platform::Platform;oneThread=false)
         
         else
 
-            code = :(CUDA.@sync @cuda threads=community.platform.threads blocks=community.platform.blocks $code)
+            code = :(CUDA.@sync @cuda threads=community.platform.$(addSymbol(scope,"Threads")) blocks=community.platform.$(addSymbol(scope,"Blocks")) $code)
 
         end
 
@@ -256,9 +266,9 @@ function addCuda(code,platform::Platform;oneThread=false)
 
 end
 
-function addCuda(code,com;oneThread=false)
+function addCuda(code,scope,com;oneThread=false)
 
-    return addCuda(code,com.platform,oneThread=oneThread)
+    return addCuda(code,scope,com.platform,oneThread=oneThread)
 
 end
 
@@ -403,15 +413,19 @@ function vectorize(code,com)
             if :agent == prop.scope
                 code = postwalk(x->@capture(x,g_) && g == sym ? :($g[i1_]) : x, code)
                 code = postwalk(x->@capture(x,g_) && g == new(sym) ? :($g[i1_]) : x, code)
+                code = postwalk(x->@capture(x,g_) && g == opdt(sym) ? :($g[i1_]) : x, code)
                 code = postwalk(x->@capture(x,g_[f_][f2_]) && g == sym ? :($g[$f2]) : x, code) #avoid double indexing
                 code = postwalk(x->@capture(x,g_[f_][f2_]) && g == new(sym) ? :($g[$f2]) : x, code) #avoid double indexing
+                code = postwalk(x->@capture(x,g_[f_][f2_]) && g == opdt(sym) ? :($g[$f2]) : x, code) #avoid double indexing
             elseif :model == prop.scope
                 code = postwalk(x->@capture(x,g_) && g == sym ? :($g[1]) : x, code)
                 code = postwalk(x->@capture(x,g_) && g == new(sym) ? :($g[1]) : x, code)
+                code = postwalk(x->@capture(x,g_) && g == opdt(sym) ? :($g[1]) : x, code)
             elseif :medium == prop.scope
                 args = [:i1_,:i2_,:i3_][1:agent.dims]
                 code = postwalk(x->@capture(x,g_) && g == sym ? :($g[$(args...)]) : x, code)
                 code = postwalk(x->@capture(x,g_) && g == new(sym) ? :($g[$(args...)]) : x, code)
+                code = postwalk(x->@capture(x,g_) && g == opdt(sym) ? :($g[$(args...)]) : x, code)
             elseif :Atomic == prop.scope
                 nothing
             else
@@ -441,6 +455,19 @@ function vectorize(code)
 
 end
 
+function vectorizeMediumInAgents(code,com)
+
+    for (sym,prop) in pairs(com.abm.parameters)
+        if prop.scope == :medium
+            code = postwalk(x->@capture(x,m_[g_]) && (m == sym || m == new(sym)) ? :($m[cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium[1])]) : x ,code)
+            code = postwalk(x->@capture(x,m_[g_,g2_]) && (m == sym || m == new(sym)) ? :($m[cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium[1]),cellInMesh(dy,y[i1_],simBox[2,1],simBox[2,2],NMedium[2])]) : x ,code)
+            code = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && (m == sym || m == new(sym)) ? :($m[cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium[1]),cellInMesh(dy,y[i1_],simBox[2,1],simBox[2,2],NMedium[2]),cellInMesh(dz,z[i1_],simBox[3,1],simBox[3,2],NMedium[3])]) : x ,code)
+        end
+    end
+
+    return code
+
+end
 
 """
     function clean(code,it=5)
@@ -524,11 +551,15 @@ function captureVariables(code)
     function add(a,s)
         push!(a,s)
         unique!(a)
-        return Meta.parse(string(s,"__"))
+        return addSymbol("dt__",s)
     end
     a = []
     code = postwalk(x->@capture(x,dt(m_)) ? add(a,m) : x, code)
     return a, code
+end
+
+function opdt(sym)
+    return Meta.parse(string("dt__",sym))
 end
 
 function new(sym)
@@ -537,11 +568,19 @@ end
 
 function old(sym)
 
-    if string(sym)[end-1:end] == "__"
-        return Meta.parse(string(sym)[1:end-2])
+    if occursin("__",string(sym))
+        if string(sym)[end-1:end] == "__"
+            return Meta.parse(string(sym)[1:end-2])
+        else
+            return sym
+        end
     else
         return sym
     end
+end
+
+function addSymbol(args...)
+    return Meta.parse(string(args...))
 end
 
 ########################################################
