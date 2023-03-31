@@ -646,8 +646,10 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
                     com.parameters[sym] = cuAdapt((prop.dtype)(p),com)
                 end
             end
-            if prop.update
+            if prop.update && !prop.variable
                 com.parameters[new(sym)] = copy(com.parameters[sym])
+            elseif prop.variable
+                com.parameters[new(sym)] = cuAdapt(zeros(0),com)
             end
         end
 
@@ -747,16 +749,16 @@ function linkVariables(com::Community,scope)
 
     for (sym,struc) in pairs(com.abm.parameters)
         if struc.scope == :agent && scope == :agent && struc.variable
-            @views com.parameters[sym] = getfield(com,var2).u[struc.pos,:]
+            @views com.parameters[new(sym)] = getfield(com,var2).u[struc.pos,:]
         elseif struc.scope == :model && scope == :model && struc.variable
-            @views com.parameters[sym] = getfield(com,var2).u[struc.pos:struc.pos]
+            @views com.parameters[new(sym)] = getfield(com,var2).u[struc.pos:struc.pos]
         elseif struc.scope == :medium && scope == :medium && struc.variable
             if com.abm.dims == 1
-                @views com.parameters[sym] = getfield(com,var2).u[struc.pos,:]
+                @views com.parameters[new(sym)] = getfield(com,var2).u[struc.pos,:]
             elseif com.abm.dims == 2
-                @views com.parameters[sym] = getfield(com,var2).u[struc.pos,:,:]
+                @views com.parameters[new(sym)] = getfield(com,var2).u[struc.pos,:,:]
             else
-                @views com.parameters[sym] = getfield(com,var2).u[struc.pos,:,:,:]
+                @views com.parameters[new(sym)] = getfield(com,var2).u[struc.pos,:,:,:]
             end
         end
     end

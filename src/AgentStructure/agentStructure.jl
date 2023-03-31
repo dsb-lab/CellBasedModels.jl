@@ -336,10 +336,9 @@ function addUpdates!(abm::ABM)
         append!(vAgent,v2)
         for sym in unique(vAgent)
             if sym in keys(abm.parameters)
-                if abm.parameters[sym].scope == scope && abm.parameters[sym].update
-                    error("$sym parameter is trying to be updated somewhere other than $ode/$sde at the same time. To avoid problems between both rules overwriting the same parameter write inplace($sym).")
-                elseif abm.parameters[sym].scope == scope
+                if abm.parameters[sym].scope == scope
                     count += 1
+                    abm.parameters[sym].update = true            
                     abm.parameters[sym].variable = true            
                     abm.parameters[sym].pos = count
                 else
