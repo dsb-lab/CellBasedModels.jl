@@ -203,7 +203,7 @@ macro kernelUpdateParameters!(platform)
     #Make assignements
     if platform == :CPU
         code = quote
-            for i in 1:1:N[1]
+            for i in 1:1:N
                 par[i] = parNew[i]
             end
         end
@@ -211,7 +211,7 @@ macro kernelUpdateParameters!(platform)
         code = quote
             index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
             stride = gridDim().x * blockDim().x
-            for i in index:stride:N[1]
+            for i in index:stride:N
                 par[i] = parNew[i]
             end
         end
@@ -253,44 +253,29 @@ macro update!(platform)
 
     if platform == :CPU
         kernel1 = :($(Meta.parse("kernelListSurvived$(platform)!"))(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_))
-        kernel2a = :($(Meta.parse("kernelFillHolesParameters$(platform)!"))(getfield(community,sym),community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_))
-        kernel2b = :($(Meta.parse("kernelFillHolesParameters$(platform)!"))(getfield(community.neighbors,sym),community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_))
-        kernel3a = :($(Meta.parse("kernelFillHolesParameters$(platform)!"))(community.parameters[new(sym)],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_))
-        kernel3b = :($(Meta.parse("kernelFillHolesParameters$(platform)!"))(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_))
+        kernel2 = :($(Meta.parse("kernelFillHolesParameters$(platform)!"))(p,community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_))
         kernel4 = :($(Meta.parse("kernelUpdateParameters$(platform)!"))(community.N,community.parameters[sym],community.parameters[new(sym)]))
 
     else
         #List and fill holes left from agent removal
         kernel1 = quote
             kernel1 = @cuda launch=false $(Meta.parse("kernelListSurvived$(platform)!"))(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_)
-            kernel1(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_;threads=community.threads_,blocks=community.blocks_)
+            kernel1(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_;threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
         end
-        kernel2a = quote
-            kernel3 = @cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(getfield(community,sym),community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
-            kernel3(getfield(community,sym),community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.threads_,blocks=community.blocks_)
-        end
-        kernel2b = quote
-            kernel3 = @cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(getfield(community.neighbors,sym),community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
-            kernel3(getfield(community.neighbors,sym),community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.threads_,blocks=community.blocks_)
-        end
-        kernel3a = quote
-            kernel3a = @cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(community.parameters[new(sym)],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
-            kernel3a(community.parameters[new(sym)],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.threads_,blocks=community.blocks_)
-        end
-        kernel3b = quote
-            kernel3b = @cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
-            kernel3b(community.parameters[sym],community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.threads_,blocks=community.blocks_)
+        kernel2 = quote
+            kernel2 = @cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(p,community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
+            kernel2(p,community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
         end
         kernel4 = quote
-            kernel4 = @cuda launch=false $(Meta.parse("kernelUpdateParameters$(platform)!"))(community.N,community.parameters[sym],community.parameters[new(sym)])
-            kernel4(community.N,community.parameters[sym],community.parameters[new(sym)];threads=community.threads_,blocks=community.blocks_)
+            kernel4 = @cuda launch=false $(Meta.parse("kernelUpdateParameters$(platform)!"))(community.N,p,p__)
+            kernel4(community.N,p,p__;threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
         end
     end
 
     code = quote end
     if platform == :CPU
         code = quote
-            setfield!(community,:N, community.N + community.NAdd_[] - community.NRemove_[] )
+            setfield!(community,:N, Int(community.N + community.NAdd_[] - community.NRemove_[] ) )
             community.NAdd_[] = 0
             community.NRemove_[] = 0
             #Clear flags
@@ -301,7 +286,7 @@ macro update!(platform)
     else
         code = quote
             #Update number of agents
-            CUDA.@allowscalar setfield!(community,:N, community.N + community.NAdd_[1] - community.NRemove_[1] )
+            CUDA.@allowscalar setfield!(community,:N, Int(community.N + community.NAdd_[1] - community.NRemove_[1] ) )
             community.NAdd_ .= 0
             community.NRemove_ .= 0
             #Clear flags
@@ -314,40 +299,55 @@ macro update!(platform)
     return :(function $(Meta.parse("update$(platform)!"))(community)
 
             #List and fill holes left from agent removal
-            $kernel1
-            for sym in [:id,:vars,:varsMedium]
-                p = getfield(community,sym)
+            if community.abm.removalOfAgents_
+                $kernel1
+                #id
+                p = getfield(community,:id)
                 if size(p)[1] == community.nMax_
-                    $kernel2a
+                    $kernel2
                 end
-            end
-            for sym in fieldnames(typeof(community.neighbors))
-                p = getfield(community.neighbors,sym)
-                if !(typeof(p) <: Function)
-                    if length(size(p)) > 0
-                        if size(p)[1] == community.nMax_
-                            $kernel2b
+                #agentDE
+                if community.agentDEProblem !== nothing
+                    p = getfield(community.agentDEProblem,:u)
+                    if size(p)[1] == community.nMax_
+                        $kernel2
+                    end
+                end
+                #neighbors
+                for sym in fieldnames(typeof(community.neighbors))
+                    p = getfield(community.neighbors,sym)
+                    if !(typeof(p) <: Function)
+                        if length(size(p)) > 0
+                            if size(p)[1] == community.nMax_
+                                $kernel2
+                            end
                         end
                     end
                 end
-            end
-            #Allocate parameters
-            for (sym,prop) in pairs(community.abm.parameters)
-                if prop.scope == :agent && prop.update
-                    $kernel3a
-                elseif prop.scope == :agent
-                    $kernel3b
+                #Allocate parameters
+                for (sym,prop) in pairs(community.abm.parameters)
+                    if prop.scope == :agent && prop.update
+                        p = community.parameters[new(sym)]
+                        $kernel2
+                    elseif prop.scope == :agent
+                        p = community.parameters[sym]
+                        $kernel2
+                    end
                 end
             end
             $code
             #Allocate parameters
             for (sym,prop) in pairs(community.abm.parameters)
-                if prop.scope == :agent && prop.update
-                    $kernel4
-                elseif prop.scope == :model && prop.update
-                    community[sym] .= community[new(sym)]
-                elseif prop.scope == :medium && prop.update
-                    community[sym] .= community[new(sym)]
+                if prop.update
+                    if prop.scope == :agent
+                        p = community[sym]
+                        p__ = community[new(sym)]
+                        $kernel4
+                    elseif prop.scope == :model
+                        community[sym] .= community[new(sym)]
+                    elseif prop.scope == :medium
+                        community[sym] .= community[new(sym)]
+                    end
                 end
             end
             #Update time

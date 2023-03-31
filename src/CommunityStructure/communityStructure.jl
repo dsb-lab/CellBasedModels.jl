@@ -264,7 +264,7 @@ function setupBaseParameters!(com,dt,t,N,id,NMedium,simBox)
     #dt
     if !all(!isemptyupdaterule(com.abm,rule) for rule in [:agentODE,:agentSDE,:mediumODE]) && dt === nothing
         error("dt key argument must be defined when models use differential equation rules.")
-    elseif !all(!isemptyupdaterule(com.abm,rule) for rule in [:agentODE,:agentSDE,:mediumODE])
+    elseif all([!isemptyupdaterule(com.abm,rule) for rule in [:agentODE,:agentSDE,:modelODE,:modelSDE,:mediumODE,:mediumSDE]]) && dt === nothing
         setfield!(com,:dt, 1)
     else
         setfield!(com,:dt,dt)
@@ -272,7 +272,7 @@ function setupBaseParameters!(com,dt,t,N,id,NMedium,simBox)
     #t
     setfield!(com,:t,t)
     #N
-    setfield!(com,:N,N)
+    setfield!(com,:N,Int(N))
     #id
     if length(id) != N
         error("id has to be a Int Array of the same length as the number of agents N.")
@@ -311,39 +311,21 @@ function setupUserParameters!(com,args)
     for (sym,struc) in pairs(com.abm.parameters)
         if struc.scope == :agent
             parameters[sym] = zeros(struc.dtype,com.N)
-            if struc.update
-                parameters[new(sym)] = zeros(struc.dtype,com.N)
-            end
         elseif struc.scope == :model
             if struc.dtype <: Number
                 parameters[sym] = zeros(struc.dtype,1)
-                if struc.update
-                    parameters[new(sym)] = zeros(struc.dtype,1)
-                end
             elseif !(sym in keys(args))
                 parameters[sym] = zeros(1)
-                if struc.update
-                    parameters[new(sym)] = zeros(1)
-                end
             else #Initialize as an array
                 parameters[sym] = copy(args[sym])
-                if struc.update
-                    parameters[new(sym)] = copy(args[sym])
-                end
             end
         elseif struc.scope == :medium
             parameters[sym] = zeros(struc.dtype,com.NMedium...)
-            if struc.update
-                parameters[new(sym)] = zeros(struc.dtype,com.NMedium...)
-            end
         end
         #Initialize the parameters that have been declared
         if sym in keys(args)
             try
                 parameters[sym] .= args[sym]
-                if struc.update
-                    parameters[new(sym)] .= args[sym]
-                end
             catch
                 error("Provided initialization for parameter $sym is incorrect. Expected type $(com.abm.parameters[sym].dtype) and size $(size(params[sym])); got size $(size(args[sym])).")
             end
@@ -400,46 +382,9 @@ function Base.getindex(community::Community,timePoint::Number)
     #Assign base parameters
     if 1 > timePoint || timePoint > length(community.pastTimes)
         error("Only time points from 1 to $(length(community.pastTimes)) present in the Community.")
-    elseif community.loaded 
-        error("Community has to be in RAM before calling a time point saved in RAM. Execute `bringFromPlatform!` before using this.")
     else
-        com = community.pastTimes[timePoint]
-        for (sym,prop) in pairs(BASEPARAMETERS)
-            if 0 == prop.saveLevel
-                if :Atomic in prop.shape #Do nothing if CPU and atomic
-                    setfield!(com,sym,getfield(community,sym))
-                else
-                    setfield!(com,sym,Array(getfield(community,sym)))
-                end
-            end
-        end
-
-        for (i,sym) in enumerate(POSITIONPARAMETERS[1:1:community.com.abm.dims])
-            if !community.com.abm.posUpdated_[i]
-                p = getfield(community,sym)
-                setfield!(com,sym,p)
-            end
-        end
+        return com = community.pastTimes[timePoint]
     end
-
-    #Assign agent
-    com.abm = community.abm
-    setfield!(com,:loaded,community.loaded)
-    com.platform = community.platform
-    com.fileSaving = nothing
-
-    #Initializing parameters that were nothing before
-    dict = OrderedDict()
-    for (sym,prop) in pairs(BASEPARAMETERS)
-        if getfield(com,sym) === nothing
-            setfield!(com,sym,prop.initialize(dict,com.abm))
-            dict[sym] = getfield(com,sym)
-        else
-            dict[sym] = getfield(com,sym)
-        end
-    end
-
-    return com
 
 end
 
@@ -555,7 +500,7 @@ end
 ######################################################################################################
 # Load to platform
 ######################################################################################################
-function loadBaseParameters!(com::Community,preallocateAgents)
+function loadBaseParameters!(com::Community,preallocateAgents::Int)
 
     setfield!(com, :id, cuAdapt([com.id;zeros(preallocateAgents)],com))
     setfield!(com, :NMedium, cuAdapt(com.NMedium,com))
@@ -690,16 +635,19 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
         loadBaseParameters!(com,preallocateAgents)
 
         #Adapt user parameters
-        for sym in keys(com.parameters)
+        for (sym,prop) in pairs(com.abm.parameters)
             p = getproperty(com,sym)
-            if com.abm.parameters[old(sym)].scope == :agent
-                com.parameters[sym] = cuAdapt(Array{com.abm.parameters[old(sym)].dtype}([p;zeros(com.abm.parameters[old(sym)].dtype,preallocateAgents)]),com)
-            elseif com.abm.parameters[old(sym)].scope in [:model,:medium]
-                if com.abm.parameters[old(sym)].dtype <: Number
-                    com.parameters[sym] = cuAdapt(Array{com.abm.parameters[old(sym)].dtype}(p),com)
+            if prop.scope == :agent
+                com.parameters[sym] = cuAdapt(Array{prop.dtype}([p;zeros(prop.dtype,preallocateAgents)]),com)
+            elseif prop.scope in [:model,:medium]
+                if prop.dtype <: Number
+                    com.parameters[sym] = cuAdapt(Array{prop.dtype}(p),com)
                 else
-                    com.parameters[sym] = cuAdapt((com.abm.parameters[old(sym)].dtype)(p),com)
+                    com.parameters[sym] = cuAdapt((prop.dtype)(p),com)
                 end
+            end
+            if prop.update
+                com.parameters[new(sym)] = copy(com.parameters[sym])
             end
         end
 
@@ -740,31 +688,36 @@ function bringFromPlatform!(com::Community)
     # Transform to the correct platform the parameters
     for (sym,prop) in pairs(com.abm.parameters)
         p = com.parameters[sym]
+        #Remove auxiliar
+        if prop.update
+            delete!(com.parameters,new(sym))
+        end
         if prop.scope == :agent
-            com.parameters[sym] = Array(p[1:N])
-            if prop.update
-                com.parameters[new(sym)] = zeros(0)
-            end
+            com.parameters[sym] = Array{prop.dtype}(p)[1:N]
         elseif prop.scope in [:model,:medium]
-            com.parameters[sym] = Array(p)
-            if prop.update
-                com.parameters[new(sym)] = zeros(0)
+            if prop.dtype <: Number
+                com.parameters[sym] = Array{prop.dtype}(p)
+            else
+                com.parameters[sym] = prop.dtype(p)
             end
         end
     end
 
     for i in fieldnames(Community)
         if string(i)[end:end] == "_"
-            setfield!(com,i) = nothing
+            setfield!(com,i,nothing)
         end
     end
-    com.id = Array(com.id)[1:N]
+    setfield!(com,:id, Array{Int64}(com.id)[1:N])
     neig = com.neighbors
     for i in fieldnames(typeof(neig))
         if string(i)[end:end] == "_"
-            setfield!(neig,i) = nothing
+            setfield!(neig,i, nothing)
         end
     end
+    setfield!(com,:agentDEProblem, nothing)
+    setfield!(com,:modelDEProblem, nothing)
+    setfield!(com,:mediumDEProblem, nothing)
 
     #Set loaded to false
     setfield!(com,:loaded,false)

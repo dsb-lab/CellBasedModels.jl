@@ -35,7 +35,7 @@ include("./platforms.jl")
 
 #Auxiliar
 export cellInMesh, euclideanDistance, manhattanDistance, new
-include("./AgentStructure/functions/auxiliar.jl")
+include("./AgentStructure/auxiliar.jl")
 
 #Neighbors
 export computeNeighbors!, Full, VerletTime, VerletDisplacement, CellLinked, CLVD
@@ -46,13 +46,10 @@ export ABM
 include("./AgentStructure/agentStructure.jl")
     #Rule
 export agentStepRule!, modelStepRule!, mediumStepRule!, @addAgent, @removeAgent, @loopOverNeighbors, @loopOverAgents, @loopOverMedium
-include("./AgentStructure/functions/functionRule.jl")
+include("./AgentStructure/functionRule.jl")
     #DE
 export agentStepDE!, modelStepDE!, mediumStepDE!
-include("./AgentStructure/functions/functionDE.jl")
-    #Update
-export update!
-include("./AgentStructure/functions/update.jl")
+include("./AgentStructure/functionDE.jl")
 #     #Step
 # export step!, evolve!
 # include("./AgentStructure/functions/step.jl")   
@@ -60,8 +57,12 @@ include("./AgentStructure/functions/update.jl")
 #Community
 export Community, loadToPlatform!, bringFromPlatform!, getParameter
 include("./CommunityStructure/communityStructure.jl")
+    #IO
 export saveJLD2, saveRAM!, loadJLD2
 include("./CommunityStructure/IO.jl")
+    #Update
+export update!
+include("./CommunityStructure/update.jl")
 # export initializeSpheresCommunity, packagingCompactHexagonal, packagingCubic
 # include("./CommunityStructure/initializers.jl")
 

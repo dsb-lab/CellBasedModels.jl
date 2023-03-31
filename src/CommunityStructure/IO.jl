@@ -23,12 +23,13 @@ function saveRAM!(community::Community)
         end
     end
 
-    for i in fieldnames(Community)
-        if !(string(i)[end:end] == "_")
-            setfield!(com,i,copy(getfield(community,i)))
-        end
+    for i in [:dt,:t,:N]
+        setfield!(com,i,copy(getfield(community,i)))
     end
-    setfield!(com,:id,copy(Array(getfield(community,:id))[1:com.N]))
+    #id
+    setfield!(com,:id,copy(Array{Int64}(getfield(community,:id))[1:com.N]))
+    setfield!(com,:NMedium,copy(Array{Int64}(getfield(community,:NMedium))))
+    setfield!(com,:simBox,copy(Array{Float64}(getfield(community,:simBox))))
 
     push!(community.pastTimes,com)
 
