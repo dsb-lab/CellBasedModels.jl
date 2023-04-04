@@ -22,12 +22,28 @@ function functionDE(com,scope,type)
             if prop.variable
                 pos = prop.pos
                 dsym = addSymbol("dt__",sym)
-                push!(unwrap.args, :(@views $dsym = dVar_[$pos,:]))
-                push!(unwrap.args, :(@views $sym = var_[$pos,:]))
+                if prop.scope == :agent && scope == :agent
+                    push!(unwrap.args, :(@views $dsym = dVar_[$pos,:]))
+                    push!(unwrap.args, :(@views $sym = var_[$pos,:]))
+                elseif prop.scope == :model && scope == :model
+                    push!(unwrap.args, :(@views $dsym = dVar_[$pos:$pos]))
+                    push!(unwrap.args, :(@views $sym = var_[$pos:$pos]))
+                elseif prop.scope == :medium && scope == :medium
+                    if com.abm.dims == 1
+                        push!(unwrap.args, :(@views $dsym = dVar_[$pos,:]))
+                        push!(unwrap.args, :(@views $sym = var_[$pos,:]))
+                    elseif com.abm.dims == 2
+                        push!(unwrap.args, :(@views $dsym = dVar_[$pos,:,:]))
+                        push!(unwrap.args, :(@views $sym = var_[$pos,:,:]))
+                    elseif com.abm.dims == 3
+                        push!(unwrap.args, :(@views $dsym = dVar_[$pos,:,:,:]))
+                        push!(unwrap.args, :(@views $sym = var_[$pos,:,:,:]))
+                    end
+                end
             end
         end
         params = agentArgs(com)
-        paramsRemove = Tuple([sym for (sym,prop) in pairs(abm.parameters) if prop.variable])
+        paramsRemove = Tuple([sym for (sym,prop) in pairs(abm.parameters) if prop.variable && prop.scope == scope])
         params = Tuple([i for i in params if !(i in paramsRemove)])
 
         #Get deterministic function
@@ -41,8 +57,10 @@ function functionDE(com,scope,type)
             code = vectorizeMediumInAgents(code,com)
         end
 
-        if ! contains(string(code),"@loopOverAgents")
+        if ! contains(string(code),"@loopOverAgents") && scope == :agent
             code = makeSimpleLoop(code,com)
+        elseif ! contains(string(code),"@loopOverMedium") && scope == :medium
+            code = makeSimpleLoop(code,com,nloops=abm.dims)
         end
 
         if typeof(com.platform) <: CPU
@@ -52,6 +70,7 @@ function functionDE(com,scope,type)
                         ($(params...),) = p_
                         $unwrap
                         $code
+
                         return
                     end
                 end
@@ -70,6 +89,8 @@ function functionDE(com,scope,type)
                         function kernel(dVar_,var_,$(params...))
                             $unwrap
                             $code
+
+                            return
                         end
                         @cuda threads=p_[end-$(tpos[1])] blocks=p_[end-$(tpos[2])] kernel(dVar_,var_,p_...)
 

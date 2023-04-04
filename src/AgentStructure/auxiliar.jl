@@ -208,12 +208,38 @@ function makeSimpleLoop(code,com;nloops=nothing)
     else typeof(com.platform) <: GPU
 
         if nloops === nothing
-            return :($CUDATHREADS1D; @inbounds for i1_ in index:stride:N[1]; $code; end)
+            CUDATHREADS1D = quote
+                index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+                stride = gridDim().x * blockDim().x
+            end            
+
+            return :($CUDATHREADS1D; @inbounds for i1_ in index:stride:N; $code; end)
         elseif nloops == 1
+            CUDATHREADS1D = quote
+                index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+                stride = gridDim().x * blockDim().x
+            end            
+
             return :($CUDATHREADS1D; @inbounds for i1_ in index:stride:NMedium[1]; $code; end)
         elseif nloops == 2
+            CUDATHREADS2D = quote
+                index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+                stride = gridDim().x * blockDim().x
+                indexY = (blockIdx().y - 1) * blockDim().y + threadIdx().y
+                strideY = gridDim().y * blockDim().y
+            end            
+
             return :($CUDATHREADS2D; @inbounds for i1_ in index:stride:NMedium[1]; for i2_ in indexY:strideY:NMedium[2]; $code; end; end)
         elseif nloops == 3
+            CUDATHREADS3D = quote
+                index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+                stride = gridDim().x * blockDim().x
+                indexY = (blockIdx().y - 1) * blockDim().y + threadIdx().y
+                strideY = gridDim().y * blockDim().y
+                indexZ = (blockIdx().z - 1) * blockDim().z + threadIdx().z
+                strideZ = gridDim().z * blockDim().z
+            end            
+
             return :($CUDATHREADS3D; @inbounds for i1_ in index:stride:NMedium[1]; for i2_ in indexY:strideY:NMedium[2]; for i3_ in indexZ:strideZ:NMedium[3]; $code; end; end; end)
         end
 
@@ -312,12 +338,6 @@ macro cudaAdapt(code)
 
 end
 
-############ I think this code can be removed
-CUDATHREADS1D = quote
-    index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
-    stride = gridDim().x * blockDim().x
-end
-
 ##############################################################################################################################
 # Vectorize parameters
 ##############################################################################################################################
@@ -414,13 +434,18 @@ function vectorize(code,com)
                 code = postwalk(x->@capture(x,g_) && g == sym ? :($g[i1_]) : x, code)
                 code = postwalk(x->@capture(x,g_) && g == new(sym) ? :($g[i1_]) : x, code)
                 code = postwalk(x->@capture(x,g_) && g == opdt(sym) ? :($g[i1_]) : x, code)
-                code = postwalk(x->@capture(x,g_[f_][f2_]) && g == sym ? :($g[$f2]) : x, code) #avoid double indexing
-                code = postwalk(x->@capture(x,g_[f_][f2_]) && g == new(sym) ? :($g[$f2]) : x, code) #avoid double indexing
-                code = postwalk(x->@capture(x,g_[f_][f2_]) && g == opdt(sym) ? :($g[$f2]) : x, code) #avoid double indexing
-            elseif :model == prop.scope
+                code = postwalk(x->@capture(x,g_[f_][f2__]) && g == sym ? :($g[$(f2...)]) : x, code) #avoid double indexing
+                code = postwalk(x->@capture(x,g_[f_][f2__]) && g == new(sym) ? :($g[$(f2...)]) : x, code) #avoid double indexing
+                code = postwalk(x->@capture(x,g_[f_][f2__]) && g == opdt(sym) ? :($g[$(f2...)]) : x, code) #avoid double indexing
+            elseif :model == prop.scope && prop.dtype <: Number
                 code = postwalk(x->@capture(x,g_) && g == sym ? :($g[1]) : x, code)
                 code = postwalk(x->@capture(x,g_) && g == new(sym) ? :($g[1]) : x, code)
                 code = postwalk(x->@capture(x,g_) && g == opdt(sym) ? :($g[1]) : x, code)
+                code = postwalk(x->@capture(x,g_[f_][f2__]) && g == sym ? :($g[$(f2...)]) : x, code) #avoid double indexing
+                code = postwalk(x->@capture(x,g_[f_][f2__]) && g == new(sym) ? :($g[$(f2...)]) : x, code) #avoid double indexing
+                code = postwalk(x->@capture(x,g_[f_][f2__]) && g == opdt(sym) ? :($g[$(f2...)]) : x, code) #avoid double indexing
+            elseif :model == prop.scope && !(prop.dtype <: Number)
+                nothing
             elseif :medium == prop.scope
                 args = [:i1_,:i2_,:i3_][1:agent.dims]
                 code = postwalk(x->@capture(x,g_) && g == sym ? :($g[$(args...)]) : x, code)
@@ -671,20 +696,19 @@ end
 
 For the updateInteraction loop, create the double loop to go over all the agents and neighbors.
 """
-macro loopOverNeighbors(it1, it2, code)
+macro loopOverNeighbors(it1, code)
 
     com = COMUNITY
 
-    code = neighborsLoop(code,it2,com.neighbors,com.abm.dims)
+    code = neighborsLoop(code,it1,com.neighbors,com.abm.dims)
 
-    code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
-    code = postwalk(x->@capture(x,i_) && i == :i2_ ? it2 : x, code )
+    code = postwalk(x->@capture(x,i_) && i == :i2_ ? it1 : x, code )
 
     return esc(code)
 
 end
 
-macro loopOverNeighbors(it1, code)
+macro loopOverNeighbors(code)
 
     if !(isa(code, Expr) && code.head === :for)
         throw(ArgumentError("@threads requires a `for` loop expression"))
@@ -697,7 +721,6 @@ macro loopOverNeighbors(it1, code)
 
     code = neighborsLoop(code,it2,com.neighbors,com.abm.dims)
 
-    code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
     code = postwalk(x->@capture(x,i_) && i == :i2_ ? it2 : x, code )
 
     return esc(code)

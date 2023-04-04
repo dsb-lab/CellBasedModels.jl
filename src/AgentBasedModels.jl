@@ -18,6 +18,7 @@ import SpecialFunctions
 using ProgressMeter
 using Test
 using DifferentialEquations
+import UUIDs: uuid1
 
 export DifferentialEquations, OrderedDict
 

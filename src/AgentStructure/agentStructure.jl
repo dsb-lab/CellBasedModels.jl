@@ -272,7 +272,7 @@ function change(x,code)
     end
 
     if @capture(code.args[1],g_[h__]) && g == x
-        code.args[1] = Meta.parse(string(x,"__[$(h...)]"))
+        code.args[1] = :($(new(x))[$(h...)])
     end
 
     return code

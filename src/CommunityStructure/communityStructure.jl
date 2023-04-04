@@ -106,6 +106,7 @@ getParameter(com,[:dt,:x]) #Return the parameters dt and x of all agents at all 
 mutable struct Community
 
     abm
+    uuid
 
     t
     dt
@@ -145,7 +146,6 @@ mutable struct Community
     mediumSolveArgs
 
     loaded
-    fileSaving
 
     pastTimes::Array{Community}
 
@@ -157,7 +157,6 @@ mutable struct Community
             t::AbstractFloat = 0.,
             N::Int = 1,
             id::AbstractArray{Int} = 1:N,
-            fileSaving = nothing,
             NMedium::Union{Nothing,Vector{<:Int}} = nothing,
             simBox::Union{Nothing,Matrix{<:Number}} = nothing,
 
@@ -193,8 +192,11 @@ mutable struct Community
         setfield!(com,:modelSolveArgs,modelSolveArgs)
         setfield!(com,:mediumAlg,mediumAlg)
         setfield!(com,:mediumSolveArgs,mediumSolveArgs)
-        setfield!(com,:fileSaving,fileSaving)
         setfield!(com,:loaded,false)
+        setfield!(com,:uuid,uuid1())
+
+        #Save global reference
+        global COMUNITY = com
 
         #Make compiled functions
         for (scope,type) in zip(
@@ -236,8 +238,8 @@ mutable struct Community
             nothing,
             nothing,
             nothing,
-            OrderedDict{Symbol,AbstractArray}(),
             nothing,
+            OrderedDict{Symbol,AbstractArray}(),
             nothing,
             nothing,
             nothing,
@@ -262,10 +264,10 @@ Function to setup the base parameters (t,dt,simBox...) of the Community object.
 """
 function setupBaseParameters!(com,dt,t,N,id,NMedium,simBox)
     #dt
-    if !all(!isemptyupdaterule(com.abm,rule) for rule in [:agentODE,:agentSDE,:mediumODE]) && dt === nothing
+    if !all(isemptyupdaterule(com.abm,rule) for rule in [:agentODE,:agentSDE,:mediumODE]) && dt === nothing
         error("dt key argument must be defined when models use differential equation rules.")
-    elseif all([!isemptyupdaterule(com.abm,rule) for rule in [:agentODE,:agentSDE,:modelODE,:modelSDE,:mediumODE,:mediumSDE]]) && dt === nothing
-        setfield!(com,:dt, 1)
+    elseif all([isemptyupdaterule(com.abm,rule) for rule in [:agentODE,:agentSDE,:modelODE,:modelSDE,:mediumODE,:mediumSDE]]) && dt === nothing
+        setfield!(com,:dt, 1.)
     else
         setfield!(com,:dt,dt)
     end
@@ -288,9 +290,12 @@ function setupBaseParameters!(com,dt,t,N,id,NMedium,simBox)
         else
             setfield!(com,:NMedium,NMedium)
         end
+    else
+        setfield!(com,:NMedium,[0,0,0][1:com.abm.dims])
     end
     #simBox
-    if length([i for (i,j) in pairs(com.abm.parameters) if j.scope == :medium]) > 0 && simBox === nothing
+    if ( length([i for (i,j) in pairs(com.abm.parameters) if j.scope == :medium]) > 0 && simBox === nothing ) ||
+       ( typeof(com.platform) in [CLVD,CellLinked] && simBox === nothing )
         error("simBox key argument must be defined when models with medium are declared.")
     elseif simBox !== nothing
         if size(simBox) != (com.abm.dims,2)
@@ -298,6 +303,8 @@ function setupBaseParameters!(com,dt,t,N,id,NMedium,simBox)
         else
             setfield!(com,:simBox,simBox)
         end
+    else
+        setfield!(com,:simBox,[0 1.;0 1;0 1][1:com.abm.dims,:])
     end
 end
 
@@ -348,7 +355,7 @@ function cuAdapt(array,com)
 
         #Adapt atomic
         if typeof(array) <: Threads.Atomic
-            return CUDA.ones(1).*array[]
+            return CUDA.ones(typeof(array).types[1],1).*array[]
         else
             return cu(array)
         end
@@ -514,17 +521,17 @@ function loadBaseParameters!(com::Community,preallocateAgents::Int)
     setfield!(com, :holeFromRemoveAt_, cuAdapt(if com.abm.removalOfAgents_; zeros(Int64,com.nMax_); else zeros(Int64,0); end,com))
     setfield!(com, :repositionAgentInPos_, cuAdapt(if com.abm.removalOfAgents_; zeros(Int64,com.nMax_); else zeros(Int64,0); end,com))
     setfield!(com, :flagRecomputeNeighbors_, cuAdapt([1],com))
-    if com.abm.dims > 0
+    if com.abm.dims > 0 && com.simBox !== nothing && com.NMedium !== nothing
         setfield!(com, :dx, (com.simBox[1,2] .- com.simBox[1,1])./com.NMedium[1])
     else
         setfield!(com, :dx, 0.)
     end
-    if com.abm.dims > 1
+    if com.abm.dims > 1 && com.simBox !== nothing && com.NMedium !== nothing
         setfield!(com, :dy, (com.simBox[2,2] .- com.simBox[2,1])./com.NMedium[2])
     else
         setfield!(com, :dy, 0.)
     end
-    if com.abm.dims > 2
+    if com.abm.dims > 2 && com.simBox !== nothing && com.NMedium !== nothing
         setfield!(com, :dz, (com.simBox[3,2] .- com.simBox[3,1])./com.NMedium[3])
     else
         setfield!(com, :dz, 0.)
@@ -592,7 +599,7 @@ function createDEProblem(com,scope)
             end
         end
 
-        return DifferentialEquations.init( problem, getproperty(com,alg); getproperty(com,arg)... )
+        return DifferentialEquations.init(problem, getproperty(com,alg); getproperty(com,arg)... )
 
     elseif !isemptyupdaterule(com.abm,ode)
         
@@ -668,11 +675,10 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
         setfield!(com,:loaded,true)
 
         #Compute neighbors and interactions for the first time
-        # computeNeighbors!(com)
+        computeNeighbors!(com)
 
-        if typeof(com.fileSaving) <: String
-            com.fileSaving = jldopen(com.fileSaving, "a+")
-        end
+        platformSetup!(com.platform,com)
+
     end
 
     return
@@ -724,9 +730,11 @@ function bringFromPlatform!(com::Community)
     #Set loaded to false
     setfield!(com,:loaded,false)
 
-    if typeof(com.fileSaving) <: JLD2.JLDFile
-        close(com.fileSaving)
-        com.fileSaving = com.fileSaving.path
+    for (i,j) in pairs(SAVING)
+        if j.uuid == com.uuid.value
+            close(SAVING[i].file)
+            delete!(SAVING,i)
+        end
     end
 
     return

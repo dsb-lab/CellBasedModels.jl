@@ -93,10 +93,10 @@ Macro that returns the special code based on the arguments provided to `addAgent
 """
 macro addAgent(arguments...)
 
-    abm = AGENT
+    com = COMUNITY
     #List parameters that can be updated by the user
-    updateargs = [sym for (sym,prop) in pairs(abm.parameters) if prop.scope == :agent]
-    updateargs2 = [new(sym) for (sym,prop) in pairs(abm.parameters) if prop.scope == :agent]
+    updateargs = [sym for (sym,prop) in pairs(com.abm.parameters) if prop.scope == :agent]
+    updateargs2 = [new(sym) for (sym,prop) in pairs(com.abm.parameters) if prop.scope == :agent]
     append!(updateargs2,updateargs)
     #Checks that the correct parameters has been declared and not others
     args = []
@@ -119,7 +119,7 @@ macro addAgent(arguments...)
             error("id must not be declared when calling addAgent. It is assigned automatically.")
         end
 
-        if abm.parameters[old(g)].update
+        if com.abm.parameters[old(g)].update
             push!(code.args,:($(new(old(g)))[i1New_]=$f))
         else
             push!(code.args,:($(old(g))[i1New_]=$f))
@@ -131,7 +131,7 @@ macro addAgent(arguments...)
     #Add parameters to agent that have not been user defined
     for i in updateargs
         if !(i in args) && !(new(i) in args)
-            if abm.parameters[i].update
+            if com.abm.parameters[i].update
                 push!(code.args,:($(new(i))[i1New_]=$i[i1_]))
             else
                 push!(code.args,:($i[i1New_]=$i[i1_]))
@@ -156,7 +156,7 @@ macro addAgent(arguments...)
         end
 
     #Adapt code to platform
-    code = cudaAdapt(code,abm)
+    code = cudaAdapt(code,com.platform)
 
     code = vectorize(code)
 
@@ -180,7 +180,7 @@ function removeAgentCode(abm::ABM)
     #Set survived to 0
     dtype = DTYPE[:Int][abm.platform]
     code = quote
-            idNew_ = Threads.atomic_add!(NRemove_,$(dtype)(1)) + 1
+            idNew_ = Threads.atomic_add!(NRemove_,Int64(1)) + 1
             holeFromRemoveAt_[idNew_] = i1_ 
             flagSurvive_[i1_] = 0
             flagRecomputeNeighbors_ = 1
@@ -232,7 +232,6 @@ macro removeAgent()
             holeFromRemoveAt_[idNew_] = i1_ 
             flagSurvive_[i1_] = 0
             flagRecomputeNeighbors_ = 1
-            # flagNeighbors_[i1_] = 1
         end
 
     code = vectorize(code)
@@ -265,18 +264,27 @@ function functionRule(com,scope)
         code = addEventRemoveAgent(code,com)
         #Vectorize
         code = vectorize(code,com)
-        code = vectorizeMediumInAgents(code,com)
+        if scope == :agent
+            code = vectorizeMediumInAgents(code,com)
+        end
         #Put in loop
-        if ! contains(string(code),"@loopOverAgents")
+        if ! contains(string(code),"@loopOverAgents") && scope == :agent
             code = makeSimpleLoop(code,com)
+        elseif ! contains(string(code),"@loopOverMedium") && scope == :medium
+            code = makeSimpleLoop(code,com,nloops=abm.dims)
         end
 
-        func = :(rule_($(agentArgs(com)...),) = $code)
-        # abm.declaredUpdatesFunction[:AgentRule_] = Main.eval(:($(abm.declaredUpdatesCode[:AgentRule_])))
         aux = addCuda(:(rule_($(agentArgs(com,sym=:community)...))),scope,com) #Add code to execute kernel in cuda if GPU
         abm.declaredUpdatesCode[ref] = :(function (community)
-                                                        $func
+                                                        function rule_($(agentArgs(com)...),)
+
+                                                            $code
+
+                                                            return
+                                                        end
+
                                                         $aux
+                                                        
                                                         return 
                                                     end)
         abm.declaredUpdatesFunction[ref] = Main.eval(

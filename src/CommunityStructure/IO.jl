@@ -27,9 +27,10 @@ function saveRAM!(community::Community)
         setfield!(com,i,copy(getfield(community,i)))
     end
     #id
-    setfield!(com,:id,copy(Array{Int64}(getfield(community,:id))[1:com.N]))
+    setfield!(com,:id,copy(Array{Int64}(getfield(community,:id))[1:community.N]))
     setfield!(com,:NMedium,copy(Array{Int64}(getfield(community,:NMedium))))
     setfield!(com,:simBox,copy(Array{Float64}(getfield(community,:simBox))))
+    setfield!(com,:abm,community.abm)
 
     push!(community.pastTimes,com)
 
@@ -49,70 +50,96 @@ The parameter `saveLevel` indicates which parameters should be saved.
 |1|User defined parameters and modifiable parameters. (t,N...) (default)|
 |2|All auxiliar parameters of Community (for debugging)|
 """
-function saveJLD2(community::Community)
+function saveJLD2(file::String, community::Community; overwrite=false)
 
-    f = nothing
-    if typeof(community.fileSaving) <: JLD2.JLDFile
-        f = community.fileSaving
-    elseif typeof(community.fileSaving) <: String
-        f = jldopen(community.fileSaving, "a+")
-        community.fileSaving = f
+    #Check if file is open and assotiated with our community
+    if file in keys(SAVING) && isfile(file)
+        if SAVING[file].uuid == community.uuid.value
+            if !haskey(JLD2.OPEN_FILES,SAVING[file].file.path)
+                SAVING[file].file = jldopen(file, "a+")
+            end
+        elseif !overwrite
+            error("File $file contains other community information inside it. If you want to overwrite it, set the key argument overwrite to true.")
+        else
+            if haskey(JLD2.OPEN_FILES,SAVING[file].file.path)
+                close(SAVING[file].file)
+            end
+            f = jldopen(file, "w")   
+            SAVING[file] = SavingFile(community.uuid.value,f)
+        end
+    elseif isfile(file)
+        f = jldopen(file, "w")   
+        if "uuid" in keys(f)
+            if f["uuid"] == community.uuid.value
+                close(file, "w")   
+                f = jldopen(file, "a+")   
+                SAVING[file] = SavingFile(community.uuid.value,f)
+            elseif !overwrite
+                error("File $file contains other community information inside it. If you want to overwrite it, set the key argument overwrite to true.")
+            else
+                SAVING[file] = SavingFile(community.uuid.value,f)
+            end
+        else
+            SAVING[file] = SavingFile(community.uuid.value,f)
+        end
     else
-        error("fileSaving property has to be defined before executing saveJLD2.")
+        f = jldopen(file, "w") 
+        SAVING[file] = SavingFile(community.uuid.value,f)    
     end
 
-    # jldopen(file, "a+") do f
+    f = SAVING[file].file
 
-        if !( "abm" in keys(f) )
-            f["abm/dims"] = community.abm.dims
-            f["abm/parameters"] = community.abm.parameters
-            f["abm/declaredUpdates"] = community.abm.declaredUpdates
-            f["abm/removalOfAgents_"] = community.abm.removalOfAgents_
+    if !haskey(f,"uuid")
+        f["uuid"] = community.uuid
+    end
 
+    if !( "abm" in keys(f) )
+        f["abm/dims"] = community.abm.dims
+        f["abm/parameters"] = community.abm.parameters
+        f["abm/declaredUpdates"] = community.abm.declaredUpdates
+        f["abm/removalOfAgents_"] = community.abm.removalOfAgents_
+    end
+
+    if !( "agentAlg" in keys(f) )
+        f["agentAlg/alg"] = community.agentAlg
+        f["agentAlg/args"] = community.agentSolveArgs
+    end
+
+    if !( "modelAlg" in keys(f) )
+        f["modelAlg/alg"] = community.modelAlg
+        f["modelAlg/args"] = community.modelSolveArgs
+    end
+
+    if !( "mediumAlg" in keys(f) )
+        f["mediumAlg/alg"] = community.mediumAlg
+        f["mediumAlg/args"] = community.mediumSolveArgs
+    end
+
+    if !( "platform" in keys(f) )
+        f["platform/platform"] = community.platform
+    end
+
+    t = 1
+    if "times" in keys(f)
+        t = length(f["times"]) + 1
+    end
+    # Transform to the correct platform the parameters
+    for (sym,prop) in pairs(community.abm.parameters)
+        p = community.parameters[sym]
+        if prop.scope == :agent
+            f["times/$t/parameters/$sym"] = copy(Array(p[1:community.N]))
+        elseif prop.scope in [:model,:medium]
+            f["times/$t/parameters/$sym"] = copy(Array(p))
         end
+    end
 
-        if !( "agentAlg" in keys(f) )
-            if typeof(community.fileSaving) <: JLD2.JLDFile
-                f["fileSaving"] = community.fileSaving.path
-            else
-                f["fileSaving"] = community.fileSaving
-            end
-        end
-
-        if !( "agentAlg" in keys(f) )
-            f["agentAlg/alg"] = typeof(community.agentAlg)
-            f["agentAlg/args"] = community.agentSolveArgs
-        end
-
-        if !( "mediumAlg" in keys(f) )
-            f["mediumAlg/alg"] = typeof(community.mediumAlg)
-            f["mediumAlg/args"] = community.mediumSolveArgs
-        end
-
-        if !( "platform" in keys(f) )
-            f["platform/platform"] = typeof(community.platform)
-        end
-
-        t = 1
-        if "times" in keys(f)
-            t = length(f["times"]) + 1
-        end
-        # Transform to the correct platform the parameters
-        for (sym,prop) in pairs(community.abm.parameters)
-            p = community.parameters[sym]
-            if prop.scope == :agent
-                f["times/$t/parameters/$sym"] = copy(Array(p[1:community.N]))
-            elseif prop.scope in [:model,:medium]
-                f["times/$t/parameters/$sym"] = copy(Array(p))
-            end
-        end
-
-        for sym in [:N,:NMedium,:t,:dt,:simBox]
-            f["times/$t/$sym"] = copy(getfield(community,sym))
-        end
-        f["times/$t/id"] = copy(Array(getfield(community,:id))[1:community.N])
-
-    # end
+    for sym in [:N,:t,:dt]
+        f["times/$t/$sym"] = copy(getfield(community,sym))
+    end
+    for sym in [:NMedium,:simBox]
+        f["times/$t/$sym"] = copy(Array(getfield(community,sym)))
+    end
+    f["times/$t/id"] = copy(Array{Int64}(getfield(community,:id))[1:community.N])
 
     return
 
@@ -125,76 +152,65 @@ Load the Community structure saved in file.
 """
 function loadJLD2(file::String)
 
-    try
-        jldopen(file, "r") do f
+    jldopen(file, "r") do f
 
-            #Agent
-            abm = ABM()
-            abm.dims = f["abm/dims"] 
-            abm.parameters = f["abm/parameters"] 
-            abm.declaredUpdates = f["abm/declaredUpdates"] 
-            abm.removalOfAgents_ = f["abm/removalOfAgents_"] 
+        #Agent
+        abm = ABM()
+        abm.dims = f["abm/dims"] 
+        abm.parameters = f["abm/parameters"] 
+        abm.declaredUpdates = f["abm/declaredUpdates"] 
+        abm.removalOfAgents_ = f["abm/removalOfAgents_"] 
 
-            #Assign abm
-            t = length(f["times"])
-            community = Community(abm,
+        #Assign abm
+        t = length(f["times"])
+        community = Community(abm,
+            id = f["times/$t/id"],
+            N = f["times/$t/N"],
+            NMedium = f["times/$t/NMedium"],
+            t = f["times/$t/t"],
+            dt = f["times/$t/dt"],
+            simBox = f["times/$t/simBox"],
+            platform = f["platform/platform"],#eval(Meta.parse("AgentBasedModels.$(f["platform/platform"])()")),
+            agentAlg = f["agentAlg/alg"],#eval(Meta.parse("AgentBasedModels.$(f["agentAlg/alg"])()")),
+            agentSolveArgs = f["agentAlg/args"],
+            modelAlg = f["modelAlg/alg"],#eval(Meta.parse("AgentBasedModels.$(f["modelAlg/alg"])()")),
+            modelSolveArgs = f["modelAlg/args"],
+            mediumAlg = f["mediumAlg/alg"],#eval(Meta.parse("AgentBasedModels.$(f["mediumAlg/alg"])()")),
+            mediumSolveArgs = f["mediumAlg/args"],
+        )
+        setfield!(community,:uuid,f["uuid"])
+        for (sym,prop) in pairs(community.abm.parameters)
+            community.parameters[sym] = f["times/$t/parameters/$sym"]
+        end
+
+        #Base parameters
+        times = sort([Meta.parse(i) for i in keys(f["times"])])[1:end-1]
+        for t in times
+            com = Community(abm,
+                id = f["times/$t/id"],
                 N = f["times/$t/N"],
                 NMedium = f["times/$t/NMedium"],
                 t = f["times/$t/t"],
                 dt = f["times/$t/dt"],
                 simBox = f["times/$t/simBox"],
-                platform = eval(:($(f["platform/platform"])())),
-                agentAlg = eval(:($(f["agentAlg/alg"])())),
+                platform = f["platform/platform"],#eval(Meta.parse("AgentBasedModels.$(f["platform/platform"])()")),
+                agentAlg = f["agentAlg/alg"],#eval(Meta.parse("AgentBasedModels.$(f["agentAlg/alg"])()")),
                 agentSolveArgs = f["agentAlg/args"],
-                mediumAlg = eval(:($(f["mediumAlg/alg"])())),
+                modelAlg = f["modelAlg/alg"],#eval(Meta.parse("AgentBasedModels.$(f["modelAlg/alg"])()")),
+                modelSolveArgs = f["modelAlg/args"],
+                mediumAlg = f["mediumAlg/alg"],#eval(Meta.parse("AgentBasedModels.$(f["mediumAlg/alg"])()")),
                 mediumSolveArgs = f["mediumAlg/args"],
-                fileSaving = f["fileSaving"]
             )
-            community.id = f["times/$t/id"]
-            community.N = f["times/$t/N"]
-            community.NMedium = f["times/$t/NMedium"]
-            community.t = f["times/$t/t"]
-            community.dt = f["times/$t/dt"]
-            community.simBox = f["times/$t/simBox"]
-
             for (sym,prop) in pairs(community.abm.parameters)
-                community[sym] = f["times/$t/parameters/$sym"]
+                com.parameters[sym] = f["times/$t/parameters/$sym"]
             end
-
-            #Base parameters
-            times = sort([Meta.parse(i) for i in keys(f["times"])])[1:end-1]
-            for t in times
-                com = Community()
-
-                com.id = f["times/$t/id"]
-                com.N = f["times/$t/N"]
-                com.NMedium = f["times/$t/NMedium"]
-                com.t = f["times/$t/t"]
-                com.dt = f["times/$t/dt"]
-                com.simBox = f["times/$t/simBox"]
-
-                for (sym,prop) in pairs(community.abm.parameters)
-                    com.parameters[sym] = f["times/$t/parameters/$sym"]
-                end
-        
-                push!(community.pastTimes, com)
-            end
-
-            close(f)
-            setfield!(community,:loaded,false)
-
-            return community
-
+    
+            push!(community.pastTimes, com)
         end
 
-    catch
+        setfield!(community,:loaded,false)
 
-        filer = jldopen(file,"w")
-        close(filer)
-
-        loadJLD2(file)
-    
+        return community
     end
-
 
 end

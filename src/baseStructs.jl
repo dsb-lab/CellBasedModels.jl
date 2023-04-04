@@ -55,3 +55,10 @@ mutable struct UserParameter
         end
     end
 end
+
+mutable struct SavingFile
+
+    uuid
+    file
+
+end
