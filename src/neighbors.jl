@@ -104,17 +104,17 @@ Method that computes all against all neighbors.
         if platform == :CPU
             code = :(
                 function $name($(base...))
-                    @inbounds for i1_ in 1:1:N[1] #Lack multithreading because of race
-                        # lk = ReentrantLock()
+                    lk = ReentrantLock()
+                    @inbounds Threads.@threads for i1_ in 1:1:N[1]
                         for i2_ in (i1_+1):1:N[1]
                             d = CBMMetrics.euclidean($(args2...))
                             if d < skin[1] 
-                                # lock(lk) do
+                                lock(lk) do
                                     neighborN_[i1_] += 1
                                     neighborN_[i2_] += 1
                                     neighborList_[i1_,neighborN_[i1_]] = i2_
                                     neighborList_[i2_,neighborN_[i2_]] = i1_
-                                # end
+                                end
                             end
                         end
                     end
@@ -369,7 +369,7 @@ Method that computes VerletList neighbors and updates it whenever an agent moves
             code = :(
                 function $name($(base...))
 
-                    @inbounds for i1_ in 1:1:N
+                    @inbounds Threads.@threads for i1_ in 1:1:N
                         accumulatedDistance_[i1_] = CBMMetrics.euclidean($(args3...))
                         if accumulatedDistance_[i1_] >= skin/2
                             flagRecomputeNeighbors_[1] = 1
@@ -440,7 +440,7 @@ Method that computes VerletList neighbors and updates it whenever an agent moves
             code = :(
                 function $name($(base...))
 
-                    @inbounds for i1_ in 1:1:N
+                    @inbounds Threads.@threads for i1_ in 1:1:N
                         $up
                     end
 
@@ -764,9 +764,9 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
             code = :(
                 function $name($(base...))
 
-                    @inbounds for i1_ in 1:1:N[1]
+                    lk = ReentrantLock()
+                    @inbounds Threads.@threads for i1_ in 1:1:N[1]
                         pos = cellPos($(args2...))
-                        lk = ReentrantLock()
                         lock(lk) do
                             cellNumAgents_[pos] += 1
                         end
@@ -841,9 +841,9 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
             code = :(
                 function $name($(base...))
 
-                    @inbounds for i1_ in 1:1:N[1]
+                    lk = ReentrantLock()
+                    @inbounds Threads.@threads for i1_ in 1:1:N[1]
                         pos = cellPos($(args2...))
-                        lk = ReentrantLock()
                         lock(lk) do
                             cellCumSum_[pos] += 1
                             pos = cellCumSum_[pos]
@@ -1082,10 +1082,12 @@ Method that computes Cell Linked and Verlet Displacement neighbors algorithms to
                 if i1_ != i2_
                     d = CBMMetrics.euclidean($(args2...))
                     if d < skin[1] 
-                        neighborN_[i1_] += 1
-                        # neighborN_[i2_] += 1
-                        neighborList_[i1_,neighborN_[i1_]] = i2_
-                        # neighborList_[i2_,neighborN_[i2_]] = i1_
+                        lock(lk) do
+                            neighborN_[i1_] += 1
+                            # neighborN_[i2_] += 1
+                            neighborList_[i1_,neighborN_[i1_]] = i2_
+                            # neighborList_[i2_,neighborN_[i2_]] = i1_
+                        end
                     end
                 end
             end
@@ -1107,8 +1109,8 @@ Method that computes Cell Linked and Verlet Displacement neighbors algorithms to
 
             code = :(
                 function $name($(base...))
-                    @inbounds for i1_ in 1:1:N[1] #Lack multithreading because of race
-                        # lk = ReentrantLock()
+                    lk = ReentrantLock()
+                    @inbounds Threads.@threads for i1_ in 1:1:N[1]
                         $code
                     end
                 end
