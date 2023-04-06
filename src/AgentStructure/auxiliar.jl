@@ -1,19 +1,11 @@
-cellInMesh(edge,x,xMin,xMax,nX) = if x > xMax nX elseif x < xMin 1 else Int((x-xMin)÷edge)+1 end
-
-##############################################################################################################################
-# Delta functions
-##############################################################################################################################
-
-"""
-    functionδ(x,meshSize)
-
-Delta function dicretized.
-"""
-functionδ(x,meshSize) = Float32(abs(x) < meshSize/2)
-
 ##############################################################################################################################
 # Agent functions
 ##############################################################################################################################
+"""
+    function isemptyupdaterule(agent,rule) 
+
+Function that checks if a ABM rule is empty (agentRule, mediumODE...)
+"""
 function isemptyupdaterule(agent,rule) 
     if rule in keys(agent.declaredUpdates)
         return [i for i in prettify(agent.declaredUpdates[rule]).args if typeof(i) != LineNumberNode] == []
@@ -68,6 +60,11 @@ function agentArgsNeighbors(args,neig;sym=nothing)
 
 end
 
+"""
+    function agentArgs(com;sym=nothing,l=3,params=BASEPARAMETERS) 
+
+Function that returns the arguments to be provided to a kernel function. If `sym` is provided, it will return them as `sym.argument`.
+"""
 function agentArgs(com;sym=nothing,l=3,params=BASEPARAMETERS) 
 
     pars = [i for i in keys(params)]
@@ -289,104 +286,9 @@ function cudaAdapt(code,platform)
 
 end
 
-############ I think this code can be removed
-macro cudaAdapt(code)
-
-    code1 = copy(code)
-    #Adapt atomic
-    code = postwalk(x->@capture(x,Threads.atomic_add!(p1_,p2_)) ? :(CUDA.atomic_add!(CUDA.pointer($p1,1),$p2)) : x , code)
-    #Call to atomic
-    code = postwalk(x->@capture(x,p1_[]) ? :($p1[1]) : x , code)
-    #Change format declaration
-    code = postwalk(x->@capture(x,p1_::Array) ? :($p1::CuArray) : x , code)
-
-    codeFinal = quote
-        $code1
-        $code
-    end
-
-    return codeFinal
-
-end
-
 ##############################################################################################################################
 # Vectorize parameters
 ##############################################################################################################################
-# """
-#     function vectorize(code,agent)
-
-# Function that transforms the code provided in Agent to the vectorized form for wrapping around an executable function.
-# """
-# function vectorize2(code,agent)
-
-#     #For user declared symbols
-#     for (sym,prop) in pairs(agent.declaredSymbols)
-
-#         bs = prop.basePar
-#         bsn = baseParameterNew(bs)
-#         pos = prop.position
-#         if :Local == prop.scope
-#             code = postwalk(x->@capture(x,g_.p1_.p2_) && g == sym && p1 == BASESYMBOLS[:UpdateSymbol].symbol && p2 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bsn[i1_,$pos]) : x, code)
-#             code = postwalk(x->@capture(x,g_.p1_.p2_) && g == sym && p1 == BASESYMBOLS[:UpdateSymbol].symbol && p2 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bsn[i2_,$pos]) : x, code)
-#             code = postwalk(x->@capture(x,g_.p1_.p2_) && g == sym && p2 == BASESYMBOLS[:UpdateSymbol].symbol && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bsn[i1_,$pos]) : x, code)
-#             code = postwalk(x->@capture(x,g_.p1_.p2_) && g == sym && p2 == BASESYMBOLS[:UpdateSymbol].symbol && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bsn[i2_,$pos]) : x, code)
-#             code = postwalk(x->@capture(x,g_.p1_) && g == sym && p1 == BASESYMBOLS[:UpdateSymbol].symbol ? :($bsn[i1_,$pos]) : x, code)
-#             code = postwalk(x->@capture(x,g_) && g == sym ? :($bs[i1_,$pos]) : x, code)
-#             code = postwalk(x->@capture(x,g_[p1_][p2_]) && g == sym ? :($bs[$p2,$pos]) : x, code) #Undo if it was already vectorized
-#             code = postwalk(x->@capture(x,g_.p1_) && g == sym && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bs[i1_,$pos]) : x, code)
-#             code = postwalk(x->@capture(x,g_.p1_) && g == sym && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bs[i2_,$pos]) : x, code)
-#             code = postwalk(x->@capture(x,g_[h__].p1_) && g == sym && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bs[i1_,$pos]) : x, code)
-#             code = postwalk(x->@capture(x,g_[h__].p1_) && g == sym && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bs[i2_,$pos]) : x, code)
-#             code = postwalk(x->@capture(x,g_[h__].p1_) && g == bs && p1 == BASESYMBOLS[:AddCell].symbol ? :($bsn[i1New_,$pos]) : x, code)
-#         elseif :Global == prop.scope
-#             code = postwalk(x->@capture(x,g_.p1_) && g == sym && p1 == BASESYMBOLS[:UpdateSymbol].symbol ? :($bsn[$pos]) : x, code)
-#             code = postwalk(x->@capture(x,g_) && g == sym ? :($bs[$pos]) : x, code)
-#         elseif :Medium == prop.scope
-#             args = [:gridPosx_,:gridPosy_,:gridPosz_][1:agent.dims]
-#             code = postwalk(x->@capture(x,g_.j) && g == sym ? :($bs[$(args...)]) : x, code)
-#         elseif :Atomic == prop.scope
-#             nothing
-#         else
-#             error("Symbol $bs with type $(prop[2]) doesn't has not vectorization implemented.")
-#         end
-
-#     end
-
-#     #For local parameters
-#     for bs in [sym for (sym,prop) in pairs(BASEPARAMETERS) if :Local == prop.shape[1]]
-
-#         bsn = baseParameterNew(bs)
-#         code = postwalk(x->@capture(x,g_.p1_.p2_) && g == bs && p1 == BASESYMBOLS[:UpdateSymbol].symbol && p2 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bsn[i1_]) : x, code)
-#         code = postwalk(x->@capture(x,g_.p1_.p2_) && g == bs && p1 == BASESYMBOLS[:UpdateSymbol].symbol && p2 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bsn[i2_]) : x, code)
-#         code = postwalk(x->@capture(x,g_.p1_.p2_) && g == bs && p2 == BASESYMBOLS[:UpdateSymbol].symbol && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bsn[i1_]) : x, code)
-#         code = postwalk(x->@capture(x,g_.p1_.p2_) && g == bs && p2 == BASESYMBOLS[:UpdateSymbol].symbol && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bsn[i2_]) : x, code)
-#         code = postwalk(x->@capture(x,g_.p1_) && g == bs && p1 == BASESYMBOLS[:UpdateSymbol].symbol ? :($bsn[i1_]) : x, code)
-#         code = postwalk(x->@capture(x,g_) && g == bs ? :($bs[i1_]) : x, code)
-#         code = postwalk(x->@capture(x,g_[p1_][p2__]) && g == bs ? :($bs[$(p2...)]) : x, code) #Undo if it was already vectorized
-#         code = postwalk(x->@capture(x,g_.p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bs[i1_]) : x, code)
-#         code = postwalk(x->@capture(x,g_.p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bs[i2_]) : x, code)
-#         code = postwalk(x->@capture(x,g_[i1_].p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bs[i1_]) : x, code)
-#         code = postwalk(x->@capture(x,g_[i2_].p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bs[i2_]) : x, code)
-#         code = postwalk(x->@capture(x,g_[h__].p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex1].symbol ? :($bs[i1_,$(h[2])]) : x, code)
-#         code = postwalk(x->@capture(x,g_[h__].p1_) && g == bs && p1 == BASESYMBOLS[:InteractionIndex2].symbol ? :($bs[i2_,$(h[2])]) : x, code)
-#         code = postwalk(x->@capture(x,g_[h__].p1_) && g == bs && p1 == BASESYMBOLS[:AddCell].symbol ? :($bsn[i1New_]) : x, code)
-
-#     end
-
-#     #For global parameters
-#     for bs in [sym for (sym,prop) in pairs(BASEPARAMETERS) if :Global == prop.shape[1]]
-
-#         code = postwalk(x->@capture(x,g_) && g == bs ? :($bs[1]) : x, code)
-#         code = postwalk(x->@capture(x,g_[p1_][p2_]) && g == bs ? :($bs[1]) : x, code) #Undo if it was already vectorized
-
-#     end
-
-#     code = randomAdapt(code, agent)
-
-#     return code
-
-# end
-
 """
     function vectorize(code,agent)
 
@@ -445,13 +347,18 @@ function vectorize(code)
 
 end
 
+"""
+    function vectorizeMediumInAgents(code,com)
+
+Function that vectorize medium parameters at the position of the agent center.
+"""
 function vectorizeMediumInAgents(code,com)
 
     for (sym,prop) in pairs(com.abm.parameters)
         if prop.scope == :medium
-            code = postwalk(x->@capture(x,m_[g_]) && (m == sym || m == new(sym)) ? :($m[cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium[1])]) : x ,code)
-            code = postwalk(x->@capture(x,m_[g_,g2_]) && (m == sym || m == new(sym)) ? :($m[cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium[1]),cellInMesh(dy,y[i1_],simBox[2,1],simBox[2,2],NMedium[2])]) : x ,code)
-            code = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && (m == sym || m == new(sym)) ? :($m[cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium[1]),cellInMesh(dy,y[i1_],simBox[2,1],simBox[2,2],NMedium[2]),cellInMesh(dz,z[i1_],simBox[3,1],simBox[3,2],NMedium[3])]) : x ,code)
+            code = postwalk(x->@capture(x,m_[g_]) && (m == sym || m == new(sym)) ? :($m[CBMMetrics.cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium[1])]) : x ,code)
+            code = postwalk(x->@capture(x,m_[g_,g2_]) && (m == sym || m == new(sym)) ? :($m[CBMMetrics.cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium[1]),CBMMetrics.cellInMesh(dy,y[i1_],simBox[2,1],simBox[2,2],NMedium[2])]) : x ,code)
+            code = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && (m == sym || m == new(sym)) ? :($m[CBMMetrics.cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium[1]),CBMMetrics.cellInMesh(dy,y[i1_],simBox[2,1],simBox[2,2],NMedium[2]),CBMMetrics.cellInMesh(dz,z[i1_],simBox[3,1],simBox[3,2],NMedium[3])]) : x ,code)
         end
     end
 
@@ -482,7 +389,14 @@ function clean(code,it=5)
     return code
 end
 
-#Random distribution transformations for cuda capabilities
+#################################################################################################################
+# Manipulating symbols and other decorators
+#################################################################################################################
+"""
+    function captureVariables(code)
+
+Function that transforms the dt(par) nomenclature in the variable dt__par for being used in Differential Equations kernels.
+"""
 function captureVariables(code)
     function add(a,s)
         push!(a,s)
@@ -494,14 +408,29 @@ function captureVariables(code)
     return a, code
 end
 
+"""
+    function opdt(sym)
+
+Function that returns the symbol dt__sym
+"""
 function opdt(sym)
     return Meta.parse(string("dt__",sym))
 end
 
+"""
+    function new(sym)
+
+Function that returns the symbol sym__
+"""
 function new(sym)
     return Meta.parse(string(sym,"__"))
 end
 
+"""
+    function old(sym)
+
+Function that returns the parametric symbol sym is it is new.
+"""
 function old(sym)
 
     if occursin("__",string(sym))
@@ -515,6 +444,11 @@ function old(sym)
     end
 end
 
+"""
+    function addSymbol(args...)
+
+Function to make a new symbol putting together all the arguments.
+"""
 function addSymbol(args...)
     return Meta.parse(string(args...))
 end

@@ -6,27 +6,31 @@ CurrentModule = CellBasedModels
 ## Agent
 
 ```@docs
-Agent
+ABM
 ```
 
-**Functions to use in agents code**
+### Macros
+These are macros that can be used in the code.
+
+**AgentRule**
 ```@docs
-euclideanDistance
-manhattanDistance
+@addAgent
+@removeAgent
+@loopOverNeighbors
+```
+
+**Medium**
+```@docs
+@∂
+@∂2
+@mediumInside
+@mediumBorder
 ```
 
 ## Community
 
 ```@docs
 Community
-```
-
-**Packaging Initializations**
-
-```@docs
-initializeSpheresCommunity
-packagingCompactHexagonal
-packagingCubic
 ```
 
 ## Platform loading
@@ -41,11 +45,12 @@ bringFromPlatform!
 ```@docs
 evolve!
 step!
-globalStep!
-localStep!
-integrationStep!
-interactionStep!
-computeNeighbors!
+agentStepRule!
+agentStepDE!
+modelStepRule!
+modelStepDE!
+mediumStepRule!
+mediumStepDE!
 update!
 ```
 
@@ -56,11 +61,57 @@ saveJLD2
 loadJLD2
 ```
 
-## Fitting
+## Metrics
 ```@docs
-Fitting.gridSearch
-<!-- Fitting.stochasticDescentAlgorithm -->
-Fitting.swarmAlgorithm
-Fitting.beeColonyAlgorithm
-Fitting.geneticAlgorithm
+CBMMetrics.euclidean
+CBMMetrics.@euclidean
+CBMMetrics.manhattan
+CBMMetrics.@manhattan
+CBMMetrics.cellInMesh
+```
+
+## Random
+Random number generators from distributions that are compatible both in CPU and GPU.
+
+```@docs
+CBMDistributions.normal
+CBMDistributions.uniform
+CBMDistributions.exponential
+```
+
+## Platform
+```@docs
+CPU
+GPU
+```
+
+## Integrators
+
+Integrators can be used the ones from `DifferentialEquations` for ODE or SDE problems or the custom made solvers provided in ths package.
+
+```@docs
+CBMIntegrators.Euler
+CBMIntegrators.Heun
+CBMIntegrators.RungeKutta4
+CBMIntegrators.EM
+CBMIntegrators.EulerHeun
+```
+
+## Neighbor algorithms
+
+```@docs
+CBMNeighbors.Full
+CBMNeighbors.VerletTime
+CBMNeighbors.VerletDisplacement
+CBMNeighbors.CellLinked
+CBMNeighbors.CLVD
+```
+
+## Fitting
+
+```@docs
+CBMFitting.gridSearch
+CBMFitting.swarmAlgorithm
+CBMFitting.beeColonyAlgorithm
+CBMFitting.geneticAlgorithm
 ```

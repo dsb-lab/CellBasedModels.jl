@@ -1,21 +1,54 @@
 abstract type Platform end
 
+
+""""
+    mutable struct CPU <: Platform
+
+CPU platform structure.
+"""
 mutable struct CPU <: Platform
 
 end
 
+"""
+    function platformSetup!(platform::CPU,com)
+    function platformSetup!(platform::GPU,com)
+
+Function to setup the platform parameters.
+"""
 function platformSetup!(platform::CPU,com)
 
     return
 
 end
 
+"""
+    function platformUpdate!(platform::CPU,com)
+    function platformUpdate!(platform::GPU,com)
+
+Function to setup the platform parameters after each step iteration.
+"""
 function platformUpdate!(platform::CPU,com)
 
     return
 
 end
 
+""""
+    mutable struct GPU <: Platform
+
+CPU platform structure.
+
+# Threads and blocks for each rule method
+
+ - agentThreads
+ - agentBlocks
+ - modelThreads
+ - modelBlocks
+ - mediumThreads
+ - mediumBlocks
+
+"""
 mutable struct GPU <: Platform
 
     agentThreads

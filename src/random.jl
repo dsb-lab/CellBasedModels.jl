@@ -1,23 +1,23 @@
 module CBMDistributions
 
     """
-        NormalCUDA(x,μ,σ)
+        normal(μ,σ)
 
-    Normal distribution adapted to CUDA.
+    Normal distribution radom generation. `μ` mean, `σ` std.
     """
     normal(μ,σ) = σ*randn()+μ
 
     """
-        UniformCUDA(x,l0,l1)
+        uniform(l0,l1)
 
-    Uniform distribution adapted to CUDA.
+    Uniform distribution radom generation. `l0` min, `l1` max.
     """
     uniform(l0,l1) = (l1-l0)*rand()+l0
 
     """
-        ExponentialCUDA(x,θ)
+        exponential(θ)
 
-    Exponential distribution adapted to CUDA.
+    Exponential distribution radom generation. `θ` mean.
     """
     exponential(θ) = -log(1-rand())*θ
 

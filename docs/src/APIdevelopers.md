@@ -10,10 +10,7 @@ CurrentModule = CellBasedModels
 ```@docs
 BaseParameter
 UserParameter
-BaseSymbol
-Platform
-Equation
-Integrator
+SavingFile
 ```
 
 ## Auxiliar - Agent
@@ -24,73 +21,16 @@ change
 baseParameterToModifiable
 baseParameterNew
 agentArgs
-@agentArgs
+agentArgsNeighbors
 getProperty
 getSymbolsThat
-getEquations!
-getEquation
-addToList
 ```
 
-**Global**
-
+**Function generation**
 ```@docs
-globalFunction
-addEventGlobalAddAgent
-addGlobalAgentCode
+functionDE
+functionRule
 ```
-
-**Local**
-
-```@docs
-localFunction
-addEventAddAgent
-addAgentCode
-addEventRemoveAgent
-removeAgentCode
-```
-
-**Integration**
-
-```@docs
-integratorFunction
-```
-
-**Interaction**
-
-```@docs
-interactionFunction
-```
-
-**Neighbors**
-```@docs
-neighborsFunction
-neighborsFull!
-@verletNeighbors
-@neighborsVerletTime
-@verletDisplacement
-@verletResetDisplacement
-@neighborsVerletDisplacement
-cellPos
-cellPosNeigh
-@assignCells
-@sortAgentsInCells
-@neighborsCellLinked
-@verletNeighborsCLVD
-@neighborsCLVD
-```
-
-**Update**
-```@docs
-listSurvivedCPU!
-@kernelListSurvivedGPU!
-@fillHolesCPU!
-@kernelFillHolesGPU!
-@updateParameters!
-updateCPU!
-@updateGPU!
-```
-
 ## Auxiliar - Metaprogramming
 
 ```@docs
@@ -99,24 +39,31 @@ addCuda
 cudaAdapt
 vectorize
 clean
-randomAdapt
-neighborsLoop
-neighborsFullLoop
-neighborsVerletLoop
-neighborsCellLinkedLoop
 ```
+
 ## Auxiliar - Community
 
 ```@docs
 checkFormat
 checkLoaded
-removePositions
+@kernelListSurvived!
+@kernelFillHolesParameters!
+@kernelUpdateParameters!
+@update!
 ```
 
-## CUDA Random distributions
-
+## Neighbors
 ```@docs
-NormalCUDA
-UniformCUDA
-ExponentialCUDA
+CBMNeighbors.@verletNeighbors
+CBMNeighbors.@neighborsVerletTime
+CBMNeighbors.@verletDisplacement
+CBMNeighbors.@verletResetDisplacement
+CBMNeighbors.@neighborsVerletDisplacement
+CBMNeighbors.cellPos
+CBMNeighbors.cellPosNeigh
+CBMNeighbors.@assignCells
+CBMNeighbors.@sortAgentsInCells
+CBMNeighbors.@neighborsCellLinked
+CBMNeighbors.@verletNeighborsCLVD
+CBMNeighbors.@neighborsCLVD
 ```

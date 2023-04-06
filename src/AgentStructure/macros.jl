@@ -1,3 +1,8 @@
+"""
+    function checkCustomCode(abm)
+
+Function that checks if the macro and other decorators are used in the appropiate rules.
+"""
 function checkCustomCode(abm)
 
     #Error if dt in other place
@@ -69,8 +74,25 @@ end
 ########################################################
 """
     macro loopOverNeighbors(code)
+    macro loopOverNeighbors(it1, code)
 
-For the updateInteraction loop, create the double loop to go over all the agents and neighbors.
+Macro that creates the loop function to go over all neighbors of the agent. 
+    
+It can be declared as
+
+```julia
+@loopOverNeighbors for iterator in ___
+    #code
+end
+```
+or
+
+```julia
+@loopOverNeighbors iterator begin
+    #code
+end
+```
+for some iterator symbol. It can only be used in agent rules or DEs.
 """
 macro loopOverNeighbors(it1, code)
 
@@ -103,6 +125,15 @@ macro loopOverNeighbors(code)
 
 end
 
+"""
+    macro ∂(coord,code)
+
+Discretizes the `code` term of a drift process. e.g. Agent in 2D
+
+∂(1,m) → (m[i1_-1,i2_]-m[i1_-1,i2_])/(2*dx)
+
+the coordinate must be 1, 2 or 3, specifing the axis of differentiation.
+"""
 macro ∂(coord,code)
 
     abm = COMUNITY.abm
@@ -161,6 +192,15 @@ macro ∂(coord,code)
 
 end
 
+"""
+    macro ∂2(coord,code)
+
+Discretizes the `code` term of a drift process. e.g. Agent in 2D
+
+∂2(1,m) → (m[i1_-1,i2_]-2*m[i1_,i2_]+m[i1_-1,i2_])/dx^2
+
+the coordinate must be 1, 2 or 3, specifing the axis of differentiation.
+"""
 macro ∂2(coord,code)
 
     abm = COMUNITY.abm
@@ -218,6 +258,11 @@ macro ∂2(coord,code)
 
 end
 
+"""
+    macro mediumInside()
+
+Macro that returns true if mesh position is not in the border of the region.
+"""
 macro mediumInside()
 
     com = COMUNITY
@@ -234,6 +279,11 @@ macro mediumInside()
 
 end
 
+"""
+    mediumBorder(coord, border)
+
+Macro that returns true if mesh position is in the lower (border=-1) or upper (border=1) border of the axis coordinate 1, 2 or 3.
+"""
 macro mediumBorder(coord, border)
 
     com = COMUNITY

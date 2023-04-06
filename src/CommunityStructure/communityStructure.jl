@@ -4,104 +4,88 @@
 """
 Basic structure keeping the parameters of all the agents in the current simulation of a model.
 
-# Elements for internal use
-|Field|Description|
-|:---|:---|
-| abm | ABM model dealing with the rule of the model. |
-| loaded | Check if the model has been loaded into platform or not. |
-| platform | Platform of the model. |
-| fileSaving | File name where Community is saved when invoking saving functions not in RAM. |
-| pastTimes | Vector saving the data of past times of the model every time we call to save in RAM. |
+Parameters to sore information essential for Community simulation
 
-# Elements passed and seen by all the *Evolution functions*
+|Symbol|Description|
+|:---:|:---:|
+|abm| ABM model of the community |
+|uuid| Unique identifier of the community |
+|loaded| If loaded into the platform CPU or GPU |
+|pastTimes::Array{Community}| Store times when called to saveRAM! |
+|agentDEProblem| ODEProblem or SDEProblem object of Agent |
+|agentAlg| Algorithm for the ODEProblem or SDEProblem of Agent |
+|agentSolveArgs| Parameters for the ODEProblem or SDEProblem of Agent |
+|modelDEProblem| ODEProblem or SDEProblem object of Model |
+|modelAlg|Algorithm for the ODEProblem or SDEProblem of Model |
+|modelSolveArgs|Parameters for the ODEProblem or SDEProblem of Model |
+|mediumDEProblem| ODEProblem or SDEProblem object of Medium |
+|mediumAlg|Algorithm for the ODEProblem or SDEProblem of Medium |
+|mediumSolveArgs|Parameters for the ODEProblem or SDEProblem of Medium |
+|neighbors| Algorithm to compute neighbors |
+|platform| Platform in which to run the model |
+|parameters::OrderedDict{Symbol,AbstractArray}| Dictionary with the User Defined Parameters |
 
-These parameters are defined with all the properties in the constant BASEPARAMETERS.
+Parameters seen in the kernels that may de used directly by the user
 
-|Topic|Symbol|Description|
-|---|---|---|
-|**Time**|||
-||t|Absolute time of evolution of the community.|
-||dt|Time increments in each step of the evolution.|
-|**Size Community**|||
-||N|The number of agents active in the community.|
-||NMedium|Size of the grid in which the medium is being computed. This is necessary to be declared if medium parameters are declared by the user.|
-||nMax_|Maximum number of agents that can be present in the community.|
-|**Id tracking**|||
-||id|Unique identifier of the com.abm.|
-||idMax_|Maximum identifier that has been declared in the community.|
-|**Simulation space**|||
-||simBox|Simulation box in which cells are moving. This is necessary to define a region of space in which a medium will be simulated or for computing neighbors with CellLinked methods.|
-|**ABM addition or removal**|||
-||NAdd_|Number of agents added in a step.|
-||NRemove_|Number of agents removed in a step.|
-||NSurvive_|Number of agents survived in a step.|
-||flagSurvive_|Flag agents that survived.|
-||holeFromRemoveAt_|Keeps position of cells that where removed during a step.|
-||repositionAgentInPos_|Keeps position of cells starting from the end that have survived. It helps to reassign cells in the end of the array into the holes.|
-|**Neighbors**|||
-||skin|Distance below which a cell is considered a neighbor in Verlet neighbor algorithms.|
-||dtNeighborRecompute|Time before recomputing neighborhoods in VerletTime algorithm.|
-||nMaxNeighbors|Maximum number of neighbors. Necessary for Verlet-like algorithms.|
-||cellEdge|Distance of the grid used to compute neighbors.|
-||flagRecomputeNeighbors_|Marked as 1 if recomputation of neighbors has to be performed.|
-||neighborN_|Number of neighbors for each com.abm. Used in Verlet-like algorithms.|
-||neighborList_|Matrix containing the neighbors of each agent. Used in Verlet-like algorithms.|
-||neighborTimeLastRecompute_|Time storing the information of last neighbor recomputation. Used in Verlet time algorithm.|
-||posOld_|Stores the position of each agent in the last VerletDistance neighbor computation.|
-||accumulatedDistance_|Stores the accumulated displaced distance of each agent in the last VerletDistance neighbor computation.|
-||nCells_|Number of cells in each dimensions of the grid. Used in CellLinked algorithms.|
-||cellAssignedToAgent_|Cell assigned to each com.abm. Used in CellLinked algorithms.|
-||cellNumAgents_|Number of agents assigned to each cell. Used in CellLinked algorithms.|
-||cellCumSum_|Cumulative number of agents in the cell list. Used in CellLinked algorithms.|
+|Symbol|Description|
+|:---:|:---:|
+|t| Time of the community |
+|dt| Stepping time of the community |
+|N| Number of agents |
+|NMedium| Size of medium mesh |
+|simBox| Size of simulation box |
+|dx| Size of the axis 1 in mesh medium |
+|dy| Size of the axis 2 in mesh medium |
+|dz| Size of the axis 3 in mesh medium |
 
-**Constructors**
+Parameters seen in the kernels that are for internal use
 
-    function Community(abm::ABM; args...)
+|Symbol|Description|
+|:---:|:---:|
+|id| Identification of the agent |
+|nMax_| Maximum number of agents when loading to platform |
+|idMax_| Maximum id in the Community at all times |
+|NAdd_| Number of added agents in the present step |
+|NRemove_| Number of removed agents in the present step |
+|NSurvive_| Number of agents survived in this step |
+|flagSurvive_| 0 is agent survived this step, 1 if dead |
+|holeFromRemoveAt_| Holes left from agents that are dead |
+|repositionAgentInPos_| List the positions of the agents that have to be reubicated to empty spaces |
+|flagRecomputeNeighbors_| 1 is neighbors have to be recomputed |
 
-Function to construct a Community with a predefined number of agents and medium grid.
+# Constructors
 
-|| Argument | Description |
-|:---|:---|
-|Args| abm::ABM | Agent Based Model that defines the parameters of the agents. |
-|KwArgs| args... | Keys to define any of the other elements that will be visible by evolution functions (e.g. simBox, N...)
+    function Community()
 
-**Accessing and Modifying the Community**
+Creates fully empty community. Auxiliar method for the following method of declaration for the users.
 
-All user defined parameters and base parameters are that are not protected can be accessed by indexing or property.
-The same parameters are assigned by broadcasting. 
+    function Community(
+        abm::ABM; 
 
-Accessible Base Parameters:
-[:t,:dt,:simBox,:skin,:dtNeighborRecompute,:nMaxNeighbors,:cellEdge,:x,:y,:z]
+        dt::Union{Nothing,AbstractFloat} = nothing,
+        t::AbstractFloat = 0.,
+        N::Int = 1,
+        id::AbstractArray{Int} = 1:N,
+        NMedium::Union{Nothing,Vector{<:Int}} = nothing,
+        simBox::Union{Nothing,Matrix{<:Number}} = nothing,
 
-```julia
-model = ABM(1) #Defining a very basic agent with no rules.
-com = Community(model, N = [10]) #Constructing a community with 10 agents.
-com[:x]         #indexing
-com.x           #property
-com[:x] = 1:10  #equivalent to .= for Community
-com.x   = 1:10  #property
-```
+        agentAlg::Union{CustomIntegrator,DEAlgorithm} = CBMIntegrators.Euler(),
+        agentSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
-> **CONSTANT PARAMETERS**: Notice that constant parmaeters are Arrays of size (1,) (notice the example above when defining the number of agents N).
+        modelAlg::Union{CustomIntegrator,DEAlgorithm} = CBMIntegrators.Euler(),
+        modelSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
-> **ACCESSING AND MODIFYING PROTECTED FIELDS.** 
-> Protected fields of a Community structure can be accessed calling to `getfield`. However, these are rotected to prevent unexpected behavior in the evolution of the code. Use with caution and avoid modifying them.
+        mediumAlg::Union{CustomIntegrator,DEAlgorithm} = DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()),
+        mediumSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
-**Accessing old times**
-If some times have been saven in RAM using a function like `saveRAM!` or when loading from a file, you can access those times by indexing and the position of the time.
+        neighborsAlg::Neighbors = CBMNeighbors.Full(),       
+        platform::Platform = CPU(),     
+        args...
+    )
 
-```julia
-length(com) #Number of saved times in Community
-com[10] #Return the community saved at position 10.
-```
+Function to construct a Community that accepts to provide integration algorithms, neighboring algorithms, the computing platform and setting parameters of the community.
 
-**Accessing specific parameters at all times**
-If you just want to access specific parameters for all times, It is way more efficcient to call the function `getParameter`.
-
-```julia
-getParameter(com,:x) #Return the position :x of all agents at all stored times.
-getParameter(com,[:dt,:x]) #Return the parameters dt and x of all agents at all stored times.
-```
+For a more specific indication of the usage see the UserGuide.
 """
 mutable struct Community
 

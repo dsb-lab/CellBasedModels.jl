@@ -91,15 +91,7 @@ end
 """
     function step!(community)
 
-Executes all the step functions and updates the parameters a single time.
-
- 1. `interactionStep!(community)`
- 2. `integrationStep!(community)`
- 3. `integrationMediumStep!(community)`
- 4. `localStep!(community)`
- 5. `globalStep!(community)`
- 6. `update!(community)`
-
+Executes all the possible step functions and updates the parameters a single time.
 """
 function step!(community)
 

@@ -15,6 +15,11 @@ module CBMIntegrators
     # Euler
     ##########################################
 
+"""
+    mutable struct Euler <: CustomIntegrator
+
+Euler integrator for ODE problems.
+"""
     mutable struct Euler <: CustomIntegrator
 
         f
@@ -60,6 +65,11 @@ module CBMIntegrators
     # Heun
     ##########################################
 
+"""
+    mutable struct Heun <: CustomIntegrator
+
+Heun integrator for ODE problems.
+"""
     mutable struct Heun <: CustomIntegrator
 
         f
@@ -118,6 +128,11 @@ module CBMIntegrators
     ##########################################
     # RungeKutta4
     ##########################################
+"""
+    mutable struct RungeKutta4 <: CustomIntegrator
+
+RungeKutta4 for ODE integrators
+"""
     mutable struct RungeKutta4 <: CustomIntegrator
 
         f
@@ -205,6 +220,11 @@ module CBMIntegrators
     ##########################################
     # EM
     ##########################################
+"""
+    mutable struct EM <: CustomIntegrator
+
+Euler-Majurana integrator for SDE poblems.
+"""
     mutable struct EM <: CustomIntegrator
 
         f
@@ -257,6 +277,11 @@ module CBMIntegrators
     ##########################################
     # EulerHeun
     ##########################################
+"""
+    mutable struct EulerHeun <: CustomIntegrator
+
+Euler-Heun method for SDE integration.
+"""
     mutable struct EulerHeun <: CustomIntegrator
 
         f

@@ -55,13 +55,16 @@ The cells present division. The rules for the division in this model are. Random
 
 ```julia
 #Package
-using CellBasedModels
+using AgentBasedModels
 #Functions for generating random distributions
 using Random
 using Distributions
 #Package for plotting in 3D
 using GLMakie
 GLMakie.inline!(true)
+
+using CSV
+using DataFrames
 ```
 
 ### Define the agent
@@ -299,20 +302,18 @@ We check how the agents starts to divide and choose a fate at late stages of the
 
 
 ```julia
-d = getParameter(com,[:x,:y,:z,:r,:cellFate])
-colorMap = Dict(1=>:blue,2=>:orange,3=>:green)
-for (i,pos) in enumerate(1:length(com))
-    color = [colorMap[i] for i in d[:cellFate][pos]]
-    fig = Figure(resolution=(2000,2000))
-    ax = Axis3(fig[1,1],aspect = :data)
-    meshscatter!(ax,d[:x][pos],d[:y][pos],d[:z][pos],markersize=d[:r][pos],color=color)
-    xlims!(ax,-7,7)
-    ylims!(ax,-7,7)
-    zlims!(ax,-7,7)
+function getFates(com)
+    d = getParameter(com,[:t,:cellFate])
 
-    ind = "000$i"
-    save("video/Development$(ind[end-2:end]).jpeg",fig)
-end
+    dict = Dict()
+    dict["t"] = [i[1] for i in d[:t]]
+    dict["N"] = [length(i) for i in d[:cellFate]] 
+    for (fateNumber, fate) in zip([1,2,3],["DP","EPI","PRE"])
+        dict[fate] = [sum(i.==fateNumber) for i in d[:cellFate]] 
+    end
+
+    return dict
+end;
 ```
 
 
@@ -321,7 +322,7 @@ fig = Figure(resolution=(2000,500))
 
 d = getParameter(com,[:x,:y,:z,:r,:cellFate])
 colorMap = Dict(1=>:blue,2=>:orange,3=>:green)
-for (i,pos) in enumerate([1:10:length(com);length(com)])
+for (i,pos) in enumerate([1:round(Int64,length(com)/5):length(com);length(com)])
     ax = Axis3(fig[1,i],aspect = :data)
     color = [colorMap[i] for i in d[:cellFate][pos]]
     meshscatter!(ax,d[:x][pos],d[:y][pos],d[:z][pos],markersize=d[:r][pos],color=color)
@@ -341,45 +342,26 @@ fig
 
 
 ```julia
-function getProportions(com)
-    d = getParameter(com,[:cellFate])
-
-    proportions = []
-    for fate in [1,2,3]
-        fateList = []
-        sizeList = []
-        for (i,pos) in enumerate(1:length(com))
-            push!( sizeList, length(d[:cellFate][pos]) )
-            push!( fateList, sum(d[:cellFate][pos].==fate) )
-        end
-        prop = fateList./sizeList
-        push!(proportions,prop)
-    end
-
-    return proportions
-end;
-```
-
-
-```julia
 fig = Figure(resolution=(2000,800))
 
-ax = Axis(fig[1,1])
-
-colorMap = Dict(1=>:blue,2=>:orange,3=>:green)
-offset = zeros(length(com))
-prop = getProportions(com)
-for fate in [1,2,3]
-    barplot!(ax,1:length(com),prop[fate],offset=offset,color=colorMap[fate])
-    offset .+= prop[fate]
+ax = Axis(fig[1,1],xlabel="Time",ylabel="Proportions",xlabelsize=40,ylabelsize=40)
+fates = getFates(com)
+offset = zeros(length(fates["N"]))
+plots = []
+for i in ["DP","EPI","PRE"]
+    prop = fates[i]./fates["N"]
+    p = barplot!(ax,fates["t"],prop,offset=offset)
+    push!(plots,p)
+    offset .+= prop
 end
+Legend(fig[1,1], plots, ["DP","EPI","PRE"], halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=40)
 
 fig
 ```
 
 
     
-![png](Development_files/Development_18_0.png)
+![png](Development_files/Development_17_0.png)
     
 
 
@@ -389,79 +371,62 @@ This model contains stochasticity in the division times and the concentration of
 
 
 ```julia
-function makeStatisticsTime(dt,steps,saveEach,nRepetitions)
+function makeStatistics(parameters,dt,steps,saveEach,nRepetitions)
 
     #Make simulations and add results to list
-    propList = Dict( 1=>[], 2=>[], 3=>[] )
+    d = Dict("id"=>Int64[],"N"=>Int64[],"t"=>Float64[],"DP"=>Int64[],"EPI"=>Int64[],"PRE"=>Int64[])
     for i in 1:nRepetitions
         #Make the simulations
         com = initializeEmbryo(parameters);
         customEvolve!(com,dt,steps,saveEach)
     
         #Add them to the model
-        prop = getProportions(com)
-        for fate in 1:3
-            for (j,p) in enumerate(prop[fate])
-                if j > length(propList[fate])
-                    push!(propList[fate],prop[fate][j:j])
-                else
-                    push!(propList[fate][j],prop[fate][j])
-                end
-            end
-        end
+        fates = getFates(com)
+        append!(d["id"],i*ones(Int64,length(fates["N"])))
+        append!(d["N"],fates["N"])
+        append!(d["t"],fates["t"])
+        append!(d["DP"],fates["DP"])
+        append!(d["EPI"],fates["EPI"])
+        append!(d["PRE"],fates["PRE"])
     end
 
-    #Make statistics of the results
-    propMean = deepcopy(propList)
-    propStd = deepcopy(propList)
-    for fate in 1:3
-        for j in 1:length(propList[fate])
-            propMean[fate][j] = mean(propList[fate][j])
-            propStd[fate][j] = std(propList[fate][j])
-        end
-    end
-
-    return propMean, propStd
+    return d
 end;
 ```
 
 
-    makeStatistics (generic function with 1 method)
-
-
-
 ```julia
-dt = 0.0002
+dt = 0.002
 steps = round(Int64,50/dt)
 saveEach = round(Int64,1/dt)
 
-nRepetitions = 2
+nRepetitions = 5
 
-propMean, propStd = makeStatistics(dt,steps,saveEach,nRepetitions);
+prop = makeStatistics(parameters,dt,steps,saveEach,nRepetitions);
 ```
 
 
-    (Dict{Int64, Vector{Any}}(2 => [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.24, 0.25925925925925924, 0.25925925925925924, 0.25, 0.22972972972972974, 0.2976190476190476, 0.38390243902439025, 0.43863636363636366, 0.4754500818330606, 0.4517945109078114], 3 => [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.26, 0.24074074074074073, 0.24074074074074073, 0.25, 0.2702702702702703, 0.39285714285714285, 0.47609756097560973, 0.5213636363636364, 0.5053191489361701, 0.513722730471499], 1 => [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0  …  0.5, 0.5, 0.5, 0.5, 0.5, 0.30952380952380953, 0.14, 0.04, 0.019230769230769232, 0.034482758620689655]), Dict{Int64, Vector{Any}}(2 => [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.33941125496954283, 0.36664796061524685, 0.36664796061524685, 0.3535533905932738, 0.32488689946408944, 0.2862098876231264, 0.14694023843193618, 0.054640069455324125, 0.019674002095206696, 0.053742105818541254], 3 => [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.36769552621700474, 0.3404588205713006, 0.3404588205713006, 0.3535533905932738, 0.38221988172245813, 0.15152288168283162, 0.051049660300297096, 0.0019284730395996482, 0.007522412565814307, 0.004976120909124207], 1 => [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.7071067811865476, 0.7071067811865476, 0.7071067811865476, 0.7071067811865476, 0.7071067811865476, 0.437732769305958, 0.19798989873223333, 0.0565685424949238, 0.02719641466102106, 0.04876598490941707]))
-
-
-
 ```julia
-fig = Figure(resolution=(2000,800))
+fig = Figure(resolution=(1000,800))
 
-ax = Axis(fig[1,1])
-for fate in 1:3
-    errorbars!(ax,1:length(propMean[fate]),propMean[fate],propStd[fate],color=:black)
+ax = Axis(fig[1,1],xlabel="N",xlabelsize=40,ylabel="proportions",ylabelsize=40)
+for i in ["DP","EPI","PRE"]
+    boxplot!(ax,prop["N"],prop[i]./prop["N"])
 end
-for fate in 1:3
-    scatter!(ax,1.:length(propMean[fate]),Float64.(propMean[fate]),markersize=30,color=colorMap[fate])
+Legend(fig[1,1], plots, ["DP","EPI","PRE"], halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=40)
+
+ax = Axis(fig[2,1],xlabel="t",xlabelsize=40,ylabel="proportions",ylabelsize=40)
+for i in ["DP","EPI","PRE"]
+    boxplot!(ax,prop["t"],prop[i]./prop["N"])
 end
+Legend(fig[2,1], plots, ["DP","EPI","PRE"], halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=40)
 
 fig
 ```
 
 
     
-![png](Development_files/Development_22_0.png)
+![png](Development_files/Development_21_0.png)
     
 
 
@@ -477,7 +442,26 @@ We upload the experimental data that gives raise to this model.
 
 
 ```julia
-data = CustomFunction.uploadExperimentalData();
+dataFull = CSV.read("data/ncoms-counts-Hc.csv",DataFrame)
+fates = ["DP","EPI","PRE"];
+```
+
+
+```julia
+data = Dict("N"=>Float64[],[i=>Float64[] for i in ["DP","EPI","PRE"]]...)
+for embryo in unique(dataFull[!,"Embryo_ID"])
+    embryoData = dataFull[dataFull[!,"Embryo_ID"] .== embryo,:]
+    push!(data["N"], 0)
+    for celltype in fates
+        if celltype in embryoData[!,"Identity.hc"] && celltype in ["DP","EPI","PRE"]
+            val = embryoData[embryoData[!,"Identity.hc"].==celltype,"count"][1]
+            push!(data[celltype],val)
+            data["N"][end] += val 
+        elseif celltype in ["DP","EPI","PRE"]
+            push!(data[celltype],0)
+        end
+    end
+end
 ```
 
 
@@ -486,18 +470,17 @@ fig = Figure(resolution=(2000,1000))
 
 ax = Axis(fig[1,1],xlabel="N",xlabelsize=30,ylabel="Cell fates",ylabelsize=30)
 
-offset = zeros(size(data)[1])
+offset = zeros(size(data["DP"])[1])
 legend = []
-for cellId in ["DP","EPI","PRE"]
-    bp = barplot!(ax,data[!,cellId], offset=offset)
+order = sortperm(data["N"])
+for cellId in fates
+    bp = barplot!(ax,data[cellId][order], offset=offset)
     push!(legend,bp)
-    offset .+= data[!,cellId]
+    offset .+= data[cellId][order]
 end
 
 fig
 ```
-
-
 
 
     
@@ -505,58 +488,29 @@ fig
     
 
 
-
 We see that the data corresponds to sets ranging from 5 to 60 cells, being the usual sized between 5 to 30. 
 
 
 ```julia
 fig = Figure(resolution=(2000,800))
+ax = Axis(fig[1,1])
+legend = []
 
-cluster = 5
-CustomFunction.plotData(data,cluster,fig,1,1)
+cluster = 1
+for cellId in fates
+    Ngrouped = round.(Int64,data["N"]/cluster).*cluster
+    l = boxplot!(ax,Ngrouped,(data[cellId]./data["N"]),label=cellId)
+    push!(legend,l)
+end
+Legend(fig[1,1], legend, fates, halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=40)
 
 fig
 ```
 
 
-
-
     
 ![png](Development_files/Development_28_0.png)
     
-
-
-
-### Prepare experimental data for fitting
-
-To increase the statistical power, we cluster the data into bins of total cell number and compute the mean and variance statistics.
-
-
-```julia
-dataFit = CustomFunction.clusterExperimentalData(data)
-```
-
-
-
-
-<div class="data-frame"><p>10 rows × 7 columns</p><table class="data-frame"><thead><tr><th></th><th>NCluster</th><th>PropDPMean</th><th>PropEpiMean</th><th>PropPreMean</th><th>PropDPVar</th><th>PropEpiVar</th><th>PropPreVar</th></tr><tr><th></th><th title="Float64">Float64</th><th title="Float64">Float64</th><th title="Float64">Float64</th><th title="Float64">Float64</th><th title="Float64">Float64</th><th title="Float64">Float64</th><th title="Float64">Float64</th></tr></thead><tbody><tr><th>1</th><td>7.5</td><td>0.57213</td><td>0.117172</td><td>0.310698</td><td>0.0783641</td><td>0.0129534</td><td>0.0826128</td></tr><tr><th>2</th><td>10.0</td><td>0.666324</td><td>0.185325</td><td>0.148351</td><td>0.106707</td><td>0.0813161</td><td>0.0356754</td></tr><tr><th>3</th><td>12.5</td><td>0.531393</td><td>0.190841</td><td>0.277767</td><td>0.103513</td><td>0.0274729</td><td>0.0444675</td></tr><tr><th>4</th><td>15.0</td><td>0.508135</td><td>0.164428</td><td>0.327437</td><td>0.111539</td><td>0.0209876</td><td>0.0471392</td></tr><tr><th>5</th><td>17.5</td><td>0.381015</td><td>0.226418</td><td>0.392567</td><td>0.102499</td><td>0.0299968</td><td>0.0612153</td></tr><tr><th>6</th><td>20.0</td><td>0.111762</td><td>0.346149</td><td>0.542089</td><td>0.03021</td><td>0.0243066</td><td>0.0308021</td></tr><tr><th>7</th><td>22.5</td><td>0.0591382</td><td>0.411671</td><td>0.529191</td><td>0.0121628</td><td>0.00968479</td><td>0.0125616</td></tr><tr><th>8</th><td>25.0</td><td>0.0421807</td><td>0.409438</td><td>0.548381</td><td>0.00349641</td><td>0.00972507</td><td>0.0162125</td></tr><tr><th>9</th><td>27.5</td><td>0.0</td><td>0.203281</td><td>0.796719</td><td>1.0</td><td>0.0538351</td><td>0.0538351</td></tr><tr><th>10</th><td>30.0</td><td>0.0</td><td>0.236364</td><td>0.763636</td><td>1.0</td><td>1.0</td><td>1.0</td></tr></tbody></table></div>
-
-
-
-### Note on simulated data
-
-We cluster the data in the same way so we can compare the experiments and simulations. Notice that the simulations have statistics at all sizes. We will have to limit to the experimental range in order to compare them.
-
-
-```julia
-dataExperimentalFit = CustomFunction.clusterSimulatedData(simulatedData)
-```
-
-
-
-
-<div class="data-frame"><p>13 rows × 7 columns</p><table class="data-frame"><thead><tr><th></th><th>NCluster</th><th>PropDPMean</th><th>PropEpiMean</th><th>PropPreMean</th><th>PropDPVar</th><th>PropEpiVar</th><th>PropPreVar</th></tr><tr><th></th><th title="Float64">Float64</th><th title="Float64">Float64</th><th title="Float64">Float64</th><th title="Float64">Float64</th><th title="Float64">Float64</th><th title="Float64">Float64</th><th title="Float64">Float64</th></tr></thead><tbody><tr><th>1</th><td>2.5</td><td>1.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td></tr><tr><th>2</th><td>5.0</td><td>1.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td></tr><tr><th>3</th><td>7.5</td><td>1.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td></tr><tr><th>4</th><td>10.0</td><td>1.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td></tr><tr><th>5</th><td>12.5</td><td>0.958042</td><td>0.0</td><td>0.041958</td><td>0.0154833</td><td>0.0</td><td>0.0154833</td></tr><tr><th>6</th><td>15.0</td><td>0.433957</td><td>0.0399762</td><td>0.526067</td><td>0.125634</td><td>0.0037344</td><td>0.0999143</td></tr><tr><th>7</th><td>17.5</td><td>0.106723</td><td>0.143919</td><td>0.749358</td><td>0.0264177</td><td>0.00596286</td><td>0.0117087</td></tr><tr><th>8</th><td>20.0</td><td>0.00958891</td><td>0.205069</td><td>0.785342</td><td>0.000286084</td><td>0.00118204</td><td>0.000720346</td></tr><tr><th>9</th><td>22.5</td><td>0.00134953</td><td>0.200886</td><td>0.797764</td><td>3.46033e-5</td><td>0.00137099</td><td>0.00141768</td></tr><tr><th>10</th><td>25.0</td><td>0.0</td><td>0.205617</td><td>0.794383</td><td>0.0</td><td>0.000418489</td><td>0.000418489</td></tr><tr><th>11</th><td>27.5</td><td>0.0</td><td>0.211052</td><td>0.788948</td><td>0.0</td><td>0.000260857</td><td>0.000260857</td></tr><tr><th>12</th><td>30.0</td><td>0.0</td><td>0.211785</td><td>0.788215</td><td>0.0</td><td>0.000675022</td><td>0.000675022</td></tr><tr><th>13</th><td>32.5</td><td>0.0</td><td>0.208562</td><td>0.791438</td><td>0.0</td><td>0.000359499</td><td>0.000359499</td></tr></tbody></table></div>
-
 
 
 ### Set the exploration space
@@ -594,7 +548,7 @@ The specific form of the function will depend on the optimization algorithm at h
 
 
 ```julia
-function loosFunction(params,parameters,dataFit,nRepetitions=10)
+function loosFunction(params;parameters=parameters,data=data,nRepetitions=10,saveEach=10,dt=0.002)
 
     #Modify the set of parameters
     parametersModified = copy(parameters)
@@ -604,16 +558,26 @@ function loosFunction(params,parameters,dataFit,nRepetitions=10)
     parametersModified[:mm] = params.mm[1]
     
     #Make a batch of simulations and get relevant information
-    simulatedData = CustomFunction.batchSimulations(mCompiled, parametersModified, nRepetitions)
+    prop = makeStatistics(parameters,dt,steps,saveEach,nRepetitions);
 
     #Prepare data for fitting
-    simulatedFit = CustomFunction.clusterSimulatedData(simulatedData,5)[3:2+size(dataFit)[1],:]
+    p = transpose([prop["DP"] prop["EPI"] prop["PRE"]]./prop["N"])
     
     #Xi square loos
-    loos = sum((simulatedFit.PropDPMean .- dataFit.PropDPMean).^2 ./dataFit.PropDPVar .+
-    (simulatedFit.PropEpiMean .- dataFit.PropEpiMean).^2 ./dataFit.PropEpiVar .+
-    (simulatedFit.PropPreMean .- dataFit.PropPreMean).^2 ./dataFit.PropPreVar)
-    
+    loos = 0.
+    for n in minimum(data["N"]):maximum(data["N"])
+        p = prop["N"] .== n
+        if sum(p) > 0
+            dist = Multinomial(Int64(n),[mean(prop["DP"][p])/n,mean(prop["EPI"][p])/n,mean(prop["PRE"][p])/n])
+            for (nn,dp,epi,pre) in zip(data["N"],data["DP"],data["EPI"],data["PRE"])
+                if nn == n
+                    if !isinf(logpdf(dist,[dp,epi,pre]))
+                        loos += logpdf(dist,[dp,epi,pre])
+                    end
+                end
+            end
+        end
+    end
     #Return loos
     return loos
     
@@ -621,10 +585,7 @@ end
 ```
 
 
-
-
-    loosFunction (generic function with 2 methods)
-
+    loosFunction (generic function with 6 methods)
 
 
 ### Check stability of loos function
@@ -637,18 +598,26 @@ The fluctuations for the simulations using 10 repetitions of the simulation for 
 ```julia
 initialisation = DataFrame([:α=>parameters[:α],:K=>parameters[:K],:nn=>parameters[:nn],:mm=>parameters[:mm]])
 
-Threads.@threads for i in 1:6
-    println(loosFunction(initialisation,parameters,dataFit,10))
+Threads.@threads for i in 1:3
+    println(loosFunction(initialisation,nRepetitions=10))
 end
 ```
 
-    37.524702069795865
-    35.692004150800024
-    39.58578228237162
-    38.01336764695495
-    36.61591815064281
-    38.63926523924343
+    -2021.0023982932462
+    -1403.407497421518
+    -1599.348913550006
 
+
+
+```julia
+AgentBasedModels.Optimization.swarmAlgorithm(loosFunction,
+                                        explore,
+                                        population=50,
+                                        stopMaxGenerations=10,
+                                        saveFileName="OptimizationResults",
+                                        args=[parameters,dataFit,10]
+                                    )
+```
 
 ### Run the optimization algorithm
 
@@ -658,11 +627,11 @@ The algorithm has done a good job finding a fet of parameters that fits the data
 
 The discrepacy at earlier time comes from the fact that the chemical circuit only starts at a critial size of `N=20`. A further improvement on the optimization would be to change this global parameter i the system or even to add it to the fitting process.
 
-Overall, we showed the capacity of CellBasedModels to fit models to real data.
+Overall, we showed the capacity of AgentBasedModels to fit models to real data.
 
 
 ```julia
-CellBasedModels.Optimization.swarmAlgorithm(loosFunction,
+AgentBasedModels.Optimization.swarmAlgorithm(loosFunction,
                                         explore,
                                         population=50,
                                         stopMaxGenerations=10,
@@ -719,7 +688,7 @@ fig
 
 
     
-![png](Development_files/Development_43_0.png)
+![png](Development_files/Development_40_0.png)
     
 
 
@@ -764,7 +733,7 @@ fig
 
 
     
-![png](Development_files/Development_44_0.png)
+![png](Development_files/Development_41_0.png)
     
 
 

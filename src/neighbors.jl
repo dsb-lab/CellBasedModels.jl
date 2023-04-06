@@ -18,6 +18,12 @@ module CBMNeighbors
     computeNeighbors!(com) = computeNeighbors!(com.neighbors,com)
 
     #Full
+
+"""
+    mutable struct Full <: Neighbors
+
+Method that computes all against all neighbors.
+"""
     mutable struct Full <: Neighbors
 
     end
@@ -148,6 +154,22 @@ module CBMNeighbors
     @verletNeighbors GPU x y z
 
         #Verlet Time
+
+"""
+    mutable struct VerletTime <: Verlet <: Neighbors
+
+Method that computes VerletList neighbors and updates it at fixed times.
+
+# Constructor
+
+    function VerletTime(;skin,dtNeighborRecompute,nMaxNeighbors)
+
+||Parameter|Description|
+|:---|:---|:---|
+|KwArgs|skin is the maximum distance around center to check neighbors.|
+||dtNeighborRecompute is time step at which recompute Verlet Lists.|
+||nMaxNeighbors is the maximum number of neighbors that a cell may have.|
+"""
     mutable struct VerletTime <: Verlet
 
         skin
@@ -259,6 +281,21 @@ module CBMNeighbors
     @neighborsVerletTime GPU x y z
 
         #Verlet Displacement
+
+"""
+    mutable struct VerletTime <: Verlet <: Neighbors
+
+Method that computes VerletList neighbors and updates it whenever an agent moves too far from the initial position
+
+# Constructor
+
+    function VerletDisplacement(;skin,nMaxNeighbors)
+
+||Parameter|Description|
+|:---|:---|:---|
+|KwArgs|skin is the maximum distance around center to check neighbors.|
+||nMaxNeighbors is the maximum number of neighbors that a cell may have.|
+"""
     mutable struct VerletDisplacement <: Verlet
 
         skin
@@ -522,6 +559,20 @@ module CBMNeighbors
     @neighborsVerletDisplacement GPU x y z
 
     #Grid
+
+"""
+    mutable struct CellLinked <: Neighbors
+
+Method that computes Cell Linked neighbors and updates it whenever an agent moves too far from the initial position
+
+# Constructor
+
+    function CellLinked(;cellEdge)
+
+||Parameter|Description|
+|:---|:---|:---|
+|KwArgs|cellEdge is the grid size to use to check for neighbors around neighbor cells.|
+"""
     mutable struct CellLinked <: Neighbors
 
         cellEdge
@@ -915,6 +966,21 @@ module CBMNeighbors
     @neighborsCellLinked GPU x y z
 
     #CLVD
+"""
+    mutable struct CLVD <: Verlet <: Neighbors
+
+Method that computes Cell Linked and Verlet Displacement neighbors algorithms together to compute neighbors and only recompute when they left very far from center.
+
+# Constructor
+
+    function CLVD(;skin,nMaxNeighbors,cellEdge)
+
+||Parameter|Description|
+|:---|:---|:---|
+|KwArgs|skin is the maximum distance around center to check neighbors.|
+||nMaxNeighbors is the maximum number of neighbors that a cell may have.|
+||cellEdge is the grid size to use to check for neighbors around neighbor cells.|
+"""
     mutable struct CLVD <: Verlet
 
         skin

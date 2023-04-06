@@ -2,7 +2,7 @@
 
 
 ```julia
-using CellBasedModels
+using AgentBasedModels
 
 using Distributions
 using GLMakie

@@ -2,12 +2,6 @@
     function saveRAM!(community::Community)
 
 Function that stores the present configuration of community in the field `Community.pastTimes`.
-The parameter `saveLevel` indicates which parameters should be saved.
-
-|saveLevel|saved parameters|
-|:---:|:---|
-|1|User defined parameters and modifiable parameters. (t,N...) (default)|
-|2|All auxiliar parameters of Community (for debugging)|
 """
 function saveRAM!(community::Community)
     
@@ -39,16 +33,9 @@ function saveRAM!(community::Community)
 end
 
 """
-    function saveJLD2(community::Community)
+    saveJLD2(file::String, community::Community; overwrite=false)
 
-Function that stores the present configuration of community in the file defined in `Community.fileSaving`.
-The behavior of the function is to append to the file if the file exists. If you want to restart the file, you will have to rename the exisiting file or delete it before running the function.
-The parameter `saveLevel` indicates which parameters should be saved.
-
-|saveLevel|saved parameters|
-|:---:|:---|
-|1|User defined parameters and modifiable parameters. (t,N...) (default)|
-|2|All auxiliar parameters of Community (for debugging)|
+Save in `file` the current instance of the `community`. If some other community was being saved here, an error will raise. If `overwrite=true` is specified, it will remove the previous community.   
 """
 function saveJLD2(file::String, community::Community; overwrite=false)
 

@@ -20,5 +20,5 @@ using CellBasedModels
 
 The package works around the two main structures:
 
- - `Agent`: is the structure that contains all the information of the parameters and rules of the agents.
- - `Community`: is the structure that containts a realization of a set of agents that have the parameters and evolution rules defined by an `Agent`. The Community structure will be initialized and then evolved using the rules defined in the Agent structure.
+ - `ABM`: is the structure that contains all the information of the parameters and rules of the agents.
+ - `Community`: is the structure that containts a realization of a set of agents that have the parameters and evolution rules defined by an `ABM`. The Community structure will be initialized and then evolved using the rules defined in the ABM structure.

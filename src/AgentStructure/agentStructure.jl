@@ -8,17 +8,11 @@ Basic structure which contains the user defined parmeters of the model, the user
 | Field | Description |
 |:---|:---|
 | dims::Int | Dimensions of the model. |
-| declaredVariables::OrderedDict{Symbol,Equation} | Dictionary containing the parameters that have a differential equation describing their evolution assotiated. |
-| declaredVariablesMedium::OrderedDict{Symbol,EquationMedium} | Dictionary containing the parameters that have a partial differential equation describing their evolution assotiated. |
-| declaredSymbols::OrderedDict{Symbol,Array{Any}} | Dictionary of parameters of the model and its properties. |
+| parameters::OrderedDict{Symbol,UserParameter} | Dictionary of parameters of the model and its properties. |
 | declaredUpdates::Dict{Symbol,Expr} |  Dictionary of updating rules and their user defined content (high level code). |
 | declaredUpdatesCode::Dict{Symbol,Expr} | Dictionary of updating rules after wrapping into code (low level code). |
 | declaredUpdatesFunction::Dict{Symbol,Function} | Dictionary of updting rules and the compiled functions (compiled code). |
-| neighbors::Symbol | Type of neighbors computation of the model. |
-| integrator::Symbol | Type of integrator for the Differential Equations of the model. |
-| platform::Symbol | Platform used for evolving the model. |
 | removalOfAgents_::Bool | Stores the information to check wether agents are removed in the code. Auxiliar parameter for generating the code. |
-| posUpdated_::Vector{Bool} | Stores the information to check wether position parameters (x,y,z) are updated in the code. Auxiliar parameter for generating the code. |
 
 # Constructors
 
@@ -26,58 +20,53 @@ Basic structure which contains the user defined parmeters of the model, the user
 
 Generates an empty instance of ABM to be filled.
 
-    function ABM(dims;
-        agent::Vector{Symbol}=Symbol[],
-        model::Vector{Symbol}=Symbol[],
-        medium::Vector{Symbol}=Symbol[],
+    function ABM(
+        dims;
+
+        agent=OrderedDict{Symbol,DataType}(),
+        agentRule::Expr=quote end,
+        agentODE::Expr=quote end,
+        agentSDE::Expr=quote end,
+
+        model=OrderedDict{Symbol,DataType}(),
+        modelRule::Expr=quote end,
+        modelODE::Expr=quote end,
+        modelSDE::Expr=quote end,
+
+        medium=OrderedDict{Symbol,DataType}(),
+        mediumRule::Expr=quote end,
+        mediumODE::Expr=quote end,
+        mediumSDE::Expr=quote end,
+
         baseModelInit::Vector{ABM}=ABM[],
         baseModelEnd::Vector{ABM}=ABM[],
-        neighbors::Symbol=:Full,
-        integrator::Symbol=:Euler,
-        integratorMedium::Symbol=:Centered,
-        updateGlobal::Expr=quote end,
-        agentRule::Expr=quote end,
-        updateInteraction::Expr=quote end,
-        mediumODE::Expr=quote end,
-        mediumODEInteraction::Expr=quote end,
-        updateVariable::Expr=quote end
-        )
+    )
 
 Generates an agent based model with defined parameters and rules.
 
 || Argument | Description |
 |:---:|:---|:---|
 | Args | dims | Dimensions of the system. |
-| KwArgs | localInt::Vector{Symbol}=Symbol[] | User defined local integer parameters. |
-|| localIntInteraction::Vector{Symbol}=Symbol[] | User defined local integer interacting parameters. |
-|| localFloat::Vector{Symbol}=Symbol[] | User defined local float parameters. |
-|| localFloatInteraction::Vector{Symbol}=Symbol[] | User defined local float interacting parameters. |
-|| globalFloat::Vector{Symbol}=Symbol[] | User defined global float parameters. |
-|| globalInt::Vector{Symbol}=Symbol[] | User defined global integer parameters. |
-|| globalFloatInteraction::Vector{Symbol}=Symbol[] | User defined global float interacting parameters. |
-|| globalIntInteraction::Vector{Symbol}=Symbol[] | User defined global integer interacting parameters. |
-|| medium::Vector{Symbol}=Symbol[] | User defined medium (float) parameters. |
-|| baseModelInit::Vector{ABM}=ABM[] | Models inherited to construct this model and which rules apply before this one. |
-|| baseModelEnd::Vector{ABM}=ABM[] | Models inherited to construct this model and which rules apply after this one. |
-|| neighbors::Symbol=:Full | Type of neighbor method used. |
-|| integrator::Symbol=:Euler | Type of integrator used. |
-|| integratorMedium::Symbol=:Centered | Type of discretizer used for the spatial medium. |
-|| platform::Symbol=:CPU | Platform in which the agent will run. |
-|| saving::Symbol=:RAM | Saving platform. |
-|| updateGlobal::Expr=quote end | Update rule for global parameters. |
-|| agentRule::Expr=quote end | Update rule for local parameters. |
-|| updateInteraction::Expr=quote end | Update rule for interacting parameters. |
-|| mediumODE::Expr=quote end | Update rule for medium parameters. |
-|| mediumODEInteraction::Expr=quote end | Update rule for medium interaction parameters. |
-|| updateVariable::Expr=quote end | Update rule for diferential equation defining evolution of parameters. |
+| KwArgs | agent=OrderedDict{Symbol,DataType}() | Agent parameters |
+|| agentRule::Expr=quote end | Agent rules |
+|| agentODE::Expr=quote end | Agent Ordinary Differential Equations definition |
+|| agentSDE::Expr=quote end | Agent Stochastic Differential Equations term definition  |
+|| model=OrderedDict{Symbol,DataType}() | Model parameters |
+|| modelRule::Expr=quote end | Model rules  |
+|| modelODE::Expr=quote end | Model Ordinary Differential Equations definition  |
+|| modelSDE::Expr=quote end | Model Ordinary Differential Equations definition  |
+|| medium=OrderedDict{Symbol,DataType}() | Medium parameters |
+|| mediumRule::Expr=quote end | Medium rules  |
+|| mediumODE::Expr=quote end | Medium Ordinary Differential Equations definition  |
+|| mediumSDE::Expr=quote end | Medium Ordinary Differential Equations definition  |
+|| baseModelInit::Vector{ABM}=ABM[] | ABM model whose rules will act before this ABM rules |
+|| baseModelEnd::Vector{ABM}=ABM[] | ABM model whose rules will act after this ABM rules |
 
 For a more extense explanation of how to define rules and parameters, read `Usage` in the documentation.
 """
 mutable struct ABM
 
     dims::Int    
-
-    positionParameters::OrderedDict{Symbol,DataType}
 
     parameters::OrderedDict{Symbol,UserParameter}
     
@@ -89,7 +78,6 @@ mutable struct ABM
         
     function ABM()
         new(0,
-            OrderedDict{Symbol,DataType}(),
             OrderedDict{Symbol,DataType}(),
             Dict{Symbol,Expr}(),
             Dict{Symbol,Expr}(),
@@ -115,18 +103,6 @@ mutable struct ABM
             mediumRule::Expr=quote end,
             mediumODE::Expr=quote end,
             mediumSDE::Expr=quote end,
-
-            positionParameters=OrderedDict(
-                :x=>Float64,
-                :y=>Float64,
-                :z=>Float64,
-            ),
-
-            positionMediumParameters=OrderedDict(
-                :xₘ=>Float64,
-                :yₘ=>Float64,
-                :zₘ=>Float64,
-            ),
 
             baseModelInit::Vector{ABM}=ABM[],
             baseModelEnd::Vector{ABM}=ABM[],
@@ -173,7 +149,7 @@ mutable struct ABM
         #Add symbols from base objects
         for base in [baseModelInit; baseModelEnd]
             for (i,j) in pairs(base.parameters)
-                if !(i in keys(BASEPARAMETERS))
+                if !(i in keys(BASEPARAMETERS)) && !(i in [:x,:y,:z,:xₘ,:yₘ,:zₘ])
                     checkDeclared(i,abm)
                     abm.parameters[i] = j
                 end

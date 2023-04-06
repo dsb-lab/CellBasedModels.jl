@@ -145,7 +145,7 @@ fig
 
 
 ```julia
-model = Agent(2,
+model2 = Agent(2,
 
     localFloatInteraction = [:fx,:fy],
 
@@ -258,4 +258,164 @@ for (i,time) in enumerate(1:length(com))
     ind = "000$i"
     save("video/Coalescence$(ind[end-2:end]).jpeg",fig)
 end
+```
+
+## Neighbors
+
+
+```julia
+model = Agent(2,
+
+    localFloatInteraction = [:fx,:fy],
+
+    globalFloat = [:rRep,:fRep,:rAtr,:fAtr,:D],
+
+    updateInteraction = quote
+        d = euclideanDistance(x.i,x.j,y.i,y.j)
+        dx = (x.i-x.j)/d
+        dy = (y.i-y.j)/d
+        if d < rRep #Repulsion forces
+            fx.i += fRep*(rRep-d)*dx  
+            fy.i += fRep*(rRep-d)*dy  
+        elseif d < rAtr #Attraction forces
+            fx.i += -fAtr*(rAtr-d)*dx  
+            fy.i += -fAtr*(rAtr-d)*dy  
+        end
+    end,
+
+    updateVariable = quote
+        #Bounaries
+        if x < simBox[1,1]+rRep/2
+            fx += fRep
+        elseif x > simBox[1,2]-rRep/2
+            fx -= fRep        
+        end
+        if y < simBox[2,1]+rRep/2
+            fy += fRep
+        elseif y > simBox[2,2]-rRep/2
+            fy -= fRep
+        end
+        #Dynamics
+        d( x ) = dt( fx ) + dW( D )
+        d( y ) = dt( fy ) + dW( D )
+    end,
+    
+    integrator=:Heun
+);
+```
+
+
+```julia
+modelFull = Agent(2,
+    baseModelInit = [model],
+    integrator = :Heun,
+    neighbors = :Full
+);
+modelVerlet = Agent(2,
+    baseModelInit = [model],
+    integrator = :Heun,
+    neighbors = :VerletDisplacement
+);
+modelCellLinked = Agent(2,
+    baseModelInit = [model],
+    integrator = :Heun,
+    neighbors = :CellLinked
+);
+```
+
+
+```julia
+function initialize(model,N,simBox)
+        return Community(model,N=[N],
+                simBox = simBox,
+                nMaxNeighbors = [100],
+                skin = [4.],
+                cellEdge = [2.,2.],
+                
+                rRep=.8,
+                fRep=1,
+                rAtr=1.,
+                fAtr=1.,
+                D = .5,
+                x=rand(N).*(simBox[1,2]-simBox[1,1]).+simBox[1,1],
+                y=rand(N).*(simBox[2,2]-simBox[2,1]).+simBox[2,1],
+                dt=[.1],
+                );
+end;
+```
+
+
+```julia
+ρ=.1
+S = 1
+
+N = []
+tFull = []
+tVerlet = []
+tCellLinked = []
+for S in 1:.5:7
+    simBox = S.*[-10. 10; -10 10]
+    n = round(Int64,ρ*(simBox[1,2]-simBox[1,1])*(simBox[2,2]-simBox[2,1]))
+    push!(N,n)
+
+    com = initialize(modelFull,n,simBox);
+    t = @elapsed evolve!(com,steps=1000,saveEach=10,saveCurrentState=true)
+    push!(tFull,t)
+
+    com = initialize(modelVerlet,n,simBox);
+    t = @elapsed evolve!(com,steps=1000,saveEach=10,saveCurrentState=true)
+    push!(tVerlet,t)
+
+    com = initialize(modelCellLinked,n,simBox);
+    t = @elapsed evolve!(com,steps=1000,saveEach=10,saveCurrentState=true)
+    push!(tCellLinked,t)
+end
+```
+
+
+```julia
+fig = Figure(resolution=(800,600))
+ax = Axis(fig[1,1],xlabel="Number of agents",ylabel="seconds")
+
+l1 = scatter!(ax,Float64.(N),Float64.(tFull))
+l2 = scatter!(ax,Float64.(N),Float64.(tVerlet))
+l3 = scatter!(ax,Float64.(N),Float64.(tCellLinked))
+Legend(fig[1,2],[l1,l2,l3],["Full","Verlet List","Cell Linked"])
+
+fig
+```
+
+
+    
+![png](Aggregation_files/Aggregation_22_0.png)
+    
+
+
+
+```julia
+d = getParameter(com,[:x,:y])
+
+fig = Figure(resolution=(5000,600))
+
+for (i,time) in enumerate(1:round(Int64,length(com)/5):length(com))
+    ax = Axis(fig[1,i])
+    mesh!(ax, [simBox[1,1] simBox[2,1];simBox[1,1] simBox[2,2];simBox[1,2] simBox[2,2];simBox[1,2] simBox[2,1]], [1 2 4; 2 3 4], color=:lightgrey)
+    meshscatter!(ax,d[:x][time],d[:y][time],markersize=com[:rAtr][1]/2,color=(:blue,.3),transparency=true)
+    meshscatter!(ax,d[:x][time],d[:y][time],markersize=com[:rRep][1]/2,color=:red)
+    xlims!(ax,(simBox[1,:].*1.1)...)
+    ylims!(ax,(simBox[2,:].*1.1)...)
+end
+
+fig
+```
+
+
+    
+![png](Aggregation_files/Aggregation_23_0.png)
+    
+
+
+
+```julia
+
 ```

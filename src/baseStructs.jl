@@ -56,6 +56,11 @@ mutable struct UserParameter
     end
 end
 
+"""
+    mutable struct SavingFile
+
+Structure that stores the information of files used for saving Community information.
+"""
 mutable struct SavingFile
 
     uuid

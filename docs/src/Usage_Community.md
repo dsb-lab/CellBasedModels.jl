@@ -10,7 +10,7 @@ Let's use for reference the [Ornstein–Uhlenbeck](https://en.wikipedia.org/wiki
 
 
 ```julia
-model = Agent(2,
+model = ABM(2,
     globalFloat = [
         :σ, #Diffussion constant
         :theta  #Drifft force
@@ -41,7 +41,7 @@ model = Agent(2,
     
 
 
-To create an initial community we just need to call a Community structure with an `Agent` model. 
+To create an initial community we just need to call a Community structure with an `ABM` model. 
 
 
 ```julia
@@ -57,7 +57,7 @@ com = Community(model)
 
 ## KwArgs of the Community constructor
 
-In addition to the model structure, we can provide the Community structure with keyword arguments corresponding to any of the Default Parameters or User Defined parameters of an Agent (see Constructing Agents - Parameters). 
+In addition to the model structure, we can provide the Community structure with keyword arguments corresponding to any of the Default Parameters or User Defined parameters of an ABM (see Constructing ABMs - Parameters). 
 
 For example, we can define a community with more agents `N`, a `simulationBox` and random positions (`x`,`y`) in the unit box by constructing the Community as
 
@@ -247,19 +247,19 @@ close(com.fileSaving)
      [1] saveJLD2(community::Community; saveLevel::Int64)
 
 
-       @ CellBasedModels ~/Documents/CellBasedModels.jl/src/CommunityStructure/IO.jl:99
+       @ AgentBasedModels ~/Documents/AgentBasedModels.jl/src/CommunityStructure/IO.jl:99
 
 
      [2] saveJLD2(community::Community)
 
 
-       @ CellBasedModels ~/Documents/CellBasedModels.jl/src/CommunityStructure/IO.jl:74
+       @ AgentBasedModels ~/Documents/AgentBasedModels.jl/src/CommunityStructure/IO.jl:74
 
 
      [3] top-level scope
 
 
-       @ ~/Documents/CellBasedModels.jl/examples/Usage_Community.ipynb:1
+       @ ~/Documents/AgentBasedModels.jl/examples/Usage_Community.ipynb:1
 
 
 And you can always call back the model from a JLD2 file.
@@ -318,13 +318,13 @@ com  = loadJLD2("test.jld2")
      [7] loadJLD2(file::String)
 
 
-       @ CellBasedModels ~/Documents/CellBasedModels.jl/src/CommunityStructure/IO.jl:180
+       @ AgentBasedModels ~/Documents/AgentBasedModels.jl/src/CommunityStructure/IO.jl:180
 
 
      [8] top-level scope
 
 
-       @ ~/Documents/CellBasedModels.jl/examples/Usage_Community.ipynb:1
+       @ ~/Documents/AgentBasedModels.jl/examples/Usage_Community.ipynb:1
 
 
 This file will have all Community instances from the file loaded in `Community.pastTimes` and a copy of the last saved time in the current community itself.

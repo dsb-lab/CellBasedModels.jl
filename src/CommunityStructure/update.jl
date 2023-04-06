@@ -54,96 +54,16 @@ end
 ######################################################################################################
 # code to fill the holes left by cells that did not survived
 ######################################################################################################
-# """
-#     macro kernelFillHolesBase!()
+"""
+    macro kernelFillHolesParameters!()
 
-# Macro to generate the function to fill the holes left by dead agents with the survived agents listed by `listSurvivedGPU!` over all the parameters that have :Local dimension (are proportional to agents).
+Macro to generate the function to fill the holes left by dead agents with the survived agents listed by `listSurvivedGPU!` over all the parameters that have :Local dimension (are proportional to agents).
 
-# Creates the function:
+Creates the function:
 
-#     kernelFillHolesBaseCPU!(community)
-#     kernelFillHolesBaseGPU!(community)
-# """
-# macro kernelFillHolesBase!(platform)
-
-#     #get base parameters
-#     baseParameters = BASEPARAMETERS
-#     #Get local symbols
-#     localSymbols = [
-#         :flagSurvive_
-#     ]
-#     #Remove the ones related with reassigning position
-#     popat!(localSymbols,findfirst(localSymbols.==:holeFromRemoveAt_))
-#     popat!(localSymbols,findfirst(localSymbols.==:repositionAgentInPos_))
-#     #Make assignements
-#     code = quote end
-#     for sym in localSymbols
-#         if length(baseParameters[sym].shape)==1
-#             push!(code.args,
-#                 quote
-#                     if length($sym) > 0
-#                         $sym[posNew] = $sym[posOld]
-#                     end
-#                 end
-#             )
-#         elseif length(baseParameters[sym].shape)==2
-#             push!(code.args,
-#                 quote
-#                     if length($sym) > 0
-#                         for i2_ in 1:1:size($sym)[2]
-#                             $sym[posNew,i2_] = $sym[posOld,i2_]
-#                         end
-#                     end
-#                 end
-#             )
-#         end
-#     end
-#     if platform == :CPU
-#         code = quote
-#             for i in 1:1:NRemove_[]
-#                 posNew = holeFromRemoveAt_[i]
-#                 posOld = repositionAgentInPos_[i]
-#                 flagSurvive_[posOld] = 0
-#                 if posNew < posOld
-#                     $code
-#                 end
-#             end
-#         end
-#     else
-#         code = quote
-#             index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
-#             stride = gridDim().x * blockDim().x
-#             for i in index:stride:NRemove_[1]
-#                 posNew = holeFromRemoveAt_[i]
-#                 posOld = repositionAgentInPos_[i]
-#                 flagSurvive_[posOld] = 0
-#                 if posNew < posOld
-#                     $code
-#                 end
-#             end
-#         end
-#     end
-#     # code = vectorize(code)
-#     code = cudaAdapt(code,platform)
-
-#     localSymbols = getSymbolsThat(BASEPARAMETERS,:shape,:Local)
-#     localSymbols=[localSymbols;[:NRemove_]]
-
-#     return :(
-#         function $(Meta.parse("kernelFillHolesBase$(platform)!"))($(localSymbols...))
-
-#             $code
-
-#             return
-
-#         end
-#     )
-
-# end
-
-# @kernelFillHolesBase! CPU
-# @kernelFillHolesBase! GPU
-
+    kernelFillHolesBaseCPU!(community)
+    kernelFillHolesBaseGPU!(community)
+"""
 macro kernelFillHolesParameters!(platform)
 
     #Make assignements
@@ -198,6 +118,11 @@ end
 @kernelFillHolesParameters! CPU
 @kernelFillHolesParameters! GPU
 
+"""
+    macro kernelUpdateParameters!(platform)
+
+Kernel to update agent parameters.
+"""
 macro kernelUpdateParameters!(platform)
 
     #Make assignements

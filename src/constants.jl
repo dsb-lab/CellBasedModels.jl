@@ -38,6 +38,18 @@ BASEPARAMETERS = OrderedDict(
 
 POSITIONPARAMETERS = [:x,:y,:z]
 
+positionParameters=OrderedDict(
+    :x=>Float64,
+    :y=>Float64,
+    :z=>Float64,
+)
+
+positionMediumParameters=OrderedDict(
+    :xₘ=>Float64,
+    :yₘ=>Float64,
+    :zₘ=>Float64,
+)
+
 DEFAULTSOLVEROPTIONS = ((:save_everystep,false),(:dense,false))
 
 UPDATINGOPERATORS = [:(=),:+= ,:-=,:*=,:/=,:\=,:÷=,:%=,:^=,:&=,:|=,:⊻=,:>>>=,:>>=,:<<=]

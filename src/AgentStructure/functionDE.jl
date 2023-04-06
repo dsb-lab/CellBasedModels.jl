@@ -6,9 +6,9 @@ end
 # Convert the equations
 #######################################################################################################
 """
-    function agentDEFunction(com)
+    function functionDE(com,scope,type)
 
-Creates the final code provided to Agent in `updateVariable` as a function and adds it to the Agent.
+Creates the final code for Differential Equation functions to be provided to DifferentialEquations.ODEProblem. `scope` is between `agent`, `model` and `medium` and `type` `SDE` or `ODE`
 """
 function functionDE(com,scope,type)
 
