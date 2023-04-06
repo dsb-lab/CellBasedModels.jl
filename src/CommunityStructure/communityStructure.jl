@@ -413,7 +413,17 @@ function Base.getindex(community::Community,timePoint::Number)
     if 1 > timePoint || timePoint > length(community.pastTimes)
         error("Only time points from 1 to $(length(community.pastTimes)) present in the Community.")
     else
-        return com = community.pastTimes[timePoint]
+        com = community.pastTimes[timePoint]
+        setfield!(com,:loaded,false)
+        setfield!(com,:platform,community.platform)
+        setfield!(com,:neighbors,community.neighbors)
+        setfield!(com,:agentAlg,community.agentAlg)
+        setfield!(com,:mediumAlg,community.mediumAlg)
+        setfield!(com,:modelAlg,community.modelAlg)
+        setfield!(com,:agentSolveArgs,community.agentSolveArgs)
+        setfield!(com,:mediumSolveArgs,community.mediumSolveArgs)
+        setfield!(com,:modelSolveArgs,community.modelSolveArgs)
+        return com
     end
 
 end
@@ -491,7 +501,7 @@ function getParameter(com,var)
     if var in fieldnames(Community)
         return [getfield(i,var) for i in com.pastTimes]
     else
-        if var in keys(com.abm.declaredSymbols)
+        if var in keys(com.abm.parameters)
             x = com.abm.declaredSymbols[var].basePar
             pos = com.abm.declaredSymbols[var].position
             scope = com.abm.declaredSymbols[var].scope
