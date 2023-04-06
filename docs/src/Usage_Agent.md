@@ -1,10 +1,10 @@
 ```julia
-using AgentBasedModels
+using CellBasedModels
 ```
 
 # Defining an Agent model
 
-The `Agent` structure contains all the information of a Agent Based model, their parameters and rules of evolution. There are four elements to take into account when defining agents:
+The `Agent` structure contains all the information of an Agent Based model, their parameters and rules of evolution. There are four elements to take into account when defining agents:
 
  - **Parameters**. These can be splited in:
     - User-defined parameters: Parameters that are defined for the specific model that is being used.
@@ -115,10 +115,10 @@ agent = Agent(3,
 > 
 > By default, Float types will be stored as `Float64` and Int types as `Int64` in CPU computations, and `32` format for GPU computations. 
 > 
-> If you want to change this formats, you can always change them redefining the corresponding entry of `AgentBasedModels.DTYPE`.
+> If you want to change this formats, you can always change them redefining the corresponding entry of `CellBasedModels.DTYPE`.
 >
 > ```julia
-> >>>AgentBasedModels.DTYPE
+> >>>CellBasedModels.DTYPE
 > Dict{Symbol, Dict{Symbol, DataType}} with 2 entries:
 >   :Float => Dict(:CPU=>Float64, :GPU=>Float32)
 >   :Int   => Dict(:CPU=>Int64, :GPU=>Int32)
@@ -219,7 +219,7 @@ You can see how the code looks like when you declare it in the dictionary field 
 
 
 ```julia
-println(AgentBasedModels.prettify(model.declaredUpdates[:UpdateLocal]))
+println(CellBasedModels.prettify(model.declaredUpdates[:UpdateLocal]))
 ```
 
     begin
@@ -235,20 +235,20 @@ println(AgentBasedModels.prettify(model.declaredUpdates[:UpdateLocal]))
 > **NOTE. Internals of Agent** When declaring an update rule, the code is transformed to low level code that can be executed afterwards with the object `Community`. You can see the final function(s) constructed after compilation in `Agent.DeclaredUpdatesCode`.
 >> 
 >> ```julia
->> println(AgentBasedModels.prettify(model.declaredUpdatesCode[:UpdateLocal_]))
+>> println(CellBasedModels.prettify(model.declaredUpdatesCode[:UpdateLocal_]))
 >> ```
 >
 >> ```
 >> (t, dt, N, NMedium, nMax_, id, idMax_, simBox, NAdd_, NRemove_, NSurvive_, flagSurvive_, holeFromRemoveAt_, repositionAgentInPos_, skin, dtNeighborRecompute, nMaxNeighbors, cellEdge, flagRecomputeNeighbors_, flagNeighbors_, neighborN_, neighborList_, neighborTimeLastRecompute_, posOld_, accumulatedDistance_, nCells_, cellAssignedToAgent_, cellNumAgents_, cellCumSum_, x, y, z, xNew_, yNew_, zNew_, varAux_, varAuxΔW_, liNM_, liM_, liMNew_, lii_, lfNM_, lfM_, lfMNew_, lfi_, gfNM_, gfM_, gfMNew_, gfi_, giNM_, giM_, giMNew_, gii_, mediumNM_, mediumM_, mediumMNew_)->@inbounds(Threads.@threads(for i1_ = 1:1:N[1]
 >>                 flagSurvive_[i1_] = 1
->>                 xNew_[i1_] += AgentBasedModels.rand(AgentBasedModels.Normal(0, gfM_[1]))
+>>                 xNew_[i1_] += CellBasedModels.rand(CellBasedModels.Normal(0, gfM_[1]))
 >>                 if xNew_[i1_] > simBox[1, 2]
 >>                     idNew_ = Threads.atomic_add!(NRemove_, (Int64)(1)) + 1
 >>                     holeFromRemoveAt_[idNew_] = i1_
 >>                     flagSurvive_[i1_] = 0
 >>                     flagRecomputeNeighbors_[1] = 1
 >>                     flagNeighbors_[i1_] = 1
->>                 elseif gfM_[2] < AgentBasedModels.rand(AgentBasedModels.Uniform(0, 1))
+>>                 elseif gfM_[2] < CellBasedModels.rand(CellBasedModels.Uniform(0, 1))
 >>                     i1New_ = N[1] + Threads.atomic_add!(NAdd_, (Int64)(1)) + 1
 >>                     idNew_ = Threads.atomic_add!(idMax_, (Int64)(1)) + 1
 >>                     if nMax_[1] >= i1New_
@@ -256,7 +256,7 @@ println(AgentBasedModels.prettify(model.declaredUpdates[:UpdateLocal]))
 >>                         id[i1New_] = idNew_
 >>                         flagRecomputeNeighbors_[1] = 1
 >>                         flagNeighbors_[i1New_] = 1
->>                         lfMNew_[i1New_, 1] = sin(AgentBasedModels.rand(AgentBasedModels.Uniform(0, 3π)))
+>>                         lfMNew_[i1New_, 1] = sin(CellBasedModels.rand(CellBasedModels.Uniform(0, 3π)))
 >>                         xNew_[i1New_] = x[i1_]
 >>                     else
 >>                         Threads.atomic_add!(NAdd_, (Int64)(-1))
@@ -271,7 +271,7 @@ println(AgentBasedModels.prettify(model.declaredUpdates[:UpdateLocal]))
 > @inbounds Threads.@threads for i1_ = 1:1:N[1] #Go over all agents in model
 >                 flagSurvive_[i1_] = 1
 >                 #x += Normal(0,σ2)
->                 xNew_[i1_] += AgentBasedModels.rand(AgentBasedModels.Normal(0, gfM_[1])) # symbol σ2 has been vectorized to the gfM_ (global float Modifiable ) array.
+>                 xNew_[i1_] += CellBasedModels.rand(CellBasedModels.Normal(0, gfM_[1])) # symbol σ2 has been vectorized to the gfM_ (global float Modifiable ) array.
 >                 if xNew_[i1_] > simBox[1, 2] # x.new > simBox[1,2]
 >                     #removeAgent()
 >                     idNew_ = Threads.atomic_add!(NRemove_, (Int64)(1)) + 1
@@ -279,7 +279,7 @@ println(AgentBasedModels.prettify(model.declaredUpdates[:UpdateLocal]))
 >                     flagSurvive_[i1_] = 0
 >                     flagRecomputeNeighbors_[1] = 1
 >                     flagNeighbors_[i1_] = 1
->                 elseif gfM_[2] < AgentBasedModels.rand(AgentBasedModels.Uniform(0, 1))
+>                 elseif gfM_[2] < CellBasedModels.rand(CellBasedModels.Uniform(0, 1))
 >                     #addAgent()
 >                     i1New_ = N[1] + Threads.atomic_add!(NAdd_, (Int64)(1)) + 1
 >                     idNew_ = Threads.atomic_add!(idMax_, (Int64)(1)) + 1
@@ -288,7 +288,7 @@ println(AgentBasedModels.prettify(model.declaredUpdates[:UpdateLocal]))
 >                         id[i1New_] = idNew_
 >                         flagRecomputeNeighbors_[1] = 1
 >                         flagNeighbors_[i1New_] = 1
->                         lfMNew_[i1New_, 1] = sin(AgentBasedModels.rand(AgentBasedModels.Uniform(0, 3π)))
+>                         lfMNew_[i1New_, 1] = sin(CellBasedModels.rand(CellBasedModels.Uniform(0, 3π)))
 >                         xNew_[i1New_] = x[i1_]
 >                     else
 >                         Threads.atomic_add!(NAdd_, (Int64)(-1))

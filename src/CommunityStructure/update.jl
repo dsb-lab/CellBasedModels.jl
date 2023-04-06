@@ -259,15 +259,15 @@ macro update!(platform)
     else
         #List and fill holes left from agent removal
         kernel1 = quote
-            kernel1 = AgentBasedModels.@cuda launch=false $(Meta.parse("kernelListSurvived$(platform)!"))(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_)
+            kernel1 = CellBasedModels.@cuda launch=false $(Meta.parse("kernelListSurvived$(platform)!"))(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_)
             kernel1(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_;threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
         end
         kernel2 = quote
-            kernel2 = AgentBasedModels.@cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(p,community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
+            kernel2 = CellBasedModels.@cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(p,community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
             kernel2(p,community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
         end
         kernel4 = quote
-            kernel4 = AgentBasedModels.@cuda launch=false $(Meta.parse("kernelUpdateParameters$(platform)!"))(community.N,p,p__)
+            kernel4 = CellBasedModels.@cuda launch=false $(Meta.parse("kernelUpdateParameters$(platform)!"))(community.N,p,p__)
             kernel4(community.N,p,p__;threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
         end
     end

@@ -1,6 +1,6 @@
 # Implemented Models
 
-Several models are already implemented in the AgentBasedModels. You can use them by calling
+Several models are already implemented in the CellBasedModels. You can use them by calling
 
 ```julia
 Models.NameOfModel

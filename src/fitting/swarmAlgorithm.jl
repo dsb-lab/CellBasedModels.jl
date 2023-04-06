@@ -1,4 +1,4 @@
-import ...AgentBasedModels: rand
+import ...CellBasedModels: rand
 
 """
     function swarmAlgorithm(evalFunction::Function,  

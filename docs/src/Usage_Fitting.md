@@ -1,8 +1,8 @@
 ```julia
-using AgentBasedModels
+using CellBasedModels
 ```
 
-    WARNING: could not import AgentBasedModels.Model into Fitting
+    WARNING: could not import CellBasedModels.Model into Fitting
 
 
 # Model Fitting

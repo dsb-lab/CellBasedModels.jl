@@ -2,7 +2,7 @@ module CBMNeighbors
 
     export Neighbors, neighborsLoop, computeNeighbors!
 
-    import AgentBasedModels: agentArgsNeighbors, POSITIONPARAMETERS
+    import CellBasedModels: agentArgsNeighbors, POSITIONPARAMETERS
     import MacroTools: postwalk, @capture
     using CUDA
     import ..CBMMetrics
@@ -662,9 +662,9 @@ module CBMNeighbors
         end
 
         code = quote 
-                    pos_ = AgentBasedModels.cellPos($(args2...))
+                    pos_ = CellBasedModels.cellPos($(args2...))
                     for i3_ in 1:1:$(3^dims) #Go over the posible neighbor cells
-                        posNeigh_ = AgentBasedModels.cellPosNeigh($(args...)) #Obtain the position of the neighbor cell
+                        posNeigh_ = CellBasedModels.cellPosNeigh($(args...)) #Obtain the position of the neighbor cell
                         # println(i1_," ",i3_," ",posNeigh_)
                         if posNeigh_ != -1 #Ignore cells outside the boundaries
                             for i4_ in cellCumSum_[posNeigh_]-cellNumAgents_[posNeigh_]+1:1:cellCumSum_[posNeigh_] #Go over the cells of that neighbor cell

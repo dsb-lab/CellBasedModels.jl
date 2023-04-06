@@ -1,4 +1,4 @@
-import ...AgentBasedModels: rand, MultivariateNormal
+import ...CellBasedModels: rand, MultivariateNormal
 
 """
     function stochasticDescentAlgorithm(evalFunction::Function, 

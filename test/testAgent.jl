@@ -49,8 +49,6 @@
             #Remove agents false
             push!(aa,!abm.removalOfAgents_)
 
-            println(aa)
-
         end
         all(aa)
     end
@@ -89,7 +87,7 @@
                 )
 
             #check 1: update rules added
-            append!(aa, [!AgentBasedModels.isemptyupdaterule(abm,i) for i in [:agentRule,:agentODE,:agentSDE,:mediumODE]])
+            append!(aa, [!CellBasedModels.isemptyupdaterule(abm,i) for i in [:agentRule,:agentODE,:agentSDE,:mediumODE]])
             #check 2: scopes are correctly assigned
             scope = [[true,false,false][1:dims];[false,false,false][1:dims];[true,false,false,false,false,false,true]]
             append!(aa, [j.update==scope[pos] for (pos,(i,j)) in enumerate(pairs(abm.parameters))])

@@ -7,13 +7,13 @@ The basic structure of an agent-based simulation model is:
  3. Evolution of agents during some iterations and storage of the simulation results.
  4. Posterior analysis of the results.
 
-We will cover the different parts of a AgentBasedModels.jl from how to define models to optimization of the models.
+We will cover the different parts of a CellBasedModels.jl from how to define models to optimization of the models.
 
 First, we will need to upload the package.
 
 
 ```python
-using AgentBasedModels
+using CellBasedModels
 ```
 
 ## Basic Structures of the Package

@@ -1,4 +1,4 @@
-The AgentBasedModels.jl package aims to help fast-designing and simulation of agent-based models whith possibilities to be run in CPU and NVidia GPUs for the efficient computation of large-scale systems. 
+The CellBasedModels.jl package aims to help fast-designing and simulation of agent-based models whith possibilities to be run in CPU and NVidia GPUs for the efficient computation of large-scale systems. 
 
 The following methods can be implemented in the model:
 
@@ -18,13 +18,13 @@ Hopefully, soon we will make an official release in the Julia repository. For no
 
 ```julia
 julia> using Pkg
-julia> Pkg.add(https://github.com/dsb-lab/AgentBasedModels.jl)
+julia> Pkg.add(https://github.com/dsb-lab/CellBasedModels.jl)
 ```
 
 or from the Pkg REPL
 
 ```julia
-pkg> add https://github.com/dsb-lab/AgentBasedModels.jl
+pkg> add https://github.com/dsb-lab/CellBasedModels.jl
 ```
 
 ## Examples
@@ -142,7 +142,7 @@ We intend to extend the current version of the package with additional capabilit
  - Extend GPU capabilities to be used also in other packages.
  - Make optimization methods distributable among different CPU/GPUs.
  - 
-## Alternatives to AgentBasedModels.jl
+## Alternatives to CellBasedModels.jl
 
 Many different packages and programs have been developed for constructing agent-based models. 
 

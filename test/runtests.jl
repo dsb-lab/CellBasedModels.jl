@@ -1,5 +1,5 @@
 using CUDA
-using AgentBasedModels
+using CellBasedModels
 using Test
 using DataFrames
 import MacroTools: prettify

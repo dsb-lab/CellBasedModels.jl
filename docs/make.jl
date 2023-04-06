@@ -1,9 +1,9 @@
 push!(LOAD_PATH,"../docs/src/")
 push!(LOAD_PATH,"./src")
 
-using Documenter, AgentBasedModels
+using Documenter, CellBasedModels
 
-makedocs(sitename="AgentBasedModels.jl",
+makedocs(sitename="CellBasedModels.jl",
 pages = [
     "Home" => "index.md",
     "Usage" => [
@@ -26,5 +26,5 @@ format = Documenter.HTML(prettyurls = false)
 )
 
 deploydocs(
-    repo = "github.com/dsb-lab/AgentBasedModels.jl",
+    repo = "github.com/dsb-lab/CellBasedModels.jl",
 )

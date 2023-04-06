@@ -1,8 +1,8 @@
 module CBMFitting
 
-    #    using AgentBasedModels
-    import ...AgentBasedModels: Community, DataFrame, CSV
-    import ...AgentBasedModels: @showprogress, next!, Progress
+    #    using CellBasedModels
+    import ...CellBasedModels: Community, DataFrame, CSV
+    import ...CellBasedModels: @showprogress, next!, Progress
 
     include("./gridSearch.jl")
     # include("./stochasticDescentAlgorithm.jl")

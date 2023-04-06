@@ -249,11 +249,11 @@ function addCuda(code,scope,platform::Platform;oneThread=false)
 
         if oneThread
 
-            code = :(AgentBasedModels.CUDA.@sync AgentBasedModels.@cuda threads=1 blocks=1 $code)
+            code = :(CellBasedModels.CUDA.@sync CellBasedModels.@cuda threads=1 blocks=1 $code)
         
         else
 
-            code = :(AgentBasedModels.CUDA.@sync AgentBasedModels.@cuda threads=community.platform.$(addSymbol(scope,"Threads")) blocks=community.platform.$(addSymbol(scope,"Blocks")) $code)
+            code = :(CellBasedModels.CUDA.@sync CellBasedModels.@cuda threads=community.platform.$(addSymbol(scope,"Threads")) blocks=community.platform.$(addSymbol(scope,"Blocks")) $code)
 
         end
 

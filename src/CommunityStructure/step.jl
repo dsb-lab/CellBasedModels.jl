@@ -52,7 +52,7 @@ function agentStepDE!(community)
 
     checkLoaded(community)
 
-    AgentBasedModels.DifferentialEquations.step!(community.agentDEProblem,community.dt,true)
+    CellBasedModels.DifferentialEquations.step!(community.agentDEProblem,community.dt,true)
 
     return 
 
@@ -67,7 +67,7 @@ function modelStepDE!(community)
 
     checkLoaded(community)
 
-    AgentBasedModels.DifferentialEquations.step!(community.modelDEProblem,community.dt,true)
+    CellBasedModels.DifferentialEquations.step!(community.modelDEProblem,community.dt,true)
 
     return 
 
@@ -82,7 +82,7 @@ function mediumStepDE!(community)
 
     checkLoaded(community)
 
-    AgentBasedModels.DifferentialEquations.step!(community.mediumDEProblem,community.dt,true)
+    CellBasedModels.DifferentialEquations.step!(community.mediumDEProblem,community.dt,true)
 
     return 
 

@@ -55,7 +55,7 @@ The cells present division. The rules for the division in this model are. Random
 
 ```julia
 #Package
-using AgentBasedModels
+using CellBasedModels
 #Functions for generating random distributions
 using Random
 using Distributions
@@ -658,11 +658,11 @@ The algorithm has done a good job finding a fet of parameters that fits the data
 
 The discrepacy at earlier time comes from the fact that the chemical circuit only starts at a critial size of `N=20`. A further improvement on the optimization would be to change this global parameter i the system or even to add it to the fitting process.
 
-Overall, we showed the capacity of AgentBasedModels to fit models to real data.
+Overall, we showed the capacity of CellBasedModels to fit models to real data.
 
 
 ```julia
-AgentBasedModels.Optimization.swarmAlgorithm(loosFunction,
+CellBasedModels.Optimization.swarmAlgorithm(loosFunction,
                                         explore,
                                         population=50,
                                         stopMaxGenerations=10,

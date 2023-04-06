@@ -1,4 +1,4 @@
-module AgentBasedModels
+module CellBasedModels
 
     using DataFrames: AbstractAggregate, getiterator
     using CUDA: findfirst, atomic_add!

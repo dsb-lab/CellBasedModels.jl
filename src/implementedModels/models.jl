@@ -1,7 +1,7 @@
 module Models
 
-#    using AgentBasedModels
-    import ...AgentBasedModels: Agent
+#    using CellBasedModels
+    import ...CellBasedModels: Agent
     
     include("./softSpheres.jl")
     include("./rods.jl")

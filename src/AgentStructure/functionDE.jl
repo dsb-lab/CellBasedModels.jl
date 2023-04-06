@@ -99,7 +99,7 @@ function functionDE(com,scope,type)
 
                             return
                         end
-                        AgentBasedModels.@cuda threads=p_[end-$(tpos[1])] blocks=p_[end-$(tpos[2])] kernel(dVar_,var_,p_...)
+                        CellBasedModels.@cuda threads=p_[end-$(tpos[1])] blocks=p_[end-$(tpos[2])] kernel(dVar_,var_,p_...)
 
                         return
                     end

@@ -170,12 +170,12 @@ function loadJLD2(file::String)
             t = f["times/$t/t"],
             dt = f["times/$t/dt"],
             simBox = f["times/$t/simBox"],
-            platform = f["platform/platform"],#eval(Meta.parse("AgentBasedModels.$(f["platform/platform"])()")),
-            agentAlg = f["agentAlg/alg"],#eval(Meta.parse("AgentBasedModels.$(f["agentAlg/alg"])()")),
+            platform = f["platform/platform"],#eval(Meta.parse("CellBasedModels.$(f["platform/platform"])()")),
+            agentAlg = f["agentAlg/alg"],#eval(Meta.parse("CellBasedModels.$(f["agentAlg/alg"])()")),
             agentSolveArgs = f["agentAlg/args"],
-            modelAlg = f["modelAlg/alg"],#eval(Meta.parse("AgentBasedModels.$(f["modelAlg/alg"])()")),
+            modelAlg = f["modelAlg/alg"],#eval(Meta.parse("CellBasedModels.$(f["modelAlg/alg"])()")),
             modelSolveArgs = f["modelAlg/args"],
-            mediumAlg = f["mediumAlg/alg"],#eval(Meta.parse("AgentBasedModels.$(f["mediumAlg/alg"])()")),
+            mediumAlg = f["mediumAlg/alg"],#eval(Meta.parse("CellBasedModels.$(f["mediumAlg/alg"])()")),
             mediumSolveArgs = f["mediumAlg/args"],
         )
         setfield!(community,:uuid,f["uuid"])
@@ -193,12 +193,12 @@ function loadJLD2(file::String)
                 t = f["times/$t/t"],
                 dt = f["times/$t/dt"],
                 simBox = f["times/$t/simBox"],
-                platform = f["platform/platform"],#eval(Meta.parse("AgentBasedModels.$(f["platform/platform"])()")),
-                agentAlg = f["agentAlg/alg"],#eval(Meta.parse("AgentBasedModels.$(f["agentAlg/alg"])()")),
+                platform = f["platform/platform"],#eval(Meta.parse("CellBasedModels.$(f["platform/platform"])()")),
+                agentAlg = f["agentAlg/alg"],#eval(Meta.parse("CellBasedModels.$(f["agentAlg/alg"])()")),
                 agentSolveArgs = f["agentAlg/args"],
-                modelAlg = f["modelAlg/alg"],#eval(Meta.parse("AgentBasedModels.$(f["modelAlg/alg"])()")),
+                modelAlg = f["modelAlg/alg"],#eval(Meta.parse("CellBasedModels.$(f["modelAlg/alg"])()")),
                 modelSolveArgs = f["modelAlg/args"],
-                mediumAlg = f["mediumAlg/alg"],#eval(Meta.parse("AgentBasedModels.$(f["mediumAlg/alg"])()")),
+                mediumAlg = f["mediumAlg/alg"],#eval(Meta.parse("CellBasedModels.$(f["mediumAlg/alg"])()")),
                 mediumSolveArgs = f["mediumAlg/args"],
             )
             for (sym,prop) in pairs(community.abm.parameters)

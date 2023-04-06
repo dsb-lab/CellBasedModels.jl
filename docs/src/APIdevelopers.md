@@ -2,7 +2,7 @@
 
 ```@meta
 addEventGlobalAddAgent
-CurrentModule = AgentBasedModels
+CurrentModule = CellBasedModels
 ```
 
 ## Base Structures

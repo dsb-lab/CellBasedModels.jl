@@ -1,7 +1,7 @@
 # [**API**](@id API)
 
 ```@meta
-CurrentModule = AgentBasedModels
+CurrentModule = CellBasedModels
 ```
 ## Agent
 

@@ -1,6 +1,6 @@
 module CBMMetrics
 
-    import AgentBasedModels: COMUNITY
+    import CellBasedModels: COMUNITY
 
     ##############################################################################################################################
     # Distance metrics

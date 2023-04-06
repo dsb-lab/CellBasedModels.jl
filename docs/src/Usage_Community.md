@@ -1,5 +1,5 @@
 ```julia
-using AgentBasedModels
+using CellBasedModels
 ```
 
 # Creating and evolving a Community
@@ -139,9 +139,9 @@ println(com.x)
 >> 
 >> Stacktrace:
 >>  [1] setproperty!(com::Community, var::Symbol, v::Int64)
->>    @ AgentBasedModels ~/Documents/AgentBasedModels.jl/src/CommunityStructure/communityStructure.jl:370
+>>    @ CellBasedModels ~/Documents/CellBasedModels.jl/src/CommunityStructure/communityStructure.jl:370
 >>  [2] top-level scope
->>    @ ~/Documents/AgentBasedModels.jl/examples/Usage_Community.ipynb:1
+>>    @ ~/Documents/CellBasedModels.jl/examples/Usage_Community.ipynb:1
 >> ```
 > 
 > If you really need to change you can always use the function `setfield!` at your own risk of breacking the code.
@@ -247,19 +247,19 @@ close(com.fileSaving)
      [1] saveJLD2(community::Community; saveLevel::Int64)
 
 
-       @ AgentBasedModels ~/Documents/AgentBasedModels.jl/src/CommunityStructure/IO.jl:99
+       @ CellBasedModels ~/Documents/CellBasedModels.jl/src/CommunityStructure/IO.jl:99
 
 
      [2] saveJLD2(community::Community)
 
 
-       @ AgentBasedModels ~/Documents/AgentBasedModels.jl/src/CommunityStructure/IO.jl:74
+       @ CellBasedModels ~/Documents/CellBasedModels.jl/src/CommunityStructure/IO.jl:74
 
 
      [3] top-level scope
 
 
-       @ ~/Documents/AgentBasedModels.jl/examples/Usage_Community.ipynb:1
+       @ ~/Documents/CellBasedModels.jl/examples/Usage_Community.ipynb:1
 
 
 And you can always call back the model from a JLD2 file.
@@ -318,13 +318,13 @@ com  = loadJLD2("test.jld2")
      [7] loadJLD2(file::String)
 
 
-       @ AgentBasedModels ~/Documents/AgentBasedModels.jl/src/CommunityStructure/IO.jl:180
+       @ CellBasedModels ~/Documents/CellBasedModels.jl/src/CommunityStructure/IO.jl:180
 
 
      [8] top-level scope
 
 
-       @ ~/Documents/AgentBasedModels.jl/examples/Usage_Community.ipynb:1
+       @ ~/Documents/CellBasedModels.jl/examples/Usage_Community.ipynb:1
 
 
 This file will have all Community instances from the file loaded in `Community.pastTimes` and a copy of the last saved time in the current community itself.

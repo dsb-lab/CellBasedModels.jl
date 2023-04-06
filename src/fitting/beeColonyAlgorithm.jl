@@ -1,4 +1,4 @@
-import ...AgentBasedModels: rand, Categorical, Uniform
+import ...CellBasedModels: rand, Categorical, Uniform
 
 """
     function beeColonyAlgorithm(
