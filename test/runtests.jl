@@ -4,6 +4,8 @@ using Test
 using DataFrames
 import MacroTools: prettify
 using OrderedCollections
+using Distributions
+using Random
 
 if CUDA.has_cuda()
     TESTPLATFORMS = ["CPU","GPU"]
@@ -12,12 +14,6 @@ else
     println("CUDA was not found, only checking cpu.")
 end
 
-# testplatforms = ["gpu"]
-
-include("testAgent.jl")
+# include("testAgent.jl")
 # include("testCommunity.jl")
-# include("testOptimization.jl")
-# include("testModels.jl")
-# include("testMedium.jl")
-
-# include("testGPU.jl")
+include("testFitting.jl")

@@ -1,0 +1,347 @@
+function checkCustomCode(abm)
+
+    #Error if dt in other place
+    for up in keys(abm.declaredUpdates)
+
+        #dt()
+        if !(up in [:agentODE,:agentSDE,:modelODE,:modelSDE,:mediumODE,:mediumSDE])
+            v, _ = captureVariables(abm.declaredUpdates[up])
+            if !isempty(v)
+                error("Cannot declared a differential equation with the dt() function in $up. The following variables have been declared erroneously:  $(v...) . ")
+            end
+        end
+
+        #@addAgent
+        if !(up in [:agentRule])
+            if occursin("@addAgent",string(abm.declaredUpdates[up]))
+                error("@addAgent can only be declared in agentRule")
+            end
+        end
+
+        #@removeAgent
+        if !(up in [:agentRule])
+            if occursin("@removeAgent",string(abm.declaredUpdates[up]))
+                error("@removeAgent can only be declared in agentRule")
+            end
+        end
+
+        #@loopOverNeighbors
+        if !(up in [:agentRule,:agentODE,:agentSDE])
+            if occursin("@loopOverNeighbors",string(abm.declaredUpdates[up]))
+                error("@loopOverNeighbors can only be declared in agent code")
+            end
+        end
+
+        #@∂
+        if !(up in [:mediumODE,:mediumSDE])
+            if occursin("@∂",string(abm.declaredUpdates[up]))
+                error("@∂ can only be declared in mediumODE and mediumSDE")
+            end
+        end
+
+        #@∂2
+        if !(up in [:mediumODE,:mediumSDE])
+            if occursin("@∂2",string(abm.declaredUpdates[up]))
+                error("@∂2 can only be declared in mediumODE and mediumSDE")
+            end
+        end
+
+        #@mediumInborder
+        if !(up in [:mediumRule,:mediumODE,:mediumSDE])
+            if occursin("@mediumInborder",string(abm.declaredUpdates[up]))
+                error("@mediumInborder can only be declared in medium code")
+            end
+        end
+
+        #@mediumBorder
+        if !(up in [:mediumRule,:mediumODE,:mediumSDE])
+            if occursin("@mediumBorder",string(abm.declaredUpdates[up]))
+                error("@mediumBorder can only be declared in medium code")
+            end
+        end
+
+    end
+
+end
+
+########################################################
+# Macros
+########################################################
+"""
+    macro loopOverNeighbors(code)
+
+For the updateInteraction loop, create the double loop to go over all the agents and neighbors.
+"""
+macro loopOverNeighbors(it1, code)
+
+    com = COMUNITY
+
+    code = neighborsLoop(code,it1,com.neighbors,com.abm.dims)
+
+    code = postwalk(x->@capture(x,i_) && i == :i2_ ? it1 : x, code )
+
+    return esc(code)
+
+end
+
+macro loopOverNeighbors(code)
+
+    if !(isa(code, Expr) && code.head === :for)
+        throw(ArgumentError("@threads requires a `for` loop expression"))
+    end
+
+    it2 = code.args[1].args[1]
+    code = code.args[2]
+
+    com = COMUNITY
+
+    code = neighborsLoop(code,it2,com.neighbors,com.abm.dims)
+
+    code = postwalk(x->@capture(x,i_) && i == :i2_ ? it2 : x, code )
+
+    return esc(code)
+
+end
+
+macro ∂(coord,code)
+
+    abm = COMUNITY.abm
+    com = COMUNITY
+
+    if !(coord in [1,2,3][1:com.abm.dims])
+        error("Coordinate in @mediumBorder with model of dimensionality $(com.abm.dims) must be $([1,2,3][1:com.abm.dims]).")
+    end
+
+
+    medium = [i for (i,prop) in abm.parameters if prop.scope == :medium]
+
+    if coord == 1 && abm.dims == 1
+
+        code1p = postwalk(x->@capture(x,m_[g_]) && m in medium ? :($m[$g+1]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_]) && m in medium ? :($m[$g-1]) : x, code)
+
+        return esc(:(($code1p -$code1m)/(2*dx)))
+
+    elseif coord == 1 && abm.dims == 2
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g+1,$g2]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g-1,$g2]) : x, code)
+
+        return esc(:(($code1p -$code1m)/(2*dx)))
+
+    elseif coord == 1 && abm.dims == 3
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g+1,$g2,$g3]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g-1,$g2,$g3]) : x, code)
+
+        return esc(:(($code1p -$code1m)/(dx)))
+
+    elseif coord == 2 && abm.dims == 2
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g,$g2+1]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g,$g2-1]) : x, code)
+
+        return esc(:(($code1p -$code1m)/(2*dy)))
+
+    elseif coord == 2 && abm.dims == 3
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2+1,$g3]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2-1,$g3]) : x, code)
+
+        return esc(:(($code1p -$code1m)/(2*dy)))
+
+    elseif coord == 3 && abm.dims == 3
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2,$g3+1]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2,$g3-1]) : x, code)
+
+        return esc(:(($code1p -$code1m)/(2*dz)))
+
+    end
+
+end
+
+macro ∂2(coord,code)
+
+    abm = COMUNITY.abm
+    com = COMUNITY
+
+    if !(coord in [1,2,3][1:com.abm.dims])
+        error("Coordinate in @mediumBorder with model of dimensionality $(com.abm.dims) must be $([1,2,3][1:com.abm.dims]).")
+    end
+
+    medium = [i for (i,prop) in abm.parameters if prop.scope == :medium]
+
+    if coord == 1 && abm.dims == 1
+
+        code1p = postwalk(x->@capture(x,m_[g_]) && m in medium ? :($m[$g+1]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_]) && m in medium ? :($m[$g-1]) : x, code)
+
+        return esc(:(($code1p -2*$code +$code1m)/(dx^2)))
+
+    elseif coord == 1 && abm.dims == 2
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g+1,$g2]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g-1,$g2]) : x, code)
+
+        return esc(:(($code1p -2*$code +$code1m)/(dx^2)))
+
+    elseif coord == 1 && abm.dims == 3
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g+1,$g2,$g3]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g-1,$g2,$g3]) : x, code)
+
+        return esc(:(($code1p -2*$code +$code1m)/(dx^2)))
+
+    elseif coord == 2 && abm.dims == 2
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g,$g2+1]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g,$g2-1]) : x, code)
+
+        return esc(:(($code1p -2*$code +$code1m)/(dy^2)))
+
+    elseif coord == 2 && abm.dims == 3
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2+1,$g3]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2-1,$g3]) : x, code)
+
+        return esc(:(($code1p -2*$code +$code1m)/(dy^2)))
+
+    elseif coord == 3 && abm.dims == 3
+
+        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2,$g3+1]) : x, code)
+        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2,$g3-1]) : x, code)
+
+        return esc(:(($code1p -2*$code +$code1m)/(dz^2)))
+
+    end
+
+end
+
+macro mediumInside()
+
+    com = COMUNITY
+
+    code = :(i1_ > 1 && i1_ < NMedium[1])
+    if com.abm.dims > 1
+        code = :($code && i2_ > 1 && i2_ < NMedium[2])
+    end
+    if com.abm.dims > 2
+        code = :($code && i3_ > 1 && i3_ < NMedium[3])
+    end
+
+    return esc(code)
+
+end
+
+macro mediumBorder(coord, border)
+
+    com = COMUNITY
+
+    if !(coord in [1,2,3][1:com.abm.dims])
+        error("Coordinate in @mediumBorder with model of dimensionality $(com.abm.dims) must be $([1,2,3][1:com.abm.dims]).")
+    end
+
+    if !(border in [-1, 1])
+        error("Border in @mediumBorder must be one of: [-1, 1].")
+    end
+
+    if coord == 1 && border == -1
+        return esc(:(i1_ == 1))
+    elseif coord == 1 && border == 1
+        return esc(:(i1_ == NMedium[1]))
+    elseif coord == 2 && border == -1
+        return esc(:(i2_ == 1))
+    elseif coord == 2 && border == 1
+        return esc(:(i2_ == NMedium[2]))
+    elseif coord == 3 && border == -1
+        return esc(:(i3_ == 1))
+    elseif coord == 3 && border == 1
+        return esc(:(i3_ == NMedium[3]))
+    end
+
+end
+
+#########################################################################
+# Macros under development
+#########################################################################
+#
+# macro loopOverMedium(it1, code)
+# 
+#     com = COMUNITY
+# 
+#     if com.abm.dims != 1
+#         error("This macri requires to specify $(abm.dims) iterators.")
+#     end
+# 
+#     code = makeSimpleLoop(code,com,nloops=com.abm.dims)
+# 
+#     code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
+# 
+#     return esc(code)
+# 
+# end
+# 
+# macro loopOverMedium(it1, it2, code)
+# 
+#     com = COMUNITY
+# 
+#     if com.abm.dims != 2
+#         error("This macri requires to specify $(abm.dims) iterators.")
+#     end
+# 
+#     code = makeSimpleLoop(code,com,nloops=com.abm.dims)
+# 
+#     code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
+# 
+#     return esc(code)
+# 
+# end
+# 
+# macro loopOverMedium(it1, it2, it3, code)
+# 
+#     com = COMUNITY
+# 
+#     if com.abm.dims != 3
+#         error("This macri requires to specify $(abm.dims) iterators.")
+#     end
+# 
+#     code = makeSimpleLoop(code,com,nloops=com.abm.dims)
+# 
+#     code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
+# 
+#     return esc(code)
+# 
+# end
+# 
+# macro loopOverAgents(it1, code)
+# 
+#     com = COMUNITY
+# 
+#     code = makeSimpleLoop(code,com)
+# 
+#     code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
+# 
+#     return esc(code)
+# 
+# end
+# 
+# macro loopOverAgents(code)
+# 
+#     if !(isa(code, Expr) && code.head === :for)
+#         throw(ArgumentError("@threads requires a `for` loop expression"))
+#     end
+# 
+#     it = code.args[1].args[1]
+#     code = code.args[2]
+# 
+#     com = COMUNITY
+# 
+#     code = makeSimpleLoop(code,com)
+# 
+#     code = postwalk(x->@capture(x,i_) && i == :i1_ ? it : x, code )
+# 
+#     return esc(code)
+# 
+# end
+# 

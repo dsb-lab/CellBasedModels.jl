@@ -122,6 +122,12 @@ mutable struct ABM
                 :z=>Float64,
             ),
 
+            positionMediumParameters=OrderedDict(
+                :xₘ=>Float64,
+                :yₘ=>Float64,
+                :zₘ=>Float64,
+            ),
+
             baseModelInit::Vector{ABM}=ABM[],
             baseModelEnd::Vector{ABM}=ABM[],
         )
@@ -134,6 +140,13 @@ mutable struct ABM
         for (i,sym) in enumerate(keys(positionParameters))
             if i <= dims
                 abm.parameters[sym] = UserParameter(i,positionParameters[sym],:agent)
+            end
+        end
+
+        #Add basic medium symbols
+        for (i,sym) in enumerate(keys(positionMediumParameters))
+            if i <= dims && length(medium) > 0
+                abm.parameters[sym] = UserParameter(i,positionMediumParameters[sym],:medium)
             end
         end
 
@@ -356,50 +369,4 @@ function addUpdates!(abm::ABM)
     end
     
     return
-end
-
-function checkCustomCode(abm)
-
-    #Error if dt in other place
-    for up in keys(abm.declaredUpdates)
-
-        #dt()
-        if !(up in [:agentODE,:agentSDE,:modelODE,:modelSDE,:mediumODE,:mediumSDE])
-            v, _ = captureVariables(abm.declaredUpdates[up])
-            if !isempty(v)
-                error("Cannot declared a differential equation with the dt() function in $up. The following variables have been declared erroneously:  $(v...) . ")
-            end
-        end
-
-        #@addAgent
-        if !(up in [:agentRule])
-            if occursin("@addAgent",string(abm.declaredUpdates[up]))
-                error("@addAgent can only be declared in agentRule")
-            end
-        end
-
-        #@removeAgent
-        if !(up in [:agentRule])
-            if occursin("@removeAgent",string(abm.declaredUpdates[up]))
-                error("@removeAgent can only be declared in agentRule")
-            end
-        end
-
-        #@loopOverNeighbors
-        if !(up in [:agentRule,:agentODE,:agentSDE])
-            if occursin("@loopOverNeighbors",string(abm.declaredUpdates[up]))
-                error("@loopOverNeighbors can only be declared in agent code")
-            end
-        end
-
-        #@loopOverMedium
-        if !(up in [:mediumRule,:mediumODE,:mediumSDE])
-            if occursin("@loopOverMedium",string(abm.declaredUpdates[up]))
-                error("@loopOverMedium can only be declared in agent code")
-            end
-        end
-
-    end
-
-
 end

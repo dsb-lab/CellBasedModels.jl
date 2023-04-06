@@ -1,83 +1,96 @@
 module AgentBasedModels
 
-using DataFrames: AbstractAggregate, getiterator
-using CUDA: findfirst, atomic_add!
-using Base: add_with_overflow
-using Random
-using OrderedCollections
-using LinearAlgebra
-using Distributions
-using CUDA
-using DataFrames
-using CSV
-using JLD2
-# import GeometryBasics, GLMakie
-import MacroTools: postwalk, prewalk, @capture, inexpr, prettify, gensym, flatten, unblock, isexpr
-export prettify
-import SpecialFunctions
-using ProgressMeter
-using Test
-using DifferentialEquations
-import UUIDs: uuid1
+    using DataFrames: AbstractAggregate, getiterator
+    using CUDA: findfirst, atomic_add!
+    using Base: add_with_overflow
+    using Random
+    using OrderedCollections
+    using LinearAlgebra
+    using Distributions
+    using CUDA
+    using DataFrames
+    using CSV
+    using JLD2
+    # import GeometryBasics, GLMakie
+    import MacroTools: postwalk, prewalk, @capture, inexpr, prettify, gensym, flatten, unblock, isexpr
+    export prettify
+    import SpecialFunctions
+    using ProgressMeter
+    using Test
+    using DifferentialEquations
+    import UUIDs: uuid1
 
-export DifferentialEquations, OrderedDict
+    export DifferentialEquations, OrderedDict
 
-#Constants
-include("./baseStructs.jl")
-include("./constants.jl")
+    #Constants
+    include("./baseStructs.jl")
+    include("./constants.jl")
 
-#Custom integrators
-export CustomEuler, CustomHeun, CustomRungeKutta4, CustomEM, CustomEulerHeun
-include("./customIntegrators.jl")
+    #Custom integrators
+    export CBMIntegrators
+    include("./integrators.jl")
+    using .CBMIntegrators
 
-#Platforms
-export CPU, GPU
-include("./platforms.jl")
+    #Random
+    export CBMDistributions
+    include("./random.jl")
+    using .CBMDistributions
 
-#Auxiliar
-export cellInMesh, euclideanDistance, manhattanDistance, new
-include("./AgentStructure/auxiliar.jl")
+    #Distance functions
+    export CBMMetrics
+    include("./metrics.jl")
+    using .CBMMetrics
 
-#Neighbors
-export computeNeighbors!, Full, VerletTime, VerletDisplacement, CellLinked, CLVD
-include("./neighbors.jl")
+    #Platforms
+    export CPU, GPU
+    include("./platforms.jl")
 
-#Agent
-export ABM
-include("./AgentStructure/agentStructure.jl")
-    #Rule
-export agentStepRule!, modelStepRule!, mediumStepRule!, @addAgent, @removeAgent, @loopOverNeighbors, @loopOverAgents, @loopOverMedium
-include("./AgentStructure/functionRule.jl")
-    #DE
-export agentStepDE!, modelStepDE!, mediumStepDE!
-include("./AgentStructure/functionDE.jl")
-#     #Step
-# export step!, evolve!
-# include("./AgentStructure/functions/step.jl")   
+    #Auxiliar
+    export cellInMesh, new
+    include("./AgentStructure/auxiliar.jl")
 
-#Community
-export Community, loadToPlatform!, bringFromPlatform!, getParameter
-include("./CommunityStructure/communityStructure.jl")
-    #IO
-export saveJLD2, saveRAM!, loadJLD2
-include("./CommunityStructure/IO.jl")
-    #Update
-export update!
-include("./CommunityStructure/update.jl")
-# export initializeSpheresCommunity, packagingCompactHexagonal, packagingCubic
-# include("./CommunityStructure/initializers.jl")
+    #Neighbors
+    export CBMNeighbors, computeNeighbors!
+    include("./neighbors.jl")
+    using .CBMNeighbors
 
-# #Optimization tools
-# export Fitting
-# include("./fitting/fitting.jl")
+    #Agent
+    export ABM
+    include("./AgentStructure/agentStructure.jl")
+        #Rule
+    include("./AgentStructure/functionRule.jl")
+        #DE
+    include("./AgentStructure/functionDE.jl")
+        #Macros and custom code
+    export @addAgent, @removeAgent, @loopOverNeighbors, @mediumInside, @mediumBorder, @∂, @∂2, @distanceEuclidean, @distanceManhattan
+    include("./AgentStructure/macros.jl")   
 
-#Implemented Models
-# export Models
-# include("./implementedModels/models.jl")
+    #Community
+    export Community, loadToPlatform!, bringFromPlatform!, getParameter
+    include("./CommunityStructure/communityStructure.jl")
+        #IO
+    export saveJLD2, saveRAM!, loadJLD2
+    include("./CommunityStructure/IO.jl")
+        #Update
+    export update!
+    include("./CommunityStructure/update.jl")
+        #Step
+    export agentStepRule!, modelStepRule!, mediumStepRule!
+    export agentStepDE!, modelStepDE!, mediumStepDE!
+    export step!, evolve!
+    include("./CommunityStructure/step.jl")
 
-# #Visualization functions
-# export plotSpheres, plotRods, videoRods
-# include("./plotting/rods.jl")
-# include("./plotting/spheres.jl")
+    #Optimization tools
+    export CBMFitting
+    include("./fitting/fitting.jl")
+
+    #Implemented Models
+    # export Models
+    # include("./implementedModels/models.jl")
+
+    # #Visualization functions
+    # export plotSpheres, plotRods, videoRods
+    # include("./plotting/rods.jl")
+    # include("./plotting/spheres.jl")
 
 end

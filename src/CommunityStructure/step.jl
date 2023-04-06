@@ -1,4 +1,94 @@
 """
+    function agentStepRule!(community)
+
+Function that computes a local step of the community a time step `dt`.
+"""
+function agentStepRule!(community)
+
+    checkLoaded(community)
+
+    community.abm.declaredUpdatesFunction[:agentRule](community)
+
+    return 
+
+end
+
+"""
+    function agentStepRule!(community)
+
+Function that computes a local step of the community a time step `dt`.
+"""
+function modelStepRule!(community)
+
+    checkLoaded(community)
+
+    community.abm.declaredUpdatesFunction[:modelRule](community)
+
+    return 
+
+end
+
+"""
+    function agentStepRule!(community)
+
+Function that computes a local step of the community a time step `dt`.
+"""
+function mediumStepRule!(community)
+
+    checkLoaded(community)
+
+    community.abm.declaredUpdatesFunction[:mediumRule](community)
+
+    return 
+
+end
+
+"""
+    function agentStepDE!(community)
+
+Function that computes a integration step of the community a time step `dt` using the defined Integrator defined in Agent.
+"""
+function agentStepDE!(community)
+
+    checkLoaded(community)
+
+    AgentBasedModels.DifferentialEquations.step!(community.agentDEProblem,community.dt,true)
+
+    return 
+
+end
+
+"""
+    function modelStepDE!(community)
+
+Function that computes a integration step of the community a time step `dt` using the defined Integrator defined in Agent.
+"""
+function modelStepDE!(community)
+
+    checkLoaded(community)
+
+    AgentBasedModels.DifferentialEquations.step!(community.modelDEProblem,community.dt,true)
+
+    return 
+
+end
+
+"""
+    function mediumStepDE!(community)
+
+Function that computes a integration step of the community a time step `dt` using the defined Integrator defined in Agent.
+"""
+function mediumStepDE!(community)
+
+    checkLoaded(community)
+
+    AgentBasedModels.DifferentialEquations.step!(community.mediumDEProblem,community.dt,true)
+
+    return 
+
+end
+
+"""
     function step!(community)
 
 Executes all the step functions and updates the parameters a single time.
@@ -13,11 +103,12 @@ Executes all the step functions and updates the parameters a single time.
 """
 function step!(community)
 
-    interactionStep!(community)
-    integrationStep!(community)
-    integrationMediumStep!(community)
-    localStep!(community)
-    globalStep!(community)
+    agentStepRule!(community)
+    agentStepDE!(community)
+    mediumStepRule!(community)
+    mediumStepDE!(community)
+    modelStepRule!(community)
+    modelStepDE!(community)
     update!(community)
     computeNeighbors!(community)
 
@@ -31,16 +122,28 @@ If `saveCurrentState` is true, the present instance is saved.
 
 `preallocateAgents` is an integer to sent to the `loadToPlatform!` function that allocates empty space for agents if the model has to grow. The maximum number of agents in the final simulation has to be specified in here.
 """
-function evolve!(community;steps,saveEach=1,saveFunction=saveRAM!,saveCurrentState=false,preallocateAgents=0)
+function evolve!(community;steps,saveEach=1,saveToFile=false,fileName=nothing,overwrite=false,saveCurrentState=false,preallocateAgents=0)
+
+    if saveToFile && fileName === nothing
+        error("Key argument fileName has to be specified with a valid name.")
+    end
 
     loadToPlatform!(community,preallocateAgents=preallocateAgents)
     if saveCurrentState
-        saveFunction(community)
+        if saveToFile
+            saveJLD2(fileName,community,overwrite=overwrite)
+        else
+            saveRAM!(community)
+        end
     end
     for i in 1:steps
         step!(community)
         if i % saveEach == 0
-            saveFunction(community)
+            if saveToFile
+                saveJLD2(fileName,community,overwrite=overwrite)
+            else
+                saveRAM!(community)
+            end
         end
     end
     bringFromPlatform!(community)

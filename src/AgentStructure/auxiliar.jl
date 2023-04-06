@@ -1,32 +1,3 @@
-##############################################################################################################################
-# Distance metrics
-##############################################################################################################################
-"""
-    euclideanDistance(x1,x2)
-    euclideanDistance(x1,x2,y1,y2)
-    euclideanDistance(x1,x2,y1,y2,z1,z2)
-
-Euclidean distance metric between two positions.
-
-d = (x₁-x₂)²
-"""
-euclideanDistance(x1,x2) = sqrt((x1-x2)^2)
-euclideanDistance(x1,x2,y1,y2) = sqrt((x1-x2)^2+(y1-y2)^2)
-euclideanDistance(x1,x2,y1,y2,z1,z2) = sqrt((x1-x2)^2+(y1-y2)^2+(z1-z2)^2)
-
-"""
-    manhattanDistance(x1,x2)
-    manhattanDistance(x1,x2,y1,y2)
-    manhattanDistance(x1,x2,y1,y2,z1,z2)
-
-Manhattan distance metric between two positions.
-
-d = |x₁-x₂|
-"""
-manhattanDistance(x1,x2) = abs(x1-x2)
-manhattanDistance(x1,x2,y1,y2) = abs(x1-x2)+abs(y1-y2)
-manhattanDistance(x1,x2,y1,y2,z1,z2) = abs(x1-x2)+abs(y1-y2)+abs(z1-z2)
-
 cellInMesh(edge,x,xMin,xMax,nX) = if x > xMax nX elseif x < xMin 1 else Int((x-xMin)÷edge)+1 end
 
 ##############################################################################################################################
@@ -278,11 +249,11 @@ function addCuda(code,scope,platform::Platform;oneThread=false)
 
         if oneThread
 
-            code = :(CUDA.@sync @cuda threads=1 blocks=1 $code)
+            code = :(AgentBasedModels.CUDA.@sync AgentBasedModels.@cuda threads=1 blocks=1 $code)
         
         else
 
-            code = :(CUDA.@sync @cuda threads=community.platform.$(addSymbol(scope,"Threads")) blocks=community.platform.$(addSymbol(scope,"Blocks")) $code)
+            code = :(AgentBasedModels.CUDA.@sync AgentBasedModels.@cuda threads=community.platform.$(addSymbol(scope,"Threads")) blocks=community.platform.$(addSymbol(scope,"Blocks")) $code)
 
         end
 
@@ -434,16 +405,10 @@ function vectorize(code,com)
                 code = postwalk(x->@capture(x,g_) && g == sym ? :($g[i1_]) : x, code)
                 code = postwalk(x->@capture(x,g_) && g == new(sym) ? :($g[i1_]) : x, code)
                 code = postwalk(x->@capture(x,g_) && g == opdt(sym) ? :($g[i1_]) : x, code)
-                code = postwalk(x->@capture(x,g_[f_][f2__]) && g == sym ? :($g[$(f2...)]) : x, code) #avoid double indexing
-                code = postwalk(x->@capture(x,g_[f_][f2__]) && g == new(sym) ? :($g[$(f2...)]) : x, code) #avoid double indexing
-                code = postwalk(x->@capture(x,g_[f_][f2__]) && g == opdt(sym) ? :($g[$(f2...)]) : x, code) #avoid double indexing
             elseif :model == prop.scope && prop.dtype <: Number
                 code = postwalk(x->@capture(x,g_) && g == sym ? :($g[1]) : x, code)
                 code = postwalk(x->@capture(x,g_) && g == new(sym) ? :($g[1]) : x, code)
                 code = postwalk(x->@capture(x,g_) && g == opdt(sym) ? :($g[1]) : x, code)
-                code = postwalk(x->@capture(x,g_[f_][f2__]) && g == sym ? :($g[$(f2...)]) : x, code) #avoid double indexing
-                code = postwalk(x->@capture(x,g_[f_][f2__]) && g == new(sym) ? :($g[$(f2...)]) : x, code) #avoid double indexing
-                code = postwalk(x->@capture(x,g_[f_][f2__]) && g == opdt(sym) ? :($g[$(f2...)]) : x, code) #avoid double indexing
             elseif :model == prop.scope && !(prop.dtype <: Number)
                 nothing
             elseif :medium == prop.scope
@@ -456,10 +421,10 @@ function vectorize(code,com)
             else
                 error("Symbol $bs with type $(prop[2]) doesn't has not vectorization implemented.")
             end
+            code = postwalk(x->@capture(x,g_[f_][f2__]) && g == sym ? :($g[$(f2...)]) : x, code) #avoid double indexing
+            code = postwalk(x->@capture(x,g_[f_][f2__]) && g == new(sym) ? :($g[$(f2...)]) : x, code) #avoid double indexing
+            code = postwalk(x->@capture(x,g_[f_][f2__]) && g == opdt(sym) ? :($g[$(f2...)]) : x, code) #avoid double indexing
         end
-
-        code = randomAdapt(code, com)
-
     end
 
     #For global parameters
@@ -517,61 +482,7 @@ function clean(code,it=5)
     return code
 end
 
-##############################################################################################################################
-# Random functions
-##############################################################################################################################
-VALIDDISTRIBUTIONS = [i for i in names(Distributions) if uppercasefirst(string(i)) == string(i)]
-VALIDDISTRIBUTIONSCUDA = [:Normal,:Uniform,:Exponential]
-
 #Random distribution transformations for cuda capabilities
-"""
-    NormalCUDA(x,μ,σ)
-
-Normal distribution adapted to CUDA.
-"""
-NormalCUDA(x,μ,σ) = σ*CUDA.sqrt(2.)*SpecialFunctions.erfinv(2*(x-.5))+μ
-"""
-    UniformCUDA(x,l0,l1)
-
-Uniform distribution adapted to CUDA.
-"""
-UniformCUDA(x,l0,l1) = (l1-l0)*x+l0
-"""
-    ExponentialCUDA(x,θ)
-
-Exponential distribution adapted to CUDA.
-"""
-ExponentialCUDA(x,θ) = -CUDA.log(1-x)*θ
-
-"""
-    function randomAdapt(code, p)
-
-Adapt the random function invocations of the code to be executable in the different platforms.
-"""
-function randomAdapt(code, p)
-
-    if p.platform == :CPU
-        for i in VALIDDISTRIBUTIONS
-            code = postwalk(x -> @capture(x,$i(v__)) ? :(AgentBasedModels.rand(AgentBasedModels.$i($(v...)))) : x, code)
-        end
-    elseif p.platform == :GPU
-        for i in VALIDDISTRIBUTIONS
-
-            if inexpr(code,i) && !(i in VALIDDISTRIBUTIONSCUDA)
-                error(i," random distribution valid for cpu but still not implemented in gpu. Valid distributions are $(VALIDDISTRIBUTIONSCUDA)")
-            else
-                s = Meta.parse(string("AgentBasedModels.",i,"CUDA"))
-                code = postwalk(x -> @capture(x,$i(v__)) ? :($s(AgentBasedModels.rand(),$(v...))) : x, code)
-
-            end
-
-        end
-    end    
-    
-    return code
-    
-end
-
 function captureVariables(code)
     function add(a,s)
         push!(a,s)
@@ -607,227 +518,3 @@ end
 function addSymbol(args...)
     return Meta.parse(string(args...))
 end
-
-########################################################
-# Macros
-########################################################
-
-macro loopOverMedium(it1, code)
-
-    com = COMUNITY
-
-    if com.abm.dims != 1
-        error("This macri requires to specify $(abm.dims) iterators.")
-    end
-
-    code = makeSimpleLoop(code,com,nloops=com.abm.dims)
-
-    code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
-
-    return esc(code)
-
-end
-
-macro loopOverMedium(it1, it2, code)
-
-    com = COMUNITY
-
-    if com.abm.dims != 2
-        error("This macri requires to specify $(abm.dims) iterators.")
-    end
-
-    code = makeSimpleLoop(code,com,nloops=com.abm.dims)
-
-    code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
-
-    return esc(code)
-
-end
-
-macro loopOverMedium(it1, it2, it3, code)
-
-    com = COMUNITY
-
-    if com.abm.dims != 3
-        error("This macri requires to specify $(abm.dims) iterators.")
-    end
-
-    code = makeSimpleLoop(code,com,nloops=com.abm.dims)
-
-    code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
-
-    return esc(code)
-
-end
-
-macro loopOverAgents(it1, code)
-
-    com = COMUNITY
-
-    code = makeSimpleLoop(code,com)
-
-    code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
-
-    return esc(code)
-
-end
-
-macro loopOverAgents(code)
-
-    if !(isa(code, Expr) && code.head === :for)
-        throw(ArgumentError("@threads requires a `for` loop expression"))
-    end
-
-    it = code.args[1].args[1]
-    code = code.args[2]
-
-    com = COMUNITY
-
-    code = makeSimpleLoop(code,com)
-
-    code = postwalk(x->@capture(x,i_) && i == :i1_ ? it : x, code )
-
-    return esc(code)
-
-end
-
-"""
-    macro loopOverNeighbors(code)
-
-For the updateInteraction loop, create the double loop to go over all the agents and neighbors.
-"""
-macro loopOverNeighbors(it1, code)
-
-    com = COMUNITY
-
-    code = neighborsLoop(code,it1,com.neighbors,com.abm.dims)
-
-    code = postwalk(x->@capture(x,i_) && i == :i2_ ? it1 : x, code )
-
-    return esc(code)
-
-end
-
-macro loopOverNeighbors(code)
-
-    if !(isa(code, Expr) && code.head === :for)
-        throw(ArgumentError("@threads requires a `for` loop expression"))
-    end
-
-    it2 = code.args[1].args[1]
-    code = code.args[2]
-
-    com = COMUNITY
-
-    code = neighborsLoop(code,it2,com.neighbors,com.abm.dims)
-
-    code = postwalk(x->@capture(x,i_) && i == :i2_ ? it2 : x, code )
-
-    return esc(code)
-
-end
-
-macro ∂(dim,code)
-
-    abm = AGENT
-
-    medium = [i for (i,prop) in abm.parameters if prop.scope == :medium]
-
-    if dim == 1 && abm.dims == 1
-
-        code1p = postwalk(x->@capture(x,m_[g_]) && m in medium ? :($m[$g+1]) : x, code)
-        code1m = postwalk(x->@capture(x,m_[g_]) && m in medium ? :($m[$g-1]) : x, code)
-
-        return :(($code1p -$code1m)/(dx^2))
-
-    elseif dim == 1 && abm.dims == 2
-
-        code1p = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g+1,$g2]) : x, code)
-        code1m = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g-1,$g2]) : x, code)
-
-        return :(($code1p -$code1m)/(dx^2))
-
-    elseif dim == 1 && abm.dims == 3
-
-        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g+1,$g2,$g3]) : x, code)
-        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g-1,$g2,$g3]) : x, code)
-
-        return :(($code1p -$code1m)/(dx^2))
-
-    elseif dim == 2 && abm.dims == 2
-
-        code1p = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g,$g2+1]) : x, code)
-        code1m = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g,$g2-1]) : x, code)
-
-        return :(($code1p -$code1m)/(dy^2))
-
-    elseif dim == 2 && abm.dims == 3
-
-        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2+1,$g3]) : x, code)
-        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2-1,$g3]) : x, code)
-
-        return :(($code1p -$code1m)/(dy^2))
-
-    elseif dim == 3 && abm.dims == 3
-
-        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2,$g3+1]) : x, code)
-        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2,$g3-1]) : x, code)
-
-        return :(($code1p -$code1m)/(dz^2))
-
-    end
-
-end
-
-macro ∂2(dim,code)
-
-    abm = AGENT
-
-    medium = [i for (i,prop) in abm.parameters if prop.scope == :medium]
-
-    if dim == 1 && abm.dims == 1
-
-        code1p = postwalk(x->@capture(x,m_[g_]) && m in medium ? :($m[$g+1]) : x, code)
-        code1m = postwalk(x->@capture(x,m_[g_]) && m in medium ? :($m[$g-1]) : x, code)
-
-        return :(($code1p -2*$code +$code1m)/(dx^2))
-
-    elseif dim == 1 && abm.dims == 2
-
-        code1p = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g+1,$g2]) : x, code)
-        code1m = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g-1,$g2]) : x, code)
-
-        return :(($code1p -2*$code +$code1m)/(dx^2))
-
-    elseif dim == 1 && abm.dims == 3
-
-        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g+1,$g2,$g3]) : x, code)
-        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g-1,$g2,$g3]) : x, code)
-
-        return :(($code1p -2*$code +$code1m)/(dx^2))
-
-    elseif dim == 2 && abm.dims == 2
-
-        code1p = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g,$g2+1]) : x, code)
-        code1m = postwalk(x->@capture(x,m_[g_,g2_]) && m in medium ? :($m[$g,$g2-1]) : x, code)
-
-        return :(($code1p -2*$code +$code1m)/(dy^2))
-
-    elseif dim == 2 && abm.dims == 3
-
-        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2+1,$g3]) : x, code)
-        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2-1,$g3]) : x, code)
-
-        return :(($code1p -2*$code +$code1m)/(dy^2))
-
-    elseif dim == 3 && abm.dims == 3
-
-        code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2,$g3+1]) : x, code)
-        code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g,$g2,$g3-1]) : x, code)
-
-        return :(($code1p -2*$code +$code1m)/(dz^2))
-
-    end
-
-end
-

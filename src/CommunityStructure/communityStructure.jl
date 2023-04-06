@@ -160,16 +160,16 @@ mutable struct Community
             NMedium::Union{Nothing,Vector{<:Int}} = nothing,
             simBox::Union{Nothing,Matrix{<:Number}} = nothing,
 
-            agentAlg::Union{CustomAlgorithm,DEAlgorithm} = CustomEuler(),
+            agentAlg::Union{CustomIntegrator,DEAlgorithm} = CBMIntegrators.Euler(),
             agentSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
-            modelAlg::DEAlgorithm = Euler(),
+            modelAlg::Union{CustomIntegrator,DEAlgorithm} = CBMIntegrators.Euler(),
             modelSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
-            mediumAlg::DEAlgorithm = Tsit5(),
+            mediumAlg::Union{CustomIntegrator,DEAlgorithm} = DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()),
             mediumSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
-            neighborsAlg::Neighbors = Full(),       
+            neighborsAlg::Neighbors = CBMNeighbors.Full(),       
             platform::Platform = CPU(),     
             args...
         )
@@ -295,7 +295,7 @@ function setupBaseParameters!(com,dt,t,N,id,NMedium,simBox)
     end
     #simBox
     if ( length([i for (i,j) in pairs(com.abm.parameters) if j.scope == :medium]) > 0 && simBox === nothing ) ||
-       ( typeof(com.platform) in [CLVD,CellLinked] && simBox === nothing )
+       ( typeof(com.platform) in [CBMNeighbors.CLVD,CBMNeighbors.CellLinked] && simBox === nothing )
         error("simBox key argument must be defined when models with medium are declared.")
     elseif simBox !== nothing
         if size(simBox) != (com.abm.dims,2)
@@ -306,6 +306,7 @@ function setupBaseParameters!(com,dt,t,N,id,NMedium,simBox)
     else
         setfield!(com,:simBox,[0 1.;0 1;0 1][1:com.abm.dims,:])
     end
+
 end
 
 """
@@ -340,6 +341,44 @@ function setupUserParameters!(com,args)
     end
 
     setfield!(com,:parameters,parameters)
+
+    #dx dy dz and xₘ yₘ zₘ
+    if com.abm.dims > 0 && com.simBox !== nothing && com.NMedium !== nothing && (:xₘ in keys(com.parameters))
+        setfield!(com, :dx, (com.simBox[1,2] .- com.simBox[1,1])./com.NMedium[1])
+        if com.abm.dims == 1
+            com[:xₘ] = [com.dx*(i-.5)+com.simBox[1,1] for i = 1:com.NMedium[1]]
+        elseif com.abm.dims == 2
+            com[:xₘ] = [com.dx*(i-.5)+com.simBox[1,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2]]
+        elseif com.abm.dims == 3
+            com[:xₘ] = [com.dx*(i-.5)+com.simBox[1,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2],  k = 1:com.NMedium[3]]
+        end
+    else
+        setfield!(com, :dx, 0.)
+    end
+    if com.abm.dims > 1 && com.simBox !== nothing && com.NMedium !== nothing && (:yₘ in keys(com.parameters))
+        setfield!(com, :dy, (com.simBox[2,2] .- com.simBox[2,1])./com.NMedium[2])
+        if com.abm.dims == 1
+            com[:yₘ] = [com.dy*(j-.5)+com.simBox[2,1] for i = 1:com.NMedium[1]]
+        elseif com.abm.dims == 2
+            com[:yₘ] = [com.dy*(j-.5)+com.simBox[2,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2]]
+        elseif com.abm.dims == 3
+            com[:yₘ] = [com.dy*(j-.5)+com.simBox[2,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2],  k = 1:com.NMedium[3]]
+        end
+    else
+        setfield!(com, :dy, 0.)
+    end
+    if com.abm.dims > 2 && com.simBox !== nothing && com.NMedium !== nothing && (:zₘ in keys(com.parameters))
+        setfield!(com, :dz, (com.simBox[3,2] .- com.simBox[3,1])./com.NMedium[3])
+        if com.abm.dims == 1
+            com[:zₘ] = [com.dy*(k-.5)+com.simBox[3,1] for i = 1:com.NMedium[1]]
+        elseif com.abm.dims == 2
+            com[:zₘ] = [com.dy*(k-.5)+com.simBox[3,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2]]
+        elseif com.abm.dims == 3
+            com[:zₘ] = [com.dy*(k-.5)+com.simBox[3,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2],  k = 1:com.NMedium[3]]
+        end
+    else
+        setfield!(com, :dz, 0.)
+    end
 
     return
 end
@@ -521,21 +560,6 @@ function loadBaseParameters!(com::Community,preallocateAgents::Int)
     setfield!(com, :holeFromRemoveAt_, cuAdapt(if com.abm.removalOfAgents_; zeros(Int64,com.nMax_); else zeros(Int64,0); end,com))
     setfield!(com, :repositionAgentInPos_, cuAdapt(if com.abm.removalOfAgents_; zeros(Int64,com.nMax_); else zeros(Int64,0); end,com))
     setfield!(com, :flagRecomputeNeighbors_, cuAdapt([1],com))
-    if com.abm.dims > 0 && com.simBox !== nothing && com.NMedium !== nothing
-        setfield!(com, :dx, (com.simBox[1,2] .- com.simBox[1,1])./com.NMedium[1])
-    else
-        setfield!(com, :dx, 0.)
-    end
-    if com.abm.dims > 1 && com.simBox !== nothing && com.NMedium !== nothing
-        setfield!(com, :dy, (com.simBox[2,2] .- com.simBox[2,1])./com.NMedium[2])
-    else
-        setfield!(com, :dy, 0.)
-    end
-    if com.abm.dims > 2 && com.simBox !== nothing && com.NMedium !== nothing
-        setfield!(com, :dz, (com.simBox[3,2] .- com.simBox[3,1])./com.NMedium[3])
-    else
-        setfield!(com, :dz, 0.)
-    end
 
     return 
 
@@ -549,7 +573,7 @@ function createDEProblem(com,scope)
     elseif scope == :model
         vars = cuAdapt(zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variable && j.scope == :model])),com)
     elseif scope == :medium
-        vars = cuAdapt(zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variable && j.scope == :medium]),com.NMedium...),com)
+        CUDA.@allowscalar vars = cuAdapt(zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variable && j.scope == :medium]),com.NMedium...),com)
     end
 
     for (sym,struc) in pairs(com.abm.parameters)
@@ -571,8 +595,9 @@ function createDEProblem(com,scope)
     #Assign differential models
     params = agentArgs(com)
     paramsCom = agentArgs(com,sym=:com)
-    paramsRemove = Tuple([sym for (sym,prop) in pairs(com.abm.parameters) if prop.variable && (prop.scope==scope)])
-    params = Tuple([if occursin("neighbors.", string(j)); getfield(com.neighbors,i); elseif occursin("platform.", string(j)); getfield(com.platform,i); else com[i]; end for (i,j) in zip(params,paramsCom) if !(i in paramsRemove)])
+    paramsRemove = [sym for (sym,prop) in pairs(com.abm.parameters) if prop.variable && (prop.scope==scope)]
+    paramsRemove2 = [new(sym) for sym in paramsRemove if com.abm.parameters[sym].update] #remove news
+    params = Tuple([if occursin("neighbors.", string(j)); getfield(com.neighbors,i); elseif occursin("platform.", string(j)); getfield(com.platform,i); else com[i]; end for (i,j) in zip(params,paramsCom) if !(i in [paramsRemove;paramsRemove2])])
 
     ode = addSymbol(scope,"ODE")
     sde = addSymbol(scope,"SDE")
@@ -587,7 +612,6 @@ function createDEProblem(com,scope)
                 vars, 
                 (0,10.), 
                 params,
-                # dt=dt
             )
 
         # Overwrite dt
@@ -661,7 +685,7 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
         end
 
         #Neighbors
-        initialize!(com.neighbors,com)
+        CBMNeighbors.initialize!(com.neighbors,com)
 
         # Transform to the correct platform the parameters
         setfield!(com,:agentDEProblem,createDEProblem(com,:agent))

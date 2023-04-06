@@ -1,4 +1,4 @@
-module Fitting
+module CBMFitting
 
     #    using AgentBasedModels
     import ...AgentBasedModels: Community, DataFrame, CSV

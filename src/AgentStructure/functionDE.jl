@@ -25,26 +25,32 @@ function functionDE(com,scope,type)
                 if prop.scope == :agent && scope == :agent
                     push!(unwrap.args, :(@views $dsym = dVar_[$pos,:]))
                     push!(unwrap.args, :(@views $sym = var_[$pos,:]))
+                    push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:]))
                 elseif prop.scope == :model && scope == :model
                     push!(unwrap.args, :(@views $dsym = dVar_[$pos:$pos]))
                     push!(unwrap.args, :(@views $sym = var_[$pos:$pos]))
+                    push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:]))
                 elseif prop.scope == :medium && scope == :medium
                     if com.abm.dims == 1
                         push!(unwrap.args, :(@views $dsym = dVar_[$pos,:]))
                         push!(unwrap.args, :(@views $sym = var_[$pos,:]))
+                        push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:]))
                     elseif com.abm.dims == 2
                         push!(unwrap.args, :(@views $dsym = dVar_[$pos,:,:]))
                         push!(unwrap.args, :(@views $sym = var_[$pos,:,:]))
+                        push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:,:]))
                     elseif com.abm.dims == 3
                         push!(unwrap.args, :(@views $dsym = dVar_[$pos,:,:,:]))
                         push!(unwrap.args, :(@views $sym = var_[$pos,:,:,:]))
+                        push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:,:,:]))
                     end
                 end
             end
         end
         params = agentArgs(com)
-        paramsRemove = Tuple([sym for (sym,prop) in pairs(abm.parameters) if prop.variable && prop.scope == scope])
-        params = Tuple([i for i in params if !(i in paramsRemove)])
+        paramsRemove = [sym for (sym,prop) in pairs(abm.parameters) if prop.variable && prop.scope == scope] #remove updates
+        paramsRemove2 = [new(sym) for sym in paramsRemove if abm.parameters[sym].update] #remove news
+        params = Tuple([i for i in params if !(i in [paramsRemove;paramsRemove2])])
 
         #Get deterministic function
         code = abm.declaredUpdates[ref]
@@ -67,6 +73,7 @@ function functionDE(com,scope,type)
             abm.declaredUpdatesCode[ref] = 
                 quote
                     function (dVar_,var_,p_,t_)
+
                         ($(params...),) = p_
                         $unwrap
                         $code
@@ -92,7 +99,7 @@ function functionDE(com,scope,type)
 
                             return
                         end
-                        @cuda threads=p_[end-$(tpos[1])] blocks=p_[end-$(tpos[2])] kernel(dVar_,var_,p_...)
+                        AgentBasedModels.@cuda threads=p_[end-$(tpos[1])] blocks=p_[end-$(tpos[2])] kernel(dVar_,var_,p_...)
 
                         return
                     end
@@ -104,50 +111,5 @@ function functionDE(com,scope,type)
     end
 
     return
-
-end
-
-"""
-    function agentStepDE!(community)
-
-Function that computes a integration step of the community a time step `dt` using the defined Integrator defined in Agent.
-"""
-function agentStepDE!(community)
-
-    checkLoaded(community)
-
-    AgentBasedModels.DifferentialEquations.step!(community.agentDEProblem,community.dt,true)
-
-    return 
-
-end
-
-"""
-    function modelStepDE!(community)
-
-Function that computes a integration step of the community a time step `dt` using the defined Integrator defined in Agent.
-"""
-function modelStepDE!(community)
-
-    checkLoaded(community)
-
-    AgentBasedModels.DifferentialEquations.step!(community.modelDEProblem,community.dt,true)
-
-    return 
-
-end
-
-"""
-    function mediumStepDE!(community)
-
-Function that computes a integration step of the community a time step `dt` using the defined Integrator defined in Agent.
-"""
-function mediumStepDE!(community)
-
-    checkLoaded(community)
-
-    AgentBasedModels.DifferentialEquations.step!(community.mediumDEProblem,community.dt,true)
-
-    return 
 
 end

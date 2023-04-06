@@ -1,582 +1,397 @@
-using MacroTools, CUDA
+@testset "community" begin
 
-macro testPlatform(code)
+    #Create Community
+    @test_nowarn Community()
 
-    codeset = quote end
-    for plat in TESTPLATFORMS
-        addCode = MacroTools.postwalk(x->@capture(x,PLATFORM) ? :(Symbol($plat)) : x, code)
-        codeset = quote
-            $codeset
-            $addCode
+    @test_nowarn begin
+            abm = ABM(3,
+            agent=OrderedDict(
+                :li=>Int64,
+                :lf=>Float64,
+            ),
+            model=OrderedDict(
+                :gi=>Int64,
+                :gf=>Float64,
+                :ga=>Array{Float64}
+            ),
+            agentRule=quote 
+                li += 1
+            end,
+        )
+
+        com = Community(abm)
+    end
+
+    # ############################################################################
+    # all step rules
+    # ############################################################################
+    for platform in [CPU(),GPU()]
+        @test begin
+            #Create community
+            abm = ABM(3,
+                agent=OrderedDict(
+                    :li=>Int64,
+                    :lf=>Float64,
+                    :ls=>Int64
+                ),
+                model=OrderedDict(
+                    :gi=>Int64,
+                    :gf=>Float64,
+                    :ga=>Array{Float64},
+                    :gdf=>Float64,
+                    :gdf2=>Float64
+                ),
+                medium=OrderedDict(
+                    :m=>Float64,
+                    :m2=>Float64,
+                    :mr=>Float64
+                ),
+
+                agentRule=quote 
+                    li += m2
+                    m2 += 1
+                    ls = 0
+                    @loopOverNeighbors for i2 in neighbors
+                        if y[i2] ≈ 0.
+                            ls += 1 
+                        end
+                    end
+                    @loopOverNeighbors i2 begin
+                        if y[i2] ≈ 0.
+                            ls += 1 
+                        end
+                    end
+                end,
+                agentODE=quote
+                    dt(x) = gf
+                end,
+                agentSDE=quote
+                    dt(lf) = ga[1,1]
+                end,
+
+                modelRule=quote
+                    ga[1,2] = 7
+                    gi += 1
+                end,
+                modelODE=quote
+                    dt(gf) = 1
+                end,
+                modelSDE=quote
+                    dt(gf2) = 1
+                end,
+
+                mediumRule=quote
+                    mr = 1
+                end,
+                mediumODE=quote
+                    dt(m) = 1
+                end,
+            )
+
+            aa = Bool[]
+
+            com = Community(abm,dt=.1,t=1.,N=10,id=1:10,NMedium=[5,5,5],simBox=[0 1;0 50;0 1],
+                agentAlg = DifferentialEquations.EM(),
+                modelAlg = DifferentialEquations.EM(),
+                platform=platform
+            )
+
+            com.li = 0
+            com.x = 0
+            com.gf = 1
+            com.m = 0
+            com.mr = 0
+            com.m2 = 1
+            com.lf = ones(10)
+            com.ga = [1 0; 0 1]
+
+            push!(aa,all(com.li .== 0.))
+            push!(aa,!(:li__ in keys(com.parameters)))
+            push!(aa,all(com.ls .≈ .0))
+            push!(aa,!(:ls__ in keys(com.parameters)))
+            push!(aa,all(com.x .≈ .0))
+            push!(aa,!(:x__ in keys(com.parameters)))
+            push!(aa,all(com.ga .≈ [1 0;0 1]))
+            push!(aa,!(:ga__ in keys(com.parameters)))
+            push!(aa,all(com.m .≈ 0.))
+            push!(aa,!(:m__ in keys(com.parameters)))
+            push!(aa,all(com.mr .≈ 0.))
+            push!(aa,!(:mr__ in keys(com.parameters)))
+            push!(aa,com.dt == .1)
+            push!(aa,com.t == 1.)
+            push!(aa,com.N == 10)
+            push!(aa,all(com.id .== 1:10))
+            push!(aa,com.NMedium == [5,5,5])
+            push!(aa,com.simBox == [0 1;0 50;0 1])
+
+            loadToPlatform!(com)
+            push!(aa,all(com.li .== 0.))
+            push!(aa,all(com.li__ .== .0))
+            push!(aa,all(com.ls .≈ 0))
+            push!(aa,all(com.ls__ .≈ .0))
+            push!(aa,all(com.x .≈ .0))
+            push!(aa,all(com.x__ .≈ .0))
+            push!(aa,all(Array(com.ga) .≈ [1 0;0 1]))
+            push!(aa,all(Array(com.ga__) .≈ [1 0;0 1]))
+            push!(aa,all(com.m .≈ 0.))
+            push!(aa,all(com.m__ .≈ 0.))
+            push!(aa,all(com.mr .≈ 0.))
+            push!(aa,all(com.mr__ .≈ 0.))
+
+            agentStepRule!(com)
+            agentStepDE!(com)
+            modelStepRule!(com)
+            modelStepDE!(com)
+            mediumStepRule!(com)
+            mediumStepDE!(com)
+            push!(aa,all(com.li .== 0.))
+            push!(aa,all(com.li__ .== 1.))
+            push!(aa,all(com.ls .≈ 0))
+            push!(aa,all(com.ls__ .≈ 18))
+            push!(aa,all(com.x .≈ .0))
+            push!(aa,all(com.x__ .≈ .1))
+            push!(aa,all(Array(com.ga) .≈ [1 0;0 1]))
+            push!(aa,all(Array(com.ga__) .≈ [1 7;0 1]))
+            push!(aa,all(com.m .≈ 0.))
+            push!(aa,all(com.m__ .≈ .1))
+            push!(aa,all(com.mr .≈ 0.))
+            push!(aa,all(com.mr__ .≈ 1.))
+
+            update!(com)
+            push!(aa,all(com.li .== 1.))
+            push!(aa,all(com.li__ .== 1.))
+            push!(aa,all(com.ls .≈ 18))
+            push!(aa,all(com.ls__ .≈ 18))
+            push!(aa,all(com.x .≈ .1))
+            push!(aa,all(com.x__ .≈ .1))
+            push!(aa,all(Array(com.ga) .≈ [1 7;0 1]))
+            push!(aa,all(Array(com.ga__) .≈ [1 7;0 1]))
+            push!(aa,all(com.m .≈ .1))
+            push!(aa,all(com.m__ .≈ .1))
+            push!(aa,all(com.mr .≈ 1.))
+            push!(aa,all(com.mr__ .≈ 1.))
+
+            saveRAM!(com)
+            saveJLD2("Hola.jld2",com, overwrite=true)
+
+            push!(aa,all(com[end].li .== 1.))
+            push!(aa,!(:li__ in keys(com[end].parameters)))
+            push!(aa,all(com[end].ls .≈ 18))
+            push!(aa,!(:ls__ in keys(com[end].parameters)))
+            push!(aa,all(com[end].x .≈ .1))
+            push!(aa,!(:x__ in keys(com[end].parameters)))
+            push!(aa,all(Array(com[end].ga) .≈ [1 7;0 1]))
+            push!(aa,!(:ga__ in keys(com[end].parameters)))
+            push!(aa,all(com[end].m .≈ .1))
+            push!(aa,!(:m__ in keys(com[end].parameters)))
+            push!(aa,all(com[end].mr .≈ 1.))
+            push!(aa,!(:mr__ in keys(com[end].parameters)))
+            push!(aa,com[end].dt == .1)
+            push!(aa,com[end].t == 1.1)
+            push!(aa,com[end].N == 10)
+            push!(aa,all(com[end].id .== 1:10))
+            push!(aa,com[end].NMedium == [5,5,5])
+            push!(aa,com[end].simBox == [0 1;0 50;0 1])
+
+            bringFromPlatform!(com)
+
+            push!(aa,all(com.li .== 1.))
+            push!(aa,!(:li__ in keys(com.parameters)))
+            push!(aa,all(com.ls .≈ 18))
+            push!(aa,!(:ls__ in keys(com.parameters)))
+            push!(aa,all(com.x .≈ .1))
+            push!(aa,!(:x__ in keys(com.parameters)))
+            push!(aa,all(Array(com.ga) .≈ [1 7;0 1]))
+            push!(aa,!(:ga__ in keys(com.parameters)))
+            push!(aa,all(com.m .≈ .1))
+            push!(aa,!(:m__ in keys(com.parameters)))
+            push!(aa,all(com.mr .≈ 1.))
+            push!(aa,!(:mr__ in keys(com.parameters)))
+
+            com = loadJLD2("Hola.jld2")
+            push!(aa,all(com.li .== 1.))
+            push!(aa,!(:li__ in keys(com.parameters)))
+            push!(aa,all(com.ls .≈ 18))
+            push!(aa,!(:ls__ in keys(com.parameters)))
+            push!(aa,all(com.x .≈ .1))
+            push!(aa,!(:x__ in keys(com.parameters)))
+            push!(aa,all(Array(com.ga) .≈ [1 7;0 1]))
+            push!(aa,!(:ga__ in keys(com.parameters)))
+            push!(aa,all(com.m .≈ .1))
+            push!(aa,!(:m__ in keys(com.parameters)))
+            push!(aa,all(com.mr .≈ 1.))
+            push!(aa,!(:mr__ in keys(com.parameters)))
+
+            rm("Hola.jld2")
+
+            all(aa)
         end
     end
 
-    return codeset
-
-end
-
-macro testPlatform(code,methods...)
-
-    codeset = quote end
-    for plat in [string(j) for j in methods]
-        addCode = MacroTools.postwalk(x->@capture(x,PLATFORM) ? :(Symbol($plat)) : x, code)
-        codeset = quote
-            $codeset
-            $addCode
+    # ############################################################################
+    # @addAgent, @removeAgent
+    # ############################################################################
+    for platform in [CPU(),GPU()]
+        @test begin
+            abm = ABM(1,
+                    agent=OrderedDict(
+                        :lf=>Int64,
+                    ),
+                    agentRule = quote
+                        x = x + 1.
+                        if id%2 == 1
+                            @removeAgent()
+                        elseif id%2 == 0
+                            @addAgent(lf = id)
+                        end
+                    end
+                    );
+            N = 100
+            com = Community(abm,N=N,platform=platform);
+            loadToPlatform!(com,preallocateAgents=N÷2);
+            agentStepRule!(com)
+            aux = Bool[]
+            if typeof(platform) <: CPU
+            push!(aux,(com.N == N))
+            push!(aux,(com.NAdd_[] .== N÷2))
+            push!(aux,(com.NRemove_[] .== N÷2))
+            push!(aux,(com.idMax_[] .== N+N÷2))
+            push!(aux,(com.flagRecomputeNeighbors_[1] == 1))
+            CUDA.@allowscalar push!(aux,all([i in com.lf[N+1:(N+N÷2)] for i in 2:2:N]))
+            else 
+            push!(aux,(com.N == N))
+            push!(aux,all(com.NAdd_ .== N÷2))
+            push!(aux,all(com.NRemove_ .== N÷2))
+            push!(aux,all(com.idMax_ .== N+N÷2))
+            push!(aux,all(com.flagRecomputeNeighbors_ .== 1))
+            CUDA.@allowscalar push!(aux,all([i in com.lf[N+1:(N+N÷2)] for i in 2:2:N]))
+            end
+            update!(com)
+            if typeof(platform) <: CPU
+            push!(aux,(com.N == N))
+            push!(aux,(com.NAdd_[] .== 0))
+            push!(aux,(com.NRemove_[] .== 0))
+            push!(aux,(com.idMax_[] .== N+N÷2))
+            push!(aux,(com.flagRecomputeNeighbors_[1] == 1))
+            push!(aux,all([i in com.lf[1:N] for i in 2:2:N]))
+            else 
+            push!(aux,(com.N == N))
+            push!(aux,all(com.NAdd_ .== 0))
+            push!(aux,all(com.NRemove_ .== 0))
+            push!(aux,all(com.idMax_ .== N+N÷2))
+            push!(aux,all(com.flagRecomputeNeighbors_ .== 1))
+            CUDA.@allowscalar push!(aux,all([i in com.lf[1:N] for i in 2:2:N]))
+            end
+            all(aux)
+        end
+    end
+    
+    # ############################################################################
+    # Random
+    # ############################################################################
+    for platform in [CPU(),GPU()]
+        @test begin
+            abm = ABM(1,
+                    agent = Dict(
+                        :norm => Float64,
+                        :unif => Float64,
+                        :expon => Float64
+                    ),
+        
+                    agentRule = quote
+                        norm = CBMDistributions.normal(1,2)
+                        unif = CBMDistributions.uniform(1,2)
+                        expon = CBMDistributions.exponential(3)
+                    end
+                )
+        
+            N = 100000
+            com = Community(abm,N=N,platform=platform)
+        
+            loadToPlatform!(com)
+            agentStepRule!(com)
+            update!(com)
+            bringFromPlatform!(com)
+        
+            a = Bool[]
+        
+            push!(a, abs(sum(com.norm)/N - 1) < 0.05 )
+            push!(a, abs(sum(com.norm.^2)/N-(sum(com.norm)/N)^2 - 4) < 0.05 )
+            push!(a, abs(minimum(com.unif) - 1) < 0.05 )
+            push!(a, abs(maximum(com.unif) - 2) < 0.05 )
+            push!(a, abs(sum(com.expon)/N - 3) < 0.05 )
+        
+            all(a)
         end
     end
 
-    return codeset
-
-end
-
-macro testIntegrator(code,methods...)
-
-    codeset = quote end
-    for plat in [string(j) for j in methods]
-        addCode = MacroTools.postwalk(x->@capture(x,INTEGRATOR) ? :(Symbol($plat)) : x, code)
-        codeset = quote
-            $codeset
-            $addCode
-        end
-    end
-
-    return codeset
-
-end
-
-macro testAllNeighbors(code,methods...)
-
-    codeset = quote end
-    for dim in 1:3
-        for meth in [string(j) for j in methods]
-            for plat in TESTPLATFORMS
-                addCode = MacroTools.postwalk(x->@capture(x,NEIGHBOR) ? :(Symbol($meth)) : x, code)
-                addCode = MacroTools.postwalk(x->@capture(x,DIM) ? dim : x, addCode)
-                addCode = MacroTools.postwalk(x->@capture(x,PLATFORM) ? :(Symbol($plat)) : x, addCode)
-                codeset = quote
-                    $codeset
-                    $addCode
+    # ############################################################################
+    # Neighbors
+    # ############################################################################
+    for dims in [1,2,3]
+        for neighbors in [
+                            CBMNeighbors.Full(),
+                            CBMNeighbors.VerletTime(skin=2,dtNeighborRecompute=1.,nMaxNeighbors=10),
+                            CBMNeighbors.VerletDisplacement(skin=2,nMaxNeighbors=10),
+                            CBMNeighbors.CellLinked(cellEdge=10),
+                            CBMNeighbors.CLVD(skin=2,nMaxNeighbors=10,cellEdge=10)
+                        ]
+            for platform in [CPU(),GPU()]
+                @test begin 
+                    abm = ABM(dims,
+                        agent = OrderedDict(
+                            :nn => Int64
+                        ),
+                        agentRule=
+                            quote
+                                nn = 0
+                                @loopOverNeighbors i2_ begin 
+                                    if CBMMetrics.@euclidean(i2_) < 1.1
+                                        nn += 1 
+                                    end
+                                end
+                            end
+                    )
+                    # println(abm.declaredUpdatesCode[:UpdateLocal])
+                    com = Community(abm,
+                                N=3^dims,
+                                simBox=[.5 1.5;.5 1.5;.5 1.5][1:dims,:],
+                                neighbors=neighbors
+                    );
+                    v = zeros(3,27)
+                    v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
+                    v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
+                    v[3,:] = repeat([repeat([0],9);repeat([1],9);repeat([2],9)],1)
+                    for (j,sym) in enumerate([:x,:y,:z][1:dims])
+                        getproperty(com,sym) .= v[j,1:3^(dims)]
+                    end
+                    loadToPlatform!(com);
+                    computeNeighbors!(com);
+                    agentStepRule!(com);
+                    update!(com)
+                    result = true
+                    if dims == 1
+                        result = all(Array(com.nn) .≈ [1,2,1])
+                    elseif dims == 2
+                        result = all(Array(com.nn) .≈ [2,3,2,3,4,3,2,3,2])
+                    elseif dims == 3
+                        result = all(Array(com.nn) .≈ [3,4,3,4,5,4,3,4,3,
+                                                    4,5,4,5,6,5,4,5,4,
+                                                    3,4,3,4,5,4,3,4,3])
+                    end
+                    result
                 end
             end
         end
     end
 
-    return codeset
-
-end
-
-@testset "community" begin
-
-    # #Create community
-    # @test_nowarn begin abm = ABM(3,
-    #     agent=OrderedDict(
-    #         :li=>Int64,
-    #         :li2=>Int64,
-    #         :lii=>Int64,
-    #         :lf=>Float64,
-    #         :lf2=>Float64
-    #     ),
-    #     model=OrderedDict(
-    #         :gi=>Int64,
-    #         :gi2=>Int64,
-    #         :gii=>Int64,
-    #         :gf=>Float64,
-    #         :gf2=>Float64,
-    #         :gfi=>Float64
-    #     ),
-    #     medium=OrderedDict(
-    #         :m=>Float64
-    #     ),
-    #     updateGlobal=quote 
-    #         gi += 1
-    #         gf += 1
-    #         gfi += 1
-    #         gii += 1
-    #     end,
-    #     agentRule=quote 
-    #         li += 1
-    #         lf += 1
-    #         lfi += 1
-    #         lii += 1     
-    #         gii += 1       
-    #     end,
-    #     updateInteraction=quote 
-    #         lfi += 1
-    #     end,
-    #     updateMedium=quote 
-    #         m += 1
-    #     end,
-    #     updateMediumInteraction=quote
-    #         m -= 1
-    #     end,
-    #     updateVariable=quote 
-    #         d( x ) = dt( -x )
-    #     end,
-    #     compile=false
-    #     )
-
-    #     com = Community(abm,N=[10],NMedium=[1,1,1],simBox=[0. 1;0. 1;0 1])
-    # end
-
-    # #Get properties
-    # @test_nowarn begin abm = ABM(3,
-    #         agent=OrderedDict(
-    #             :li=>Int64,
-    #             :li2=>Int64,
-    #             :lii=>Int64,
-    #             :lf=>Float64,
-    #             :lf2=>Float64
-    #         ),
-    #         model=OrderedDict(
-    #             :gi=>Int64,
-    #             :gi2=>Int64,
-    #             :gii=>Int64,
-    #             :gf=>Float64,
-    #             :gf2=>Float64,
-    #             :gfi=>Float64
-    #         ),
-    #         medium=OrderedDict(
-    #             :m=>Float64
-    #         )
-    #     )
-
-    #     com = Community(abm,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
-    #     com.li
-    #     com[:li]
-    #     com.gf
-    #     com[:gf]
-    #     com.gf2
-    #     com[:gf2]
-    #     com.abm
-    #     com.loaded
-    # end
-
-    # #Set properties
-    # @test begin abm = ABM(3,
-    #         agent=OrderedDict(
-    #             :li=>Int64,
-    #             :li2=>Int64,
-    #             :lii=>Int64,
-    #             :lf=>Float64,
-    #             :lf2=>Float64
-    #         ),
-    #         model=OrderedDict(
-    #             :gi=>Int64,
-    #             :gi2=>Int64,
-    #             :gii=>Int64,
-    #             :gf=>Float64,
-    #             :gf2=>Float64,
-    #             :gfi=>Float64
-    #         ),
-    #         medium=OrderedDict(
-    #             :m=>Float64
-    #         ),
-    #     )
-
-    #     com = Community(abm,N=[10],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
-    #     com.li = ones(Int64,10)
-    #     com[:li] = ones(Int64,10)
-    #     com.li .= 1.
-    #     com.gi = 1
-    #     com.gf = 1. 
-    #     com.gi2 = 1
-    #     com.gf2 = 1. 
-    #     com.dt = 1
-
-    #     all([all( com[s] .== 1 ) for s in [:li,:gi,:gf,:gi2,:gf2,:dt]])
-    # end
-
-    # #loadToPlatform
-    # @test begin abm = ABM(3,
-    #         agent=OrderedDict(
-    #             :li=>Int64,
-    #             :li2=>Int64,
-    #             :lii=>Int64,
-    #             :lf=>Float64,
-    #             :lf2=>Float64
-    #         ),
-    #         model=OrderedDict(
-    #             :gi=>Int64,
-    #             :gi2=>Int64,
-    #             :gii=>Int64,
-    #             :gf=>Float64,
-    #             :gf2=>Float64,
-    #             :gfi=>Float64
-    #         ),
-    #         medium=OrderedDict(
-    #             :m=>Float64
-    #         ),
-    #         platform=:GPU,
-    #         compile=false
-    #     )
-
-    #     com = Community(abm,N=[100],NMedium=[10,10,10],simBox=[0. 1;0. 1;0 1]);
-
-    #     loadToPlatform!(com,preallocateAgents=10)
-
-    #     bringFromPlatform!(com)
-
-    #     true
-    # end
-
-    # #local
-    # @testset "local" begin
-
-        # @testPlatform(
-        #     (@test begin
-        #         abm = ABM(1,platform=PLATFORM,
-        #                     agent=OrderedDict(
-        #                         :li=>Int64,
-        #                         :li2=>Int64,
-        #                         :lii=>Int64,
-        #                         :lf=>Float64,
-        #                         :lf2=>Float64
-        #                     ),
-        #                     model=OrderedDict(
-        #                         :gi=>Int64,
-        #                         :gi2=>Int64,
-        #                         :gii=>Int64,
-        #                         :gf=>Float64,
-        #                         :gf2=>Float64,
-        #                         :gfi=>Float64
-        #                     ),
-        #                     agentRule = quote
-        #                         x = x + 1.
-        #                         if id == 3
-        #                             @removeAgent()
-        #                         elseif id == 5
-        #                             @addAgent(lf = 5)
-        #                         end
-        #                     end
-        #                     );
-        #         com = Community(abm,N=[10]);
-        #         loadToPlatform!(com,preallocateAgents=1);
-        #         localStep!(com)
-
-        #         aux = false
-        #         if PLATFORM == :CPU
-        #             aux = (com.N[1] == 10) &
-        #                     (com.NAdd_[] .== 1) &
-        #                     (com.NRemove_[] .== 1) &
-        #                     (com.idMax_[] .== 11) &
-        #                     (com.flagNeighbors_[3] == 1)  &
-        #                     (com.flagNeighbors_[11] == 1) &
-        #                     (com.lf[11] ≈ 5) &
-        #                     (com.id[11] == 11)
-        #         else 
-        #             aux = (CUDA.@allowscalar com.N[1] .== 10) &
-        #                     (CUDA.@allowscalar com.NAdd_[1] .== 1) &
-        #                     (CUDA.@allowscalar com.NRemove_[1] .== 1) &
-        #                     (CUDA.@allowscalar com.idMax_[1] .== 11) &
-        #                     (CUDA.@allowscalar com.flagNeighbors_[3] == 1)  &
-        #                     (CUDA.@allowscalar com.flagNeighbors_[11] == 1) &
-        #                     (CUDA.@allowscalar com.lf[11] ≈ 5) &
-        #                     (CUDA.@allowscalar com.id[11] == 11)
-        #         end
-
-        #         aux
-        #     end)
-        # )
-
-        # @testPlatform(
-        #     (@test begin
-        #         abm = ABM(1,platform=PLATFORM,
-        #                     agent=OrderedDict(
-        #                         :lf=>Float64
-        #                     ),
-        #                     agentRule = quote
-        #                         addAgent(lf = 5)
-        #                         addAgent(lf = 5)
-        #                         removeAgent()
-        #                     end
-        #                     );
-        #         com = Community(abm,N=[1]);
-        #         loadToPlatform!(com,preallocateAgents=3);
-        #         localStep!(com)
-        #         # println("NAdd_: ",com.NAdd_[])
-        #         update!(com)
-
-        #         true
-        #     end)
-        # )
-
-        # @testAllNeighbors(            
-        #     (@test begin 
-
-        #         d = :(euclideanDistance($([:(x[i1_]),:(x[i2_]),:(y[i1_]),:(y[i2_]),:(z[i1_]),:(z[i2_])][1:2*DIM]...)))
-
-        #         abm = ABM(DIM,neighbors=NEIGHBOR,platform=PLATFORM,
-        #             agent = OrderedDict(
-        #                 :nn => Int64
-        #             ),
-        #             agentRule=
-        #                 quote
-        #                     nn = 0
-        #                     @loopOverNeighbors i2_ begin 
-        #                         if $d < 1.1
-        #                             nn += 1 
-        #                         end
-        #                     end
-        #                 end
-        #         )
-        #         # println(abm.declaredUpdatesCode[:UpdateLocal])
-        #         com = Community(abm,N=[3^DIM],dtNeighborRecompute=[1.],skin=[2.],nMaxNeighbors=[27],cellEdge=[2.,2.,2.][1:DIM],simBox=[.5 1.5;.5 1.5;.5 1.5][1:DIM,:]);
-        #         v = zeros(3,27)
-        #         v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
-        #         v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
-        #         v[3,:] = repeat([repeat([0],9);repeat([1],9);repeat([2],9)],1)
-        #         for (j,sym) in enumerate([:x,:y,:z][1:DIM])
-        #             getproperty(com,sym) .= v[j,1:3^(DIM)]
-        #         end
-
-        #         loadToPlatform!(com);
-        #         computeNeighbors!(com);
-        #         localStep!(com);
-
-        #         result = true
-        #         if DIM == 1
-        #             result = all(Array(com.nn) .≈ [1,2,1])
-        #         elseif DIM == 2
-        #             result = all(Array(com.nn) .≈ [2,3,2,3,4,3,2,3,2])
-        #         elseif DIM == 3
-        #             result = all(Array(com.nn) .≈ [3,4,3,4,5,4,3,4,3,
-        #                                            4,5,4,5,6,5,4,5,4,
-        #                                            3,4,3,4,5,4,3,4,3])
-        #         end
-
-        #         result
-        #     end), CellLinked, VerletTime, VerletDisplacement, Full, CLVD
-        # )
-
-    # end
-    
-    # #global
-    # @testset "global" begin
-
-    #     @testPlatform(
-    #         (@test begin
-    #             abm = ABM(1,platform=PLATFORM,
-    #                         localInt=[:li],
-    #                         localIntInteraction=[:lii],
-    #                         localFloat=[:lf],
-    #                         localFloatInteraction=[:lfi],
-    #                         globalFloat=[:gf],
-    #                         globalInt=[:gi],
-    #                         globalFloatInteraction=[:gfi],
-    #                         globalIntInteraction=[:gii],
-    #                         updateGlobal = quote
-    #                             t = 10.
-    #                             addAgent(
-    #                                 lf = 5,
-    #                                 li = 2,
-    #                                 x = 3.
-    #                             )
-    #                         end
-    #                         );
-    #             com = Community(abm,N=[10]);
-    #             loadToPlatform!(com,preallocateAgents=1);
-    #             globalStep!(com)
-
-    #             aux = false
-    #             if PLATFORM == :CPU
-    #                 aux = (com.N[1] == 10) &
-    #                         (com.NAdd_[] .== 1) &
-    #                         (com.NRemove_[] .== 0) &
-    #                         (com.idMax_[] .== 11) &
-    #                         (com.flagNeighbors_[11] == 1) &
-    #                         (com.lfMNew_[11,1] ≈ 5) &
-    #                         (com.liMNew_[11,1] == 2) &
-    #                         (com.xNew_[11,1] ≈ 3) &
-    #                         (com.id[11] == 11)
-    #             else 
-    #                 aux = (CUDA.@allowscalar com.N[1] .== 10) &
-    #                         (CUDA.@allowscalar com.NAdd_[1] .== 1) &
-    #                         (CUDA.@allowscalar com.NRemove_[1] .== 0) &
-    #                         (CUDA.@allowscalar com.idMax_[1] .== 11) &
-    #                         (CUDA.@allowscalar com.flagNeighbors_[11] == 1) &
-    #                         (CUDA.@allowscalar com.lfMNew_[11,1] ≈ 5) &
-    #                         (CUDA.@allowscalar com.xNew_[11,1] ≈ 3) &
-    #                         (CUDA.@allowscalar com.id[11] == 11)
-    #             end
-
-    #             aux
-    #         end)
-    #     )
-
-    # end
-
-    # @testset "neighbors" begin
-
-        # #Full
-        # @testAllNeighbors(
-        #     (@test_nowarn begin
-        #         abm = ABM(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
-        #         com = Community(abm,N=[3]);
-        #         computeNeighbors!(com);     
-        #     end), Full
-        # )
-
-        # #VerletTime VerletDisplacement neighbors
-        # @testAllNeighbors(            
-        #     (@test begin 
-
-        #     abm = ABM(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
-        #     com = Community(abm,N=[3],skin=[1.],nMaxNeighbors=[2],dtNeighborRecompute=[1.]);
-        #     loadToPlatform!(com,preallocateAgents=10);
-        #     computeNeighbors!(com);
-
-        #     x = Array(com.neighborList_[1:3,:])
-        #     all([j in [2 3;1 3;1 2][i,:] for i in 1:3 for j in x[i,:]])
-        #     end), VerletDisplacement, VerletTime,
-        # )
-
-        # #CellLinked neighbors
-        # @testAllNeighbors(            
-        #     (@test begin 
-
-        #     abm = ABM(DIM,neighbors=NEIGHBOR,platform=PLATFORM)
-        #     com = Community(abm, N=[3^DIM], cellEdge=[2. for i in 1:DIM], simBox = [.5 1.5;.5 1.5;.5 1.5][1:DIM,:]);
-        #     v = zeros(3,27)
-        #     v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
-        #     v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
-        #     v[3,:] = repeat([repeat([0],9);repeat([1],9);repeat([2],9)],1)
-        #     for (j,sym) in enumerate([:x,:y,:z][1:DIM])
-        #         getproperty(com,sym) .= v[j,1:3^(DIM)]
-        #     end
-        #     loadToPlatform!(com);
-        #     computeNeighbors!(com);
-
-        #     all(com.cellNumAgents_ .== 1)
-        #     end), CellLinked
-        # )
-
-    # end
-
-    # @testset "interactions" begin
-        # @testAllNeighbors(            
-        #     (@test begin 
-
-        #         abm = ABM(DIM,neighbors=NEIGHBOR,platform=PLATFORM,
-        #             localIntInteraction = [:nn],
-        #             updateInteraction=quote
-        #                     if euclideanDistance() < 1.1
-        #                         nn.i += 1 
-        #                     end
-        #                 end
-        #         )
-        #         # println(abm.declaredUpdatesCode[:UpdateInteraction])
-        #         com = Community(abm,N=[3^DIM],dtNeighborRecompute=[1.],skin=[2.],nMaxNeighbors=[27],cellEdge=[2.,2.,2.][1:DIM],simBox=[.5 1.5;.5 1.5;.5 1.5][1:DIM,:]);
-        #         v = zeros(3,27)
-        #         v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
-        #         v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
-        #         v[3,:] = repeat([repeat([0],9);repeat([1],9);repeat([2],9)],1)
-        #         for (j,sym) in enumerate([:x,:y,:z][1:DIM])
-        #             getfield(com,sym) .= v[j,1:3^(DIM)]
-        #         end
-
-        #         loadToPlatform!(com);
-        #         computeNeighbors!(com);
-        #         interactionStep!(com);
-        #         interactionStep!(com);
-
-        #         result = true
-        #         if DIM == 1
-        #             result = all(Array(com.nn) .≈ [1,2,1])
-        #         elseif DIM == 2
-        #             result = all(Array(com.nn) .≈ [2,3,2,3,4,3,2,3,2])
-        #         elseif DIM == 3
-        #             result = all(Array(com.nn) .≈ [3,4,3,4,5,4,3,4,3,
-        #                                            4,5,4,5,6,5,4,5,4,
-        #                                            3,4,3,4,5,4,3,4,3])
-        #         end
-
-        #         result
-        #     end), CellLinked, VerletTime, VerletDisplacement, Full, CLVD
-        # )
-
-    # @test begin
-    #     model = ABM(2,
-
-    #             localFloatInteraction = [:fx,:fy],
-
-    #             globalFloat = [:rRep,:fRep,:rAtr,:fAtr,:D],
-
-    #             updateInteraction = quote
-    #                 d = euclideanDistance(x.i,x.j,y.i,y.j)
-    #                 dx = (x.i-x.j)/d
-    #                 dy = (y.i-y.j)/d
-    #                 if d < rRep #Repulsion forces
-    #                     fx.i += fRep*(rRep-d)*dx  
-    #                     fy.i += fRep*(rRep-d)*dy  
-    #                 elseif d < rAtr #Attraction forces
-    #                     fx.i += -fAtr*(rAtr-d)*dx  
-    #                     fy.i += -fAtr*(rAtr-d)*dy  
-    #                 end
-    #             end,
-
-    #             updateVariable = quote
-    #                 #Bounaries
-    #                 if x < simBox[1,1]+rRep/2
-    #                     fx += fRep
-    #                 elseif x > simBox[1,2]-rRep/2
-    #                     fx -= fRep        
-    #                 end
-    #                 if y < simBox[2,1]+rRep/2
-    #                     fy += fRep
-    #                 elseif y > simBox[2,2]-rRep/2
-    #                     fy -= fRep
-    #                 end
-    #                 #Dynamics
-    #                 d( x ) = dt( fx ) + dW( D )
-    #                 d( y ) = dt( fy ) + dW( D )
-    #             end,
-                
-    #             integrator=:Heun,
-    #         );
-
-    #         modelGPU = ABM(2,
-    #             baseModelInit = [model],
-    #             integrator = :Heun,
-    #             neighbors = :Full,
-    #             platform = :GPU,
-    #         );
-
-    #         function initialize(model,N,simBox)
-    #             return Community(model,N=[N],
-    #                     simBox = simBox,
-    #                     nMaxNeighbors = [100],
-    #                     skin = [10.],
-                        
-    #                     rRep=.8,
-    #                     fRep=1,
-    #                     rAtr=1.,
-    #                     fAtr=1.,
-    #                     D = .5,
-    #                     x=rand(N).*(simBox[1,2]-simBox[1,1]).+simBox[1,1],
-    #                     y=rand(N).*(simBox[2,2]-simBox[2,1]).+simBox[2,1],
-    #                     dt=[.1],
-    #                     );
-    #         end;
-
-    #         ρ=.1
-    #         S = 1
-    #         simBox = S.*[-10. 10; -10 10]
-    #         n = round(Int64,ρ*(simBox[1,2]-simBox[1,1])*(simBox[2,2]-simBox[2,1]))
-    #         com = initialize(modelGPU,n,simBox);
-    #         t = @elapsed evolve!(com,steps=1000,saveEach=10,saveCurrentState=true)
-
-    #         true
-    # end
-
-    # end
-
-    #Update
-    @testset "update" begin
-
-        # #Local
-        @testPlatform(
-            (@test begin
+    # ############################################################################
+    # ODEs
+    # ############################################################################
+    for algorithm in [CBMIntegrators.Euler(),CBMIntegrators.Heun(),CBMIntegrators.RungeKutta4(),
+                        DifferentialEquations.Euler(),DifferentialEquations.Heun()]
+        for platform in [CPU(),GPU()]
+            @test begin
                 abm = ABM(3,
                             agent = Dict(
                                 :li => Int64,
@@ -593,585 +408,132 @@ end
                             medium = Dict(
                                 :m => Float64
                             ),
-                            agentRule=quote 
-                                li = id
-                                lf = id
-                                lfi = id
-                                lii = id         
-                                lfi = 0
-                                @loopOverNeighbors i2_ begin
-                                    lfi += id
-                                end  
-                                if id == 2
-                                    @removeAgent()
-                                end
-                            end,
-                            platform=PLATFORM,
+                            agentODE=quote 
+                                dt(x) = -0.5*x
+                            end
                         )
-                com = Community(abm,N=[3],NMedium=[2,2,2],simBox=[0 1.;0 1;0 1],x=1,dt=[.1]);
+                com = Community(abm,N=3,NMedium=[2,2,2],
+                                simBox=[0 1.;0 1;0 1],
+                                x=1,
+                                dt=.1,
+                                agentAlg=algorithm,
+                                platform=platform
+                                );
                             
                 loadToPlatform!(com);
-                agentStepRule!(com)
-                update!(com)
-                a = []
-                for i in [:li,:lii,:lf,:lfi]
-                    CUDA.@allowscalar push!(a, (com[i][2] .== com[i][3]))
-                end                
-                all(a)
-            end), 
-        )        
-
-        # ############################################################################
-        # ODEs
-        # ############################################################################
-        @testPlatform(
-            (@test begin
-                aa = []
-                for algorithm in [:Euler,:Heun,:RungeKutta4,DifferentialEquations.Euler(),DifferentialEquations.Heun()]
-                    abm = ABM(3,
-                                agent = Dict(
-                                    :li => Int64,
-                                    :lii => Int64,
-                                    :lf => Float64,
-                                    :lfi => Float64,
-                                ),
-                                model = Dict(
-                                    :gf => Float64,
-                                    :gi => Int64,
-                                    :gfi => Float64,
-                                    :gii => Int64,
-                                ),
-                                medium = Dict(
-                                    :m => Float64
-                                ),
-                                agentODE=quote 
-                                    dt(x) = -0.5*x
-                                end,
-                                platform=PLATFORM,
-                            )
-                    com = Community(abm,N=[3],NMedium=[2,2,2],
-                                    simBox=[0 1.;0 1;0 1],
-                                    x=1,
-                                    dt=[.1],
-                                    agentAlg=algorithm
-                                    );
-                                
-                    loadToPlatform!(com);
-                
-                    a = []
-                    for i in 1:100
-                        agentStepDE!(com)
-                        update!(com)
-                        push!(a, all(abs.(com.deProblem.u .- exp.(-.5 .* com.t)).<0.05))
-                    end
-                
-                    push!(aa,all(a))
-                end
-                all(aa)
-            end), 
-        )        
-
-        # ############################################################################
-        # SDEs
-        # ############################################################################
-        @testPlatform(
-            (@test begin
-                aa = []
-                for algorithm in [:EM, :EulerHeun, DifferentialEquations.EM(), DifferentialEquations.EulerHeun()]
-                    abm = ABM(3,
-                                agent = Dict(
-                                    :li => Int64,
-                                    :lii => Int64,
-                                    :lf => Float64,
-                                    :lfi => Float64,
-                                ),
-                                model = Dict(
-                                    :gf => Float64,
-                                    :gi => Int64,
-                                    :gfi => Float64,
-                                    :gii => Int64,
-                                ),
-                                medium = Dict(
-                                    :m => Float64
-                                ),
-                                agentSDE=quote 
-                                    dt(x) = 1
-                                end,
-                                platform=PLATFORM,
-                            )
-                    N = 5000
-                    com = Community(abm,N=[N],NMedium=[2,2,2],
-                                    simBox=[0 1.;0 1;0 1],
-                                    x=0,
-                                    dt=[.1],
-                                    agentAlg=algorithm);
-                                
-                    loadToPlatform!(com);
-                
-                    a = []
-                    for i in 1:100
-                        agentStepDE!(com)
-                        update!(com)
-                        # println( (com.t, com.dt, abs.( ( sum(com.x .^ 2)/N .- sum(com.x)/N .^ 2 ) ) ) )
-                        push!(a, all(abs.( com.t .- ( sum(com.x .^ 2)/N .- sum(com.x)/N .^ 2 ) ) .< 0.5))
-                    end
-                
-                    push!(aa,all(a))
-                end
-                all(aa)
-            end), 
-        )       
-
-        # # Add agent
-        # @testPlatform(
-        #     (@test begin
-        #         abm = ABM(2,platform=PLATFORM, #Add agents one by one
-        #                     agentRule = quote
-        #                         if x == N
-        #                             addAgent(x=N+1)
-        #                         end
-        #                     end
-        #                     );
-        #         com = Community(abm,N=[1]);
-        #         com.x .= 1
-        #         com.y .= 2
-        #         loadToPlatform!(com,preallocateAgents=9);
-        #         for i in 1:9
-        #             localStep!(com)
-        #             update!(com)
-        #         end
-
-        #         CUDA.@allowscalar all(com.x .== 1:10) && all(com.nMax_[1] .== 10) && all(com.N[1] .== 10)  && all(com.y .== 2)
-        #     end)
-        # )
-
-        # ############################################################################
-        # PDEs
-        # ############################################################################
-        @testPlatform(
-            (@test begin
-                aa = []
-                for algorithm in [DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23())]
-                    abm = ABM(1,
-                                agent = Dict(
-                                    :li => Int64,
-                                    :lii => Int64,
-                                    :lf => Float64,
-                                    :lfi => Float64,
-                                ),
-                                model = Dict(
-                                    :gf => Float64,
-                                    :gi => Int64,
-                                    :gfi => Float64,
-                                    :gii => Int64,
-                                ),
-                                medium = Dict(
-                                    :m => Float64
-                                ),
-                                mediumODE=quote 
-                                    if i1_ == 1
-                                        dt(m) = (-2*m[i1_]+m[i1_+1])/(meshLateralSize_[1]^2)
-                                    elseif i1_ == NMedium[1]
-                                        dt(m) = (-2*m[i1_]+m[i1_-1])/(meshLateralSize_[1]^2)
-                                    elseif i1_ == 11
-                                        dt(m) = 1/dt + (m[i1_-1]-2*m[i1_]+m[i1_+1])/(meshLateralSize_[1]^2)
-                                    else
-                                        dt(m) = (m[i1_-1]-2*m[i1_]+m[i1_+1])/(meshLateralSize_[1]^2)
-                                    end
-                                end,
-                                platform=:CPU,#PLATFORM,
-                            )
-                    com = Community(abm,N=[1],NMedium=[21],simBox=[0 1.],x=0,dt=[.1],
-                                    mediumAlg=algorithm);
-                                
-                    loadToPlatform!(com);
-                
-                    a = []
-                    for i in 1:100
-                        mediumStepDE!(com)
-                        update!(com)
-                        println(com.m)
-                        # println( (com.t, com.dt, abs.( ( sum(com.x .^ 2)/N .- sum(com.x)/N .^ 2 ) ) ) )
-                        # push!(a, all(abs.( com.t .- ( sum(com.x .^ 2)/N .- sum(com.x)/N .^ 2 ) ) .< 0.5))
-                    end
-                
-                    push!(aa,all(a))
-                end
-                all(aa)
-            end), 
-        )       
-
-        # # Add agent
-        # @testPlatform(
-        #     (@test begin
-        #         abm = ABM(2,platform=PLATFORM, #Add agents one by one
-        #                     agentRule = quote
-        #                         if x == N
-        #                             addAgent(x=N+1)
-        #                         end
-        #                     end
-        #                     );
-        #         com = Community(abm,N=[1]);
-        #         com.x .= 1
-        #         com.y .= 2
-        #         loadToPlatform!(com,preallocateAgents=9);
-        #         for i in 1:9
-        #             localStep!(com)
-        #             update!(com)
-        #         end
-
-        #         CUDA.@allowscalar all(com.x .== 1:10) && all(com.nMax_[1] .== 10) && all(com.N[1] .== 10)  && all(com.y .== 2)
-        #     end)
-        # )
-
-        # @testPlatform(
-        #     (@test begin
-        #         abm = ABM(2,platform=PLATFORM,  #Add agents several at the time
-        #                     agentRule = quote
-        #                         addAgent()
-        #                     end
-        #                     );
-        #         com = Community(abm,N=[1]);
-        #         loadToPlatform!(com,preallocateAgents=31);
-        #         for i in 1:5
-        #             localStep!(com)
-        #             update!(com)
-        #         end
-
-        #         all(com.N .== 32)
-        #     end)
-        # )
-
-        # # Remove agent
-        # @testPlatform(
-        #     (@test begin
-        #         abm = ABM(2,platform=PLATFORM, #Add agents one by one
-        #                     agentRule = quote
-        #                         if id == N
-        #                             removeAgent()
-        #                         end
-        #                     end
-        #                     );
-        #         com = Community(abm,N=[10]);
-        #         com.x .= 1:10
-        #         com.y .= 10:-1:1
-        #         loadToPlatform!(com);
-
-        #         passes = []
-        #         for i in 1:9
-        #             localStep!(com)
-        #             update!(com)
-
-        #             push!(passes, all(com.N .== 10-i))
-        #         end
-
-        #         all(passes)
-        #     end)
-        # )
-
-    end
-
-    # #Integration
-    # @testset "integration" begin
-    #     @test begin
-    #         abm = ABM(2,platform=:CPU, #Add agents one by one
-    #                     integrator=:RungeKutta4,
-    #                     updateVariable = quote
-
-    #                         d(  x  ) = dt(  -x  )
-    #                         d(  y  ) = dt(  -c  ) + dW( 2 )
-                            
-    #                     end
-    #                     );
-    #         com = Community(abm)
-    #         # println(abm.declaredVariables)
-    #         # println(size(com.varAuxdt_))
-    #         # println(size(com.varAuxdW_))
-
-    #         true
-    #     end
-
-    #     @testPlatform( #basic integration
-    #     @testIntegrator(
-    #         (@test begin
-    #                 abm = ABM(2,platform=PLATFORM, #Add agents one by one
-    #                             integrator=INTEGRATOR,
-    #                             updateVariable = quote
-
-    #                                 d(  x  ) = dt(  -x  )
-                                    
-    #                             end
-    #                             );
-    #                 com = Community(abm)
-    #                 com.dt = .1
-    #                 com.x .= 1
-    #                 loadToPlatform!(com)
- 
-    #                 istrue = []
-    #                 # println(INTEGRATOR, " ", PLATFORM)
-    #                 for i in 1:10
-    #                     integrationStep!(com)
-    #                     update!(com)
-    #                     # println(abs.(com.x.-exp.(-com.t)))
-    #                     push!(istrue,all(abs.(com.x.-exp.(-com.t)).<0.05))
-    #                 end
- 
-    #                 all(istrue)
-    #         end), Euler, Heun, RungeKutta4
-    #     )
-    #     )
- 
-    #     @testPlatform( #basic integration
-    #     @testIntegrator( #Stochastic term
-    #         (@test begin
-    #             abm = ABM(2,platform=PLATFORM, #Add agents one by one
-    #                         integrator=INTEGRATOR,
-    #                         globalFloat = [:D],
-    #                         updateVariable = quote
-
-    #                             d( x ) = dW( 1 )
-                                
-    #                         end
-    #                         );
-    #             N = 10000
-    #             com = Community(abm,N=[N])
-    #             com.dt = .1
-    #             com.x .= 0
-    #             loadToPlatform!(com)
-
-    #             istrue = []
-    #             for i in 1:10
-    #                 integrationStep!(com)
-    #                 update!(com)
-    #                 push!(istrue, all(abs.( com.t .- ( sum(com.x .^ 2)/N .- sum(com.x)/N .^ 2 ) ) .< 0.5))
-    #             end
-
-    #             all(istrue)
-    #         end), Euler, Heun, RungeKutta4
-    #     )
-    #     )
-
-    # end
-
-    # @testset "IO" begin
-
-        # @testAllNeighbors( #basic integration
-        #     (@test begin
-        #             dim = DIM
-        #             abm = ABM(dim,platform=PLATFORM, #Add agents one by one
-        #                         localFloat=[:l],
-        #                         neighbors=NEIGHBOR,
-        #                         agentRule = quote
-
-        #                             l = t
-                                
-        #                         end,
-        #                         updateVariable = quote
-
-        #                             d(  x  ) = dt(  1  )
-                                    
-        #                         end
-        #                         );
-        #             com = Community(abm,skin=[2.],simBox=[0. .9;1 2;1 2][1:dim,:],nMaxNeighbors=[15],dtNeighborRecompute=[10.],cellEdge=[10.,10.,10.][1:dim])
-        #             com.dt = .1
-        #             com.x .= 1
-        #             loadToPlatform!(com)
-        #             bringFromPlatform!(com)
-        #             comCheck = deepcopy(com)
-        #             loadToPlatform!(com)
- 
-        #             for i in 1:5
-        #                 step!(com)
-        #                 saveRAM!(com,saveLevel=5)
-        #             end
-        #             bringFromPlatform!(com)
-
-        #             isTrue = []
-        #             for i in 1:5
-        #                 comCheck.t = .1*i
-        #                 comCheck.x .= .1*i+1
-        #                 comCheck.xNew_ .= .1*i+1
-        #                 comCheck.varAux_ .= .1*i+1
-        #                 comCheck.lfM_ .= .1*i-.1
-        #                 comCheck.lfMNew_ .= .1*i-.1
-        #                 if NEIGHBOR == :VerletDisplacement
-        #                     setfield!(comCheck, :accumulatedDistance_, [.1*i])
-        #                 end
-
-        #                 comt = com[i]
-        #                 for (sym,prop) in pairs(AgentBasedModels.BASEPARAMETERS)
-        #                     t = false
-        #                     if :Atomic in prop.shape
-        #                         t = getfield(comCheck,sym)[] == getfield(comt,sym)[]
-        #                     else 
-        #                         t = all(getfield(comCheck,sym) .≈ getfield(comt,sym))
-        #                     end
-        #                     if !t
-        #                         println(sym," ",getfield(comCheck,sym), getfield(comt,sym))
-        #                     end
-        #                     push!(isTrue,t)
-        #                 end
-        #             end
-
-        #             #Check evolution can be done again from any timepoint if saveLevel=5
-        #             com = com[1]
-        #             loadToPlatform!(com)
-        #             step!(com)
-        #             saveRAM!(com)
-        #             bringFromPlatform!(com)
-        #             #Check evolution can be done again from any timepoint if saveLevel=1
-        #             com = com[end]
-        #             com.t .= 0
-        #             com.x .= 1
-        #             com.l .= 0
-        #             loadToPlatform!(com)
-        #             for i in 1:5
-        #                 step!(com)
-        #                 saveRAM!(com)
-        #             end
-        #             bringFromPlatform!(com)
-
-        #             all(isTrue)
-        #     end), CellLinked, VerletTime, VerletDisplacement, Full
-        # )
-
-        # @testAllNeighbors( #basic integration
-        #     (@test begin
-        #             dim = DIM
-        #             abm = ABM(dim,platform=PLATFORM, #Add agents one by one
-        #                         localFloat=[:l],
-        #                         neighbors=NEIGHBOR,
-        #                         agentRule = quote
-
-        #                             l = t
-                                
-        #                         end,
-        #                         updateVariable = quote
-
-        #                             d(  x  ) = dt(  1  )
-                                    
-        #                         end
-        #                         );
-        #             com = Community(abm,skin=[2.],simBox=[0. .9;1 2;1 2][1:dim,:],nMaxNeighbors=[15],dtNeighborRecompute=[10.],cellEdge=[10.,10.,10.][1:dim])
-        #             com.dt = .1
-        #             com.x .= 1
-        #             com.fileSaving = "testfiles/jld.jld2"
-        #             loadToPlatform!(com)
-        #             bringFromPlatform!(com)
-        #             comCheck = deepcopy(com)
-
-        #             if isfile("testfiles/jld.jld2")
-        #                 rm("testfiles/jld.jld2")
-        #             end
-
-        #             loadToPlatform!(com)
-        #             for i in 1:5
-        #                 step!(com)
-        #                 saveJLD2(com,saveLevel=5)
-        #             end
-        #             bringFromPlatform!(com)
-
-        #             com = loadJLD2("testfiles/jld.jld2")
-        #             isTrue = []
-        #             for i in 1:5
-        #                 comCheck.t = .1*i
-        #                 comCheck.x .= .1*i+1
-        #                 comCheck.xNew_ .= .1*i+1
-        #                 comCheck.varAux_ .= .1*i+1
-        #                 comCheck.lfM_ .= .1*i-.1
-        #                 comCheck.lfMNew_ .= .1*i-.1
-        #                 if NEIGHBOR == :VerletDisplacement
-        #                     setfield!(comCheck, :accumulatedDistance_, [.1*i])
-        #                 end
-
-        #                 comt = com[i]
-        #                 for (sym,prop) in pairs(AgentBasedModels.BASEPARAMETERS)
-        #                     t = false
-        #                     if :Atomic in prop.shape
-        #                         t = getfield(comCheck,sym)[] == getfield(comt,sym)[]
-        #                     else 
-        #                         t = all(round.(getfield(comCheck,sym),digits=6) .≈ round.(getfield(comt,sym),digits=5))
-        #                     end
-        #                     if !t
-        #                         println(sym," ",getfield(comCheck,sym), getfield(comt,sym))
-        #                     end
-
-        #                     push!(isTrue,t)
-        #                 end
-        #             end
- 
-        #             #Check evolution can be done again from any timepoint if saveLevel=5
-        #             com = com[1]
-        #             com.fileSaving = "testfiles/jld.jld2"
-
-        #             # if isfile("testfiles/jld.jld2")
-        #             #     rm("testfiles/jld.jld2")
-        #             # end
-
-        #             loadToPlatform!(com)
-        #             step!(com)
-        #             saveJLD2(com)
-        #             bringFromPlatform!(com)
-                    
-        #             com = loadJLD2("testfiles/jld.jld2")
-        #             #Check evolution can be done again from any timepoint if saveLevel=1
-        #             com = com[end]
-        #             com.fileSaving = "testfiles/jld.jld2"
-        #             com.t .= 0
-        #             com.x .= 1
-        #             com.l .= 0
-        #             loadToPlatform!(com)
-        #             for i in 1:5
-        #                 step!(com)
-        #                 saveJLD2(com)
-        #             end
-        #             bringFromPlatform!(com)
-
-        #             if isfile("testfiles/jld.jld2")
-        #                 rm("testfiles/jld.jld2")
-        #             end
-
-        #             all(isTrue)
-        #     end), CellLinked, VerletTime, VerletDisplacement, Full
-        # )
-
-    # end
-
-    # @testset "Initializers" begin
-        
-    #     @test_nowarn begin
-    #         abm = ABM(3,)
-    #         com = initializeCommunity(abm,[0 1;0 1;0 1],.1,packaging=cubicPackaging)
-    #     end
-
-    #     @test_nowarn begin
-    #         abm = ABM(3,)
-    #         com = initializeCommunity(abm,[0 1;0 1;0 1],.1,packaging=compactHexagonalPackaging)
-    #     end
-
-    # end
-
-    # @testset "Medium" begin
-        
-    #     @test begin
             
-    #         abm = ABM(1,
-    #             medium = [:a,:b],
-    #             updateMedium = quote
-    #                 ∂t( a ) = ∂2( 2*a ) #+ react( δx(5. - xₘ) )
-
-    #                 dirichletXmin( a ) = 1
-    #                 neumannXmax( a ) = 0
-    #             end
-    #         )
-
-    #         com = Community(abm,NMedium=[11],simBox=[0 10],dt=[.1])
-    #         evolve!(com,steps=10000)
-    #         println(round.(com.mediumM_,digits=2))
-    #         println(round.(com.mediumMNew_,digits=2))
-
-    #     end
-
-    # end
-
+                a = []
+                for i in 1:100
+                    agentStepDE!(com)
+                    update!(com)
+                    push!(a, all(abs.(com.agentDEProblem.u .- exp.(-.5 .* com.t)).<0.05))
+                end
+            
+                all(a)
+            end
+        end
+    end      
+    
+    # ############################################################################
+    # SDEs
+    # ############################################################################
+    for algorithm in [CBMIntegrators.EM(),CBMIntegrators.EulerHeun(),DifferentialEquations.EM(),DifferentialEquations.EulerHeun()]
+        for platform in [CPU(),GPU()]
+            @test begin
+                abm = ABM(3,
+                            agent = Dict(
+                                :li => Int64,
+                                :lii => Int64,
+                                :lf => Float64,
+                                :lfi => Float64,
+                            ),
+                            model = Dict(
+                                :gf => Float64,
+                                :gi => Int64,
+                                :gfi => Float64,
+                                :gii => Int64,
+                            ),
+                            medium = Dict(
+                                :m => Float64
+                            ),
+                            agentSDE=quote 
+                                dt(x) = 1
+                            end
+                        )
+                N = 10000
+                com = Community(abm,N=N,NMedium=[2,2,2],
+                                simBox=[0 1.;0 1;0 1],
+                                x=0,
+                                dt=.1,
+                                agentAlg=algorithm);
+                            
+                loadToPlatform!(com);
+            
+                a = []
+                for i in 1:100
+                    agentStepDE!(com)
+                    update!(com)
+                    # println( (com.t, com.dt, abs.( ( sum(com.x .^ 2)/N .- sum(com.x)/N .^ 2 ) ) ) )
+                    push!(a, all(abs.( com.t .- ( sum(com.x .^ 2)/N .- sum(com.x)/N .^ 2 ) ) .< 0.5))
+                end
+            
+                all(a)
+            end
+        end
+    end
+    
+    # ############################################################################
+    # PDEs
+    # ############################################################################
+    for algorithm in [DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23())]
+        for platform in [CPU(),GPU()]
+            @test begin
+                abm = ABM(1,
+                            agent = Dict(
+                                :li => Int64,
+                                :lii => Int64,
+                                :lf => Float64,
+                                :lfi => Float64,
+                            ),
+                            model = Dict(
+                                :gf => Float64,
+                                :gi => Int64,
+                                :gfi => Float64,
+                                :gii => Int64,
+                            ),
+                            medium = Dict(
+                                :m => Float64,
+                                :m2 => Float64
+                            ),
+                            mediumODE=quote 
+                                if @mediumInside()
+                                    dt(m) = @∂2(1,m)+@∂(1,xₘ*m)
+                                    dt(m2) = @∂2(1,m2)
+                                elseif @mediumBorder(1,-1)
+                                    m2 = m2[2]
+                                elseif @mediumBorder(1,1)
+                                    m2 = m2[end-1]
+                                end
+                            end
+                        )
+                N = 101
+                simBox = [-10 10]
+                com = Community(abm,N=1,NMedium=[N],simBox=simBox,dt=.1,
+                                mediumAlg=algorithm);
+                            
+                com.m = [pdf(Normal(0,2.),i) for i in range(simBox...,length=N)]
+                com.m2 = [pdf(Normal(0,2.),i) for i in range(simBox...,length=N)]
+    
+                loadToPlatform!(com);        
+    
+                for i in 1:1:2000
+                    mediumStepDE!(com)
+                    update!(com)
+                end
+    
+                all((com.m .- [pdf(Normal(0,1.),i) for i in range(simBox...,length=N)]) .< 0.01) &&
+                        all((com.m2 .- 0.05) .< 0.001)
+            end
+        end
+    end 
 end
