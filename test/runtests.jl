@@ -14,6 +14,6 @@ else
     println("CUDA was not found, only checking cpu.")
 end
 
-# include("testAgent.jl")
-# include("testCommunity.jl")
-include("testFitting.jl")
+include("testAgent.jl")
+include("testCommunity.jl")
+# include("testFitting.jl")
