@@ -139,6 +139,11 @@ Load the Community structure saved in file.
 """
 function loadJLD2(file::String)
 
+    if file in keys(SAVING) && isfile(file)
+        close(SAVING[file].file)
+        delete!(SAVING,file)
+    end
+
     jldopen(file, "r") do f
 
         #Agent
