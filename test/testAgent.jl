@@ -1,140 +1,144 @@
-@testset "agent" begin
+@testset "abm" begin
 
-    @test_nowarn Agent()
-    @test_nowarn Agent(3)
+    @test_nowarn ABM()
+    @test_nowarn ABM(3)
 
-    #Check you can declare agent of any size
-    @test begin 
-            agent = Agent(3,
-                        localInt=[:li,:li2],
-                        localIntInteraction=[:lii],
-                        localFloat=[:lf,:lf2],
-                        localFloatInteraction=[:lfi],
-                        globalFloat=[:gf,:gf2],
-                        globalInt=[:gi,:gi2],
-                        globalFloatInteraction=[:gfi],
-                        globalIntInteraction=[:gii],
-                        medium=[:m],
-                        updateGlobal=quote 
-                            gi += 1
-                            gf += 1
-                            gfi += 1
-                            gii += 1
-                        end,
-                        updateLocal=quote 
-                            li += 1
-                            lf += 1
-                            lfi += 1
-                            lii += 1            
-                        end,
-                        updateInteraction=quote 
-                            lfi += 1
-                            gii += 1
-                        end,
-                        updateMedium=quote 
-                            m += 1
-                        end,
-                        updateMediumInteraction=quote
-                            m -= 1
-                        end,
-                        updateVariable=quote 
-                            d(x) = dt(-x)
-                        end
-                        )
+    #Basic parameters
+    @test begin
+        aa = []
+        for dims in 1:3
+            abm = ABM(dims)
 
-            #Things that should be present
-            a = all([i in keys(agent.declaredSymbols) for i in [:li,:lii,:lfi,:gi,:gii,:gfi,:m,:li2,:lf2,:gi2,:gf2]]) 
-        
-            a
+            #check 1
+            push!(aa, all([i in [:x,:y,:z][1:dims] for i in keys(abm.parameters)]))
+
         end
-
-    @test_nowarn begin
-        Agent(3,
-            globalFloat = [:dist], #Maximum distance to compute neighbor distance
-            localFloatInteraction = [:mDis], #Interaction variable where to store the mean distance
-            localIntInteraction = [:nNeighs], #Number of neighbors that the agent has
-            updateInteraction = quote
-                d = euclideanMetric(x.i,x.j,y.i,y.j,z.i,z.j) 
-                if euclideanMetric(x.i,x.j,y.i,y.j,z.i,z.j) < dist
-                    nNeighs.i += 1 #Add 1 to neighbors
-                    mDist.i = (mDist.i*(nNeighs.i-1) + d)/nNeighs.i
-                end
-            end
-        )
+        all(aa)
     end
 
-    @test_nowarn begin
-        model1 = Agent(3,
-            localFloat = [:l],
-            updateLocal = quote
-                l += 1
-            end
-        )
+    #User parameters default
+    @test begin
+        aa = []
+        for dims in 1:3
+            abm = ABM(dims,
+                    agent=Dict(
+                        :ai => Int64,
+                        :af => Float64
+                    ),
+                    medium=Dict(
+                        :mi => Int64,
+                        :mf => Float64
+                    ),
+                    model=Dict(
+                        :gi => Int64,
+                        :gf => Float64,
+                        :ga => Array{Float64}
+                    )
+                )
+        
+            #check 1: all parameters are included
+            append!(aa, all([(i in [[:x,:y,:z][1:dims];[:ai,:af,:gi,:gf,:ga,:mi,:mf]]) for (i,j) in pairs(abm.parameters)]))
+            #check 2: scopes are well defined
+            scope = [[:agent,:agent,:agent][1:dims];[:agent,:agent,:model,:model,:model,:medium,:medium]]
+            append!(aa, [j.scope==scope[pos] for (pos,(i,j)) in enumerate(pairs(abm.parameters))])
+            #check 3: all properties false or 0
+            append!(aa, [j.update==false for (pos,(i,j)) in enumerate(pairs(abm.parameters))])
+            append!(aa, [j.variable==false for (pos,(i,j)) in enumerate(pairs(abm.parameters))])
+            append!(aa, [j.variableMedium==false for (pos,(i,j)) in enumerate(pairs(abm.parameters))])
+            append!(aa, [j.pos==0 for (pos,(i,j)) in enumerate(pairs(abm.parameters))])
 
-        model2 = Agent(3,
-            updateLocal = quote
-                l += 1
-            end,
-            baseModelInit = [model1]
-        )
+            #Remove agents false
+            push!(aa,!abm.removalOfAgents_)
+
+        end
+        all(aa)
     end
 
+    #User parameters default with rules
+    @test begin
+        aa = []
+        for dims in 1:3
+            abm = ABM(dims,
+                    agent=Dict(
+                        :ai => Int64,
+                        :af => Float64
+                    ),
+                    medium=Dict(
+                        :mi => Int64,
+                        :mf => Float64
+                    ),
+                    model=Dict(
+                        :gi => Int64,
+                        :gf => Float64,
+                        :ga => Array{Float64}
+                    ),
+                    agentRule = quote
+                        ai += 1
+                        @removeAgent()
+                    end,
+                    agentODE = quote
+                        dt(x) = 0
+                    end,
+                    agentSDE = quote
+                        dt(x) = 1
+                    end,
+                    mediumODE = quote
+                        dt(mf) = 1 - mf
+                    end
+                )
+
+            #check 1: update rules added
+            append!(aa, [AgentBasedModels.isemptyupdaterule(abm,i) for i in [:agentRule,:agentODE,:agentSDE,:mediumODE]])
+            #check 2: scopes are correctly assigned
+            scope = [[false,false,false][1:dims];[true,false,false,false,false,false,false]]
+            append!(aa, [j.update==scope[pos] for (pos,(i,j)) in enumerate(pairs(abm.parameters))])
+
+            scope = [[true,false,false][1:dims];[false,false,false,false,false,false,false]]
+            append!(aa, [j.variable==scope[pos] for (pos,(i,j)) in enumerate(pairs(abm.parameters))])
+
+            scope = [[false,false,false][1:dims];[false,false,false,false,false,true,false]]
+            append!(aa, [j.variableMedium==scope[pos] for (pos,(i,j)) in enumerate(pairs(abm.parameters))])
+
+            scope = [[1,0,0][1:dims];[0,0,0,0,0,1,0]]
+            append!(aa, [j.pos==scope[pos] for (pos,(i,j)) in enumerate(pairs(abm.parameters))])        
+
+            #Remove agents true
+            push!(aa,abm.removalOfAgents_)
+        end
+        all(aa)
+    end
+
+    #Error tests
+
+    #Updateing in both agentRule and agentODE/agentSDE
     @test_throws ErrorException begin
-        model1 = Agent(3,
-            localFloat = [:l],
-            updateLocal = quote
-                l += 1
-            end
-        )
-        model2 = Agent(3,
-            localFloat = [:l],
-            baseModelInit = [model1]
-        )
+        abm = ABM(1,
+                agentRule = quote
+                    x += 1
+                end,
+                agentODE = quote
+                    dt(x) = 0
+                end,
+            )
     end
 
-    @test_nowarn begin
-        modelWalker = Agent(1, #Dimensions of the model
-            globalFloat = [
-                :σ2, 
-            ],
-            globalInt = [:freeze], #Add the constant freeze
-            updateLocal = quote
-                x += freeze*Normal(0,σ2) 
-            end,
-        )
+    #Updating agent in medium
+    @test_throws ErrorException begin
+        abm = ABM(1,
+                mediumODE = quote
+                    dt(x) = 0
+                end,
+            )
+    end
 
-        modelBoundaries = Agent(1, #Dimensions of the model
-            localFloat = [:l],
-            globalFloat = [
-                :pDivision,
-            ],
-            updateLocal = quote
-                if pDivision < Uniform(0,1)
-                    addAgent(l = sin(Uniform(0,3*π)))
-                elseif x.new > simBox[1,2]
-                    removeAgent()
-                end
-
-            end,
-        )
-
-        modelFreeze = Agent(1, #Dimensions of the model
-            updateGlobal = quote #Set freeze to zero at some point
-                if t < 10.
-                    freeze = 1
-                else
-                    freeze = 0
-                end
-            end
-        )
-
-        modelFull = Agent(1,
-            baseModelInit = [
-                modelWalker,
-                modelBoundaries,
-                modelFreeze
-                ]
-        )
+    #Updating medium in agent
+    @test_throws ErrorException begin
+        abm = ABM(1,
+                medium = Dict(:m => Float64),
+                agentODE = quote
+                    dt(m) = 0
+                end,
+            )
     end
 
 end

@@ -7,7 +7,7 @@ Basic structure keeping the parameters of all the agents in the current simulati
 # Elements for internal use
 |Field|Description|
 |:---|:---|
-| agent | Agent model dealing with the rule of the model. |
+| abm | ABM model dealing with the rule of the model. |
 | loaded | Check if the model has been loaded into platform or not. |
 | platform | Platform of the model. |
 | fileSaving | File name where Community is saved when invoking saving functions not in RAM. |
@@ -27,11 +27,11 @@ These parameters are defined with all the properties in the constant BASEPARAMET
 ||NMedium|Size of the grid in which the medium is being computed. This is necessary to be declared if medium parameters are declared by the user.|
 ||nMax_|Maximum number of agents that can be present in the community.|
 |**Id tracking**|||
-||id|Unique identifier of the agent.|
+||id|Unique identifier of the com.abm.|
 ||idMax_|Maximum identifier that has been declared in the community.|
 |**Simulation space**|||
 ||simBox|Simulation box in which cells are moving. This is necessary to define a region of space in which a medium will be simulated or for computing neighbors with CellLinked methods.|
-|**Agent addition or removal**|||
+|**ABM addition or removal**|||
 ||NAdd_|Number of agents added in a step.|
 ||NRemove_|Number of agents removed in a step.|
 ||NSurvive_|Number of agents survived in a step.|
@@ -44,52 +44,25 @@ These parameters are defined with all the properties in the constant BASEPARAMET
 ||nMaxNeighbors|Maximum number of neighbors. Necessary for Verlet-like algorithms.|
 ||cellEdge|Distance of the grid used to compute neighbors.|
 ||flagRecomputeNeighbors_|Marked as 1 if recomputation of neighbors has to be performed.|
-||neighborN_|Number of neighbors for each agent. Used in Verlet-like algorithms.|
-||neighborList_|Matrix containing the neighbors of each Agent. Used in Verlet-like algorithms.|
+||neighborN_|Number of neighbors for each com.abm. Used in Verlet-like algorithms.|
+||neighborList_|Matrix containing the neighbors of each agent. Used in Verlet-like algorithms.|
 ||neighborTimeLastRecompute_|Time storing the information of last neighbor recomputation. Used in Verlet time algorithm.|
 ||posOld_|Stores the position of each agent in the last VerletDistance neighbor computation.|
 ||accumulatedDistance_|Stores the accumulated displaced distance of each agent in the last VerletDistance neighbor computation.|
 ||nCells_|Number of cells in each dimensions of the grid. Used in CellLinked algorithms.|
-||cellAssignedToAgent_|Cell assigned to each agent. Used in CellLinked algorithms.|
+||cellAssignedToAgent_|Cell assigned to each com.abm. Used in CellLinked algorithms.|
 ||cellNumAgents_|Number of agents assigned to each cell. Used in CellLinked algorithms.|
 ||cellCumSum_|Cumulative number of agents in the cell list. Used in CellLinked algorithms.|
-|**Position**|||
-||x|Position of the agent in the x axis.|
-||y|Position of the agent in the y axis.|
-||z|Position of the agent in the z axis.|
-||xNew_|Position of the agent in the x axis if updated during a step.|
-||yNew_|Position of the agent in the y axis if updated during a step.|
-||zNew_|Position of the agent in the z axis if updated during a step.|
-|**User declared parameters**|||
-||liNM_|Matrix storing user-defined Local Integer parameters that are not modifiable.|
-||liM_|Matrix storing user-defined Local Integer parameters that are modifiable.|
-||liMNew_|Matrix storing user-defined Local Integer parameters that are modifiable after a step.|
-||lii_|Matrix storing user-defined Local Integer parameters that are reset to zero after every step.|
-||lfNM_|Matrix storing user-defined Local Float parameters that are not modifiable.|
-||lfM_|Matrix storing user-defined Local Float parameters that are not modifiable.|
-||lfMNew_|Matrix storing user-defined Local Float parameters that are not modifiable after a step.|
-||lfi_|Matrix storing user-defined Local Float parameters that are reset to zero after every step.|
-||gfNM_|Matrix storing user-defined Global Integer parameters that are not modifiable.|
-||gfM_|Matrix storing user-defined Global Integer parameters that are not modifiable.|
-||gfMNew_|Matrix storing user-defined Global Integer parameters that are not modifiable after a step.|
-||gfi_|Matrix storing user-defined Global Integer parameters that are reset to zero after every step.|
-||giNM_|Matrix storing user-defined Global Integer parameters that are not modifiable.|
-||giM_|Matrix storing user-defined Global Integer parameters that are not modifiable.|
-||giMNew_|Matrix storing user-defined Global Integer parameters that are not modifiable after a step.|
-||gii_|Matrix storing user-defined Global Integer parameters that are reset to zero after every step.|
-||mediumNM_|Matrix storing user-defined Medium (Float) parameters that are not modifiable.|
-||mediumM_|Matrix storing user-defined Medium (Float) parameters that are not modifiable.|
-||mediumMNew_|Matrix storing user-defined Medium (Float) parameters that are not modifiable after a step.| 
 
 **Constructors**
 
-    function Community(abm::Agent; args...)
+    function Community(abm::ABM; args...)
 
 Function to construct a Community with a predefined number of agents and medium grid.
 
 || Argument | Description |
 |:---|:---|
-|Args| abm::Agent | Agent Based Model that defines the parameters of the agents. |
+|Args| abm::ABM | Agent Based Model that defines the parameters of the agents. |
 |KwArgs| args... | Keys to define any of the other elements that will be visible by evolution functions (e.g. simBox, N...)
 
 **Accessing and Modifying the Community**
@@ -101,7 +74,7 @@ Accessible Base Parameters:
 [:t,:dt,:simBox,:skin,:dtNeighborRecompute,:nMaxNeighbors,:cellEdge,:x,:y,:z]
 
 ```julia
-model = Agent(1) #Defining a very basic agent with no rules.
+model = ABM(1) #Defining a very basic agent with no rules.
 com = Community(model, N = [10]) #Constructing a community with 10 agents.
 com[:x]         #indexing
 com.x           #property
@@ -132,118 +105,305 @@ getParameter(com,[:dt,:x]) #Return the parameters dt and x of all agents at all 
 """
 mutable struct Community
 
-    agent
-    loaded
-    platform
-    fileSaving
-    pastTimes
+    abm
+    uuid
 
     t
     dt
     N
     NMedium
-    nMax_
-    id
-    idMax_
     simBox
+
+    id
+
+    nMax_
+    idMax_
     NAdd_
     NRemove_
     NSurvive_
     flagSurvive_
     holeFromRemoveAt_
     repositionAgentInPos_
-    skin
-    dtNeighborRecompute
-    nMaxNeighbors
-    cellEdge
     flagRecomputeNeighbors_
-    flagNeighbors_
-    neighborN_
-    neighborList_
-    neighborTimeLastRecompute_
-    posOld_
-    accumulatedDistance_
-    nCells_
-    cellAssignedToAgent_
-    cellNumAgents_
-    cellCumSum_
-    meshLateralSize_
-    x
-    y
-    z
-    xNew_
-    yNew_
-    zNew_
-    varAux_
-    varAuxΔW_
-    liNM_
-    liM_
-    liMNew_
-    lii_
-    lfNM_
-    lfM_
-    lfMNew_
-    lfi_
-    gfNM_
-    gfM_
-    gfMNew_
-    gfi_
-    giNM_
-    giM_
-    giMNew_
-    gii_
-    mediumNM_
-    mediumM_
-    mediumMNew_
+    dx
+    dy
+    dz
+
+    parameters::OrderedDict{Symbol,AbstractArray}
+
+    neighbors
+
+    platform
+
+    agentDEProblem
+    agentAlg
+    agentSolveArgs
+    modelDEProblem
+    modelAlg
+    modelSolveArgs
+    mediumDEProblem
+    mediumAlg
+    mediumSolveArgs
+
+    loaded
+
+    pastTimes::Array{Community}
 
     # Constructors
-    function Community(agent::Agent; args...)
+    function Community(
+            abm::ABM; 
+
+            dt::Union{Nothing,AbstractFloat} = nothing,
+            t::AbstractFloat = 0.,
+            N::Int = 1,
+            id::AbstractArray{Int} = 1:N,
+            NMedium::Union{Nothing,Vector{<:Int}} = nothing,
+            simBox::Union{Nothing,Matrix{<:Number}} = nothing,
+
+            agentAlg::Union{CustomIntegrator,DEAlgorithm} = CBMIntegrators.Euler(),
+            agentSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
+
+            modelAlg::Union{CustomIntegrator,DEAlgorithm} = CBMIntegrators.Euler(),
+            modelSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
+
+            mediumAlg::Union{CustomIntegrator,DEAlgorithm} = DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()),
+            mediumSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
+
+            neighborsAlg::Neighbors = CBMNeighbors.Full(),       
+            platform::Platform = CPU(),     
+            args...
+        )
+
+        com = Community()
+        setfield!(com,:abm,deepcopy(abm))
 
         #Check args compulsory to be declared in the community given the agent model
-        for (sym,prop) in pairs(BASEPARAMETERS)
-            for i in prop.necessaryFor
-                if i == agent.neighbors && !(sym in keys(args))
-                    error("Parameter $sym has to be declared in the community for neighborhood style $i.")
-                elseif i == :Medium && length(getSymbolsThat(agent.declaredSymbols,:scope,:Medium)) > 0 && !(sym in keys(args))
-                    error("Parameter $sym has to be declared in the community for models with medium parameters.")
-                end
-            end
+        setupBaseParameters!(com,dt,t,N,id,NMedium,simBox)
+
+        #Creating the appropiate data arrays for parameters
+        setupUserParameters!(com,args)
+
+        #Assign other key arguments
+        setfield!(com,:neighbors,neighborsAlg)
+        setfield!(com,:platform,platform)
+        setfield!(com,:agentAlg,agentAlg)
+        setfield!(com,:agentSolveArgs,agentSolveArgs)
+        setfield!(com,:modelAlg,modelAlg)
+        setfield!(com,:modelSolveArgs,modelSolveArgs)
+        setfield!(com,:mediumAlg,mediumAlg)
+        setfield!(com,:mediumSolveArgs,mediumSolveArgs)
+        setfield!(com,:loaded,false)
+        setfield!(com,:uuid,uuid1())
+
+        #Save global reference
+        global COMUNITY = com
+
+        #Make compiled functions
+        for (scope,type) in zip(
+            [:agent,:agent,:model,:model,:medium,:medium],
+            [:ODE,:SDE,:ODE,:SDE,:ODE,:SDE]
+        )
+            functionDE(com,scope,type)
+        end
+        for scope in [:agent,:model,:medium]
+            functionRule(com,scope)
         end
 
-        #Creating the appropiate data matrices for the different parameters
-        dict = OrderedDict()
-        for (sym,prop) in pairs(BASEPARAMETERS)
-            if sym in keys(args)
-                checkFormat(sym,args,prop,dict,agent)
-                dict[sym] = args[sym]
-            else
-                dict[sym] = prop.initialize(dict,agent)
-            end
-        end
-    
-        com = new(agent, false, Platform(256,1), nothing, Community[], [j for (i,j) in pairs(dict)]...)
-
-        for sym in keys(args)
-            if sym in keys(agent.declaredSymbols)
-                setproperty!(com,sym,args[sym])
-            end
-        end
+        #Save global reference
+        global COMUNITY = com
 
         return com
 
     end
 
     function Community()
-
-        #Creating the appropiate data matrices for the different parameters
-        dict = OrderedDict()
-        for (sym,prop) in pairs(BASEPARAMETERS)
-            dict[sym] = nothing
-        end
     
-        return new(nothing, nothing, nothing, nothing,Community[], [j for (i,j) in pairs(dict)]...)
+        return new(
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            OrderedDict{Symbol,AbstractArray}(),
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            Community[],            
+            )
 
     end
+
+end
+
+"""
+Function to setup the base parameters (t,dt,simBox...) of the Community object.
+"""
+function setupBaseParameters!(com,dt,t,N,id,NMedium,simBox)
+    #dt
+    if !all(isemptyupdaterule(com.abm,rule) for rule in [:agentODE,:agentSDE,:mediumODE]) && dt === nothing
+        error("dt key argument must be defined when models use differential equation rules.")
+    elseif all([isemptyupdaterule(com.abm,rule) for rule in [:agentODE,:agentSDE,:modelODE,:modelSDE,:mediumODE,:mediumSDE]]) && dt === nothing
+        setfield!(com,:dt, 1.)
+    else
+        setfield!(com,:dt,dt)
+    end
+    #t
+    setfield!(com,:t,t)
+    #N
+    setfield!(com,:N,Int(N))
+    #id
+    if length(id) != N
+        error("id has to be a Int Array of the same length as the number of agents N.")
+    else
+        setfield!(com,:id,id)
+    end
+    #NMedium
+    if length([i for (i,j) in pairs(com.abm.parameters) if j.scope == :medium]) > 0 && NMedium === nothing
+        error("NMedium key argument must be defined when models with medium are declared.")
+    elseif NMedium !== nothing
+        if length(NMedium) != com.abm.dims
+            error("NMedium is expected to be a vector of length $(com.abm.dims)")
+        else
+            setfield!(com,:NMedium,NMedium)
+        end
+    else
+        setfield!(com,:NMedium,[0,0,0][1:com.abm.dims])
+    end
+    #simBox
+    if ( length([i for (i,j) in pairs(com.abm.parameters) if j.scope == :medium]) > 0 && simBox === nothing ) ||
+       ( typeof(com.platform) in [CBMNeighbors.CLVD,CBMNeighbors.CellLinked] && simBox === nothing )
+        error("simBox key argument must be defined when models with medium are declared.")
+    elseif simBox !== nothing
+        if size(simBox) != (com.abm.dims,2)
+            error("simBox is expected to have shape ($(com.abm.dims),2)")
+        else
+            setfield!(com,:simBox,simBox)
+        end
+    else
+        setfield!(com,:simBox,[0 1.;0 1;0 1][1:com.abm.dims,:])
+    end
+
+end
+
+"""
+Function that initializes the user parameters in the Community and assigns the arguments if initialized inside Community args.
+"""
+function setupUserParameters!(com,args)
+    #Create dictionary
+    parameters = OrderedDict{Symbol,AbstractArray}()
+    #Go over parameters
+    for (sym,struc) in pairs(com.abm.parameters)
+        if struc.scope == :agent
+            parameters[sym] = zeros(struc.dtype,com.N)
+        elseif struc.scope == :model
+            if struc.dtype <: Number
+                parameters[sym] = zeros(struc.dtype,1)
+            elseif !(sym in keys(args))
+                parameters[sym] = zeros(1)
+            else #Initialize as an array
+                parameters[sym] = copy(args[sym])
+            end
+        elseif struc.scope == :medium
+            parameters[sym] = zeros(struc.dtype,com.NMedium...)
+        end
+        #Initialize the parameters that have been declared
+        if sym in keys(args)
+            try
+                parameters[sym] .= args[sym]
+            catch
+                error("Provided initialization for parameter $sym is incorrect. Expected type $(com.abm.parameters[sym].dtype) and size $(size(params[sym])); got size $(size(args[sym])).")
+            end
+        end
+    end
+
+    setfield!(com,:parameters,parameters)
+
+    #dx dy dz and xₘ yₘ zₘ
+    if com.abm.dims > 0 && com.simBox !== nothing && com.NMedium !== nothing && (:xₘ in keys(com.parameters))
+        setfield!(com, :dx, (com.simBox[1,2] .- com.simBox[1,1])./com.NMedium[1])
+        if com.abm.dims == 1
+            com[:xₘ] = [com.dx*(i-.5)+com.simBox[1,1] for i = 1:com.NMedium[1]]
+        elseif com.abm.dims == 2
+            com[:xₘ] = [com.dx*(i-.5)+com.simBox[1,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2]]
+        elseif com.abm.dims == 3
+            com[:xₘ] = [com.dx*(i-.5)+com.simBox[1,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2],  k = 1:com.NMedium[3]]
+        end
+    else
+        setfield!(com, :dx, 0.)
+    end
+    if com.abm.dims > 1 && com.simBox !== nothing && com.NMedium !== nothing && (:yₘ in keys(com.parameters))
+        setfield!(com, :dy, (com.simBox[2,2] .- com.simBox[2,1])./com.NMedium[2])
+        if com.abm.dims == 1
+            com[:yₘ] = [com.dy*(j-.5)+com.simBox[2,1] for i = 1:com.NMedium[1]]
+        elseif com.abm.dims == 2
+            com[:yₘ] = [com.dy*(j-.5)+com.simBox[2,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2]]
+        elseif com.abm.dims == 3
+            com[:yₘ] = [com.dy*(j-.5)+com.simBox[2,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2],  k = 1:com.NMedium[3]]
+        end
+    else
+        setfield!(com, :dy, 0.)
+    end
+    if com.abm.dims > 2 && com.simBox !== nothing && com.NMedium !== nothing && (:zₘ in keys(com.parameters))
+        setfield!(com, :dz, (com.simBox[3,2] .- com.simBox[3,1])./com.NMedium[3])
+        if com.abm.dims == 1
+            com[:zₘ] = [com.dy*(k-.5)+com.simBox[3,1] for i = 1:com.NMedium[1]]
+        elseif com.abm.dims == 2
+            com[:zₘ] = [com.dy*(k-.5)+com.simBox[3,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2]]
+        elseif com.abm.dims == 3
+            com[:zₘ] = [com.dy*(k-.5)+com.simBox[3,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2],  k = 1:com.NMedium[3]]
+        end
+    else
+        setfield!(com, :dz, 0.)
+    end
+
+    return
+end
+
+"""
+    function cudaAdapt(code,platform)
+
+Adapt specific CPU forms of calling parameters (e.g. Atomic) to CUDA valid code (Atomic -> size 1 CuArray).
+"""
+function cuAdapt(array,com)
+
+    if typeof(com.platform) <: GPU
+
+        #Adapt atomic
+        if typeof(array) <: Threads.Atomic
+            return CUDA.ones(typeof(array).types[1],1).*array[]
+        else
+            return cu(array)
+        end
+
+    else
+        return array
+    end
+
+    return code
 
 end
 
@@ -253,7 +413,11 @@ end
 
 # Overload show
 function Base.show(io::IO,com::Community)
-    println("Community with ", com.N[1], " agents.")
+    if com.N === nothing
+        println("Empty Community.")
+    else
+        println("Community with ", com.N, " agents.")
+    end
 end
 
 # Overload ways of calling and assigning the parameters in community
@@ -264,46 +428,9 @@ function Base.getindex(community::Community,timePoint::Number)
     #Assign base parameters
     if 1 > timePoint || timePoint > length(community.pastTimes)
         error("Only time points from 1 to $(length(community.pastTimes)) present in the Community.")
-    elseif community.loaded 
-        error("Community has to be in RAM before calling a time point saved in RAM. Execute `bringFromPlatform!` before using this.")
     else
-        com = community.pastTimes[timePoint]
-        for (sym,prop) in pairs(BASEPARAMETERS)
-            if 0 == prop.saveLevel
-                if :Atomic in prop.shape #Do nothing if CPU and atomic
-                    setfield!(com,sym,getfield(community,sym))
-                else
-                    setfield!(com,sym,Array(getfield(community,sym)))
-                end
-            end
-        end
-
-        for (i,sym) in enumerate(POSITIONPARAMETERS[1:1:community.agent.dims])
-            if !community.agent.posUpdated_[i]
-                p = getfield(community,sym)
-                setfield!(com,sym,p)
-            end
-        end
+        return com = community.pastTimes[timePoint]
     end
-
-    #Assign agent
-    com.agent = community.agent
-    setfield!(com,:loaded,community.loaded)
-    com.platform = community.platform
-    com.fileSaving = nothing
-
-    #Initializing parameters that were nothing before
-    dict = OrderedDict()
-    for (sym,prop) in pairs(BASEPARAMETERS)
-        if getfield(com,sym) === nothing
-            setfield!(com,sym,prop.initialize(dict,com.agent))
-            dict[sym] = getfield(com,sym)
-        else
-            dict[sym] = getfield(com,sym)
-        end
-    end
-
-    return com
 
 end
 
@@ -320,23 +447,8 @@ function Base.getproperty(com::Community,var::Symbol)
     if var in fieldnames(Community)
         return getfield(com,var)
     else
-        if var in keys(com.agent.declaredSymbols)
-            x = com.agent.declaredSymbols[var].basePar
-            pos = com.agent.declaredSymbols[var].position
-            scope = com.agent.declaredSymbols[var].scope
-            if scope == :Local
-                return @views getfield(com,x)[:,pos]
-            elseif scope == :Global
-                return @views getfield(com,x)[pos:pos]
-            elseif scope == :Medium
-                if com.agent.dims == 1
-                    return @views getfield(com,x)[:,pos]
-                elseif com.agent.dims == 2
-                    return @views getfield(com,x)[:,:,pos]
-                elseif com.agent.dims == 3
-                    return @views getfield(com,x)[:,:,:,pos]
-                end
-            end
+        if var in keys(com.parameters)
+            return com.parameters[var]
         else
             error("Parameter ", var, " not found in the community.")
         end
@@ -352,26 +464,21 @@ end
 
 function Base.setproperty!(com::Community,var::Symbol,v)
 
-    if !(var in keys(com.agent.declaredSymbols)) && !(var in fieldnames(Community))
+    if var in fieldnames(Community)
+        error("$var is a field of Community. In general you shouldn't touch them as you can break the behavior of the simulations, if you really need to do it, use setfield! instead.")
+    elseif !(var in keys(com.parameters))
         error(var," is not in community.")
-    elseif var in fieldnames(Community)
-        if var in keys(BASEPARAMETERS)
-            if BASEPARAMETERS[var].protected
-                error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
-            else
-                getfield(com,var) .= v
-            end
-        else
-            error("Parameter of community $var is protected. If you really need to change it declare a new Community or use setfield! method (can be unstable).")
-        end
     else
-        x = com.agent.declaredSymbols[var].basePar
-        pos = com.agent.declaredSymbols[var].position
-        scope = com.agent.declaredSymbols[var].scope
-        if scope == :Local
-            getfield(com,x)[:,pos] .= v
-        elseif scope == :Global
-            getfield(com,x)[pos:pos] .= v            
+        if com.abm.parameters[old(var)].scope != :model
+            com.parameters[var] .= v
+        elseif com.abm.parameters[old(var)].scope == :model
+            if typeof(v) <: Number
+                com.parameters[var] .= v
+            elseif !(typeof(v) <: Number) && com.abm.parameters[old(var)].variable
+                error("Model parameter is described with a differential equation. Only scalar parameters can be described with differential equations. Trying to assing a non-scalar.")
+            else
+                com.parameters[var] = copy(v)
+            end
         end
     end
 
@@ -400,10 +507,10 @@ function getParameter(com,var)
     if var in fieldnames(Community)
         return [getfield(i,var) for i in com.pastTimes]
     else
-        if var in keys(com.agent.declaredSymbols)
-            x = com.agent.declaredSymbols[var].basePar
-            pos = com.agent.declaredSymbols[var].position
-            scope = com.agent.declaredSymbols[var].scope
+        if var in keys(com.abm.declaredSymbols)
+            x = com.abm.declaredSymbols[var].basePar
+            pos = com.abm.declaredSymbols[var].position
+            scope = com.abm.declaredSymbols[var].scope
             if x in NOTMODIFIABLEPARAMETERS
                 return getfield(com,x)[:,pos]
             else
@@ -412,11 +519,11 @@ function getParameter(com,var)
                 elseif scope == :Global
                     return [@views getfield(i,x)[pos:pos] for i in com.pastTimes]
                 elseif scope == :Medium
-                    if com.agent.dims == 1
+                    if com.abm.dims == 1
                         return [@views getfield(i,x)[:,pos] for i in com.pastTimes]
-                    elseif com.agent.dims == 2
+                    elseif com.abm.dims == 2
                         return [@views getfield(i,x)[:,:,pos] for i in com.pastTimes]
-                    elseif com.agent.dims == 3
+                    elseif com.abm.dims == 3
                         return [@views getfield(i,x)[:,:,:,pos] for i in com.pastTimes]
                     end
                 end
@@ -439,6 +546,109 @@ end
 ######################################################################################################
 # Load to platform
 ######################################################################################################
+function loadBaseParameters!(com::Community,preallocateAgents::Int)
+
+    setfield!(com, :id, cuAdapt([com.id;zeros(preallocateAgents)],com))
+    setfield!(com, :NMedium, cuAdapt(com.NMedium,com))
+    setfield!(com, :simBox, cuAdapt(com.simBox,com))
+    setfield!(com, :nMax_, com.N + preallocateAgents)
+    setfield!(com, :idMax_, cuAdapt(Threads.Atomic{Int64}(com.N),com))
+    setfield!(com, :NAdd_, cuAdapt(Threads.Atomic{Int64}(0),com))
+    setfield!(com, :NRemove_, cuAdapt(Threads.Atomic{Int64}(0),com))
+    setfield!(com, :NSurvive_, cuAdapt(Threads.Atomic{Int64}(0),com))
+    setfield!(com, :flagSurvive_, cuAdapt(if com.abm.removalOfAgents_; ones(Int64,com.nMax_); else ones(Int64,0); end,com))
+    setfield!(com, :holeFromRemoveAt_, cuAdapt(if com.abm.removalOfAgents_; zeros(Int64,com.nMax_); else zeros(Int64,0); end,com))
+    setfield!(com, :repositionAgentInPos_, cuAdapt(if com.abm.removalOfAgents_; zeros(Int64,com.nMax_); else zeros(Int64,0); end,com))
+    setfield!(com, :flagRecomputeNeighbors_, cuAdapt([1],com))
+
+    return 
+
+end
+
+function createDEProblem(com,scope)
+
+    vars = nothing
+    if scope == :agent
+        vars = cuAdapt(zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variable && j.scope == :agent]),com.nMax_),com)
+    elseif scope == :model
+        vars = cuAdapt(zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variable && j.scope == :model])),com)
+    elseif scope == :medium
+        CUDA.@allowscalar vars = cuAdapt(zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variable && j.scope == :medium]),com.NMedium...),com)
+    end
+
+    for (sym,struc) in pairs(com.abm.parameters)
+        if scope == :agent && struc.variable && struc.scope == :agent
+            vars[struc.pos,:] .= com.parameters[sym]
+        elseif scope == :model && struc.variable && struc.scope == :model
+            vars[struc.pos:struc.pos] .= com.parameters[sym]
+        elseif scope == :medium && struc.variable && struc.scope == :medium
+            if com.abm.dims == 1
+                vars[struc.pos,:] .= com.parameters[sym]
+            elseif com.abm.dims == 2
+                vars[struc.pos,:,:] .= com.parameters[sym]
+            elseif com.abm.dims == 3
+                vars[struc.pos,:,:,:] .= com.parameters[sym]
+            end
+        end
+    end
+
+    #Assign differential models
+    params = agentArgs(com)
+    paramsCom = agentArgs(com,sym=:com)
+    paramsRemove = [sym for (sym,prop) in pairs(com.abm.parameters) if prop.variable && (prop.scope==scope)]
+    paramsRemove2 = [new(sym) for sym in paramsRemove if com.abm.parameters[sym].update] #remove news
+    params = Tuple([if occursin("neighbors.", string(j)); getfield(com.neighbors,i); elseif occursin("platform.", string(j)); getfield(com.platform,i); else com[i]; end for (i,j) in zip(params,paramsCom) if !(i in [paramsRemove;paramsRemove2])])
+
+    ode = addSymbol(scope,"ODE")
+    sde = addSymbol(scope,"SDE")
+    alg = addSymbol(scope,"Alg")
+    arg = addSymbol(scope,"SolveArgs")
+
+    if !isemptyupdaterule(com.abm,sde)
+
+        problem = SDEProblem(
+                com.abm.declaredUpdatesFunction[ode], 
+                com.abm.declaredUpdatesFunction[sde], 
+                vars, 
+                (0,10.), 
+                params,
+            )
+
+        # Overwrite dt
+        getfield(com,arg)[:dt] = com.dt
+        # Add default parameters
+        for (i,j) in DEFAULTSOLVEROPTIONS
+            if !(i in keys(getproperty(com,arg)))
+                getproperty(com,arg)[i] = j
+            end
+        end
+
+        return DifferentialEquations.init(problem, getproperty(com,alg); getproperty(com,arg)... )
+
+    elseif !isemptyupdaterule(com.abm,ode)
+        
+        problem = ODEProblem(
+            com.abm.declaredUpdatesFunction[ode], 
+            vars, 
+            (0,10.), 
+            params
+        )
+
+        # Overwrite dt
+        getfield(com,arg)[:dt] = com.dt
+        # Add default parameters
+        for (i,j) in DEFAULTSOLVEROPTIONS
+            if !(i in keys(getproperty(com,arg)))
+                getproperty(com,arg)[i] = j
+            end
+        end
+
+        return DifferentialEquations.init(problem, getproperty(com,alg); getproperty(com,arg)... )
+
+    end    
+
+end
+
 """
     function loadToPlatform!(com::Community;preallocateAgents::Int=0)
 
@@ -449,53 +659,50 @@ Preallocating is necesssary as if more agents will be added during the evolution
 """
 function loadToPlatform!(com::Community;preallocateAgents::Int=0)
 
-    #Add preallocated agents to maximum
-    setfield!(com, :nMax_, com.N .+ preallocateAgents)
+    if com.loaded
+        println("WARNING: Community already loaded. Ignoring operation.")
+    else
+        #Add preallocated agents to maximum
+        loadBaseParameters!(com,preallocateAgents)
 
-    #Start with the new parameters equal to the old positions just in case
-    if com.agent.posUpdated_[1]
-        setfield!(com,:xNew_,copy(com.x))
-    end
-    if com.agent.posUpdated_[2]
-        setfield!(com,:yNew_,copy(com.y))
-    end
-    if com.agent.posUpdated_[3]
-        setfield!(com,:yNew_,copy(com.y))
-    end
-    setfield!(com,:liMNew_,copy(com.liM_))
-    setfield!(com,:lfMNew_,copy(com.lfM_))
-    setfield!(com,:gfMNew_,copy(com.gfM_))
-    setfield!(com,:giMNew_,copy(com.giM_))
-
-    # Transform to the correct platform the parameters
-    platform = com.agent.platform
-    for (sym,prop) in pairs(BASEPARAMETERS)
-
-        if :Atomic in prop.shape && platform == :CPU #Do nothing if CPU and atomic
-            nothing
-        elseif :Atomic in prop.shape && platform == :GPU #Convert atomic to matrix for CUDA
-            setfield!(com,sym,ARRAY[platform]{DTYPE[prop.dtype][platform]}([getproperty(com,sym)[]]))
-        elseif :Local in prop.shape
+        #Adapt user parameters
+        for (sym,prop) in pairs(com.abm.parameters)
             p = getproperty(com,sym)
-            if length(p) > 0
-                setfield!(com,sym,ARRAY[platform]{DTYPE[prop.dtype][platform]}([p;zeros(eltype(p),preallocateAgents,size(p)[2:end]...)]))
-            else
-                setfield!(com,sym,ARRAY[platform]{DTYPE[prop.dtype][platform]}(getproperty(com,sym)))
+            if prop.scope == :agent
+                com.parameters[sym] = cuAdapt(Array{prop.dtype}([p;zeros(prop.dtype,preallocateAgents)]),com)
+            elseif prop.scope in [:model,:medium]
+                if prop.dtype <: Number
+                    com.parameters[sym] = cuAdapt(Array{prop.dtype}(p),com)
+                else
+                    com.parameters[sym] = cuAdapt((prop.dtype)(p),com)
+                end
             end
-        else
-            setfield!(com,sym,ARRAY[platform]{DTYPE[prop.dtype][platform]}(getproperty(com,sym)))
+            if prop.update && !prop.variable
+                com.parameters[new(sym)] = copy(com.parameters[sym])
+            elseif prop.variable
+                com.parameters[new(sym)] = cuAdapt(zeros(0),com)
+            end
         end
-    end            
 
-    #Set loaded to true
-    setfield!(com,:loaded,true)
+        #Neighbors
+        CBMNeighbors.initialize!(com.neighbors,com)
 
-    #Compute neighbors and interactions for the first time
-    computeNeighbors!(com)
-    interactionStep!(com)
+        # Transform to the correct platform the parameters
+        setfield!(com,:agentDEProblem,createDEProblem(com,:agent))
+        linkVariables(com,:agent)
+        setfield!(com,:modelDEProblem,createDEProblem(com,:model))
+        linkVariables(com,:model)
+        setfield!(com,:mediumDEProblem,createDEProblem(com,:medium))
+        linkVariables(com,:medium)
 
-    if typeof(com.fileSaving) <: String
-        com.fileSaving = jldopen(com.fileSaving, "a+")
+        #Set loaded to true
+        setfield!(com,:loaded,true)
+
+        #Compute neighbors and interactions for the first time
+        computeNeighbors!(com)
+
+        platformSetup!(com.platform,com)
+
     end
 
     return
@@ -509,36 +716,49 @@ It locks the possibility of accessing and manipulating the data by indexing and 
 """
 function bringFromPlatform!(com::Community)
 
-    N = Array(com.N)[1]
+    N = com.N
     # Transform to the correct platform the parameters
-    platform = com.agent.platform
-    for (sym,prop) in pairs(BASEPARAMETERS)
-        type = DTYPE[prop.dtype][:CPU]
-        if :Atomic in prop.shape && platform == :CPU #Do nothing if CPU and atomic
-            nothing
-        elseif :Atomic in prop.shape && platform == :GPU #Convert atomic to matrix for CUDA
-            setfield!(com,sym,Threads.Atomic{type}(Array(getproperty(com,sym))[1]))
-        elseif :Local in prop.shape
-            p = getproperty(com,sym)
-            if length(p) > 0
-                setfield!(com,sym,ARRAY[:CPU]{type}(p[1:N,[1:x for x in size(p)[2:end]]...]))
-            else
-                setfield!(com,sym,ARRAY[:CPU]{type}(p))
-            end
-        else
-            p = getproperty(com,sym)
-            setfield!(com,sym,ARRAY[:CPU]{type}(p))
+    for (sym,prop) in pairs(com.abm.parameters)
+        p = com.parameters[sym]
+        #Remove auxiliar
+        if prop.update
+            delete!(com.parameters,new(sym))
         end
-    end            
+        if prop.scope == :agent
+            com.parameters[sym] = Array{prop.dtype}(p)[1:N]
+        elseif prop.scope in [:model,:medium]
+            if prop.dtype <: Number
+                com.parameters[sym] = Array{prop.dtype}(p)
+            else
+                com.parameters[sym] = prop.dtype(p)
+            end
+        end
+    end
 
-    setfield!(com, :nMax_, com.N)
+    for i in fieldnames(Community)
+        if string(i)[end:end] == "_"
+            setfield!(com,i,nothing)
+        end
+    end
+    setfield!(com,:id, Array{Int64}(com.id)[1:N])
+    neig = com.neighbors
+    for i in fieldnames(typeof(neig))
+        if string(i)[end:end] == "_"
+            setfield!(neig,i, nothing)
+        end
+    end
+    setfield!(com,:agentDEProblem, nothing)
+    setfield!(com,:modelDEProblem, nothing)
+    setfield!(com,:mediumDEProblem, nothing)
 
-    #Set loaded to true
+    #Set loaded to false
     setfield!(com,:loaded,false)
 
-    if typeof(com.fileSaving) <: JLD2.JLDFile
-        close(com.fileSaving)
-        com.fileSaving = com.fileSaving.path
+    for (i,j) in pairs(SAVING)
+        if j.uuid == com.uuid.value
+            close(SAVING[i].file)
+            delete!(SAVING,i)
+        end
     end
 
     return
@@ -553,4 +773,26 @@ function checkLoaded(com)
     if !com.loaded
         error("Community must be loaded to platform with `loadToPlatform!` before being able to compute any step.")
     end
+end
+
+function linkVariables(com::Community,scope)
+
+    var2 = addSymbol(scope,"DEProblem")
+
+    for (sym,struc) in pairs(com.abm.parameters)
+        if struc.scope == :agent && scope == :agent && struc.variable
+            @views com.parameters[new(sym)] = getfield(com,var2).u[struc.pos,:]
+        elseif struc.scope == :model && scope == :model && struc.variable
+            @views com.parameters[new(sym)] = getfield(com,var2).u[struc.pos:struc.pos]
+        elseif struc.scope == :medium && scope == :medium && struc.variable
+            if com.abm.dims == 1
+                @views com.parameters[new(sym)] = getfield(com,var2).u[struc.pos,:]
+            elseif com.abm.dims == 2
+                @views com.parameters[new(sym)] = getfield(com,var2).u[struc.pos,:,:]
+            else
+                @views com.parameters[new(sym)] = getfield(com,var2).u[struc.pos,:,:,:]
+            end
+        end
+    end
+
 end
