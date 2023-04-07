@@ -49,10 +49,9 @@ Euler integrator for ODE problems.
 
         if typeof(obj.du) <: Array
             r = 1:obj.p[3][1]
-            obj.u[r] .+= obj.du[r].*dt
+            obj.u[:,r] .+= obj.du[:,r].*dt
         else
             obj.u .+= obj.du.*dt
-
         end
 
         obj.t += dt
@@ -103,7 +102,7 @@ Heun integrator for ODE problems.
         #Save step in h1
         if typeof(obj.du) <: Array
             r = 1:obj.p[3][1]
-            obj.h1[r] .= obj.u[r] .+ obj.du[r].*dt
+            obj.h1[:,r] .= obj.u[:,r] .+ obj.du[:,r].*dt
         else
         obj.h1 .= obj.u .+ obj.du.*dt
         end
@@ -114,7 +113,7 @@ Heun integrator for ODE problems.
         #Compute step inplace
         if typeof(obj.du) <: Array
             r = 1:obj.p[3][1]
-            obj.u[r] .= ( obj.h1[r] .+ (obj.u[r] .+ obj.du[r].*dt) ) ./ 2
+            obj.u[:,r] .= ( obj.h1[:,r] .+ (obj.u[:,r] .+ obj.du[:,r].*dt) ) ./ 2
         else
         obj.u .= ( obj.h1 .+ ( obj.u .+ obj.du.*dt ) ) ./ 2
         end
@@ -168,7 +167,7 @@ RungeKutta4 for ODE integrators
         #Save step in h1
         if typeof(obj.u) <: Array
             r = 1:obj.p[3][1]
-            obj.h1[r] .= obj.u[r] .+ obj.k1[r].*dt ./2
+            obj.h1[:,r] .= obj.u[:,r] .+ obj.k1[:,r].*dt ./2
         else
         obj.h1 .= obj.u .+ obj.k1.*dt./2
         end
@@ -179,7 +178,7 @@ RungeKutta4 for ODE integrators
         #Save step in h1
         if typeof(obj.u) <: Array
             r = 1:obj.p[3][1]
-            obj.h1[r] .= obj.u[r] .+ obj.k2[r].*dt ./2
+            obj.h1[:,r] .= obj.u[:,r] .+ obj.k2[:,r].*dt ./2
         else
             obj.h1 .= obj.u .+ obj.k2.*dt./2
         end
@@ -190,7 +189,7 @@ RungeKutta4 for ODE integrators
         #Save step in h1
         if typeof(obj.u) <: Array
             r = 1:obj.p[3][1]
-            obj.h1[r] .= obj.u[r] .+ obj.k3[r].*dt
+            obj.h1[:,r] .= obj.u[:,r] .+ obj.k3[:,r].*dt
         else
             obj.h1 .= obj.u .+ obj.k3.*dt
         end
@@ -201,7 +200,7 @@ RungeKutta4 for ODE integrators
         #Compute step inplace
         if typeof(obj.u) <: Array
             r = 1:obj.p[3][1]
-            obj.u[r] .= obj.u[r] .+ ( obj.k1[r] .+ 2 .* obj.k2[r] .+ 2 .* obj.k3[r] .+ obj.k4[r]) .*dt ./ 6
+            obj.u[:,r] .= obj.u[:,r] .+ ( obj.k1[:,r] .+ 2 .* obj.k2[:,r] .+ 2 .* obj.k3[:,r] .+ obj.k4[:,r]) .*dt ./ 6
         else
             obj.u .= obj.u .+ ( obj.k1 .+ 2 .* obj.k2 .+ 2 .* obj.k3 .+ obj.k4 ) .*dt ./ 6
         end
@@ -262,7 +261,7 @@ Euler-Majurana integrator for SDE poblems.
         if typeof(obj.u) <: Array
             r = 1:obj.p[3][1]
             Random.randn!(@views(obj.rand[r]))
-            obj.u[r] .= obj.u[r] .+ obj.du_f[r].*dt .+ obj.du_g[r] .* obj.rand[r] .* sqrt(dt)
+            obj.u[:,r] .= obj.u[:,r] .+ obj.du_f[:,r].*dt .+ obj.du_g[:,r] .* obj.rand[:,r] .* sqrt(dt)
         else
             Random.randn!(obj.rand)
             obj.u .= obj.u .+ obj.du_f .*dt .+ obj.du_g .* obj.rand .* sqrt(dt)
@@ -321,7 +320,7 @@ Euler-Heun method for SDE integration.
         if typeof(obj.u) <: Array
             r = 1:obj.p[3][1]
             Random.randn!(@views(obj.rand[r]))
-            obj.h1[r] .= obj.u[r] .+ obj.du_f1[r].*dt .+ obj.du_g1[r] .* obj.rand[r] .* sqrt(dt)
+            obj.h1[:,r] .= obj.u[:,r] .+ obj.du_f1[:,r].*dt .+ obj.du_g1[:,r] .* obj.rand[:,r] .* sqrt(dt)
         else
             Random.randn!(obj.rand)
             obj.h1 .= obj.u .+ obj.du_f1 .*dt .+ obj.du_g1 .* obj.rand .* sqrt(dt)
@@ -336,7 +335,7 @@ Euler-Heun method for SDE integration.
         if typeof(obj.u) <: Array
             r = 1:obj.p[3][1]
             Random.randn!(@views(obj.rand[r]))
-            obj.u[r] .= obj.u[r] .+ ( ( obj.du_f1[r].+ obj.du_f2[r] ) .*dt .+ ( obj.du_g1[r] .+ obj.du_g2[r] ) .* obj.rand[r] .* sqrt(dt) ) ./ 2
+            obj.u[:,r] .= obj.u[:,r] .+ ( ( obj.du_f1[:,r].+ obj.du_f2[:,r] ) .*dt .+ ( obj.du_g1[:,r] .+ obj.du_g2[:,r] ) .* obj.rand[:,r] .* sqrt(dt) ) ./ 2
         else
             Random.randn!(obj.rand)
             obj.u .= obj.u .+ obj.du_f1 .*dt .+ obj.du_g1 .* obj.rand .* sqrt(dt)
