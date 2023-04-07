@@ -323,13 +323,23 @@ function addUpdates!(abm::ABM)
         vAgent, agentODE = captureVariables(abm.declaredUpdates[ode])
         v2, agentSDE = captureVariables(abm.declaredUpdates[sde])
         append!(vAgent,v2)
-        for sym in unique(vAgent)
+        for (sym,prop) in abm.parameters #Add in dt__sym form
+            if prop.scope == scope && (inexpr(agentODE,opdt(sym)) || inexpr(agentSDE,opdt(sym)))
+                count += 1
+                abm.parameters[sym].update = true            
+                abm.parameters[sym].variable = true            
+                abm.parameters[sym].pos = count
+            end
+        end
+        for sym in unique(vAgent) #Add in dt(sym) form
             if sym in keys(abm.parameters)
-                if abm.parameters[sym].scope == scope
+                if abm.parameters[sym].scope == scope && !abm.parameters[sym].variable
                     count += 1
                     abm.parameters[sym].update = true            
                     abm.parameters[sym].variable = true            
                     abm.parameters[sym].pos = count
+                elseif abm.parameters[sym].variable
+                    nothing
                 else
                     error("dt in $ode and $sde can only be assigned to agent parameters. Declared with $(abm.parameters[sym].scope) parameter $sym.")
                 end
