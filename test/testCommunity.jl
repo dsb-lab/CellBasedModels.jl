@@ -331,10 +331,10 @@
     for dims in [1,2,3]
         for neighbors in [
                             CBMNeighbors.Full(),
-                            CBMNeighbors.VerletTime(skin=2,dtNeighborRecompute=1.,nMaxNeighbors=10),
-                            CBMNeighbors.VerletDisplacement(skin=2,nMaxNeighbors=10),
-                            CBMNeighbors.CellLinked(cellEdge=10),
-                            CBMNeighbors.CLVD(skin=2,nMaxNeighbors=10,cellEdge=10)
+                            CBMNeighbors.VerletTime(skin=1.1,dtNeighborRecompute=1.,nMaxNeighbors=10),
+                            CBMNeighbors.VerletDisplacement(skin=1.1,nMaxNeighbors=10),
+                            CBMNeighbors.CellLinked(cellEdge=1),
+                            CBMNeighbors.CLVD(skin=1.1,nMaxNeighbors=10,cellEdge=10)
                         ]
             for platform in [CPU(),GPU()]
                 @test begin 
@@ -356,7 +356,7 @@
                     com = Community(abm,
                                 N=3^dims,
                                 simBox=[.5 1.5;.5 1.5;.5 1.5][1:dims,:],
-                                neighbors=neighbors
+                                neighborsAlg=neighbors
                     );
                     v = zeros(3,27)
                     v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)

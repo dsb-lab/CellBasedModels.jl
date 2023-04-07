@@ -2,7 +2,7 @@ module CBMNeighbors
 
     export Neighbors, neighborsLoop, computeNeighbors!
 
-    import CellBasedModels: agentArgsNeighbors, POSITIONPARAMETERS
+    import CellBasedModels: agentArgsNeighbors, POSITIONPARAMETERS, CPU, GPU
     import MacroTools: postwalk, @capture
     using CUDA
     import ..CBMMetrics
@@ -35,7 +35,7 @@ Method that computes all against all neighbors.
     """
     function neighborsLoop(code,it,neig::Full,dims)
 
-        return :(for $it in 1:1:N[1]; if i1_ != $it; $code; end; end)
+        return :(for $it in 1:1:N; if i1_ != $it; $code; end; end)
 
     end
 
@@ -68,6 +68,8 @@ Method that computes all against all neighbors.
         code = postwalk(x->@capture(x,h_) && h == it ? :(neighborList_[i1_,$it]) : x, code)
         #make loop
         code = :(for $it in 1:1:neighborN_[i1_]; $code; end)
+
+        # println(code)
         
         return code
 
@@ -105,10 +107,10 @@ Method that computes all against all neighbors.
             code = :(
                 function $name($(base...))
                     lk = ReentrantLock()
-                    @inbounds Threads.@threads for i1_ in 1:1:N[1]
-                        for i2_ in (i1_+1):1:N[1]
+                    @inbounds Threads.@threads for i1_ in 1:1:N
+                        for i2_ in (i1_+1):1:N
                             d = CBMMetrics.euclidean($(args2...))
-                            if d < skin[1] 
+                            if d < skin 
                                 lock(lk) do
                                     neighborN_[i1_] += 1
                                     neighborN_[i2_] += 1
@@ -125,10 +127,10 @@ Method that computes all against all neighbors.
                 function $name($(base...))
                     index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
                     stride = gridDim().x * blockDim().x
-                    @inbounds for i1_ in index:stride:N[1]
-                        for i2_ in (i1_+1):1:N[1]
+                    @inbounds for i1_ in index:stride:N
+                        for i2_ in (i1_+1):1:N
                             d = CBMMetrics.euclidean($(args2...))
-                            if d < skin[1]
+                            if d < skin
                                 pos1 = CUDA.atomic_add!(CUDA.pointer(neighborN_,i1_),Int32(1)) + 1
                                 pos2 = CUDA.atomic_add!(CUDA.pointer(neighborN_,i2_),Int32(1)) + 1
                                 neighborList_[i1_,pos1] = i2_
@@ -387,9 +389,9 @@ Method that computes VerletList neighbors and updates it whenever an agent moves
                     index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
                     stride = gridDim().x * blockDim().x
 
-                    @inbounds for i1_ in index:stride:N[1]
+                    @inbounds for i1_ in index:stride:N
                         accumulatedDistance_[i1_] = CBMMetrics.euclidean($(args3...))
-                        if accumulatedDistance_[i1_] >= skin[1]/2
+                        if accumulatedDistance_[i1_] >= skin/2
                             flagRecomputeNeighbors_[1] = 1
                         end
                     end
@@ -713,9 +715,9 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
         end
 
         code = quote 
-                    pos_ = CellBasedModels.cellPos($(args2...))
+                    pos_ = CellBasedModels.CBMNeighbors.cellPos($(args2...))
                     for i3_ in 1:1:$(3^dims) #Go over the posible neighbor cells
-                        posNeigh_ = CellBasedModels.cellPosNeigh($(args...)) #Obtain the position of the neighbor cell
+                        posNeigh_ = CellBasedModels.CBMNeighbors.cellPosNeigh($(args...)) #Obtain the position of the neighbor cell
                         # println(i1_," ",i3_," ",posNeigh_)
                         if posNeigh_ != -1 #Ignore cells outside the boundaries
                             for i4_ in cellCumSum_[posNeigh_]-cellNumAgents_[posNeigh_]+1:1:cellCumSum_[posNeigh_] #Go over the cells of that neighbor cell
@@ -765,7 +767,7 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
                 function $name($(base...))
 
                     lk = ReentrantLock()
-                    @inbounds Threads.@threads for i1_ in 1:1:N[1]
+                    @inbounds Threads.@threads for i1_ in 1:1:N
                         pos = cellPos($(args2...))
                         lock(lk) do
                             cellNumAgents_[pos] += 1
@@ -781,7 +783,7 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
 
                     index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
                     stride = gridDim().x * blockDim().x
-                    @inbounds for i1_ in index:stride:N[1]
+                    @inbounds for i1_ in index:stride:N
                         pos = cellPos($(args2...))
                         CUDA.atomic_add!(CUDA.pointer(cellNumAgents_,pos),Int32(1))
                     end
@@ -842,7 +844,7 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
                 function $name($(base...))
 
                     lk = ReentrantLock()
-                    @inbounds Threads.@threads for i1_ in 1:1:N[1]
+                    @inbounds Threads.@threads for i1_ in 1:1:N
                         pos = cellPos($(args2...))
                         lock(lk) do
                             cellCumSum_[pos] += 1
@@ -860,7 +862,7 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
 
                     index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
                     stride = gridDim().x * blockDim().x
-                    @inbounds for i1_ in index:stride:N[1]
+                    @inbounds for i1_ in index:stride:N
                         pos = cellPos($(args2...))
                         pos = CUDA.atomic_add!(CUDA.pointer(cellCumSum_,pos),Int32(1)) + 1
                         cellAssignedToAgent_[pos] = i1_
@@ -1081,7 +1083,7 @@ Method that computes Cell Linked and Verlet Displacement neighbors algorithms to
             code = quote
                 if i1_ != i2_
                     d = CBMMetrics.euclidean($(args2...))
-                    if d < skin[1] 
+                    if d < skin 
                         lock(lk) do
                             neighborN_[i1_] += 1
                             # neighborN_[i2_] += 1
@@ -1110,7 +1112,7 @@ Method that computes Cell Linked and Verlet Displacement neighbors algorithms to
             code = :(
                 function $name($(base...))
                     lk = ReentrantLock()
-                    @inbounds Threads.@threads for i1_ in 1:1:N[1]
+                    @inbounds Threads.@threads for i1_ in 1:1:N
                         $code
                     end
                 end
@@ -1120,7 +1122,7 @@ Method that computes Cell Linked and Verlet Displacement neighbors algorithms to
             code = quote
                 if i1_ != i2_
                     d = CBMMetrics.euclidean($(args2...))
-                    if d < skin[1]
+                    if d < skin
                         pos1 = CUDA.atomic_add!(CUDA.pointer(neighborN_,i1_),Int32(1)) + 1
                         # pos2 = CUDA.atomic_add!(CUDA.pointer(neighborN_,i2_),Int32(1)) + 1
                         neighborList_[i1_,pos1] = i2_
@@ -1148,7 +1150,7 @@ Method that computes Cell Linked and Verlet Displacement neighbors algorithms to
                 function $name($(base...))
                     index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
                     stride = gridDim().x * blockDim().x
-                    @inbounds for i1_ in index:stride:N[1]
+                    @inbounds for i1_ in index:stride:N
                         $code
                     end
 
@@ -1208,8 +1210,8 @@ Method that computes Cell Linked and Verlet Displacement neighbors algorithms to
                         community.neighbors.cellCumSum_ .= cumsum(community.neighbors.cellNumAgents_) .- community.neighbors.cellNumAgents_
                         $namef2($(base...),)
                         #Stuff related with Verlet Displacement
-                        @views community.neighbors.neighborN_[1:community.N[1]] .= 0
-                        @views community.neighbors.accumulatedDistance_[1:community.N[1]] .= 0.
+                        @views community.neighbors.neighborN_[1:community.N] .= 0
+                        @views community.neighbors.accumulatedDistance_[1:community.N] .= 0.
                         @views community.flagRecomputeNeighbors_ .= 0
                         $nameResDisp($(base...))
                         #Assign neighbors
