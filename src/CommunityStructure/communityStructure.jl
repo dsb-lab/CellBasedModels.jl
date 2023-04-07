@@ -502,26 +502,7 @@ function getParameter(com,var)
         return [getfield(i,var) for i in com.pastTimes]
     else
         if var in keys(com.abm.parameters)
-            x = com.abm.declaredSymbols[var].basePar
-            pos = com.abm.declaredSymbols[var].position
-            scope = com.abm.declaredSymbols[var].scope
-            if x in NOTMODIFIABLEPARAMETERS
-                return getfield(com,x)[:,pos]
-            else
-                if scope == :Local
-                    return [@views getfield(i,x)[:,pos] for i in com.pastTimes]
-                elseif scope == :Global
-                    return [@views getfield(i,x)[pos:pos] for i in com.pastTimes]
-                elseif scope == :Medium
-                    if com.abm.dims == 1
-                        return [@views getfield(i,x)[:,pos] for i in com.pastTimes]
-                    elseif com.abm.dims == 2
-                        return [@views getfield(i,x)[:,:,pos] for i in com.pastTimes]
-                    elseif com.abm.dims == 3
-                        return [@views getfield(i,x)[:,:,:,pos] for i in com.pastTimes]
-                    end
-                end
-            end
+            return [i[var] for i in com.pastTimes]
         else
             error("Parameter ", var, " not found in the community.")
         end
