@@ -106,20 +106,34 @@ Method that computes all against all neighbors.
         if platform == :CPU
             code = :(
                 function $name($(base...))
-                    lk = ReentrantLock()
-                    @inbounds Threads.@threads for i1_ in 1:1:N
-                        for i2_ in (i1_+1):1:N
-                            d = CBMMetrics.euclidean($(args2...))
-                            if d < skin 
-                                lock(lk) do
-                                    neighborN_[i1_] += 1
-                                    neighborN_[i2_] += 1
-                                    neighborList_[i1_,neighborN_[i1_]] = i2_
-                                    neighborList_[i2_,neighborN_[i2_]] = i1_
+                    function task(i,Nn,N,neighborN_,neighborList_,skin,$(args...))
+                        @inbounds for i1_ in (Nn*(i-1)+1):1:min((Nn*i),N)
+                            for i2_ in 1:1:N#(i1_+1):1:N
+                                if i1_ != i2_
+                                    d = CBMMetrics.euclidean($(args2...))
+                                    if d < skin 
+                                        # lock(lk) do
+                                            neighborN_[i1_] += 1
+                                            # neighborN_[i2_] += 1
+                                            neighborList_[i1_,neighborN_[i1_]] = i2_
+                                            # neighborList_[i2_,neighborN_[i2_]] = i1_
+                                        # end
+                                    end
                                 end
                             end
                         end
+
+                        return
                     end
+                    # lk = ReentrantLock()
+                    tasks = []
+                    for i1_ in 1:Threads.nthreads()
+                        # task(i1_,ceil(Int64,N/Threads.nthreads()),N,neighborN_,neighborList_,skin,$(args...))
+                        a = @task task(i1_,ceil(Int64,N/Threads.nthreads()),N,neighborN_,neighborList_,skin,$(args...))
+                        schedule(a); 
+                        push!(tasks,a)
+                    end
+                    wait.(tasks)
                 end
             )
         elseif platform == :GPU
@@ -766,12 +780,9 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
             code = :(
                 function $name($(base...))
 
-                    lk = ReentrantLock()
-                    @inbounds Threads.@threads for i1_ in 1:1:N
+                    @inbounds for i1_ in 1:1:N
                         pos = cellPos($(args2...))
-                        lock(lk) do
-                            cellNumAgents_[pos] += 1
-                        end
+                        cellNumAgents_[pos] += 1
                     end
 
                     return
@@ -844,13 +855,11 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
                 function $name($(base...))
 
                     lk = ReentrantLock()
-                    @inbounds Threads.@threads for i1_ in 1:1:N
+                    @inbounds for i1_ in 1:1:N
                         pos = cellPos($(args2...))
-                        lock(lk) do
-                            cellCumSum_[pos] += 1
-                            pos = cellCumSum_[pos]
-                            cellAssignedToAgent_[pos] = i1_
-                        end
+                        cellCumSum_[pos] += 1
+                        pos = cellCumSum_[pos]
+                        cellAssignedToAgent_[pos] = i1_
                     end
 
                     return
