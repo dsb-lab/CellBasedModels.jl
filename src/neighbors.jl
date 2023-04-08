@@ -145,8 +145,8 @@ Method that computes all against all neighbors.
                         for i2_ in (i1_+1):1:N
                             d = CBMMetrics.euclidean($(args2...))
                             if d < skin
-                                pos1 = CUDA.atomic_add!(CUDA.pointer(neighborN_,i1_),Int32(1)) + 1
-                                pos2 = CUDA.atomic_add!(CUDA.pointer(neighborN_,i2_),Int32(1)) + 1
+                                pos1 = CUDA.atomic_add!(CUDA.pointer(neighborN_,i1_),1) + 1
+                                pos2 = CUDA.atomic_add!(CUDA.pointer(neighborN_,i2_),1) + 1
                                 neighborList_[i1_,pos1] = i2_
                                 neighborList_[i2_,pos2] = i1_
                             end
@@ -257,7 +257,7 @@ Method that computes VerletList neighbors and updates it at fixed times.
             code = :(
                 function $name(community)
 
-                    if community.neighbors.neighborTimeLastRecompute_ <= community.t || community.flagRecomputeNeighbors_[1] .== 1
+                    if community.neighbors.neighborTimeLastRecompute_ <= community.t || community.flagRecomputeNeighbors_[1] == 1
                         community.neighbors.neighborN_ .= 0
                         $namef($(base...),)
                         community.neighbors.neighborTimeLastRecompute_ = community.t + community.neighbors.dtNeighborRecompute
@@ -273,9 +273,9 @@ Method that computes VerletList neighbors and updates it at fixed times.
                 function $name(community)
                 
                     kernel = @cuda launch=false $namef($(base...),)
-                    if CUDA.@allowscalar community.neighbors.neighborTimeLastRecompute_ <= community.t || CUDA.@allowscalar community.flagRecomputeNeighbors_[1] .== 1
+                    if CUDA.@allowscalar community.neighbors.neighborTimeLastRecompute_ <= community.t || CUDA.@allowscalar community.flagRecomputeNeighbors_[1] == 1
                         CUDA.@sync community.neighbors.neighborN_ .= 0
-                        CUDA.@sync kernel($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                        CUDA.@sync kernel($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
                         CUDA.@sync community.neighbors.neighborTimeLastRecompute_ .= community.t + community.neighbors.dtNeighborRecompute
                         CUDA.@sync community.flagRecomputeNeighbors_ .= 0
                     end
@@ -547,15 +547,15 @@ Method that computes VerletList neighbors and updates it whenever an agent moves
 
                     kernelDisp = @cuda launch=false $nameDisp($(base...),)
                     kernelResDisp = @cuda launch=false $nameResDisp($(base...),)
-                    kernelNeigh = @cuda launch=false $nameNeigh($(base...),)
+                    kernelNeigh = @cuda launch=false $nameNeigh($(base2...),)
                     
-                    CUDA.@sync kernelDisp($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    CUDA.@sync kernelDisp($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentThreads)
                     if CUDA.@allowscalar community.flagRecomputeNeighbors_[1] == 1
                         community.neighbors.neighborN_ .= 0
                         community.neighbors.accumulatedDistance_ .= 0.
                         community.flagRecomputeNeighbors_ .= 0
-                        CUDA.@sync kernelResDisp($(base...);threads=community.platform.threads,blocks=community.platform.threads)
-                        CUDA.@sync kernelNeigh($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                        CUDA.@sync kernelResDisp($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
+                        CUDA.@sync kernelNeigh($(base2...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
                     end
 
                     return
@@ -796,7 +796,7 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
                     stride = gridDim().x * blockDim().x
                     @inbounds for i1_ in index:stride:N
                         pos = cellPos($(args2...))
-                        CUDA.atomic_add!(CUDA.pointer(cellNumAgents_,pos),Int32(1))
+                        CUDA.atomic_add!(CUDA.pointer(cellNumAgents_,pos),1)
                     end
 
                     return
@@ -873,7 +873,7 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
                     stride = gridDim().x * blockDim().x
                     @inbounds for i1_ in index:stride:N
                         pos = cellPos($(args2...))
-                        pos = CUDA.atomic_add!(CUDA.pointer(cellCumSum_,pos),Int32(1)) + 1
+                        pos = CUDA.atomic_add!(CUDA.pointer(cellCumSum_,pos),1) + 1
                         cellAssignedToAgent_[pos] = i1_
                     end
 
@@ -946,10 +946,10 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
 
                     community.neighbors.cellNumAgents_ .= 0
                     kernel = @cuda launch=false $namef($(base...),)
-                    CUDA.@sync kernel($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    CUDA.@sync kernel($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
                     community.neighbors.cellCumSum_ .= cumsum(community.neighbors.cellNumAgents_) .- community.neighbors.cellNumAgents_
                     kernel2 = @cuda launch=false $namef2($(base...),)
-                    CUDA.@sync kernel2($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    CUDA.@sync kernel2($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
 
                     return 
                 end
@@ -1132,8 +1132,8 @@ Method that computes Cell Linked and Verlet Displacement neighbors algorithms to
                 if i1_ != i2_
                     d = CBMMetrics.euclidean($(args2...))
                     if d < skin
-                        pos1 = CUDA.atomic_add!(CUDA.pointer(neighborN_,i1_),Int32(1)) + 1
-                        # pos2 = CUDA.atomic_add!(CUDA.pointer(neighborN_,i2_),Int32(1)) + 1
+                        pos1 = CUDA.atomic_add!(CUDA.pointer(neighborN_,i1_),1) + 1
+                        # pos2 = CUDA.atomic_add!(CUDA.pointer(neighborN_,i2_),1) + 1
                         neighborList_[i1_,pos1] = i2_
                         # neighborList_[i2_,pos2] = i1_
                     end
@@ -1237,23 +1237,23 @@ Method that computes Cell Linked and Verlet Displacement neighbors algorithms to
                     kernelDisp = @cuda launch=false $nameDisp($(base...),)
                     kernelResDisp = @cuda launch=false $nameResDisp($(base...),)
                     
-                    CUDA.@sync kernelDisp($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                    CUDA.@sync kernelDisp($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
                     if CUDA.@allowscalar community.flagRecomputeNeighbors_[1] == 1
                         #Stuff relateed with CellLinked
                         community.neighbors.cellNumAgents_ .= 0
                         kernel = @cuda launch=false $namef($(base...),)
-                        CUDA.@sync kernel($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                        CUDA.@sync kernel($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
                         community.neighbors.cellCumSum_ .= cumsum(community.neighbors.cellNumAgents_) .- community.neighbors.cellNumAgents_
                         kernel2 = @cuda launch=false $namef2($(base...),)
-                        CUDA.@sync kernel2($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                        CUDA.@sync kernel2($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
                         #Stuff related with Verlet Displacement
                         CUDA.@sync community.neighbors.neighborN_ .= 0
                         CUDA.@sync community.neighbors.accumulatedDistance_ .= 0.
                         CUDA.@sync community.flagRecomputeNeighbors_ .= 0
-                        CUDA.@sync kernelResDisp($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                        CUDA.@sync kernelResDisp($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentThreads)
                         #Assign neighbors
                         kernel3 = @cuda launch=false $namef3($(base...),)
-                        CUDA.@sync kernel3($(base...);threads=community.platform.threads,blocks=community.platform.threads)
+                        CUDA.@sync kernel3($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentThreads)
                     end
 
                     return 

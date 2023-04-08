@@ -138,9 +138,9 @@ function functionRule(com,scope)
             code = makeSimpleLoop(code,com,nloops=abm.dims)
         end
 
-        aux = addCuda(:(rule_($(agentArgs(com,sym=:community)...))),scope,com) #Add code to execute kernel in cuda if GPU
+        aux = addCuda(:(rule_($(agentArgs(com,sym=:community)[1:end-1]...))),scope,com) #Add code to execute kernel in cuda if GPU
         abm.declaredUpdatesCode[ref] = :(function (community)
-                                                        function rule_($(agentArgs(com)...),)
+                                                        function rule_($(agentArgs(com)[1:end-1]...),)
 
                                                             $code
 

@@ -71,14 +71,13 @@ function agentArgs(com;sym=nothing,l=3,params=BASEPARAMETERS)
     parsCom = [i for i in fieldnames(typeof(com.neighbors)) if  i != :f_]
     args = [i for i in keys(com.abm.parameters)]
     argsUp = [new(i) for (i,prop) in pairs(com.abm.parameters) if prop.update]
-    parsPlat = [i for i in fieldnames(typeof(com.platform))]
 
     if sym === nothing
         return Any[pars...,
                     parsCom...,
                     args...,
                     argsUp...,
-                    parsPlat...
+                    :platform
                     ]
     else
         return [
@@ -86,7 +85,7 @@ function agentArgs(com;sym=nothing,l=3,params=BASEPARAMETERS)
                 Any[:($sym.neighbors.$i) for i in parsCom];
                 Any[:($sym.parameters[Symbol($i)]) for i in String.(args)];
                 Any[:($sym.parameters[Symbol($i)]) for i in String.(argsUp)];
-                Any[:($sym.platform.$i) for i in parsPlat];
+                Any[:($sym.platform)];
                 ]
     end
 
@@ -250,7 +249,7 @@ function addCuda(code,scope,platform::Platform;oneThread=false)
         
         else
 
-            code = :(CellBasedModels.CUDA.@sync CellBasedModels.@cuda threads=community.platform.$(addSymbol(scope,"Threads")) blocks=community.platform.$(addSymbol(scope,"Blocks")) $code)
+            code = :(CUDA.@cuda threads=community.platform.$(addSymbol(scope,"Threads")) blocks=community.platform.$(addSymbol(scope,"Blocks")) $code)
 
         end
 

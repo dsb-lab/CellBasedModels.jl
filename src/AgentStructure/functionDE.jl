@@ -93,13 +93,13 @@ function functionDE(com,scope,type)
             abm.declaredUpdatesCode[ref] = 
                 quote
                     function (dVar_,var_,p_,t_)
-                        function kernel(dVar_,var_,$(params...))
+                        function kernel(dVar_,var_,$(params[1:end-1]...))
                             $unwrap
                             $code
 
                             return
                         end
-                        CellBasedModels.@cuda threads=p_[end-$(tpos[1])] blocks=p_[end-$(tpos[2])] kernel(dVar_,var_,p_...)
+                        CUDA.@sync CUDA.@cuda threads=p_[end].$(addSymbol(scope,"Threads")) blocks=p_[end].$(addSymbol(scope,"Blocks")) kernel(dVar_,var_,p_[1:end-1]...)
 
                         return
                     end
