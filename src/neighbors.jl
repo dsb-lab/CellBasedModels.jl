@@ -106,34 +106,29 @@ Method that computes all against all neighbors.
         if platform == :CPU
             code = :(
                 function $name($(base...))
-                    function task(i,Nn,N,neighborN_,neighborList_,skin,$(args...))
-                        @inbounds for i1_ in (Nn*(i-1)+1):1:min((Nn*i),N)
-                            for i2_ in 1:1:N#(i1_+1):1:N
-                                if i1_ != i2_
-                                    d = CBMMetrics.euclidean($(args2...))
-                                    if d < skin 
-                                        # lock(lk) do
-                                            neighborN_[i1_] += 1
-                                            # neighborN_[i2_] += 1
-                                            neighborList_[i1_,neighborN_[i1_]] = i2_
-                                            # neighborList_[i2_,neighborN_[i2_]] = i1_
-                                        # end
+                    begin 
+                        tasks = Task[]
+                        for i in 1:1:Threads.nthreads()
+                            task = Threads.@spawn begin 
+                                Nn = ceil(Int64,N/Threads.nthreads())
+                                for i1_ in (Nn*(i-1)+1):1:min((Nn*i),N)
+                                    for i2_ in 1:N
+                                        if i1_ != i2_
+                                            d = CBMMetrics.euclidean($(args2...))
+                                            if d < skin 
+                                                    neighborN_[i1_] += 1
+                                                    # neighborN_[i2_] += 1
+                                                    neighborList_[i1_,neighborN_[i1_]] = i2_
+                                                    # neighborList_[i2_,neighborN_[i2_]] = i1_
+                                            end
+                                        end
                                     end
                                 end
                             end
+                            push!(tasks,task)
                         end
-
-                        return
+                        wait.(tasks)
                     end
-                    # lk = ReentrantLock()
-                    tasks = []
-                    for i1_ in 1:Threads.nthreads()
-                        # task(i1_,ceil(Int64,N/Threads.nthreads()),N,neighborN_,neighborList_,skin,$(args...))
-                        a = @task task(i1_,ceil(Int64,N/Threads.nthreads()),N,neighborN_,neighborList_,skin,$(args...))
-                        schedule(a); 
-                        push!(tasks,a)
-                    end
-                    wait.(tasks)
                 end
             )
         elseif platform == :GPU
