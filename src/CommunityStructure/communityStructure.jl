@@ -147,10 +147,10 @@ mutable struct Community
             agentAlg::Union{CustomIntegrator,DEAlgorithm} = CBMIntegrators.Euler(),
             agentSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
-            modelAlg::Union{CustomIntegrator,DEAlgorithm} = CBMIntegrators.Euler(),
+            modelAlg::Union{DEAlgorithm} = DifferentialEquations.Euler(),
             modelSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
-            mediumAlg::Union{CustomIntegrator,DEAlgorithm} = DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()),
+            mediumAlg::Union{DEAlgorithm} = DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()),
             mediumSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
             neighborsAlg::Neighbors = CBMNeighbors.Full(),       
