@@ -572,7 +572,7 @@ function createDEProblem(com,scope)
     paramsCom = agentArgs(com,sym=:com)
     paramsRemove = [sym for (sym,prop) in pairs(com.abm.parameters) if prop.variable && (prop.scope==scope)]
     paramsRemove2 = [new(sym) for sym in paramsRemove if com.abm.parameters[sym].update] #remove news
-    params = Tuple([if occursin("neighbors.", string(j)); getfield(com.neighbors,i); elseif occursin("platform.", string(j)); getfield(com.platform,i); else com[i]; end for (i,j) in zip(params,paramsCom) if !(i in [paramsRemove;paramsRemove2])])
+    params = [if occursin("neighbors.", string(j)); getfield(com.neighbors,i); elseif occursin("platform.", string(j)); getfield(com.platform,i); else com[i]; end for (i,j) in zip(params,paramsCom) if !(i in [paramsRemove;paramsRemove2])]
 
     ode = addSymbol(scope,"ODE")
     sde = addSymbol(scope,"SDE")

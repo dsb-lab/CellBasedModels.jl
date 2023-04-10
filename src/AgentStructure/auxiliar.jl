@@ -434,7 +434,7 @@ function old(sym)
 
     if occursin("__",string(sym))
         if string(sym)[end-1:end] == "__"
-            return Meta.parse(string(sym)[1:end-2])
+            return Meta.parse(string(sym)[1:length(string(sym))-2])
         else
             return sym
         end

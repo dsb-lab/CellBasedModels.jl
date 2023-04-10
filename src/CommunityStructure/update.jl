@@ -279,6 +279,16 @@ macro update!(platform)
             setfield!(community,:t, community.t + community.dt)
             #Update GPU execution
             platformUpdate!(community.platform,community)
+
+            #DE problems update scalar parameters
+            for i in [:agentDEProblem,:modelDEProblem,:mediumDEProblem]
+                if getfield(community,i) !== nothing
+                    #t
+                    getfield(community,i).p[1] = community.t
+                    #N
+                    getfield(community,i).p[3] = community.N
+                end
+            end
             
             return 
 
