@@ -1,5 +1,6 @@
 module CBMMetrics
 
+    using CUDA
     import CellBasedModels: COMUNITY
 
     """
@@ -125,4 +126,90 @@ module CBMMetrics
     
     end
 
+    function intersection2lines(x1,y1,theta1,x2,y2,theta2,inf_eff=100000)
+
+        pxIntersect = 0.
+        pyIntersect = 0.
+    
+        cxAux = (x1-x2)
+        cyAux = (y1-y2)
+        normAux = cos(theta1)*sin(theta2)-sin(theta1)*cos(theta2)
+        if abs(normAux) > 0.0000001
+            scaleAux = (-sin(theta2)*cxAux+cos(theta2)*cyAux)/normAux
+            pxIntersect = scaleAux*cos(theta1)+x1
+            pyIntersect = scaleAux*sin(theta1)+y1
+        else #if parallel send  point to an infinite
+            pxIntersect = (x1+x2)/2
+            pyIntersect = (y1+y2)/2
+        end
+    
+        return pxIntersect,pyIntersect
+    end
+    
+    function point2line(x1,y1,x2,y2,theta2)
+        #Compute closest point over the line axis of the other rod
+        cx = x2-x1
+        cy = y2-y1
+        xjAux = (sin(theta2)*cx-cos(theta2)*cy)*sin(theta2)+x1
+        yjAux = -(sin(theta2)*cx-cos(theta2)*cy)*cos(theta2)+y1
+    
+        return xjAux,yjAux
+    end
+    
+    function pointInsideRod(x1,y1,l1,theta1,pxAux,pyAux,separation)
+    
+        di = max(sqrt((x1-pxAux)^2+(y1-pyAux)^2),0.00000001)
+    
+        dxi = (pxAux-x1)/di
+        dyi = (pyAux-y1)/di
+        return separation*min(di,l1/2)*dxi+x1, separation*min(di,l1/2)*dyi+y1
+    
+    end
+    
+    function rodIntersection(x1,y1,l1,theta1,x2,y2,l2,theta2;separation=0.99)
+            
+        #Compute distance between centers of mass
+        x1Aux = x1; x2Aux = x2; y1Aux = y1; y2Aux = y2; #Declare them in the global scope
+    
+        #Compute intersecting point of the extended direction
+        pxAux, pyAux = intersection2lines(x1,y1,theta1,x2,y2,theta2)
+    
+        #Compute distance from mass center of both rods
+        di = sqrt((x1-pxAux)^2+(y1-pyAux)^2)
+        dj = sqrt((x2-pxAux)^2+(y2-pyAux)^2)
+        normAux = cos(theta1)*sin(theta2)-sin(theta1)*cos(theta2)
+        if abs(normAux) < 0.000001
+            x1Aux,y1Aux= point2line(pxAux,pyAux,x1,y1,theta1)
+            x1Aux,y1Aux = pointInsideRod(x1,y1,l1,theta1,x1Aux,y1Aux,separation)
+    
+            x2Aux,y2Aux= point2line(pxAux,pyAux,x2,y2,theta2)
+            x2Aux,y2Aux = pointInsideRod(x2,y2,l2,theta2,x2Aux,y2Aux,separation) 
+        elseif di<=l1/2 && dj<=l2/2 #Case that the intersecting point lies inside both rods
+            x1Aux,y1Aux = pointInsideRod(x1,y1,l1,theta1,pxAux,pyAux,separation)
+            x2Aux,y2Aux = pointInsideRod(x2,y2,l2,theta2,pxAux,pyAux,separation) 
+        elseif di<=l1/2 && dj>l2/2
+            x2Aux,y2Aux = pointInsideRod(x2,y2,l2,theta2,pxAux,pyAux,separation)    
+            x1Aux,y1Aux= point2line(x2Aux,y2Aux,x1,y1,theta1)
+        elseif di>l1/2 && dj<=l2/2
+            x1Aux,y1Aux = pointInsideRod(x1,y1,l1,theta1,pxAux,pyAux,separation)    
+            x2Aux,y2Aux= point2line(x1Aux,y1Aux,x2,y2,theta2)  
+        else
+            x2Aux,y2Aux = pointInsideRod(x2,y2,l2,theta2,pxAux,pyAux,separation)    
+            x1Aux,y1Aux= point2line(x2Aux,y2Aux,x1,y1,theta1)
+            dj = sqrt((x1-x1Aux)^2+(y1-y1Aux)^2)
+            if dj > l1/2
+                x1Aux,y1Aux = pointInsideRod(x1,y1,l1,theta1,pxAux,pyAux,separation)
+                x2Aux_,y2Aux_= point2line(x1Aux,y1Aux,x2,y2,theta2)
+    
+                dj = sqrt((x2-x2Aux_)^2+(y2-y2Aux_)^2)
+                if dj < l2/2
+                    x2Aux = x2Aux_
+                    y2Aux = y2Aux_
+                end
+            end
+        end
+    
+        return x1Aux,y1Aux,x2Aux,y2Aux
+    end
+    
 end

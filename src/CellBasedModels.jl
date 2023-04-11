@@ -85,8 +85,8 @@ module CellBasedModels
     include("./fitting/fitting.jl")
 
     #Implemented Models
-    # export Models
-    # include("./implementedModels/models.jl")
+    export CBMModels
+    include("./models/models.jl")
 
     # #Visualization functions
     # export plotSpheres, plotRods, videoRods

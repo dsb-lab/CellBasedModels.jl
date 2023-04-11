@@ -114,7 +114,7 @@ If `saveCurrentState` is true, the present instance is saved.
 
 `preallocateAgents` is an integer to sent to the `loadToPlatform!` function that allocates empty space for agents if the model has to grow. The maximum number of agents in the final simulation has to be specified in here.
 """
-function evolve!(community;steps,saveEach=1,saveToFile=false,fileName=nothing,overwrite=false,saveCurrentState=false,preallocateAgents=0)
+function evolve!(community;steps,saveEach=1,saveToFile=false,fileName=nothing,overwrite=false,saveCurrentState=false,preallocateAgents=0,progressMessage=(com)->nothing)
 
     if saveToFile && fileName === nothing
         error("Key argument fileName has to be specified with a valid name.")
@@ -131,6 +131,7 @@ function evolve!(community;steps,saveEach=1,saveToFile=false,fileName=nothing,ov
     for i in 1:steps
         step!(community)
         if i % saveEach == 0
+            progressMessage(community)
             if saveToFile
                 saveJLD2(fileName,community,overwrite=overwrite)
             else
