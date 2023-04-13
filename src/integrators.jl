@@ -390,23 +390,44 @@ Euler-Heun method for SDE integration.
 
         if typeof(alg) <: Euler
 
-            return Euler(problem,kwargs)
+            if typeof(problem) <: ODEProblem
+                return Euler(problem,kwargs)
+            else
+                error("Euler algorithm is for ODE problems only, a SDE problem has been detected. Choose an appropiate integrator from CBMIntegrators or DifferentialEquations.")
+            end
+
 
         elseif typeof(alg) <: Heun
 
-            return Heun(problem,kwargs)
+            if typeof(problem) <: ODEProblem
+                return Heun(problem,kwargs)
+            else
+                error("Heun algorithm is for ODE problems only, a SDE problem has been detected. Choose an appropiate integrator from CBMIntegrators or DifferentialEquations.")
+            end
 
         elseif typeof(alg) <: RungeKutta4
 
-            return RungeKutta4(problem,kwargs)
+            if typeof(problem) <: ODEProblem
+                return RungeKutta4(problem,kwargs)
+            else
+                error("RungeKutta4 algorithm is for ODE problems only, a SDE problem has been detected. Choose an appropiate integrator from CBMIntegrators or DifferentialEquations.")
+            end
 
         elseif typeof(alg) <: EM
 
-            return EM(problem,kwargs)
+            if typeof(problem) <: SDEProblem
+                return EM(problem,kwargs)
+            else
+                error("EM algorithm is for ODE problems only, a SDE problem has been detected. Choose an appropiate integrator from CBMIntegrators or DifferentialEquations.")
+            end
 
         elseif typeof(alg) <: EulerHeun
 
-            return EulerHeun(problem,kwargs)
+            if typeof(problem) <: SDEProblem
+                return EulerHeun(problem,kwargs)
+            else
+                error("EulerHeun algorithm is for ODE problems only, a SDE problem has been detected. Choose an appropiate integrator from CBMIntegrators or DifferentialEquations.")
+            end
 
         else
 

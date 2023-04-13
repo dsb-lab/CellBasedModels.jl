@@ -144,13 +144,13 @@ mutable struct Community
             NMedium::Union{Nothing,Vector{<:Int}} = nothing,
             simBox::Union{Nothing,Matrix{<:Number}} = nothing,
 
-            agentAlg::Union{CustomIntegrator,DEAlgorithm} = CBMIntegrators.Euler(),
+            agentAlg::Union{CustomIntegrator,DEAlgorithm,Nothing} = nothing,
             agentSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
-            modelAlg::Union{DEAlgorithm} = DifferentialEquations.Euler(),
+            modelAlg::Union{DEAlgorithm,Nothing} = nothing,
             modelSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
-            mediumAlg::Union{DEAlgorithm} = DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()),
+            mediumAlg::Union{DEAlgorithm,Nothing} = nothing,
             mediumSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
             neighborsAlg::Neighbors = CBMNeighbors.Full(),       
@@ -170,11 +170,35 @@ mutable struct Community
         #Assign other key arguments
         setfield!(com,:neighbors,neighborsAlg)
         setfield!(com,:platform,platform)
-        setfield!(com,:agentAlg,agentAlg)
+        if agentAlg === nothing
+            if isemptyupdaterule(com.abm,:agentSDE)
+                setfield!(com,:agentAlg,CBMIntegrators.Euler())
+            else
+                setfield!(com,:agentAlg,CBMIntegrators.EM())
+            end
+        else
+            setfield!(com,:agentAlg,agentAlg)
+        end
         setfield!(com,:agentSolveArgs,agentSolveArgs)
-        setfield!(com,:modelAlg,modelAlg)
+        if modelAlg === nothing
+            if isemptyupdaterule(com.abm,:modelSDE)
+                setfield!(com,:modelAlg,DifferentialEquations.Euler())
+            else
+                setfield!(com,:modelAlg,DifferentialEquations.EM())
+            end
+        else
+            setfield!(com,:agentAlg,agentAlg)
+        end
         setfield!(com,:modelSolveArgs,modelSolveArgs)
-        setfield!(com,:mediumAlg,mediumAlg)
+        if mediumAlg === nothing
+            if isemptyupdaterule(com.abm,:mediumSDE)
+                setfield!(com,:mediumAlg,DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()))
+            else
+                setfield!(com,:mediumAlg,DifferentialEquations.EulerHeun())
+            end
+        else
+            setfield!(com,:mediumAlg,mediumAlg)
+        end
         setfield!(com,:mediumSolveArgs,mediumSolveArgs)
         setfield!(com,:loaded,false)
         setfield!(com,:uuid,uuid1())
