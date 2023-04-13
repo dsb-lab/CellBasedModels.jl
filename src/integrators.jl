@@ -7,6 +7,16 @@ module CBMIntegrators
 
     abstract type CustomIntegrator end
 
+    function cleanArray(du,p)
+        #Clean array
+        if typeof(du) <: Array
+            r = 1:p[3][1]
+            du[:,r] .= 0
+        else
+            du .= 0
+        end
+    end
+
     ################################################################
     # ODE
     ################################################################
@@ -44,6 +54,8 @@ Euler integrator for ODE problems.
     end
 
     function DifferentialEquations.step!(obj::Euler,dt=obj.dt,_=nothing)
+
+        cleanArray(obj.du,obj.p)
 
         obj.f(obj.du,obj.u,obj.p,obj.t)
 
@@ -96,6 +108,8 @@ Heun integrator for ODE problems.
 
     function DifferentialEquations.step!(obj::Heun,dt=obj.dt,_=nothing)
 
+        cleanArray(obj.du,obj.p)
+
         #First step
         obj.f(obj.du,obj.u,obj.p,obj.t)
 
@@ -106,6 +120,8 @@ Heun integrator for ODE problems.
         else
         obj.h1 .= obj.u .+ obj.du.*dt
         end
+
+        cleanArray(obj.du,obj.p)
 
         #Second step
         obj.f(obj.du,obj.h1,obj.p,obj.t+dt)
@@ -161,6 +177,8 @@ RungeKutta4 for ODE integrators
 
     function DifferentialEquations.step!(obj::RungeKutta4,dt=obj.dt,_=nothing)
 
+        cleanArray(obj.k1,obj.p)
+
         #First step
         obj.f(obj.k1,obj.u,obj.p,obj.t)
 
@@ -171,6 +189,8 @@ RungeKutta4 for ODE integrators
         else
         obj.h1 .= obj.u .+ obj.k1.*dt./2
         end
+
+        cleanArray(obj.k2,obj.p)
 
         #Second step
         obj.f(obj.k2,obj.h1,obj.p,obj.t+dt/2)
@@ -183,6 +203,8 @@ RungeKutta4 for ODE integrators
             obj.h1 .= obj.u .+ obj.k2.*dt./2
         end
 
+        cleanArray(obj.k3,obj.p)
+
         #Third step
         obj.f(obj.k3,obj.h1,obj.p,obj.t+dt/2)
 
@@ -193,6 +215,8 @@ RungeKutta4 for ODE integrators
         else
             obj.h1 .= obj.u .+ obj.k3.*dt
         end
+
+        cleanArray(obj.k4,obj.p)
 
         #Fourth step
         obj.f(obj.k4,obj.h1,obj.p,obj.t+dt/2)
@@ -253,6 +277,10 @@ Euler-Majurana integrator for SDE poblems.
     function DifferentialEquations.step!(obj::EM,dt=obj.dt,_=nothing)
 
         #First step
+
+        cleanArray(obj.du_f,obj.p)
+        cleanArray(obj.du_g,obj.p)
+
         obj.f(obj.du_f,obj.u,obj.p,obj.t)
         obj.g(obj.du_g,obj.u,obj.p,obj.t)
         Random.randn!(obj.rand)
@@ -313,6 +341,9 @@ Euler-Heun method for SDE integration.
     function DifferentialEquations.step!(obj::EulerHeun,dt=obj.dt,_=nothing)
 
         #First step
+        cleanArray(obj.du_f1,obj.p)
+        cleanArray(obj.du_g1,obj.p)
+
         obj.f(obj.du_f1,obj.u,obj.p,obj.t)
         obj.g(obj.du_g1,obj.u,obj.p,obj.t)
 
@@ -325,6 +356,9 @@ Euler-Heun method for SDE integration.
             Random.randn!(obj.rand)
             obj.h1 .= obj.u .+ obj.du_f1 .*dt .+ obj.du_g1 .* obj.rand .* sqrt(dt)
         end
+
+        cleanArray(obj.du_f2,obj.p)
+        cleanArray(obj.du_g2,obj.p)
 
         #Second step
         obj.f(obj.du_f2,obj.h1,obj.p,obj.t+dt)
