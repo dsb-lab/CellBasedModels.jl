@@ -11,32 +11,45 @@ Let's use for reference the [Ornstein–Uhlenbeck](https://en.wikipedia.org/wiki
 
 ```julia
 model = ABM(2,
-    globalFloat = [
-        :σ, #Diffussion constant
-        :theta  #Drifft force
-    ],
-    updateVariable = quote
-        d(x) = dt(-theta*x)+dW(σ)
-        d(y) = dt(-theta*y)+dW(σ)
+    model = Dict(
+        :σ => Float64, #Diffussion constant
+        :theta => Float64  #Drifft force
+    ),
+    agentODE = quote
+        dt(x) = -theta*x
+        dt(y) = -theta*y
     end,
-    integrator = :Heun
+    agentSDE = quote
+        dt(x) = σ
+        dt(y) = σ
+    end,
 )
 ```
 
-
-    
-
-
     PARAMETERS
-    	σ (Float Global)
-    	theta (Float Global)
+    	x (Float64 agent)
+    	y (Float64 agent)
+    	σ (Float64 model)
+    	theta (Float64 model)
     
     
     UPDATE RULES
-    UpdateVariable
+    agentSDE
      begin
-        d(x) = dt(-theta * x) + dW(σ)
-        d(y) = dt(-theta * y) + dW(σ)
+
+
+    
+
+
+    
+        dt__x = σ
+        dt__y = σ
+    end
+    
+    agentODE
+     begin
+        dt__x = -theta * x
+        dt__y = -theta * y
     end
     
 
@@ -45,7 +58,10 @@ To create an initial community we just need to call a Community structure with a
 
 
 ```julia
-com = Community(model)
+com = Community(model,
+                dt=0.1,
+                agentAlg=CBMIntegrators.EM()
+                )
 ```
 
 
@@ -57,7 +73,13 @@ com = Community(model)
 
 ## KwArgs of the Community constructor
 
-In addition to the model structure, we can provide the Community structure with keyword arguments corresponding to any of the Default Parameters or User Defined parameters of an ABM (see Constructing ABMs - Parameters). 
+In addition to the model structure, we can provide the Community structure with keyword arguments. You can see all pf them in the API - Community documentation. Among them you will find:
+
+ - Base parameters like the time `dt` or the simulation box `simBox`.
+ - User parameters.
+ - `platform` argument to define the type of platform in which you want to evolve the model.
+ - `agentAlg`, `modelAlg` and `mediumAlg` to define the integrator that you want to use. You can use our own integrators provided in the submodule `CBMIntegrators` that may be faster in general but in complex cases with stiff operation or in which you need high precission, you can always use the integrators from `DifferentialEquations.jl` suite. 
+ - `neighbors` algorithm. This defines the way of computing neighbors. This step is one of the most cost expensive in ABMs and the correct selection of algorithm can really afect your computational efficientcy. We provide several possible algorithms in the submodule `CBMNeighbors`.
 
 For example, we can define a community with more agents `N`, a `simulationBox` and random positions (`x`,`y`) in the unit box by constructing the Community as
 
@@ -65,8 +87,10 @@ For example, we can define a community with more agents `N`, a `simulationBox` a
 ```julia
 N = 10
 com = Community(model,
-        N=[N],
+        N=N,
         simBox=[0 1;0 1.],
+        dt = 0.1,
+        agentAlg = DifferentialEquations.EM(), #Let's use an algorithm from DifferentialEquations suite
         x=Vector(1.:N),
         y=rand(N)
     )
@@ -78,8 +102,6 @@ com = Community(model,
 
     Community with 10 agents.
 
-
-> **NOTE Shape of Scalars**. Notice that even parameters that we expect to be scalars as the number of agents `N` are defined as arrays of size `(1,)`. Although it may look weird in the beggining this is necessary for of how the internals of the package work. Maybe in future versions, it will be possible to declare them without specifying them into brackets.
 
 ## Accessing and manipulating a Community
 
@@ -190,141 +212,25 @@ println("Current community x: ", com.x)
     Current community x: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
 
 
-Alternatively, you can get a parameter for all saved points using the function `getParameter`. This function is a lot faster than asking to call any instance of a past time.
-
-
-```julia
-getParameter(com,:x)
-```
-
-
-    1-element Vector{Vector{Float64}}:
-     [10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
-
-
-
-```julia
-getParameter(com,[:t,:x])
-```
-
-
-    Dict{Symbol, Vector} with 2 entries:
-      :t => [[0.0]]
-      :x => [[10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0]]
-
-
 #### JLD2
 
-We can also save the instances in JLD2 format, a format based in H5MD saving files system that is compatible and readable from many other programming languajes and platforms.
-
-To save in this format we will have to provide the field `Community.fileSaving`.
+We can also save the instances in JLD2 format, a format based in H5MD saving files system that is compatible and readable from many other programming languages and platforms.
 
 
 ```julia
-com.fileSaving = "test.jld2"
+saveJLD2("test.jld2",com)
 ```
-
-
-    "test.jld2"
-
-
-
-```julia
-saveJLD2(com)
-close(com.fileSaving)
-```
-
-
-    UndefVarError: com not defined
-
-
-    
-
-
-    Stacktrace:
-
-
-     [1] saveJLD2(community::Community; saveLevel::Int64)
-
-
-       @ AgentBasedModels ~/Documents/AgentBasedModels.jl/src/CommunityStructure/IO.jl:99
-
-
-     [2] saveJLD2(community::Community)
-
-
-       @ AgentBasedModels ~/Documents/AgentBasedModels.jl/src/CommunityStructure/IO.jl:74
-
-
-     [3] top-level scope
-
-
-       @ ~/Documents/AgentBasedModels.jl/examples/Usage_Community.ipynb:1
-
 
 And you can always call back the model from a JLD2 file.
 
 
 ```julia
 com  = loadJLD2("test.jld2")
+com.loaded
 ```
 
 
-    ArgumentError: attempted to open file read-only, but file was already open read/write
-
-
-    
-
-
-    Stacktrace:
-
-
-     [1] jldopen(fname::String, wr::Bool, create::Bool, truncate::Bool, iotype::Type{JLD2.MmapIO}; fallback::Type{IOStream}, compress::Bool, mmaparrays::Bool, typemap::Dict{String, Any})
-
-
-       @ JLD2 ~/.julia/packages/JLD2/r5t7Q/src/JLD2.jl:329
-
-
-     [2] jldopen(fname::String, wr::Bool, create::Bool, truncate::Bool, iotype::Type{JLD2.MmapIO})
-
-
-       @ JLD2 ~/.julia/packages/JLD2/r5t7Q/src/JLD2.jl:306
-
-
-     [3] jldopen(fname::String, mode::String; iotype::Type, kwargs::Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}})
-
-
-       @ JLD2 ~/.julia/packages/JLD2/r5t7Q/src/JLD2.jl:423
-
-
-     [4] jldopen(fname::String, mode::String)
-
-
-       @ JLD2 ~/.julia/packages/JLD2/r5t7Q/src/JLD2.jl:418
-
-
-     [5] jldopen(::Function, ::String, ::Vararg{String}; kws::Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}})
-
-
-       @ JLD2 ~/.julia/packages/JLD2/r5t7Q/src/loadsave.jl:2
-
-
-     [6] jldopen
-
-
-       @ ~/.julia/packages/JLD2/r5t7Q/src/loadsave.jl:2 [inlined]
-
-
-     [7] loadJLD2(file::String)
-
-
-       @ AgentBasedModels ~/Documents/AgentBasedModels.jl/src/CommunityStructure/IO.jl:180
-
-
-     [8] top-level scope
-
-
-       @ ~/Documents/AgentBasedModels.jl/examples/Usage_Community.ipynb:1
+    false
 
 
 This file will have all Community instances from the file loaded in `Community.pastTimes` and a copy of the last saved time in the current community itself.
@@ -344,30 +250,40 @@ In the following schema we describe the basic collection of functions provided b
     </thead>
     <tbody>
         <tr>
-            <td rowspan=9>evolve!</td>
+            <td rowspan=12>evolve!</td>
             <td colspan=2>loadToPlatform!</td>
             <td>Function that loads the community information to the appropiate platform (CPU or GPU) for being able to evolve it. In CPU in fact nothing happens.</td>
         </tr>
         <tr>
-            <td rowspan=6>step!</td>
-            <td>interactionStep!</td>
-            <td>Computes the interaction properties between agents as defined in updateInteractions.</td>
+            <td rowspan=9>step!</td>
         </tr>
         <tr>
-            <td>integrationStep!</td>
-            <td>Performs the integration step as defined in updateVariable</td>
+            <td>agentStepDE!</td>
+            <td>Performs the agent DE step.</td>
         </tr>
         <tr>
-            <td>localStep!</td>
-            <td>Performs the local step as defined in updateLocal.</td>
+            <td>agentStepRule!</td>
+            <td>Performs the agent rule step.</td>
         </tr>
         <tr>
-            <td>globalStep!</td>
-            <td>Performs the global step as defined in updateGlobal.</td>
+            <td>mediumStepDE!</td>
+            <td>Performs the medium DE step.</td>
+        </tr>
+        <tr>
+            <td>mediumStepRule!</td>
+            <td>Performs the medium rule step.</td>
+        </tr>
+        <tr>
+            <td>modelStepDE!</td>
+            <td>Performs the model DE step.</td>
+        </tr>
+        <tr>
+            <td>modelStepRule!</td>
+            <td>Performs the model rule step.</td>
         </tr>
         <tr>
             <td>update!</td>
-            <td>Saves all the updated parameters of the community as the present time. Until this function is called all the steps are stored as the future time and the step has not taken place yet!>/td>
+            <td>Saves all the updated parameters of the community as the present time. Until this function is called all the steps are stored as the future time and the step has not taken place yet!</td>
         </tr>
         <tr>
             <td>computeNeighbors!</td>
@@ -392,7 +308,7 @@ So simple evolutions in which we want only to evolve the model after initializat
 
 
 ```julia
-evolve!(com,steps=100,saveFunction=saveRAM!,saveEach=10)
+evolve!(com,steps=100,saveEach=10)
 ```
 
 And we can see that our model has now ten more saved points.
@@ -403,7 +319,7 @@ length(com)
 ```
 
 
-    11
+    10
 
 
 #### Customizing your evolution function
@@ -417,9 +333,9 @@ If you want a more fancy stepping function, you can use more atomic functions to
 function evolveCustom!(com,steps)
     loadToPlatform!(com) #Always necessary to load the parameters to the platform
     for i in 1:steps
-        integrationStep!(com) #This model only has an SDE that is updated with this function. 
+        agentStepDE!(com) #This model only has an SDE that is updated with this function. 
         update!(com) #Always necessary to update the parameters at the end of all the steps.
-        if any(getfield(com,:x) .> 5.0)
+        if any(com.x .> 5.0)
             saveRAM!(com)
         end
     end

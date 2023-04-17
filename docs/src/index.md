@@ -35,7 +35,7 @@ pkg> add https://github.com/dsb-lab/CellBasedModels.jl
     <tbody>
         <tr>
             <td style="height:200px">
-                Implementation of a patterning model as described by [Corson et al. (2017)]().
+                Implementation of a patterning model as described by <a href="https://www.science.org/doi/full/10.1126/science.aai7407?casa_token=_HGoX7kcWZcAAAAA%3AzoEGS_8EyLf7hNo9MC274EuqPACq6y4MsfCr93S9tzmmcK3pSTmNpJ7a7sc8HQMw5PETz7n9tG15jQ">Corson et al. (2017)</a>.
 
                 In this example you learn how to:
                 <ul>
@@ -45,7 +45,7 @@ pkg> add https://github.com/dsb-lab/CellBasedModels.jl
                 </ul>
             </td>
             <td>
-                <img src="./assets/Patterning.gif" width="600" height="600">
+                <img src="./assets/patterning.gif" width="800" height="800">
             </td>
         </tr>
     </tbody>
@@ -57,7 +57,7 @@ pkg> add https://github.com/dsb-lab/CellBasedModels.jl
     <tbody>
         <tr style="height:200px">
             <td>
-                Implementation of the development and commitment of the Inner Cell Mass of the embryo as proposed by [Saiz et al. (2022)]().
+                Implementation of the development and commitment of the Inner Cell Mass of the embryo as proposed by <a href="https://elifesciences.org/articles/56079">Saiz et al. (2020)</a>.
 
                 In this example you learn how to:
                 <ul>
@@ -68,7 +68,7 @@ pkg> add https://github.com/dsb-lab/CellBasedModels.jl
                 </ul>
             </td>
             <td>
-                <img src="./assets/Development.gif" width="700" height="700">
+                <img src="./assets/Development.gif" width="1200" height="1200">
             </td>
         </tr>
     </tbody>
@@ -91,7 +91,7 @@ pkg> add https://github.com/dsb-lab/CellBasedModels.jl
                 </ul>
             </td>
             <td>
-                <img src="./assets/Coalescence.gif" width="700" height="700">
+                <img src="./assets/aggregation.gif" width="1000" height="1000">
             </td>
         </tr>
     </tbody>
@@ -103,7 +103,7 @@ pkg> add https://github.com/dsb-lab/CellBasedModels.jl
     <tbody>
         <tr>
             <td style="height:200px">
-                Implementation of a bacterial interaction and growth model as described by [Saiz et al. (2022)]().
+                Implementation of a bacterial interaction and growth model as described by <a href="https://www.pnas.org/doi/abs/10.1073/pnas.0706805105">Volfson et al. (2008)</a>.
 
                 In this example you learn how to:
                 <ul>
@@ -113,7 +113,29 @@ pkg> add https://github.com/dsb-lab/CellBasedModels.jl
                 </ul>
             </td>
             <td>
-                <img src="./assets/Bacteries.gif" width="700" height="700">
+                <img src="./assets/colony.gif" width="1000" height="1000">
+            </td>
+        </tr>
+    </tbody>
+</table>
+```
+[**Bacterial Chemotaxis**](@ref Chemotaxis)
+```@raw html 
+<table>
+    <tbody>
+        <tr>
+            <td style="height:200px">
+                Modification of the bacterial interaction model as described by <a href="https://www.pnas.org/doi/abs/10.1073/pnas.0706805105">Volfson et al. (2008)</a> to be active bacteria with tumble-and-run dynamics and chemotaxis behavior.
+
+                In this example you learn how to:
+                <ul>
+                    <li>Use predefined models as base for more complex models</li>
+                    <li>Working with non-spherical agents.</li>
+                    <li>Work with models coupled with a medium.</li>
+                </ul>
+            </td>
+            <td>
+                <img src="./assets/chemotaxis.gif" width="1400" height="1400">
             </td>
         </tr>
     </tbody>

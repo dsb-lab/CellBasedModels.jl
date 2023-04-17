@@ -2,9 +2,6 @@
 using CellBasedModels
 ```
 
-    WARNING: could not import AgentBasedModels.Model into Fitting
-
-
 # Model Fitting
 
 One of the aims of the agent based models is to describe experimental observations. However the models have a complex dependency of the parameters and in general not direct algorithms exist for their optimization.
@@ -42,12 +39,13 @@ and we want to find both $x_0$ and $\delta$. Consider that the data comes from $
 
 
 ```julia
-model = Agent(1,
-    globalFloat = [:δ],
-    updateVariable = quote
-        d( x ) = dt( -δ*x )
+model = ABM(1,
+    model = Dict(
+        :δ=>Float64
+        ),
+    agentODE = quote
+        dt( x ) = -δ*x
     end,
-    integrator = :Euler
 );
 ```
 
@@ -68,18 +66,22 @@ For the example above a simulation function will look like:
 
 
 ```julia
-function fitting(pars)
+com = Community(model,dt=0.1)
+
+function fitting(pars,community=com)
     #Initialize the model
     com = Community(model,
-                x = [pars.x0],
-                δ=[pars.δ],
-                dt=[0.1]
+                x=pars.x0,
+                δ=pars.δ,
+                dt=0.1
             )
+    setfield!(com,:abm,community.abm)
     #Evolve the model
     evolve!(com,steps=10)
     #Calulate error
-    d = getParameter(com,[:t,:x])
-    loos = sum( [abs( analyticSolution.(t[1]) .- x[1]) for (t,x) in zip(d[:t],d[:x])] )
+    t = [i.t for i in com.pastTimes]
+    d = getParameter(com,[:x])
+    loos = sum( [abs( analyticSolution.(tt) .- x[1]) for (tt,x) in zip(t,d[:x])] )
     
     return loos
 end;
@@ -103,15 +105,13 @@ Finally, we can explore the space of parameters to fit our model.
 
 
 ```julia
-Fitting.gridSearch(fitting, searchSpace)
+CBMFitting.gridSearch(fitting, searchSpace)
 ```
 
 
-
-```@raw html
- <p>DataFrameRow (3 columns)</p><table class="data-frame"><thead><tr><th></th><th>x0</th><th>δ</th><th>_score_</th></tr><tr><th></th><th>Float64</th><th>Float64</th><th>Float64</th></tr></thead><tbody><tr><th>119</th><td>10.0</td><td>1.0</td><td>1.48518</td></tr></tbody></table> 
+<div><div style = "float: left;"><span>DataFrameRow (3 columns)</span></div><div style = "clear: both;"></div></div><div class = "data-frame" style = "overflow-x: scroll;"><table class = "data-frame" style = "margin-bottom: 6px;"><thead><tr class = "header"><th class = "rowLabel" style = "font-weight: bold; text-align: right;">Row</th><th style = "text-align: left;">x0</th><th style = "text-align: left;">δ</th><th style = "text-align: left;">_score_</th></tr><tr class = "subheader headerLastRow"><th class = "rowLabel" style = "font-weight: bold; text-align: right;"></th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th></tr></thead><tbody><tr><td class = "rowLabel" style = "font-weight: bold; text-align: right;">119</td><td style = "text-align: right;">10.0</td><td style = "text-align: right;">1.0</td><td style = "text-align: right;">1.48518</td></tr></tbody></table> 
 ```
-
+</div>
 
 
 ## Search space - Swarm Argorithm and others
@@ -133,13 +133,15 @@ searchSpace = Dict(
 
 
 ```julia
-Fitting.swarmAlgorithm(fitting, searchSpace)
+CBMFitting.swarmAlgorithm(fitting, searchSpace)
 ```
 
 
-
-```@raw html
- <p>DataFrameRow (6 columns)</p><table class="data-frame"><thead><tr><th></th><th>x0</th><th>δ</th><th>x0_velocity_</th><th>δ_velocity_</th><th>_score_</th><th>_generation_</th></tr><tr><th></th><th>Float64</th><th>Float64</th><th>Float64</th><th>Float64</th><th>Float64</th><th>Int64</th></tr></thead><tbody><tr><th>947</th><td>9.64587</td><td>0.885886</td><td>0.185593</td><td>0.0242186</td><td>1.05475</td><td>10</td></tr></tbody></table> 
+<div><div style = "float: left;"><span>DataFrameRow (6 columns)</span></div><div style = "clear: both;"></div></div><div class = "data-frame" style = "overflow-x: scroll;"><table class = "data-frame" style = "margin-bottom: 6px;"><thead><tr class = "header"><th class = "rowLabel" style = "font-weight: bold; text-align: right;">Row</th><th style = "text-align: left;">x0</th><th style = "text-align: left;">δ</th><th style = "text-align: left;">x0_velocity_</th><th style = "text-align: left;">δ_velocity_</th><th style = "text-align: left;">_score_</th><th style = "text-align: left;">_generation_</th></tr><tr class = "subheader headerLastRow"><th class = "rowLabel" style = "font-weight: bold; text-align: right;"></th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Int64" style = "text-align: left;">Int64</th></tr></thead><tbody><tr><td class = "rowLabel" style = "font-weight: bold; text-align: right;">967</td><td style = "text-align: right;">10.5734</td><td style = "text-align: right;">1.02219</td><td style = "text-align: right;">-0.109951</td><td style = "text-align: right;">-0.0193163</td><td style = "text-align: right;">1.51499</td><td style = "text-align: right;">10</td></tr></tbody></table> 
 ```
+</div>
 
 
+## Other packages
+
+Notime that the CellBasedModels can be also fitted using other packages as the really good [Optimization.jl](https://docs.sciml.ai/Optimization/stable/). The functions provided in CellBasedModels for fitting are just an self-contained alternative and most probable the more mature Optimizations.jl package will have better and more robust implementations.

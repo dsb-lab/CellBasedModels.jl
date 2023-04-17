@@ -1,35 +1,103 @@
 # [Particle aggregation](@id Aggregation)
 
+In this model we are going to make a model with the following properties:
+
+ - Soft spheres with repulsion and adeshion
+ - Viscous brownian motion dynamics
+ - Particle confinement in a simulation space
+
+## The model
+
+The model will act with viscous brownian motion dynamics of the form:
+
+$$dx_i = \underbrace{\sum_j f(x_i,x_j)}_{\text{deterministic term}} dt + \underbrace{D}_{\text{stochastic term}} dW$$
+
+where the forces of interaction are of the form
+
+$$f(x,y)=\begin{cases}
+F_{rep}(r_{rep}-x)\hspace{1cm}\text{if   }||x-y||_2 <= r_{rep}\\
+-F_{atr}(r_{atr}-x)\hspace{.75cm}\text{if   }r_{rep} < ||x-y||_2 < r_{at}\\
+0\hspace{2.45cm}\text{otherwise   }\\
+\end{cases}$$
+and some radius of repulsion $r_{rep}$ and attraction $r_{atr}$.
+
+The forces of the particles over the walls will be of the maximum size of repulsion $f_{rep}$.
+
+We are going to create the model step by step with the corresponding tests to check that it works properly.
+
+## Load the package and the plotting functions
+
 
 ```julia
 using CellBasedModels
 using GLMakie
-GLMakie.inline!(true)
+Makie.inline!(true);
 ```
+
+## Construct the AgentBasedModel (ABM)
+
+We are going to make the simulations of a model in 2D. By declaring a model with `ABM(2,...)` we are already declaring a model that includes two agent parameters: `x` and `y`. Agent parameters are parameters that have a value for each agent independently. 
+
+If we want to have track of the forces exerted over each particle, we need to define additionally two more agent parameters:
+
+ - `fx`
+ - `fy`
+
+Additionally, our model has several global parameters. That is, parameters that are shared among all the agents in the system. Those are:
+
+ - `rRep`: radius of repulsion
+ - `frep`: force of repulsion
+ - `rAtr`: radius of attraction
+ - `fAtr`: force of atraction
+ - `D`: diffusion coefficient
+
+For defining the Stochastic Differential Equation, we will need to add two additional keyword arguments:
+
+- `agentODE`: Where we define the deterministic part of the SDE
+- `agentSDE`: Where we define the stochastic part of the SDE
+
+Let's create the model.
 
 
 ```julia
-model = Agent(2,
+model = ABM(2,
 
-    localFloatInteraction = [:fx,:fy],
+    #In the keyword argument agent we declare all the agent arguments and its scope
+    agent = Dict(
+            :fx => Float64,
+            :fy => Float64,
+        ),
 
-    globalFloat = [:rRep,:fRep,:rAtr,:fAtr,:D],
+    #In the keyword argument model we declare all the model arguments and its scope   
+    model = Dict(
+            :rRep => Float64,
+            :fRep => Float64,
+            :rAtr => Float64,
+            :fAtr => Float64,
+            :D => Float64
+        ),
 
-    updateInteraction = quote
-        d = euclideanDistance(x.i,x.j,y.i,y.j)
-        dx = (x.i-x.j)/d
-        dy = (y.i-y.j)/d
-        if d < rRep #Repulsion forces
-            fx.i += fRep*(rRep-d)*dx  
-            fy.i += fRep*(rRep-d)*dy  
-        elseif d < rAtr #Attraction forces
-            fx.i += -fAtr*(rAtr-d)*dx  
-            fy.i += -fAtr*(rAtr-d)*dy  
+    # In here we define the ODE part
+    agentODE = quote
+
+        # Compute adhesion and repulsion forces
+            #Reset the parameters to zero zero
+        fx = 0
+        fy = 0
+            #Go over the neighbors and add the forces, for that we use the macro @loopOverNeighbors(iteratorSymbol,code) see more in documentation
+        @loopOverNeighbors i2 begin
+            d = CBMMetrics.euclidean(x,x[i2],y,y[i2])
+            dirx = (x-x[i2])/d
+            diry = (y-y[i2])/d
+            if d < rRep #Repulsion forces
+                fx += fRep*(rRep-d)*dirx  
+                fy += fRep*(rRep-d)*diry  
+            elseif d < rAtr #Attraction forces
+                fx += -fAtr*(rAtr-d)*dirx  
+                fy += -fAtr*(rAtr-d)*diry  
+            end
         end
-    end,
-
-    updateVariable = quote
-        #Bounaries
+            #Add the forces comming from the boundary interaction
         if x < simBox[1,1]+rRep/2
             fx += fRep
         elseif x > simBox[1,2]-rRep/2
@@ -40,297 +108,298 @@ model = Agent(2,
         elseif y > simBox[2,2]-rRep/2
             fy -= fRep
         end
-        #Dynamics
-        d( x ) = dt( fx ) + dW( D )
-        d( y ) = dt( fy ) + dW( D )
+
+        # Finally, define the deterministic term of the SDE
+        dt(x) = fx
+        dt(y) = fy
     end,
-    
-    integrator=:Heun
+
+    # In here we define the SDE part
+    agentSDE = quote
+        # SDE term
+        dt(x) = D
+        dt(y) = D
+    end
 );
 ```
 
-## Test Attraction
+## Tests
+
+Now, we can test the correct definition of the properties. For that we are going to make two tests:
+
+ - Test 1: Repulsion the agents
+ - Test 2: Resulsion from boundaries
+
+### Test repulsion from boundaries
+
+For making this test we are going to create a simulation with two agents, put them close together and see how they separate from each other.
+
+For that we use the object `Community(ABM, kwargs...)` and we are going to define the following arguments:
+
+ - `N`: The number of agents of the model.
+ - `dt`: The integration step.
+ - `simBox`: The simulation space. 
+
+Then, we will initialize the model and agent parameters.
 
 
 ```julia
 simBox = [-5. 5; -2 2]
-com = Community(model,N=[2],
-        rRep=.8,
-        fRep=1,
-        rAtr=1.,
-        fAtr=1.,
-        x=[-.1,.1],
-        y=[0.,0.],
-        dt=[.1],
+#Initialize community
+com = Community(model,
+        N=2,
+        dt=.1,
         simBox = simBox
         );
+
+#Setup user paramaters
+        #Constants
+com.rRep=.8
+com.fRep=1
+com.rAtr=1.
+com.fAtr=1.
+        #Agent parameters
+com.x=[-.1,.1]
+com.y=[0.,0.];
+# If we do not define fx and fy, they are initialy set to zeros
 ```
+
+Now that everything is set, we can evolve the community with the function `evolve!` for some number of steps.
 
 
 ```julia
-evolve!(com,steps=50,saveCurrentState=true)
+evolve!(com,steps=50)
 ```
+
+And now, we visualize the results using Makie.
+
+For that, we extract from the community all the parameters that we want to plot for all times.
 
 
 ```julia
-d = getParameter(com,[:x,:y])
+d = getParameter(com,[:t,:x,:y,:fx,:fy])
+```
 
-fig = Figure(resolution=(5000,550))
+And then we construct the plot.
 
-for (i,time) in enumerate(1:round(Int64,length(com)/5):length(com))
-    ax = Axis(fig[1,i])
+
+```julia
+#Make the plot
+fig = Figure(resolution=(1100,550))
+
+#Plot the spheres at different times
+for (j,i) in enumerate(1:5:20) #Step times
+    #Create axis
+    ax = Axis(fig[1,j],title="t = $(round(d[:t][i],digits=2))")
+    #Add a simulation box rectangle in the background
     mesh!(ax, [simBox[1,1] simBox[2,1];simBox[1,1] simBox[2,2];simBox[1,2] simBox[2,2];simBox[1,2] simBox[2,1]], [1 2 4; 2 3 4], color=:lightgrey)
-    meshscatter!(ax,d[:x][time],d[:y][time],markersize=com[:rAtr][1]/2,color=(:blue,.3),transparency=true)
-    meshscatter!(ax,d[:x][time],d[:y][time],markersize=com[:rRep][1]/2,color=:red)
-    xlims!(ax,-3,3)
+    #Add spheres with attraction radius    
+    meshscatter!(ax,d[:x][i],d[:y][i],markersize=com[:rAtr][1]/2,color=(:blue,.3),transparency=true)
+    #Add spheres with attraction radius
+    meshscatter!(ax,d[:x][i],d[:y][i],markersize=com[:rRep][1]/2,color=:red)
+    #Define the limits
+    xlims!(ax,-2,2)
     ylims!(ax,-2,2)
 end
 
-fig
+#Plot position over time of one of the particles
+ax = Axis(fig[2,1:2],title="distance",xlabel="t",ylabel="|x₁-x₂|")
+lines!(d[:t],[abs(j-i) for (i,j) in d[:x]])
+
+#Plot forces over time of one of the particles
+ax = Axis(fig[2,3:4],title="fx",xlabel="t",ylabel="|fx|")
+lines!(d[:t],[abs(i) for (i,j) in d[:fx]])
+
+#Show the plots
+display(fig)
 ```
 
 
     
-![png](Aggregation_files/Aggregation_6_0.png)
+![png](Aggregation_files/Aggregation_12_0.png)
     
 
 
-## Test boundaries
+### Test repulsion from boundaries
+
+Now that we have shown the process, we do the same for the boundaries.
 
 
 ```julia
-simBox = [-5. 5; -2 2]
-com = Community(model,N=[1],
-        rRep=.8,
-        fRep=1,
-        rAtr=1.,
-        fAtr=1.,
-        x=[0.],
-        y=[-2.5],
-        dt=[.1],
-        simBox = simBox
+simBox = [-2. 2; -2 2]
+#Initialize community
+com = Community(model,
+        N=1,
+        dt=.1,
+        simBox = simBox,
         );
+
+#Setup user paramaters
+com.rRep=.8
+com.fRep=1
+com.rAtr=1.
+com.fAtr=1.
+com.x=[0]
+com.y=[-2.5];
 ```
 
 
 ```julia
-evolve!(com,steps=20,saveCurrentState=true)
+#Evolve
+evolve!(com,steps=15)
 ```
 
 
 ```julia
-d = getParameter(com,[:x,:y])
+#Get parameters
+d = getParameter(com,[:t,:x,:y,:fx,:fy])
+```
 
-fig = Figure(resolution=(5000,500))
 
-for (i,time) in enumerate(1:round(Int64,length(com)/5):length(com))
-    ax = Axis(fig[1,i])
+```julia
+#Plot
+fig = Figure(resolution=(1100,550))
+
+#Plot visually the results
+for (j,i) in enumerate(1:4:13)
+    ax = Axis(fig[1,j],title="t = $(round(d[:t][i],digits=2))")
     mesh!(ax, [simBox[1,1] simBox[2,1];simBox[1,1] simBox[2,2];simBox[1,2] simBox[2,2];simBox[1,2] simBox[2,1]], [1 2 4; 2 3 4], color=:lightgrey)
-    meshscatter!(ax,d[:x][time],d[:y][time],markersize=com[:rAtr][1]/2,color=(:blue,.3),transparency=true)
-    meshscatter!(ax,d[:x][time],d[:y][time],markersize=com[:rRep][1]/2,color=:red)
-    xlims!(ax,-6,6)
+    meshscatter!(ax,d[:x][i],d[:y][i],markersize=com[:rAtr][1]/2,color=(:blue,.3),transparency=true)
+    meshscatter!(ax,d[:x][i],d[:y][i],markersize=com[:rRep][1]/2,color=:red)
+    xlims!(ax,-3,3)
     ylims!(ax,-3,3)
 end
 
-fig
+#Plot position in i
+ax = Axis(fig[2,1:2],title="distance",xlabel="t",ylabel="|x₁+2|")
+lines!(d[:t],[i+2 for (i,) in d[:y]])
+
+#Plot forces in i
+ax = Axis(fig[2,3:4],title="fx",xlabel="t",ylabel="|fx|")
+lines!(d[:t],[abs(i) for (i,) in d[:fy]])
+
+display(fig)
 ```
 
 
     
-![png](Aggregation_files/Aggregation_10_0.png)
+![png](Aggregation_files/Aggregation_17_0.png)
     
 
 
-# Add noise
+# Constructing over a predefined model
+
+Now that we know that everything works for the model, we could start scaling it to many particles. But before we do that, we would like to add one more property to it as we would like to study the behavior of the particles as we cool down the movement. 
+
+For that, we want to make a new model that have exactly the same behaviour as before but in addition we want that the model parameter `D` that controld the diffusion strength is lowered down slowly.
+
+We could rewrite all the model again from scratch, but in this case that is not necessary. We can define a new model that uses as a base the previous one and add the additional property.
+
+Let's define the cooling down of the model with an exponential decay:
+
+$$dD = -\alpha_TDdt$$
 
 
 ```julia
-model2 = Agent(2,
+model2 = ABM(2,
 
-    localFloatInteraction = [:fx,:fy],
+    #Import the previous model
+    baseModelInit = [model],
 
-    globalFloat = [:rRep,:fRep,:rAtr,:fAtr,:D],
+    #Add an additional model parameter that defines the speed of the diffusion parameter decay
+    model = Dict(
+        :αT => Float64
+    ),
 
-    updateInteraction = quote
-        d = euclideanDistance(x.i,x.j,y.i,y.j)
-        dx = (x.i-x.j)/d
-        dy = (y.i-y.j)/d
-        if d < rRep #Repulsion forces
-            fx.i += fRep*(rRep-d)*dx  
-            fy.i += fRep*(rRep-d)*dy  
-        elseif d < rAtr #Attraction forces
-            fx.i += -fAtr*(rAtr-d)*dx  
-            fy.i += -fAtr*(rAtr-d)*dy  
-        end
+    #Add a ODE to describe the difussion
+    modelODE = quote
+        dt(D) = -αT*D
     end,
-
-    updateVariable = quote
-        #Bounaries
-        if x < simBox[1,1]+rRep/2
-            fx += fRep
-        elseif x > simBox[1,2]-rRep/2
-            fx -= fRep        
-        end
-        if y < simBox[2,1]+rRep/2
-            fy += fRep
-        elseif y > simBox[2,2]-rRep/2
-            fy -= fRep
-        end
-        #Dynamics
-        d( x ) = dt( fx ) + dW( D )
-        d( y ) = dt( fy ) + dW( D )
-    end,
-
-    updateGlobal= quote
-        if t < 100
-            fAtr = 0.
-        elseif t > 100 && t < 400
-            fAtr = 2.
-        else
-            fAtr = 0.
-        end
-    end,
-
-    integrator=:Heun
 );
 ```
+
+### Evolve the model an check the behaviour
+
+We can define now a now Commmunity and see the evolution in time. We can check that as the diffusion constant is reduced the particles start to aggregate as the adhesion forces dominate the behaviour over the active term.
 
 
 ```julia
 simBox = [-10. 10; -10 10]
 N = 100
-com = Community(model,N=[N],
-        rRep=.8,
-        fRep=1,
-        rAtr=1.,
-        fAtr=2.,
-        x = 20 .*rand(N) .-10,
-        y = 20 .*rand(N) .-10,
-        dt=[.1],
-        D=[.1],
-        simBox = simBox
-        );
+com = Community(model2,
+        N=N,
+        dt=0.1,
+        simBox = simBox,
+        agentAlg = CBMIntegrators.EM(),
+        modelAlg = DifferentialEquations.Euler(),
+        neighborsAlg = CBMNeighbors.CellLinked(cellEdge=2),
+        )
+
+com.rRep=.8
+com.fRep=1
+com.rAtr=1.
+com.fAtr=1.
+com.αT=.001 
+com.x = 20 .*rand(N) .-10
+com.y = 20 .*rand(N) .-10
+com.D=.15
 ```
 
 
+    0.15
+
+
+
 ```julia
-evolve!(com,steps=6000,saveEach=20,saveCurrentState=true)
+evolve!(com,steps=8000,saveEach=1)
 ```
 
 
 ```julia
 d = getParameter(com,[:x,:y])
 
-fig = Figure(resolution=(5000,900))
+fig = Figure(resolution=(1400,200))
 
-for (i,time) in enumerate(1:round(Int64,length(com)/5):length(com))
-    ax = Axis(fig[1,i])
+for (pos,i) in enumerate(1:999:8000)
+    ax = Axis(fig[1,pos],title="D=$(round(com[i].D[1],digits=4))")
     mesh!(ax, [simBox[1,1] simBox[2,1];simBox[1,1] simBox[2,2];simBox[1,2] simBox[2,2];simBox[1,2] simBox[2,1]], [1 2 4; 2 3 4], color=:lightgrey)
-    meshscatter!(ax,d[:x][time],d[:y][time],markersize=com[:rAtr][1]/2,color=(:blue,.3),transparency=true)
-    meshscatter!(ax,d[:x][time],d[:y][time],markersize=com[:rRep][1]/2,color=:red)
+    meshscatter!(ax,d[:x][i],d[:y][i],markersize=com[:rAtr][1]/2,color=(:blue,.0),transparency=true)
+    meshscatter!(ax,d[:x][i],d[:y][i],markersize=com[:rRep][1]/2,
+                color=[com[i].D[1] for i in 1:100],
+                colorrange=(0.,0.15),
+                colormap=:reds
+                )
     xlims!(ax,(simBox[1,:].+[-1,1])...)
     ylims!(ax,(simBox[2,:].+[-1,1])...)
     # lines!(ax,[i[1] for i in d[:x]],[i[1] for i in d[:y]])
 end
 
-fig
+# save("agg.png",fig)
+
+display(fig)
 ```
 
 
     
-![png](Aggregation_files/Aggregation_15_0.png)
+![png](Aggregation_files/Aggregation_23_0.png)
     
 
 
+## Neighbors computational dependence
 
-```julia
-d = getParameter(com,[:x,:y,:fAtr])
-colorMap = Dict(1=>:blue,2=>:orange,3=>:green)
-for (i,time) in enumerate(1:length(com))
-    fig = Figure(resolution=(2000,2000))
-    ax = Axis(fig[1,1],title=string("Adhesion: ",d[:fAtr][time][1]),titlesize=70)
-    mesh!(ax, [simBox[1,1] simBox[2,1];simBox[1,1] simBox[2,2];simBox[1,2] simBox[2,2];simBox[1,2] simBox[2,1]], [1 2 4; 2 3 4], color=:lightgrey)
-    meshscatter!(ax,d[:x][time],d[:y][time],markersize=com[:rAtr][1]/2,color=(:blue,.3),transparency=true)
-    meshscatter!(ax,d[:x][time],d[:y][time],markersize=com[:rRep][1]/2,color=:red)
-    xlims!(ax,(simBox[1,:].+[-1,1])...)
-    ylims!(ax,(simBox[2,:].+[-1,1])...)
+It may be tempting to run simulations with a large number of particles. However, as we increase the number of particles, the computational time increases quadratically with the system size. 
 
-    ind = "000$i"
-    save("video/Coalescence$(ind[end-2:end]).jpeg",fig)
-end
-```
+This is due to the fact that the interaction forces in `@loopOverNeighbors` check all the forces over all neighbors. However, in this model only particles that are close together really interact. 
 
-## Neighbors
+In CellBasedModels there are implementations of more efficient neighbors searching methods. You can provide them when creating the Community model.
+
+Check how alternative algorithms improve the speeding time.
 
 
 ```julia
-model = Agent(2,
-
-    localFloatInteraction = [:fx,:fy],
-
-    globalFloat = [:rRep,:fRep,:rAtr,:fAtr,:D],
-
-    updateInteraction = quote
-        d = euclideanDistance(x.i,x.j,y.i,y.j)
-        dx = (x.i-x.j)/d
-        dy = (y.i-y.j)/d
-        if d < rRep #Repulsion forces
-            fx.i += fRep*(rRep-d)*dx  
-            fy.i += fRep*(rRep-d)*dy  
-        elseif d < rAtr #Attraction forces
-            fx.i += -fAtr*(rAtr-d)*dx  
-            fy.i += -fAtr*(rAtr-d)*dy  
-        end
-    end,
-
-    updateVariable = quote
-        #Bounaries
-        if x < simBox[1,1]+rRep/2
-            fx += fRep
-        elseif x > simBox[1,2]-rRep/2
-            fx -= fRep        
-        end
-        if y < simBox[2,1]+rRep/2
-            fy += fRep
-        elseif y > simBox[2,2]-rRep/2
-            fy -= fRep
-        end
-        #Dynamics
-        d( x ) = dt( fx ) + dW( D )
-        d( y ) = dt( fy ) + dW( D )
-    end,
-    
-    integrator=:Heun
-);
-```
-
-
-```julia
-modelFull = Agent(2,
-    baseModelInit = [model],
-    integrator = :Heun,
-    neighbors = :Full
-);
-modelVerlet = Agent(2,
-    baseModelInit = [model],
-    integrator = :Heun,
-    neighbors = :VerletDisplacement
-);
-modelCellLinked = Agent(2,
-    baseModelInit = [model],
-    integrator = :Heun,
-    neighbors = :CellLinked
-);
-```
-
-
-```julia
-function initialize(model,N,simBox)
-        return Community(model,N=[N],
+function initialize(model,N,simBox,neighbors)
+        return Community(model,N=N,
                 simBox = simBox,
-                nMaxNeighbors = [100],
-                skin = [4.],
-                cellEdge = [2.,2.],
                 
                 rRep=.8,
                 fRep=1,
@@ -339,7 +408,9 @@ function initialize(model,N,simBox)
                 D = .5,
                 x=rand(N).*(simBox[1,2]-simBox[1,1]).+simBox[1,1],
                 y=rand(N).*(simBox[2,2]-simBox[2,1]).+simBox[2,1],
-                dt=[.1],
+                dt=.1,
+                agentAlg = CBMIntegrators.EM(),
+                neighborsAlg=neighbors
                 );
 end;
 ```
@@ -358,16 +429,19 @@ for S in 1:.5:7
     n = round(Int64,ρ*(simBox[1,2]-simBox[1,1])*(simBox[2,2]-simBox[2,1]))
     push!(N,n)
 
-    com = initialize(modelFull,n,simBox);
+    com = initialize(model2,n,simBox,CBMNeighbors.Full()); #Full (default) algorithm
+    evolve!(com,steps=10,saveEach=10,saveCurrentState=true)
     t = @elapsed evolve!(com,steps=1000,saveEach=10,saveCurrentState=true)
     push!(tFull,t)
 
-    com = initialize(modelVerlet,n,simBox);
-    t = @elapsed evolve!(com,steps=1000,saveEach=10,saveCurrentState=true)
+    com2 = initialize(model2,n,simBox,CBMNeighbors.VerletDisplacement(skin=2,nMaxNeighbors=20)); #Verlet list algorithm
+    evolve!(com2,steps=10,saveEach=10,saveCurrentState=true)
+    t = @elapsed evolve!(com2,steps=1000,saveEach=10,saveCurrentState=true)
     push!(tVerlet,t)
 
-    com = initialize(modelCellLinked,n,simBox);
-    t = @elapsed evolve!(com,steps=1000,saveEach=10,saveCurrentState=true)
+    com3 = initialize(model2,n,simBox,CBMNeighbors.CellLinked(cellEdge=2)); #Cell linked algorithm
+    evolve!(com3,steps=10,saveEach=10,saveCurrentState=true)
+    t = @elapsed evolve!(com3,steps=1000,saveEach=10,saveCurrentState=true)
     push!(tCellLinked,t)
 end
 ```
@@ -382,40 +456,11 @@ l2 = scatter!(ax,Float64.(N),Float64.(tVerlet))
 l3 = scatter!(ax,Float64.(N),Float64.(tCellLinked))
 Legend(fig[1,2],[l1,l2,l3],["Full","Verlet List","Cell Linked"])
 
-fig
+display(fig)
 ```
 
 
     
-![png](Aggregation_files/Aggregation_22_0.png)
+![png](Aggregation_files/Aggregation_27_0.png)
     
 
-
-
-```julia
-d = getParameter(com,[:x,:y])
-
-fig = Figure(resolution=(5000,600))
-
-for (i,time) in enumerate(1:round(Int64,length(com)/5):length(com))
-    ax = Axis(fig[1,i])
-    mesh!(ax, [simBox[1,1] simBox[2,1];simBox[1,1] simBox[2,2];simBox[1,2] simBox[2,2];simBox[1,2] simBox[2,1]], [1 2 4; 2 3 4], color=:lightgrey)
-    meshscatter!(ax,d[:x][time],d[:y][time],markersize=com[:rAtr][1]/2,color=(:blue,.3),transparency=true)
-    meshscatter!(ax,d[:x][time],d[:y][time],markersize=com[:rRep][1]/2,color=:red)
-    xlims!(ax,(simBox[1,:].*1.1)...)
-    ylims!(ax,(simBox[2,:].*1.1)...)
-end
-
-fig
-```
-
-
-    
-![png](Aggregation_files/Aggregation_23_0.png)
-    
-
-
-
-```julia
-
-```

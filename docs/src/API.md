@@ -68,6 +68,10 @@ CBMMetrics.@euclidean
 CBMMetrics.manhattan
 CBMMetrics.@manhattan
 CBMMetrics.cellInMesh
+CBMMetrics.intersection2lines
+CBMMetrics.point2line
+CBMMetrics.pointInsideRod
+CBMMetrics.rodIntersection
 ```
 
 ## Random
@@ -114,4 +118,10 @@ CBMFitting.gridSearch
 CBMFitting.swarmAlgorithm
 CBMFitting.beeColonyAlgorithm
 CBMFitting.geneticAlgorithm
+```
+
+## Plotting
+
+```@docs
+CBMPlots.plotRods2D!
 ```

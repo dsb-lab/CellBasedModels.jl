@@ -11,7 +11,7 @@ module CellBasedModels
     using DataFrames
     using CSV
     using JLD2
-    # import GeometryBasics, GLMakie
+    import GeometryBasics
     import MacroTools: postwalk, prewalk, @capture, inexpr, prettify, gensym, flatten, unblock, isexpr
     export prettify
     import SpecialFunctions
@@ -88,9 +88,8 @@ module CellBasedModels
     export CBMModels
     include("./models/models.jl")
 
-    # #Visualization functions
-    # export plotSpheres, plotRods, videoRods
-    # include("./plotting/rods.jl")
-    # include("./plotting/spheres.jl")
+    #Visualization functions
+    export CBMPlots
+    include("./plotting/plotting.jl")
 
 end

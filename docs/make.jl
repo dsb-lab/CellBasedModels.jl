@@ -12,13 +12,14 @@ pages = [
         "Usage_Community.md",
         "Usage_Fitting.md",
     ],
-    "ImplementedModels.md",
     "Examples" => [
         "Patterning.md",
         "Development.md",
         "Aggregation.md",
-        "Bacteries.md"
+        "Bacteries.md",
+        "Chemotaxis.md"
     ], 
+    "Models.md",
     "API.md",
     "APIdevelopers.md"
 ],

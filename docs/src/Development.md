@@ -1,6 +1,6 @@
 # [ICM Development](@id Development)
 
-The model from Saiz et al has three parts in the model
+The model from [Saiz et al.](https://elifesciences.org/articles/56079) has three parts in the model
 
 ## Definition of the model
 
@@ -55,17 +55,26 @@ The cells present division. The rules for the division in this model are. Random
 
 ```julia
 #Package
-using AgentBasedModels
+using CellBasedModels
 #Functions for generating random distributions
 using Random
 using Distributions
 #Package for plotting in 3D
 using GLMakie
-GLMakie.inline!(true)
+Makie.inline!(true)
 
 using CSV
 using DataFrames
 ```
+
+    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mPrecompiling CellBasedModels [388cb286-f2b1-4654-a3bb-2e137a39c658]
+    WARNING: Method definition plotRods2D!(Any, Any, Any, Any, Any, Any) in module CBMPlots at /home/gabriel/CellBasedModels.jl/src/plotting/rods.jl:14 overwritten at /home/gabriel/CellBasedModels.jl/src/plotting/rods.jl:51.
+      ** incremental compilation may be fatally broken for this module **
+    
+    WARNING: Method definition plotRods2D!##kw(Any, typeof(CellBasedModels.CBMPlots.plotRods2D!), Any, Any, Any, Any, Any, Any) in module CBMPlots at /home/gabriel/CellBasedModels.jl/src/plotting/rods.jl:14 overwritten at /home/gabriel/CellBasedModels.jl/src/plotting/rods.jl:51.
+      ** incremental compilation may be fatally broken for this module **
+    
+
 
 ### Define the agent
 
@@ -73,79 +82,97 @@ First, we have to create an instance of an agent with all the propoerties of the
 
 
 ```julia
-model = Agent(3,
+model = ABM(3,
 
     #Inherit model mechanics
-    baseModelInit = [Models.softSpheres3D],
+    baseModelInit = [CBMModels.softSpheres3D],
 
     #Global parameters
-    globalFloat = [
+    model = Dict(
         #Chemical constants
-        :α, :K, :nn, :mm,
+        :α=>Float64, 
+        :K=>Float64, 
+        :nn=>Float64, 
+        :mm=>Float64,
         #Physical constants
-        :fRange, :mi, :ri, :k0,
+        :fRange=>Float64, 
+        :mi=>Float64, 
+        :ri=>Float64, 
+        :k0=>Float64,
         #Division constants
-        :fAdh, :τDiv, :σDiv, :c0, :σc, :nCirc, :σNCirc,
-        :fMin, :fMax, :fPrE, :fEPI, :τCirc, :στCirc, :rESC,
-        :nOn, :cMax
-    ],
+        :fAdh=>Float64, 
+        :τDiv=>Float64, 
+        :σDiv=>Float64, 
+        :c0=>Float64, 
+        :σc=>Float64, 
+        :nCirc=>Float64, 
+        :σNCirc=>Float64,
+        :fMin=>Float64, 
+        :fMax=>Float64, 
+        :fPrE=>Float64, 
+        :fEPI=>Float64, 
+        :τCirc=>Float64, 
+        :στCirc=>Float64, 
+        :rESC=>Float64,
+        :nOn=>Float64, 
+        :cMax=>Float64
+    ),
     #Local float parameters
-    localFloat = [
-        :c,
-        :tDivision #Variable storing the time of division of the cell
-    ],
-    #Local interactions
-    localFloatInteraction = [
-        :ci, #Chemical activity of the neighbors
-        :ni  #Number of neighbors
-    ],
-    #Local integer parameters
-    localInt = [
-        :tOff,    #indicate if the circuit for that cell is on or off (0,1)
-        :cellFate #Identity of the cell (1 DP, 2 EPI, 3 PRE)
-    ],
+    agent = Dict(
+        :c=>Float64,
+        :tDivision=>Float64, #Variable storing the time of division of the cell
+        :ci=>Float64, #Chemical activity of the neighbors
+        :ni=>Float64,  #Number of neighbors
+        :tOff=>Bool,    #indicate if the circuit for that cell is on or off (0,1)
+        :cellFate=>Int64 #Identity of the cell (1 DP, 2 EPI, 3 PRE)
+    ),
     #Chemical dynamics
-    updateVariable = quote
-        act = 0.
-        if tOff == 0 && N > nOn #Activate circuit
-            act = 1.
-        else
-            act = 0.
+    agentODE = quote
+
+        ni = 0
+        ci = 0
+        @loopOverNeighbors it2 begin
+            dij = CBMMetrics.euclidean(x,x[it2],y,y[it2],z,z[it2])
+            rij = r+r[it2]
+            if dij < fRange*rij
+                ni += 1
+                ci += c[it2]
+            end
         end
-        d( c ) = dt( act * ( α*(1+c^nn)^mm/((1+c^nn)^mm+(1+(ci/(ni+1))/K)^(2*mm))-c ) )
+
+        if tOff == false && N > nOn #Activate circuit
+            dt( c ) = α*(1+c^nn)^mm/((1+c^nn)^mm+(1+(ci/ni)/K)^(2*mm)) - c
+        end
+
     end,
     #Interaction computation
-    updateInteraction= quote
-        dij = euclideanDistance(x.i,x.j,y.i,y.j,z.i,z.j)
-        if dij < fRange*rij #Unnecessary to compute dij and rij again, previously computed in UpdateInteraction
-            ni.i += 1
-            ci.i += c.j
-        end 
-    end,
-    updateLocal=quote
-        #Circuit deactivation and comitment
-        if c < fPrE*cMax && tOff == 0 && N > nOn
+    agentRule=quote
+        #Circuit deactivation and commitment
+        if c < fPrE*cMax && tOff == false && N > nOn
             cellFate = 3
-            tOff = 1
-        elseif c > fEPI*cMax && tOff == 0 && N > nOn
+        elseif c > fEPI*cMax && tOff == false && N > nOn
             cellFate = 2
-            tOff = 1
+        end
+
+        if c < fMin*cMax && tOff == false && N > nOn
+            tOff = true
+        elseif c > fMax*cMax && tOff == false && N > nOn
+            tOff = true
         end
 
         #Growth
         if t > tDivision
             #Choose random direction in unit sphere
-            xₐ = Normal(0,1); yₐ = Normal(0,1); zₐ = Normal(0,1)
+            xₐ = CBMDistributions.normal(0,1); yₐ = CBMDistributions.normal(0,1); zₐ = CBMDistributions.normal(0,1)
             Tₐ = sqrt(xₐ^2+yₐ^2+zₐ^2)
             xₐ /= Tₐ;yₐ /= Tₐ;zₐ /= Tₐ    
 
             #Chose a random distribution of the material
-            dist = Uniform(1-σc,1+σc)
+            dist = CBMDistributions.uniform(1-σc,1+σc)
 
             rsep = r/2
             rnew = r/(2. ^(1. /3))
-            
-            addAgent( #Add new agent
+            @addAgent( #Add new agent
                 x = x+rsep*xₐ,
                 y = y+rsep*yₐ,
                 z = z+rsep*zₐ,
@@ -155,9 +182,9 @@ model = Agent(3,
                 r = rnew,
                 m = m/2,
                 c = c*(dist),
-                tDivision = tDivision + Uniform(τDiv*(1-σDiv),τDiv*(1+σDiv))
+                tDivision = t + CBMDistributions.uniform(τDiv*(1-σDiv),τDiv*(1+σDiv))
             )
-            addAgent( #Add new agent
+            @addAgent( #Add new agent
                 x = x-rsep*xₐ,
                 y = y-rsep*yₐ,
                 z = z-rsep*zₐ,
@@ -167,14 +194,12 @@ model = Agent(3,
                 r = rnew,
                 m = m/2,
                 c = c*(2-dist),
-                tDivision = tDivision + Uniform(τDiv*(1-σDiv),τDiv*(1+σDiv))
+                tDivision = t + CBMDistributions.uniform(τDiv*(1-σDiv),τDiv*(1+σDiv))
             )
-            removeAgent() # Remove agent that divided
+            @removeAgent() # Remove agent that divided
             
         end
-    end,
-
-    integrator = :Heun
+    end
 );
 ```
 
@@ -189,30 +214,31 @@ The model from the original version has some parameters defined. We create a dic
 
 ```julia
 parameters = Dict([
-:α => 10,
-:K => .9,
-:nn => 2,
-:mm => 2,
-:fRange => 1.2,
-:mi => 10E-6,
-:ri => 5,
-:b => 10E-6,
-:k0 => 10E-4,
-:fAdh => 1.5,
-:μ => 2,
-:τDiv => 10,
-:σDiv => .5,
-:c0 => 3,
-:σc => 0.01,
-:nCirc => 20,
-:σNCirc => .1,
-:fMin => .05,
-:fMax => .95,
-:fPrE => .2,
-:fEPI => .8,
-:τCirc => 45.,
-:στCirc => .02,
-:rESC => 2
+    :α => 10,
+    :K => .9,
+    :nn => 2,
+    :mm => 2,
+    :fRange => 1.2,
+    :mi => 10E-6,
+    :ri => 5,
+    :b => 10E-6,
+    :k0 => 10E-4,
+    :fAdh => 1.5,
+    :μ => 2,
+    :τDiv => 10,
+    :σDiv => .5,
+    :c0 => 3,
+    :σc => 0.01,
+    :nCirc => 20,
+    :σNCirc => .1,
+    :fMin => .05,
+    :fMax => .95,
+    :fPrE => .2,
+    :fEPI => .8,
+    :τCirc => 45.,
+    :στCirc => .02,
+    :rESC => 2,
+    :f0 => [1 1 1;1 1 1;1 1 1]
 ]);
 ```
 
@@ -222,25 +248,30 @@ The model starts from just one agent. Create the community and assign all the pa
 
 
 ```julia
-function initializeEmbryo(parameters)
+function initializeEmbryo(parameters;dt)
 
-    com = Community(model,N=[1])
+    com = Community(
+                model,
+                N=1,
+                dt=dt,
+                agentAlg=CBMIntegrators.Heun()
+                )
 
     #Global parameters
     for (par,val) in pairs(parameters)
-        setproperty!(com,par,val)
+        com[par] = val
     end
 
     com.nOn = rand(Uniform(parameters[:nCirc]-parameters[:σNCirc],parameters[:nCirc]+parameters[:σNCirc]))
     com.cMax = parameters[:α]/(1+1/(2*parameters[:K])^(2*parameters[:mm]))
 
     #########Local parameters and variables###########
-    com.f0 = parameters[:k0]# / parameters[:fAdh]
+    com.f0 = parameters[:k0].*parameters[:f0]# / parameters[:fAdh]
     #Initialise locals
     com.m = parameters[:mi]
     com.r = parameters[:ri]
     com.cellFate = 1 #Start neutral fate
-    com.tOff = 0 #Start with the tOff deactivated
+    com.tOff = false #Start with the tOff deactivated
     #Initialise variables
     com.x = 0.
     com.y = 0.
@@ -258,20 +289,18 @@ end;
 
 
 ```julia
-com = initializeEmbryo(parameters);
+com = initializeEmbryo(parameters,dt=0.001);
 ```
 
 ## Creating a custom evolve step
 
 
 ```julia
-function customEvolve!(com,dt,steps,saveEach)
-    com.dt = dt
+function customEvolve!(com,steps,saveEach)
     loadToPlatform!(com,preallocateAgents = 100)
     for i in 1:steps
-        interactionStep!(com)
-        integrationStep!(com)
-        localStep!(com)
+        agentStepDE!(com)
+        agentStepRule!(com)
         update!(com)
         computeNeighbors!(com)
         if i % saveEach == 0
@@ -281,6 +310,7 @@ function customEvolve!(com,dt,steps,saveEach)
         if all(com.N .> 60)
             break
         end
+        #println(com.c[1:com.N])
     end
     bringFromPlatform!(com)
 end;
@@ -288,12 +318,12 @@ end;
 
 
 ```julia
-dt = 0.002
+dt = 0.001
 steps = round(Int64,50/dt)
 saveEach = round(Int64,.5/dt)
 
-com = initializeEmbryo(parameters);
-customEvolve!(com,dt,steps,saveEach)
+com = initializeEmbryo(parameters,dt=dt);
+customEvolve!(com,steps,saveEach)
 ```
 
 ### Visualization of results
@@ -307,7 +337,7 @@ function getFates(com)
 
     dict = Dict()
     dict["t"] = [i[1] for i in d[:t]]
-    dict["N"] = [length(i) for i in d[:cellFate]] 
+    dict["N"] = [length(i) for i in d[:cellFate]]
     for (fateNumber, fate) in zip([1,2,3],["DP","EPI","PRE"])
         dict[fate] = [sum(i.==fateNumber) for i in d[:cellFate]] 
     end
@@ -318,31 +348,36 @@ end;
 
 
 ```julia
-fig = Figure(resolution=(2000,500))
+colorMap = Dict("DP"=>Makie.wong_colors()[1],"EPI"=>Makie.wong_colors()[2],"PRE"=>Makie.wong_colors()[3])
+colorMapNum = Dict(1=>Makie.wong_colors()[1],2=>Makie.wong_colors()[2],3=>Makie.wong_colors()[3]);
+```
+
+
+```julia
+fig = Figure(resolution=(1500,300))
 
 d = getParameter(com,[:x,:y,:z,:r,:cellFate])
-colorMap = Dict(1=>:blue,2=>:orange,3=>:green)
-for (i,pos) in enumerate([1:round(Int64,length(com)/5):length(com);length(com)])
+for (i,pos) in enumerate([1:round(Int64,length(com)/4):length(com);length(com)])
     ax = Axis3(fig[1,i],aspect = :data)
-    color = [colorMap[i] for i in d[:cellFate][pos]]
+    color = [colorMapNum[i] for i in d[:cellFate][pos]]
     meshscatter!(ax,d[:x][pos],d[:y][pos],d[:z][pos],markersize=d[:r][pos],color=color)
     xlims!(ax,-5,5)
     ylims!(ax,-5,5)
     zlims!(ax,-5,5)
 end
 
-fig
+display(fig)
 ```
 
 
     
-![png](Development_files/Development_16_0.png)
+![png](Development_files/Development_17_0.png)
     
 
 
 
 ```julia
-fig = Figure(resolution=(2000,800))
+fig = Figure(resolution=(1500,600))
 
 ax = Axis(fig[1,1],xlabel="Time",ylabel="Proportions",xlabelsize=40,ylabelsize=40)
 fates = getFates(com)
@@ -350,18 +385,18 @@ offset = zeros(length(fates["N"]))
 plots = []
 for i in ["DP","EPI","PRE"]
     prop = fates[i]./fates["N"]
-    p = barplot!(ax,fates["t"],prop,offset=offset)
+    p = barplot!(ax,fates["t"],prop,offset=offset,color=colorMap[i])
     push!(plots,p)
     offset .+= prop
 end
 Legend(fig[1,1], plots, ["DP","EPI","PRE"], halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=40)
 
-fig
+display(fig)
 ```
 
 
     
-![png](Development_files/Development_17_0.png)
+![png](Development_files/Development_18_0.png)
     
 
 
@@ -371,14 +406,15 @@ This model contains stochasticity in the division times and the concentration of
 
 
 ```julia
-function makeStatistics(parameters,dt,steps,saveEach,nRepetitions)
+function makeStatistics(comBase,parameters,dt,steps,saveEach,nRepetitions)
 
     #Make simulations and add results to list
     d = Dict("id"=>Int64[],"N"=>Int64[],"t"=>Float64[],"DP"=>Int64[],"EPI"=>Int64[],"PRE"=>Int64[])
     for i in 1:nRepetitions
         #Make the simulations
-        com = initializeEmbryo(parameters);
-        customEvolve!(com,dt,steps,saveEach)
+        com = initializeEmbryo(parameters,dt=dt);
+        setfield!(com,:abm,comBase.abm) #Avoid world problem assigning the functions of globally declared function model
+        customEvolve!(com,steps,saveEach)
     
         #Add them to the model
         fates = getFates(com)
@@ -396,13 +432,12 @@ end;
 
 
 ```julia
-dt = 0.002
+dt = 0.001
 steps = round(Int64,50/dt)
 saveEach = round(Int64,1/dt)
-
 nRepetitions = 5
 
-prop = makeStatistics(parameters,dt,steps,saveEach,nRepetitions);
+prop = makeStatistics(com,parameters,dt,steps,saveEach,nRepetitions);
 ```
 
 
@@ -411,22 +446,22 @@ fig = Figure(resolution=(1000,800))
 
 ax = Axis(fig[1,1],xlabel="N",xlabelsize=40,ylabel="proportions",ylabelsize=40)
 for i in ["DP","EPI","PRE"]
-    boxplot!(ax,prop["N"],prop[i]./prop["N"])
+    boxplot!(ax,prop["N"],prop[i]./prop["N"],color=colorMap[i])
 end
 Legend(fig[1,1], plots, ["DP","EPI","PRE"], halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=40)
 
 ax = Axis(fig[2,1],xlabel="t",xlabelsize=40,ylabel="proportions",ylabelsize=40)
 for i in ["DP","EPI","PRE"]
-    boxplot!(ax,prop["t"],prop[i]./prop["N"])
+    boxplot!(ax,prop["t"],prop[i]./prop["N"],color=colorMap[i])
 end
 Legend(fig[2,1], plots, ["DP","EPI","PRE"], halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=40)
 
-fig
+display(fig)
 ```
 
 
     
-![png](Development_files/Development_21_0.png)
+![png](Development_files/Development_22_0.png)
     
 
 
@@ -442,7 +477,7 @@ We upload the experimental data that gives raise to this model.
 
 
 ```julia
-dataFull = CSV.read("data/ncoms-counts-Hc.csv",DataFrame)
+dataFull = CSV.read("data/development.csv",DataFrame)
 fates = ["DP","EPI","PRE"];
 ```
 
@@ -466,7 +501,7 @@ end
 
 
 ```julia
-fig = Figure(resolution=(2000,1000))
+fig = Figure(resolution=(1000,500))
 
 ax = Axis(fig[1,1],xlabel="N",xlabelsize=30,ylabel="Cell fates",ylabelsize=30)
 
@@ -474,7 +509,7 @@ offset = zeros(size(data["DP"])[1])
 legend = []
 order = sortperm(data["N"])
 for cellId in fates
-    bp = barplot!(ax,data[cellId][order], offset=offset)
+    bp = barplot!(ax,data[cellId][order], offset=offset, color = colorMap[cellId])
     push!(legend,bp)
     offset .+= data[cellId][order]
 end
@@ -483,23 +518,26 @@ fig
 ```
 
 
+
+
     
-![png](Development_files/Development_26_0.png)
+![png](Development_files/Development_27_0.png)
     
+
 
 
 We see that the data corresponds to sets ranging from 5 to 60 cells, being the usual sized between 5 to 30. 
 
 
 ```julia
-fig = Figure(resolution=(2000,800))
+fig = Figure(resolution=(1000,500))
 ax = Axis(fig[1,1])
 legend = []
 
 cluster = 1
 for cellId in fates
     Ngrouped = round.(Int64,data["N"]/cluster).*cluster
-    l = boxplot!(ax,Ngrouped,(data[cellId]./data["N"]),label=cellId)
+    l = boxplot!(ax,Ngrouped,(data[cellId]./data["N"]),label=cellId, color=colorMap[cellId])
     push!(legend,l)
 end
 Legend(fig[1,1], legend, fates, halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=40)
@@ -508,9 +546,12 @@ fig
 ```
 
 
+
+
     
-![png](Development_files/Development_28_0.png)
+![png](Development_files/Development_29_0.png)
     
+
 
 
 ### Set the exploration space
@@ -525,7 +566,10 @@ explore = Dict([
             :α=>(0,20),
             :K=>(0,2),
             :nn=>(0,5),
-            :mm=>(0,5)
+            :mm=>(0,5),
+            :nCirc=>(0,30),
+            :σNCirc=>(0,20),
+            :c0=>(0,20)
         ]);
 ```
 
@@ -548,7 +592,7 @@ The specific form of the function will depend on the optimization algorithm at h
 
 
 ```julia
-function loosFunction(params;parameters=parameters,data=data,nRepetitions=10,saveEach=10,dt=0.002)
+function loosFunction(params;parameters=parameters,data=data,nRepetitions=1,saveEach=10,dt=0.001)
 
     #Modify the set of parameters
     parametersModified = copy(parameters)
@@ -556,9 +600,12 @@ function loosFunction(params;parameters=parameters,data=data,nRepetitions=10,sav
     parametersModified[:K] = params.K[1]
     parametersModified[:nn] = params.nn[1]
     parametersModified[:mm] = params.mm[1]
+    parametersModified[:nCirc] = params.nCirc[1]
+    parametersModified[:σNCirc] = params.σNCirc[1]
+    parametersModified[:c0] = params.c0[1]
     
     #Make a batch of simulations and get relevant information
-    prop = makeStatistics(parameters,dt,steps,saveEach,nRepetitions);
+    prop = makeStatistics(com,parametersModified,dt,steps,saveEach,nRepetitions);
 
     #Prepare data for fitting
     p = transpose([prop["DP"] prop["EPI"] prop["PRE"]]./prop["N"])
@@ -568,12 +615,10 @@ function loosFunction(params;parameters=parameters,data=data,nRepetitions=10,sav
     for n in minimum(data["N"]):maximum(data["N"])
         p = prop["N"] .== n
         if sum(p) > 0
-            dist = Multinomial(Int64(n),[mean(prop["DP"][p])/n,mean(prop["EPI"][p])/n,mean(prop["PRE"][p])/n])
+            dist = [mean(prop["DP"][p])/n,mean(prop["EPI"][p])/n,mean(prop["PRE"][p])/n]
             for (nn,dp,epi,pre) in zip(data["N"],data["DP"],data["EPI"],data["PRE"])
                 if nn == n
-                    if !isinf(logpdf(dist,[dp,epi,pre]))
-                        loos += logpdf(dist,[dp,epi,pre])
-                    end
+                    loos += sum((dist.-[dp,epi,pre]./n).^2)
                 end
             end
         end
@@ -585,7 +630,10 @@ end
 ```
 
 
-    loosFunction (generic function with 6 methods)
+
+
+    loosFunction (generic function with 1 method)
+
 
 
 ### Check stability of loos function
@@ -596,149 +644,131 @@ The fluctuations for the simulations using 10 repetitions of the simulation for 
 
 
 ```julia
-initialisation = DataFrame([:α=>parameters[:α],:K=>parameters[:K],:nn=>parameters[:nn],:mm=>parameters[:mm]])
+initialisation = DataFrame([:α=>parameters[:α],:K=>parameters[:K],:nn=>parameters[:nn],:mm=>parameters[:mm],:nCirc=>parameters[:nCirc],:σNCirc=>parameters[:σNCirc],:c0=>parameters[:c0]])
 
 Threads.@threads for i in 1:3
-    println(loosFunction(initialisation,nRepetitions=10))
+    println(loosFunction(initialisation,nRepetitions=1))
 end
 ```
 
-    -2021.0023982932462
-    -1403.407497421518
-    -1599.348913550006
+    43.66465425385882
+    40.19961640416682
+    39.79395560531394
 
 
 
 ```julia
-AgentBasedModels.Optimization.swarmAlgorithm(loosFunction,
-                                        explore,
-                                        population=50,
-                                        stopMaxGenerations=10,
-                                        saveFileName="OptimizationResults",
-                                        args=[parameters,dataFit,10]
-                                    )
+CBMFitting.swarmAlgorithm(loosFunction,explore,population=10,stopMaxGenerations=10,saveFileName="Optimization",verbose=true)
 ```
 
-### Run the optimization algorithm
+    [32mGeneration 1/10 100%|████████████████████████████████████| Time: 0:06:33[39m
+    [32mGeneration 2/10 100%|████████████████████████████████████| Time: 0:06:18[39m
+    [32mGeneration 3/10 100%|████████████████████████████████████| Time: 0:06:29[39m
+    [32mGeneration 4/10 100%|████████████████████████████████████| Time: 0:06:22[39m
+    [32mGeneration 5/10 100%|████████████████████████████████████| Time: 0:06:28[39m
+    [32mGeneration 6/10 100%|████████████████████████████████████| Time: 0:06:35[39m
+    [32mGeneration 7/10 100%|████████████████████████████████████| Time: 0:06:20[39m
+    [32mGeneration 8/10 100%|████████████████████████████████████| Time: 0:06:27[39m
+    [32mGeneration 9/10 100%|████████████████████████████████████| Time: 0:06:41[39m
+    [32mGeneration 10/10 100%|███████████████████████████████████| Time: 0:06:25[39m
 
-Once we have set the loos function and the parameter space to be explored, we can run the algorithm.
 
-The algorithm has done a good job finding a fet of parameters that fits the data. Moreover, it fits better the data than the qualitative fitting that seems to want ot match only the final proportions at step 30.
 
-The discrepacy at earlier time comes from the fact that the chemical circuit only starts at a critial size of `N=20`. A further improvement on the optimization would be to change this global parameter i the system or even to add it to the fitting process.
 
-Overall, we showed the capacity of AgentBasedModels to fit models to real data.
+
+<div><div style = "float: left;"><span>DataFrameRow (16 columns)</span></div><div style = "clear: both;"></div></div><div class = "data-frame" style = "overflow-x: scroll;"><table class = "data-frame" style = "margin-bottom: 6px;"><thead><tr class = "header"><th class = "rowLabel" style = "font-weight: bold; text-align: right;">Row</th><th style = "text-align: left;">α</th><th style = "text-align: left;">nn</th><th style = "text-align: left;">K</th><th style = "text-align: left;">mm</th><th style = "text-align: left;">nCirc</th><th style = "text-align: left;">σNCirc</th><th style = "text-align: left;">c0</th><th style = "text-align: left;">α_velocity_</th><th style = "text-align: left;">nn_velocity_</th><th style = "text-align: left;">K_velocity_</th><th style = "text-align: left;">mm_velocity_</th><th style = "text-align: left;">nCirc_velocity_</th><th style = "text-align: left;">σNCirc_velocity_</th><th style = "text-align: left;">c0_velocity_</th><th style = "text-align: left;">_score_</th><th style = "text-align: left;">_generation_</th></tr><tr class = "subheader headerLastRow"><th class = "rowLabel" style = "font-weight: bold; text-align: right;"></th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Int64" style = "text-align: left;">Int64</th></tr></thead><tbody><tr><td class = "rowLabel" style = "font-weight: bold; text-align: right;">93</td><td style = "text-align: right;">14.9389</td><td style = "text-align: right;">1.95144</td><td style = "text-align: right;">1.39619</td><td style = "text-align: right;">1.42773</td><td style = "text-align: right;">12.3225</td><td style = "text-align: right;">9.68273</td><td style = "text-align: right;">9.7174</td><td style = "text-align: right;">-0.0968626</td><td style = "text-align: right;">-0.0562549</td><td style = "text-align: right;">-0.0105383</td><td style = "text-align: right;">0.047756</td><td style = "text-align: right;">0.0882151</td><td style = "text-align: right;">0.278174</td><td style = "text-align: right;">0.0248736</td><td style = "text-align: right;">45.7751</td><td style = "text-align: right;">10</td></tr></tbody></table></div>
+
+
 
 
 ```julia
-AgentBasedModels.Optimization.swarmAlgorithm(loosFunction,
-                                        explore,
-                                        population=50,
-                                        stopMaxGenerations=10,
-                                        saveFileName="OptimizationResults",
-                                        args=[parameters,dataFit,10]
-                                    )
+optimization = CSV.read("Optimization.csv",DataFrame);
 ```
-
-    [32mGeneration 1/10 100%|████████████████████████████████████| Time: 0:04:20[39m
-    [32mGeneration 2/10 100%|████████████████████████████████████| Time: 0:04:19[39m
-    [32mGeneration 3/10 100%|████████████████████████████████████| Time: 0:04:19[39m
-    [32mGeneration 4/10 100%|████████████████████████████████████| Time: 0:04:23[39m
-    [32mGeneration 5/10 100%|████████████████████████████████████| Time: 0:04:16[39m
-    [32mGeneration 6/10 100%|████████████████████████████████████| Time: 0:04:12[39m
-    [32mGeneration 7/10 100%|████████████████████████████████████| Time: 0:04:11[39m
-    [32mGeneration 8/10 100%|████████████████████████████████████| Time: 0:04:12[39m
-    [32mGeneration 9/10 100%|████████████████████████████████████| Time: 0:04:11[39m
-    [32mGeneration 10/10 100%|███████████████████████████████████| Time: 0:04:13[39m
-
-
-
-
-
-<p>DataFrameRow (10 columns)</p><div class="data-frame"><table class="data-frame"><thead><tr><th></th><th>α</th><th>nn</th><th>K</th><th>mm</th><th>α_velocity_</th><th>nn_velocity_</th><th>K_velocity_</th><th>mm_velocity_</th></tr><tr><th></th><th title="Float64">Float64</th><th title="Float64">Float64</th><th title="Float64">Float64</th><th title="Float64">Float64</th><th title="Float64">Float64</th><th title="Float64">Float64</th><th title="Float64">Float64</th><th title="Float64">Float64</th></tr></thead><tbody><tr><th>456</th><td>10.0549</td><td>1.92812</td><td>1.16596</td><td>1.85842</td><td>0.447707</td><td>0.053659</td><td>-0.0858023</td><td>0.00522784</td></tr></tbody></table></div>
-
-
-
-### Visualize results
-
-Clearly the algorithm tends to converge to better solutions over time.
-
-A plot of the best solution 
-
-
-```julia
-optimization = CSV.read("OptimizationResults.csv",DataFrame);
-```
-
-    WARNING: both GLMakie and Distributions export "scale!"; uses of it in module Main must be qualified
-
 
 
 ```julia
 fig = Figure()
 ax = Axis(fig[1,1],xticks=1:10,xlabel="Generations",xlabelsize=30,ylabel="Log loos",ylabelsize=30)
 
-scatter!(ax,optimization._generation_.+rand(Uniform(-.2,.2),500),log.(optimization._score_))
+scatter!(ax,optimization._generation_.+rand(Uniform(-.2,.2),length(optimization._generation_)),(optimization._score_))
 #xticks!(ax,[1,2,3],[1,2,3])
 
-fig
+display(fig)
 ```
 
 
-
-
     
-![png](Development_files/Development_40_0.png)
+![png](Development_files/Development_38_0.png)
     
-
 
 
 
 ```julia
-fig = Figure(resolution=(2000,500))
-
-cluster = 5
-ax = CustomFunction.plotData(data[1:end,:],cluster,fig,1,1)
-ax.title="Real"; ax.titlesize = 30;
-ax.xlabel="N"; ax.xlabelsize = 30;
-ax.ylabel="Proportions"; ax.ylabelsize = 30;
-xlims!(ax,5,32)
-
-cluster = 5
-#simulatedData = CustomFunction.batchSimulations(mCompiled, parameters)
-ax = CustomFunction.plotProportions(simulatedData,cluster,fig,1,2)
-ax.title="Qualitative fitting"; ax.titlesize = 30;
-ax.xlabel="N"; ax.xlabelsize = 30;
-ax.ylabel="Proportions"; ax.ylabelsize = 30;
-xlims!(ax,5,32)
-
-cluster = 5
-best = argmin(Array(optimization._score_))
-parametersFit = copy(parameters)
-parametersFit[:α] = optimization[best,:α]
-parametersFit[:K] = optimization[best,:K]
-parametersFit[:nn] = optimization[best,:nn]
-parametersFit[:mm] = optimization[best,:mm]
-#simulatedDataFit = CustomFunction.batchSimulations(mCompiled, parametersFit)
-ax = CustomFunction.plotProportions(simulatedDataFit,cluster,fig,1,3)
-ax.title="Swarm optimization"; ax.titlesize = 30;
-ax.xlabel="N"; ax.xlabelsize = 30;
-ax.ylabel="Proportions"; ax.ylabelsize = 30;
-xlims!(ax,5,32)
-
-fig
+propQualitative = makeStatistics(com,parameters,dt,steps,saveEach,nRepetitions);
 ```
 
 
+```julia
+params = optimization[argmin(optimization[!,"_score_"]),:]
+parametersModified = copy(parameters)
+parametersModified[:α] = params.α[1]
+parametersModified[:K] = params.K[1]
+parametersModified[:nn] = params.nn[1]
+parametersModified[:mm] = params.mm[1]
+parametersModified[:nCirc] = params.nCirc[1]
+parametersModified[:σNCirc] = params.σNCirc[1]
+
+propFitted = makeStatistics(com,parametersModified,dt,steps,saveEach,nRepetitions);
+```
+
+
+```julia
+cluster = 4
+dt = 0.001
+steps = round(Int64,50/dt)
+saveEach = round(Int64,1/dt)
+nRepetitions = 5
+
+fig = Figure(resolution=(1500,300))
+
+#Real
+ax = Axis(fig[1,1])
+legend = []
+for cellId in fates
+    Ngrouped = round.(Int64,data["N"]/cluster).*cluster
+    l = boxplot!(ax,Ngrouped,(data[cellId]./data["N"]),label=cellId, color=colorMap[cellId])
+    push!(legend,l)
+end
+xlims!(0,50)
+Legend(fig[1,1], legend, fates, halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=20)
+
+#Original fit
+ax = Axis(fig[1,2],xlabel="N",xlabelsize=40,ylabel="proportions",ylabelsize=40)
+legend = []
+for i in ["DP","EPI","PRE"]
+    Ngrouped = round.(Int64,propQualitative["N"]/cluster).*cluster
+    l = boxplot!(ax,Ngrouped,propQualitative[i]./propQualitative["N"],color=colorMap[i])
+    push!(legend,l)
+end
+xlims!(0,50)
+Legend(fig[1,2], legend, ["DP","EPI","PRE"], halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=20)
+
+#Swarm fit
+ax = Axis(fig[1,3],xlabel="N",xlabelsize=40,ylabel="proportions",ylabelsize=40)
+legend = []
+for i in ["DP","EPI","PRE"]
+    Ngrouped = round.(Int64,propFitted["N"]/cluster).*cluster
+    l = boxplot!(ax,Ngrouped,propFitted[i]./propFitted["N"],color=colorMap[i])
+    push!(legend,l)
+end
+xlims!(0,50)
+Legend(fig[1,3], legend, ["DP","EPI","PRE"], halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=20)
+
+display(fig)
+```
 
 
     
 ![png](Development_files/Development_41_0.png)
     
 
-
-
-
-```julia
-
-```

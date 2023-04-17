@@ -60,18 +60,3 @@ We intend to extend the current version of the package with additional capabilit
 
  - Extend GPU capabilities to be used also in other packages.
  - Make optimization methods distributable among different CPU/GPUs.
- - 
-## Alternatives to CellBasedModels.jl
-
-Many different packages and programs have been developed for constructing agent-based models. 
-
-Non-Julia-based specific software:
- - [NetLogo](https://ccl.northwestern.edu/netlogo/) is mostly focused on discrete dynamics. It is a bit outdated.
- - [Mason](https://cs.gmu.edu/~eclab/projects/mason/) Developed in Java, it is discrete-step-based software.
-
-Non-Julia-based generic software:
- - [ya||a](https://github.com/germannp/yalla) Software developed with CUDA/C++. It is fast as it is fully parallelized but apart from already written models, that are specific for the study of limb morphogenesis, advanced knowledge of CUDA and C++ is required for any customization. 
- - [Mesa](https://github.com/projectmesa/mesa) is developed in Python with a very intuitive framework. It is specialized in discrete dynamics in grid spaces.
-
-Julia-based generic software:
- - [Agents.jl](https://github.com/JuliaDynamics/Agents.jl). To our knowledge, there is only one alternative package written in Julia for the construction and deployment of agent-based models. It is a mature library and is the way to go for agent-based models in Julia for discrete-time dynamics. As another agent-based library, our library and the Agent.jl library overlaps in some of the capabilities and both can construct models in continuous space with similar capabilities. We focus our library on the simulation of continuous spaces with a continuous time that is described in terms of differential equations with the added value of being able to escalate the system to large amounts of agents by simulating in CUDA. 

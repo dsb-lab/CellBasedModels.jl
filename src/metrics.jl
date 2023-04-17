@@ -126,6 +126,15 @@ module CBMMetrics
     
     end
 
+    """
+        function intersection2lines(x1,y1,theta1,x2,y2,theta2,inf_eff=100000)
+    
+    Finds the point of intersection of two lines. You have to provide a point in space and and angle for eachline: (x1,y1,theta1) and (x2,y2,theta2).
+    
+    If the lines are parallel, it returns a point effectively in the infinite. The effective distance is described by `inf_eff``.
+    
+    Returns the point of intersection.
+    """
     function intersection2lines(x1,y1,theta1,x2,y2,theta2,inf_eff=100000)
 
         pxIntersect = 0.
@@ -145,7 +154,14 @@ module CBMMetrics
     
         return pxIntersect,pyIntersect
     end
+
+    """
+        function point2line(x1,y1,x2,y2,theta2)
     
+    Given a point (x1,x2), finds the closest point projected over a line described by a point in the line and the angle: (x2,y2,theta2).
+    
+    Returns the coordinates of the closest point over the line.
+    """
     function point2line(x1,y1,x2,y2,theta2)
         #Compute closest point over the line axis of the other rod
         cx = x2-x1
@@ -155,7 +171,16 @@ module CBMMetrics
     
         return xjAux,yjAux
     end
+
+    """
+        function pointInsideRod(x1,y1,l1,theta1,pxAux,pyAux,separation)
     
+    Given a line segment described by it central point (x1,y1), its angle in the plate theta1 and its length l1;
+    and given a point over the save line (pxAux,pyAux), returns the point if inside the segment or the closes extreme of the segment. 
+    If provided a separation (0,1), it moves the point that separation.
+            
+    Returns the coordinates of the closest point over the segment.
+    """
     function pointInsideRod(x1,y1,l1,theta1,pxAux,pyAux,separation)
     
         di = max(sqrt((x1-pxAux)^2+(y1-pyAux)^2),0.00000001)
@@ -165,7 +190,15 @@ module CBMMetrics
         return separation*min(di,l1/2)*dxi+x1, separation*min(di,l1/2)*dyi+y1
     
     end
+
+    """
+        function rodIntersection(x1,y1,l1,theta1,x2,y2,l2,theta2;separation=0.99)
     
+    Given a two line segment described by it central point (x1,y2), its angle in the plate theta1 and its length l1;
+    finds the closest spheres of both segments.
+    
+    Returns the coordinates of the closest spheres (x1Aux,y1Aux), (x2Aux,y2Aux).
+    """
     function rodIntersection(x1,y1,l1,theta1,x2,y2,l2,theta2;separation=0.99)
             
         #Compute distance between centers of mass

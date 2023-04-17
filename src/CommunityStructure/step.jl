@@ -107,14 +107,26 @@ function step!(community)
 end
 
 """
-    function evolve!(community;steps,saveEach=1,saveFunction=saveRAM!,saveCurrentState=false,preallocateAgents=0)
+    function evolve!(community;
+        steps,saveEach=1,
+        saveToFile=false,fileName=nothing,overwrite=false,
+        saveCurrentState=false,
+        preallocateAgents=0,
+        progressMessage=(com)->nothing)
 
 Performs `step` number of steps on the community, saving each `saveEach` number of steps the community instance using the saving function provided in `saveFunction` (See IO). 
 If `saveCurrentState` is true, the present instance is saved.
 
 `preallocateAgents` is an integer to sent to the `loadToPlatform!` function that allocates empty space for agents if the model has to grow. The maximum number of agents in the final simulation has to be specified in here.
+
+`progressMessage` is a function that is executed every time we save an step and can be used to print some information of progress.
 """
-function evolve!(community;steps,saveEach=1,saveToFile=false,fileName=nothing,overwrite=false,saveCurrentState=false,preallocateAgents=0,progressMessage=(com)->nothing)
+function evolve!(community;
+    steps,saveEach=1,
+    saveToFile=false,fileName=nothing,overwrite=false,
+    saveCurrentState=false,
+    preallocateAgents=0,
+    progressMessage=(com)->nothing)
 
     if saveToFile && fileName === nothing
         error("Key argument fileName has to be specified with a valid name.")

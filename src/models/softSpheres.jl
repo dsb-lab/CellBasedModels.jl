@@ -1,56 +1,78 @@
-softSpheres2D = Agent(2,
+softSpheres2D = ABM(2,
     
     #Parameters
-    globalFloat = [:b,:μ],
-    localFloat = [:f0,:m,:r,:vx,:vy],
-    localFloatInteraction = [:fx,:fy],
+    model = Dict(
+        :b=>Float64,
+        :μ=>Float64,
+        :f0=>Array{Float64}
+    ),
+    agent = Dict(
+        :m=>Float64,
+        :r=>Float64,
+        :vx=>Float64,
+        :vy=>Float64,
+        :fx=>Float64,
+        :fy=>Float64
+    ),
     
     #Mechanics
-    updateVariable = quote
-        d(vx) = dt( -b*vx/m+fx/m )
-        d(vy) = dt( -b*vy/m+fy/m )
-        d(x) = dt( vx )
-        d(y) = dt( vy )
-    end,
-    
-    updateInteraction = quote
-        dij = sqrt((x.i-x.j)^2+(y.i-y.j)^2)
-        rij = r.i+r.j
-        if dij < μ*rij && dij > 0
-            fx.i += f0*(rij/dij-1)*(μ*rij/dij-1)*(x.i-x.j)/dij
-            fy.i += f0*(rij/dij-1)*(μ*rij/dij-1)*(y.i-y.j)/dij
-        end
-    end,
+    agentODE = quote
 
-    compile = false
+        fx = 0; fy = 0
+        @loopOverNeighbors it2 begin
+            dij = sqrt((x-x[it2])^2+(y-y[it2])^2)
+            rij = r+r[it2]
+            if dij < μ*rij && dij > 0
+                fx += f0[cellFate[i1_],cellFate[it2]]*(rij/dij-1)*(μ*rij/dij-1)*(x-x[it2])/dij
+                fy += f0[cellFate[i1_],cellFate[it2]]*(rij/dij-1)*(μ*rij/dij-1)*(y-y[it2])/dij
+            end
+        end
+
+        dt(vx) = -b*vx/m+fx/m
+        dt(vy) = -b*vy/m+fy/m
+        dt(x) = vx
+        dt(y) = vy
+    end
 )
 
-softSpheres3D = Agent(3,
+softSpheres3D = ABM(3,
     
-    #Parameters
-    globalFloat = [:b,:μ],
-    localFloat = [:f0,:m,:r,:vx,:vy,:vz],
-    localFloatInteraction = [:fx,:fy,:fz],
+        #Parameters
+        model = Dict(
+            :b=>Float64,
+            :μ=>Float64,
+            :f0=>Array{Float64}
+        ),
+        agent = Dict(
+            :m=>Float64,
+            :r=>Float64,
+            :vx=>Float64,
+            :vy=>Float64,
+            :vz=>Float64,
+            :fx=>Float64,
+            :fy=>Float64,
+            :fz=>Float64,
+        ),
+        
+        #Mechanics
+        agentODE = quote
     
-    #Mechanics
-    updateVariable = quote
-        d(vx) = dt( -b*vx/m+fx/m )
-        d(vy) = dt( -b*vy/m+fy/m )
-        d(vz) = dt( -b*vz/m+fz/m )
-        d(x) = dt( vx )
-        d(y) = dt( vy )
-        d(z) = dt( vz )
-    end,
+            fx = 0; fy = 0; fz = 0
+            @loopOverNeighbors it2 begin
+                dij = sqrt((x-x[it2])^2+(y-y[it2])^2+(z-z[it2])^2)
+                rij = r+r[it2]
+                if dij < μ*rij && dij > 0
+                    fx += f0[cellFate[i1_],cellFate[it2]]*(rij/dij-1)*(μ*rij/dij-1)*(x-x[it2])/dij
+                    fy += f0[cellFate[i1_],cellFate[it2]]*(rij/dij-1)*(μ*rij/dij-1)*(y-y[it2])/dij
+                    fz += f0[cellFate[i1_],cellFate[it2]]*(rij/dij-1)*(μ*rij/dij-1)*(z-z[it2])/dij
+                end
+            end
     
-    updateInteraction = quote
-        dij = sqrt((x.i-x.j)^2+(y.i-y.j)^2+(z.i-z.j)^2)
-        rij = r.i+r.j
-        if dij < μ*rij && dij > 0
-            fx.i += f0*(rij/dij-1)*(μ*rij/dij-1)*(x.i-x.j)/dij
-            fy.i += f0*(rij/dij-1)*(μ*rij/dij-1)*(y.i-y.j)/dij
-            fz.i += f0*(rij/dij-1)*(μ*rij/dij-1)*(z.i-z.j)/dij   
+            dt(vx) = -b*vx/m+fx/m
+            dt(vy) = -b*vy/m+fy/m
+            dt(vz) = -b*vz/m+fz/m
+            dt(x) = vx
+            dt(y) = vy
+            dt(z) = vz
         end
-    end,
-
-    compile = false
-)
+    );

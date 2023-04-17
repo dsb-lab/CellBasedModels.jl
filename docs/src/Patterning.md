@@ -1,12 +1,22 @@
 # [Patterning](@id Patterning)
 
+In this model we implement the paper from [Corson et al. (2017)](https://www.science.org/doi/full/10.1126/science.aai7407?casa_token=_HGoX7kcWZcAAAAA%3AzoEGS_8EyLf7hNo9MC274EuqPACq6y4MsfCr93S9tzmmcK3pSTmNpJ7a7sc8HQMw5PETz7n9tG15jQ).
+
 
 ```julia
-using AgentBasedModels
-using GLMakie
+using CellBasedModels
+using GLMakie #Can be changes to CairoMakie
 using Distributions
-GLMakie.inline!(true)
+Makie.inline!(true)
 ```
+
+
+    true
+
+
+## Create model
+
+First we define some functions that we will use for then model
 
 
 ```julia
@@ -18,42 +28,62 @@ fs0(x,t,l,S0,τg,L) = S0*fσ(1-t/τg)*(exp(-x^2/(2*L^2))+exp(-(1-x)^2/(2*L^2))) 
     fs0 (generic function with 1 method)
 
 
+We create the ABM model.
+
 
 ```julia
-model = Agent(2,
+model = ABM(2,
 
-    localFloat = [:s0,:u],
-    localFloatInteraction = [:s],
-    globalFloat = [:a0,:a1,:τ,:l,:D,:S0,:τg,:L],
-
-    updateLocal = quote
-        s0 = fs0(x,t,l,S0,τg,L)
-    end,
-
-    updateInteraction = quote
-        d = minimum(
-                [(x.i-x.j)^2+(y.i-y.j)^2,
-                (x.i-x.j+1)^2+(y.i-y.j)^2,
-                (x.i-x.j-1)^2+(y.i-y.j)^2,
-                (x.i-x.j)^2+(y.i-y.j+1)^2,
-                (x.i-x.j)^2+(y.i-y.j-1)^2,
-                (x.i-x.j+1)^2+(y.i-y.j+1)^2,
-                (x.i-x.j+1)^2+(y.i-y.j-1)^2,
-                (x.i-x.j-1)^2+(y.i-y.j+1)^2,
-                (x.i-x.j-1)^2+(y.i-y.j-1)^2])
-        s.i += exp(-d/(2*l^2)) * u.j*(a0 + 3*u.j^3*a1/(1+u.j^2))
-    end,
+    agent = Dict(
+        :s0 => Float64,
+        :u => Float64,
+        :s => Float64
+    ),
     
-    updateVariable = quote 
+    model = Dict(
+        :a0=>Float64,
+        :a1=>Float64,
+        :τ=>Float64,
+        :l=>Float64,
+        :D=>Float64,
+        :S0=>Float64,
+        :τg=>Float64,
+        :L=>Float64
+    ),
+
+    agentODE = quote
+
+        s0 = fs0(x,t,l,S0,τg,L)
         
-        d( u ) = dt( fσ(2*(u-s-s0))/τ -u/τ ) + dW( D )
+        s = 0
+        @loopOverNeighbors i2 begin
+            d = minimum(
+                        [
+                            (x-x[i2])^2+(y-y[i2])^2,
+                            (x-x[i2]+1)^2+(y-y[i2])^2,
+                            (x-x[i2]-1)^2+(y-y[i2])^2,
+                            (x-x[i2])^2+(y-y[i2]+1)^2,
+                            (x-x[i2])^2+(y-y[i2]-1)^2,
+                            (x-x[i2]+1)^2+(y-y[i2]+1)^2,
+                            (x-x[i2]+1)^2+(y-y[i2]-1)^2,
+                            (x-x[i2]-1)^2+(y-y[i2]+1)^2,
+                            (x-x[i2]-1)^2+(y-y[i2]-1)^2
+                        ]
+                    )
+            s += exp(-d/(2*l^2)) * u[i2]*(a0 + 3*u[i2]^3*a1/(1+u[i2]^2))
+        end
+
+        dt( u ) = fσ(2*(u-s-s0))/τ -u/τ
 
     end,
 
-    integrator = :Heun,
-
+    agentSDE = quote
+        dt(u) = D
+    end
 );
 ```
+
+## Initialize the community
 
 
 ```julia
@@ -62,7 +92,11 @@ Ly = 1
 Nx = 18
 Ny = 9
 
-com = Community(model,N=[2*Nx*Ny],dt=[0.001])
+com = Community(model,
+                N=2*Nx*Ny,
+                dt=0.001,
+                agentAlg=DifferentialEquations.EM()
+                )
 
 #Global parameters
 λ = 5*10^-6; a0 = .05; a1 = 1 - a0; τ = 1/2; l = 0.085#1.75*λ; 
@@ -99,47 +133,31 @@ com[:u] = u0;
 com[:s0] = u0;
 ```
 
+## Evolution
+
 
 ```julia
-evolve!(com,steps=1500,saveEach=10,saveCurrentState=true);
+evolve!(com,steps=4000,saveEach=10,saveCurrentState=true);
 ```
+
+## Plotting results
 
 
 ```julia
 comOut = getParameter(com,[:u])
 
-fig = Figure(resolution=(2000,300))
+fig = Figure(resolution=(1500,300))
 
-for (i,time) in enumerate(1:round(Int64,length(com)/5):length(com))
+for (i,time) in enumerate(1:round(Int64,length(com)/4):length(com))
     ax = Axis(fig[1,i])
-    meshscatter!(ax,com[:x],com[:y],marker=Circle,markersize=5*10^-2,color=comOut[:u][time])
+    meshscatter!(ax,com[:x],com[:y],markersize=3*10^-2,color=comOut[:u][time])
 end
 
-fig
+display(fig)
 ```
 
 
     
-![png](Patterning_files/Patterning_6_0.png)
+![png](Patterning_files/Patterning_11_0.png)
     
 
-
-
-```julia
-d = getParameter(com,[:t,:u])
-for (i,time) in enumerate(1:length(com))
-    fig = Figure(resolution=(2000,2000))
-    ax = Axis(fig[1,1],title=string("t: ",round(d[:t][time][1],digits=2)),titlesize=70)
-
-    meshscatter!(ax,com[:x],com[:y],marker=Circle,markersize=5*10^-2,color=comOut[:u][time])
-    Colorbar(fig[1,2],limits=(0,maximum(comOut[:u][time])),label = "u",labelsize=50,ticklabelsize=50)
-
-    ind = "000$i"
-    save("video/Patterning$(ind[end-2:end]).jpeg",fig)
-end
-```
-
-
-```julia
-
-```

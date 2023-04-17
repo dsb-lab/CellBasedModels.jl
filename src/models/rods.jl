@@ -1,3 +1,23 @@
+"""
+    function rodForces(
+        x,y,d,l,theta,vx,vy,m,
+        x2,y2,d2,l2,theta2,vx2,vy2,m2,
+        kn,γn,γt,μcc,μcw
+    )
+
+Function that return the forces in x and y and the torque force W for the rod model of [Volfson et al.](https://www.pnas.org/content/105/40/15346).
+
+ - `x`: x position of the rod
+ - `y`: y position of the rod
+ - `d`: diameter of the rod
+ - `theta`: angle of the rod in the plane
+ - `vx`: velocity of the rod in the x coordinates
+ - `vy`: velocity of the rod in the y coordinates
+ - `m`: mass of the rod
+
+The same for all the parameters with 2 for the other interacting rod.
+Constants are defined in the paper and in the Models section of the documentation.
+"""
 function rodForces(
     x,y,d,l,theta,vx,vy,m,
     x2,y2,d2,l2,theta2,vx2,vy2,m2,
@@ -14,24 +34,24 @@ function rodForces(
     #Compute distance between virtual spheres
     rij = sqrt((xiAux-xjAux)^2 +(yiAux-yjAux)^2)
     if rij > 0. && rij < (d+d2)/2 #If it is smaller than a diameter compute forces
-    #Compute auxiliar
-    δAux = d - rij
-    MeAux = m/2
-    #Compute interaction
-    nijx = (xiAux-xjAux)/rij
-    nijy = (yiAux-yjAux)/rij
-    vijx = (vx-vx2)
-    vijy = (vy-vy2)
-    #Compute inner product
-    vnAux = nijx*vijx+nijy*vijy
-    #Compute normal and tangential forces
-    FnAux = kn*δAux^1.5-γn*MeAux*δAux*vnAux
-    FtAux = -min(γt*MeAux*δAux^.5,μcc*FnAux)
-    #Compute the interaction forces
-    Fijx = FnAux*nijx + FtAux*(vijx-vnAux*nijx)
-    Fijy = FnAux*nijy + FtAux*(vijy-vnAux*nijy)
-    #Append radial forces
-    Wij = ((xiAux-x)*Fijy - (yiAux-y)*Fijx)
+        #Compute auxiliar
+        δAux = d - rij
+        MeAux = m/2
+        #Compute interaction
+        nijx = (xiAux-xjAux)/rij
+        nijy = (yiAux-yjAux)/rij
+        vijx = (vx-vx2)
+        vijy = (vy-vy2)
+        #Compute inner product
+        vnAux = nijx*vijx+nijy*vijy
+        #Compute normal and tangential forces
+        FnAux = kn*δAux^1.5-γn*MeAux*δAux*vnAux
+        FtAux = -min(γt*MeAux*δAux^.5,μcc*FnAux)
+        #Compute the interaction forces
+        Fijx = FnAux*nijx + FtAux*(vijx-vnAux*nijx)
+        Fijy = FnAux*nijy + FtAux*(vijy-vnAux*nijy)
+        #Append radial forces
+        Wij = ((xiAux-x)*Fijy - (yiAux-y)*Fijx)
     end
 
     return Fijx, Fijy, Wij
