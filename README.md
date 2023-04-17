@@ -36,7 +36,7 @@ pkg> add https://github.com/dsb-lab/CellBasedModels.jl
 
 ||||||
 |---|---|---|---|---|
-|**Patterning**|**ICM Development**|**Particle Aggregation**|**Bacterial Colony Growth**|
+|**Patterning**|**ICM Development**|**Particle Aggregation**|**Bacterial Colony Growth**|**Bacterial Chemotaxis**|
 |<img src="./docs/src/assets/patterning.gif" width="300" height="300">|<img src="./docs/src/assets/Development.gif" width="300" height="300">|<img src="./docs/src/assets/aggregation.gif" width="300" height="300">|<img src="./docs/src/assets/colony.gif" width="300" height="300">|<img src="./docs/src/assets/chemotaxis.gif" width="300" height="300">|
 
 ## Current Limitations
