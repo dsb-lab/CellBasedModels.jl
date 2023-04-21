@@ -4,10 +4,8 @@ build
 !examples/*.ipynb
 .*
 examples/.*
-examples/data
-!examples/data/development.csv
-examples/video
 examples/*/*
+!examples/data/development.csv
 *.jld2
 
 test/testfiles/*
