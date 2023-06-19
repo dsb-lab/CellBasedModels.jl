@@ -56,14 +56,15 @@ module CellBasedModels
 
     #Agent
     export ABM
+        #Macros and custom code
+    export @addAgent, @removeAgent, @loopOverNeighbors, @mediumInside, @mediumBorder, @∂, @∂2, @distanceEuclidean, @distanceManhattan
+    include("./AgentStructure/macros.jl")   
+        #Structure
     include("./AgentStructure/agentStructure.jl")
         #Rule
     include("./AgentStructure/functionRule.jl")
         #DE
     include("./AgentStructure/functionDE.jl")
-        #Macros and custom code
-    export @addAgent, @removeAgent, @loopOverNeighbors, @mediumInside, @mediumBorder, @∂, @∂2, @distanceEuclidean, @distanceManhattan
-    include("./AgentStructure/macros.jl")   
 
     #Community
     export Community, loadToPlatform!, bringFromPlatform!, getParameter

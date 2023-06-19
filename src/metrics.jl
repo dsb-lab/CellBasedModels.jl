@@ -1,7 +1,7 @@
 module CBMMetrics
 
     using CUDA
-    import CellBasedModels: COMUNITY
+    import CellBasedModels: AGENT
 
     """
         function cellInMesh(edge,x,xMin,xMax,nX) 
@@ -44,13 +44,13 @@ module CBMMetrics
     """
     macro euclidean(it2)
 
-        com = COMUNITY
+        abm = AGENT
     
         args = [:(x[i1_]), :(x[$it2])]
-        if com.abm.dims > 1
+        if abm.dims > 1
             args = [args;[:(y[i1_]), :(y[$it2])]]
         end
-        if com.abm.dims > 2
+        if abm.dims > 2
             args = [args;[:(z[i1_]), :(z[$it2])]]
         end
     
@@ -60,13 +60,13 @@ module CBMMetrics
     
     macro euclidean(it1,it2)
     
-        com = COMUNITY
+        abm = AGENT
     
         args = [:(x[$it1]), :(x[$it2])]
-        if com.abm.dims > 1
+        if abm.dims > 1
             args = [args;[:(y[$it1]), :(y[$it2])]]
         end
-        if com.abm.dims > 2
+        if abm.dims > 2
             args = [args;[:(z[$it1]), :(z[$it2])]]
         end
     
@@ -96,13 +96,13 @@ module CBMMetrics
     """
     macro manhattan(it2)
     
-        com = COMUNITY
+        abm = AGENT
     
         args = [:(x[i1_]), :(x[$it2])]
-        if com.abm.dims > 1
+        if abm.dims > 1
             args = [args;[:(y[i1_]), :(y[$it2])]]
         end
-        if com.abm.dims > 2
+        if abm.dims > 2
             args = [args;[:(z[i1_]), :(z[$it2])]]
         end
     
@@ -112,13 +112,13 @@ module CBMMetrics
 
     macro manhattan(it1,it2)
     
-        com = COMUNITY
+        abm = AGENT
     
         args = [:(x[$it1]), :(x[$it2])]
-        if com.abm.dims > 1
+        if abm.dims > 1
             args = [args;[:(y[$it1]), :(y[$it2])]]
         end
-        if com.abm.dims > 2
+        if abm.dims > 2
             args = [args;[:(z[$it1]), :(z[$it2])]]
         end
     

@@ -54,23 +54,23 @@ function agentArgsNeighbors(args,neig;sym=nothing)
     else
         pars = [:($sym.N),:($sym.simBox),:($sym.flagRecomputeNeighbors_)]
         pars = [pars;[:($sym.$i) for i in args]]
-        pars = [pars;[:($sym.neighbors.$i) for i in fieldnames(neig) if i != :f_]]
+        pars = [pars;[:($sym.abm.neighbors.$i) for i in fieldnames(neig) if i != :f_]]
         return pars
     end
 
 end
 
 """
-    function agentArgs(com;sym=nothing,l=3,params=BASEPARAMETERS) 
+    function agentArgs(abm;sym=nothing,l=3,params=BASEPARAMETERS) 
 
 Function that returns the arguments to be provided to a kernel function. If `sym` is provided, it will return them as `sym.argument`.
 """
-function agentArgs(com;sym=nothing,l=3,params=BASEPARAMETERS) 
+function agentArgs(abm;sym=nothing,l=3,params=BASEPARAMETERS) 
 
     pars = [i for i in keys(params)]
-    parsCom = [i for i in fieldnames(typeof(com.neighbors)) if  i != :f_]
-    args = [i for i in keys(com.abm.parameters)]
-    argsUp = [new(i) for (i,prop) in pairs(com.abm.parameters) if prop.update]
+    parsCom = [i for i in fieldnames(typeof(abm.neighbors)) if  i != :f_]
+    args = [i for i in keys(abm.parameters)]
+    argsUp = [new(i) for (i,prop) in pairs(abm.parameters) if prop.update]
 
     if sym === nothing
         return Any[pars...,
@@ -82,10 +82,10 @@ function agentArgs(com;sym=nothing,l=3,params=BASEPARAMETERS)
     else
         return [
                 Any[:($sym.$i) for i in pars];
-                Any[:($sym.neighbors.$i) for i in parsCom];
+                Any[:($sym.abm.neighbors.$i) for i in parsCom];
                 Any[:($sym.parameters[Symbol($i)]) for i in String.(args)];
                 Any[:($sym.parameters[Symbol($i)]) for i in String.(argsUp)];
-                Any[:($sym.platform)];
+                Any[:($sym.abm.platform)];
                 ]
     end
 
@@ -154,13 +154,13 @@ end
 # Constuct custom functions
 ##############################################################################################################################
 """
-    function makeSimpleLoop(code,agent;nloops=nothing)
+    function makeSimpleLoop(code,abm;nloops=nothing)
 
 Wrap code in loop iterating over the Community agents in the correct platform and dimensions (for medium).
 """
-function makeSimpleLoop(code,com;nloops=nothing)
+function makeSimpleLoop(code,abm;nloops=nothing)
 
-    if typeof(com.platform) <: CPU
+    if typeof(abm.platform) <: CPU
         
         if nloops === nothing
             return :(@inbounds Threads.@threads for i1_ in 1:1:N[1]; $code; end)
@@ -172,7 +172,7 @@ function makeSimpleLoop(code,com;nloops=nothing)
             return :(@inbounds Threads.@threads for i1_ in 1:1:NMedium[1]; for i2_ in 1:1:NMedium[2];  for i3_ in 1:1:NMedium[3]; $code; end; end; end)
         end
 
-    else typeof(com.platform) <: GPU
+    else typeof(abm.platform) <: GPU
 
         if nloops === nothing
             CUDATHREADS1D = quote
@@ -249,7 +249,7 @@ function addCuda(code,scope,platform::Platform;oneThread=false)
         
         else
 
-            code = :(CUDA.@cuda threads=community.platform.$(addSymbol(scope,"Threads")) blocks=community.platform.$(addSymbol(scope,"Blocks")) $code)
+            code = :(CUDA.@cuda threads=community.abm.platform.$(addSymbol(scope,"Threads")) blocks=community.abm.platform.$(addSymbol(scope,"Blocks")) $code)
 
         end
 
@@ -259,9 +259,9 @@ function addCuda(code,scope,platform::Platform;oneThread=false)
 
 end
 
-function addCuda(code,scope,com;oneThread=false)
+function addCuda(code,scope,abm;oneThread=false)
 
-    return addCuda(code,scope,com.platform,oneThread=oneThread)
+    return addCuda(code,scope,abm.platform,oneThread=oneThread)
 
 end
 
@@ -293,9 +293,8 @@ end
 
 Function that transforms the code provided in Agent to the vectorized form for wrapping around an executable function.
 """
-function vectorize(code,com)
+function vectorize(code,agent)
 
-    agent = com.abm
     #For user declared symbols
     code = postwalk(x->@capture(x,id) ? :(id[i1_]) : x, code)
     code = postwalk(x->@capture(x,id[f_][f2_]) ? :(id[$f2]) : x, code) #avoid double indexing
@@ -340,20 +339,20 @@ function vectorize(code,com)
 
 end
 
-function vectorize(code)
+# function vectorize(code)
 
-    return vectorize(code,COMUNITY)
+#     return vectorize(code,COMUNITY)
 
-end
+# end
 
 """
-    function vectorizeMediumInAgents(code,com)
+    function vectorizeMediumInAgents(code,abm)
 
 Function that vectorize medium parameters at the position of the agent center.
 """
-function vectorizeMediumInAgents(code,com)
+function vectorizeMediumInAgents(code,abm)
 
-    for (sym,prop) in pairs(com.abm.parameters)
+    for (sym,prop) in pairs(abm.parameters)
         if prop.scope == :medium
             code = postwalk(x->@capture(x,m_[g_]) && (m == sym || m == new(sym)) ? :($m[CBMMetrics.cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium[1])]) : x ,code)
             code = postwalk(x->@capture(x,m_[g_,g2_]) && (m == sym || m == new(sym)) ? :($m[CBMMetrics.cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium[1]),CBMMetrics.cellInMesh(dy,y[i1_],simBox[2,1],simBox[2,2],NMedium[2])]) : x ,code)

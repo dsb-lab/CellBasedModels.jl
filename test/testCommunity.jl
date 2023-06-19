@@ -86,15 +86,15 @@
                 mediumODE=quote
                     dt(m) = 1
                 end,
-            )
 
-            aa = Bool[]
-
-            com = Community(abm,dt=.1,t=1.,N=10,id=1:10,NMedium=[5,5,5],simBox=[0 1;0 50;0 1],
                 agentAlg = DifferentialEquations.EM(),
                 modelAlg = DifferentialEquations.EM(),
                 platform=platform
             )
+
+            aa = Bool[]
+
+            com = Community(abm,dt=.1,t=1.,N=10,id=1:10,NMedium=[5,5,5],simBox=[0 1;0 50;0 1])
 
             com.li = 0
             com.x = 0
@@ -244,10 +244,11 @@
                         elseif id%2 == 0
                             @addAgent(lf = id)
                         end
-                    end
+                    end,
+                    platform=platform
                     );
             N = 100
-            com = Community(abm,N=N,platform=platform);
+            com = Community(abm,N=N);
             loadToPlatform!(com,preallocateAgents=N÷2);
             agentStepRule!(com)
             aux = Bool[]
@@ -302,11 +303,12 @@
                         norm = CBMDistributions.normal(1,2)
                         unif = CBMDistributions.uniform(1,2)
                         expon = CBMDistributions.exponential(3)
-                    end
+                    end,
+                    platform=platform
                 )
         
             N = 100000
-            com = Community(abm,N=N,platform=platform)
+            com = Community(abm,N=N)
         
             loadToPlatform!(com)
             agentStepRule!(com)
@@ -350,14 +352,13 @@
                                         nn += 1 
                                     end
                                 end
-                            end
+                            end,
+                        neighborsAlg=neighbors
                     )
                     # println(abm.declaredUpdatesCode[:UpdateLocal])
                     com = Community(abm,
                                 N=3^dims,
-                                simBox=[.5 1.5;.5 1.5;.5 1.5][1:dims,:],
-                                neighborsAlg=neighbors
-                    );
+                                simBox=[.5 1.5;.5 1.5;.5 1.5][1:dims,:]);
                     v = zeros(3,27)
                     v[1,:] = repeat([repeat([0],1);repeat([1],1);repeat([2],1)],9)
                     v[2,:] = repeat([repeat([0],3);repeat([1],3);repeat([2],3)],3)
@@ -410,15 +411,15 @@
                             ),
                             agentODE=quote 
                                 dt(x) = -0.5*x
-                            end
+                            end,
+
+                            agentAlg=algorithm,
+                            platform=platform
                         )
                 com = Community(abm,N=3,NMedium=[2,2,2],
                                 simBox=[0 1.;0 1;0 1],
                                 x=1,
-                                dt=.1,
-                                agentAlg=algorithm,
-                                platform=platform
-                                );
+                                dt=.1);
                             
                 loadToPlatform!(com);
             
@@ -458,14 +459,14 @@
                             ),
                             agentSDE=quote 
                                 dt(x) = 1
-                            end
+                            end,
+                            agentAlg=algorithm
                         )
                 N = 10000
                 com = Community(abm,N=N,NMedium=[2,2,2],
                                 simBox=[0 1.;0 1;0 1],
                                 x=0,
-                                dt=.1,
-                                agentAlg=algorithm);
+                                dt=.1);
                             
                 loadToPlatform!(com);
             
@@ -514,12 +515,12 @@
                                 elseif @mediumBorder(1,1)
                                     m2 = m2[end-1]
                                 end
-                            end
+                            end,
+                            mediumAlg=algorithm
                         )
                 N = 101
                 simBox = [-10 10]
-                com = Community(abm,N=1,NMedium=[N],simBox=simBox,dt=.1,
-                                mediumAlg=algorithm);
+                com = Community(abm,N=1,NMedium=[N],simBox=simBox,dt=.1);
                             
                 com.m = [pdf(Normal(0,2.),i) for i in range(simBox...,length=N)]
                 com.m2 = [pdf(Normal(0,2.),i) for i in range(simBox...,length=N)]

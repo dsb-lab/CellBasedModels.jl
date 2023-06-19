@@ -96,9 +96,9 @@ for some iterator symbol. It can only be used in agent rules or DEs.
 """
 macro loopOverNeighbors(it1, code)
 
-    com = COMUNITY
+    abm = AGENT
 
-    code = neighborsLoop(code,it1,com.neighbors,com.abm.dims)
+    code = neighborsLoop(code,it1,abm.neighbors,abm.dims)
 
     code = postwalk(x->@capture(x,i_) && i == :i2_ ? it1 : x, code )
 
@@ -115,9 +115,9 @@ macro loopOverNeighbors(code)
     it2 = code.args[1].args[1]
     code = code.args[2]
 
-    com = COMUNITY
+    abm = AGENT
 
-    code = neighborsLoop(code,it2,com.neighbors,com.abm.dims)
+    code = neighborsLoop(code,it2,abm.neighbors,abm.dims)
 
     code = postwalk(x->@capture(x,i_) && i == :i2_ ? it2 : x, code )
 
@@ -136,11 +136,10 @@ the coordinate must be 1, 2 or 3, specifing the axis of differentiation.
 """
 macro ∂(coord,code)
 
-    abm = COMUNITY.abm
-    com = COMUNITY
+    abm = AGENT
 
-    if !(coord in [1,2,3][1:com.abm.dims])
-        error("Coordinate in @mediumBorder with model of dimensionality $(com.abm.dims) must be $([1,2,3][1:com.abm.dims]).")
+    if !(coord in [1,2,3][1:abm.dims])
+        error("Coordinate in @mediumBorder with model of dimensionality $(abm.dims) must be $([1,2,3][1:abm.dims]).")
     end
 
 
@@ -203,11 +202,10 @@ the coordinate must be 1, 2 or 3, specifing the axis of differentiation.
 """
 macro ∂2(coord,code)
 
-    abm = COMUNITY.abm
-    com = COMUNITY
+    abm = AGENT
 
-    if !(coord in [1,2,3][1:com.abm.dims])
-        error("Coordinate in @mediumBorder with model of dimensionality $(com.abm.dims) must be $([1,2,3][1:com.abm.dims]).")
+    if !(coord in [1,2,3][1:abm.dims])
+        error("Coordinate in @mediumBorder with model of dimensionality $(abm.dims) must be $([1,2,3][1:abm.dims]).")
     end
 
     medium = [i for (i,prop) in abm.parameters if prop.scope == :medium]
@@ -265,13 +263,13 @@ Macro that returns true if mesh position is not in the border of the region.
 """
 macro mediumInside()
 
-    com = COMUNITY
+    abm = AGENT
 
     code = :(i1_ > 1 && i1_ < NMedium[1])
-    if com.abm.dims > 1
+    if abm.dims > 1
         code = :($code && i2_ > 1 && i2_ < NMedium[2])
     end
-    if com.abm.dims > 2
+    if abm.dims > 2
         code = :($code && i3_ > 1 && i3_ < NMedium[3])
     end
 
@@ -286,10 +284,10 @@ Macro that returns true if mesh position is in the lower (border=-1) or upper (b
 """
 macro mediumBorder(coord, border)
 
-    com = COMUNITY
+    abm = AGENT
 
-    if !(coord in [1,2,3][1:com.abm.dims])
-        error("Coordinate in @mediumBorder with model of dimensionality $(com.abm.dims) must be $([1,2,3][1:com.abm.dims]).")
+    if !(coord in [1,2,3][1:abm.dims])
+        error("Coordinate in @mediumBorder with model of dimensionality $(abm.dims) must be $([1,2,3][1:abm.dims]).")
     end
 
     if !(border in [-1, 1])
@@ -318,13 +316,13 @@ end
 #
 # macro loopOverMedium(it1, code)
 # 
-#     com = COMUNITY
+#     abm = AGENT
 # 
-#     if com.abm.dims != 1
+#     if abm.dims != 1
 #         error("This macri requires to specify $(abm.dims) iterators.")
 #     end
 # 
-#     code = makeSimpleLoop(code,com,nloops=com.abm.dims)
+#     code = makeSimpleLoop(code,abm,nloops=abm.dims)
 # 
 #     code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
 # 
@@ -334,13 +332,13 @@ end
 # 
 # macro loopOverMedium(it1, it2, code)
 # 
-#     com = COMUNITY
+#     abm = AGENT
 # 
-#     if com.abm.dims != 2
+#     if abm.dims != 2
 #         error("This macri requires to specify $(abm.dims) iterators.")
 #     end
 # 
-#     code = makeSimpleLoop(code,com,nloops=com.abm.dims)
+#     code = makeSimpleLoop(code,abm,nloops=abm.dims)
 # 
 #     code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
 # 
@@ -350,13 +348,13 @@ end
 # 
 # macro loopOverMedium(it1, it2, it3, code)
 # 
-#     com = COMUNITY
+#     abm = AGENT
 # 
-#     if com.abm.dims != 3
+#     if abm.dims != 3
 #         error("This macri requires to specify $(abm.dims) iterators.")
 #     end
 # 
-#     code = makeSimpleLoop(code,com,nloops=com.abm.dims)
+#     code = makeSimpleLoop(code,abm,nloops=abm.dims)
 # 
 #     code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
 # 
@@ -366,9 +364,9 @@ end
 # 
 # macro loopOverAgents(it1, code)
 # 
-#     com = COMUNITY
+#     abm = AGENT
 # 
-#     code = makeSimpleLoop(code,com)
+#     code = makeSimpleLoop(code,abm)
 # 
 #     code = postwalk(x->@capture(x,i_) && i == :i1_ ? it1 : x, code )
 # 
@@ -385,9 +383,9 @@ end
 #     it = code.args[1].args[1]
 #     code = code.args[2]
 # 
-#     com = COMUNITY
+#     abm = AGENT
 # 
-#     code = makeSimpleLoop(code,com)
+#     code = makeSimpleLoop(code,abm)
 # 
 #     code = postwalk(x->@capture(x,i_) && i == :i1_ ? it : x, code )
 # 

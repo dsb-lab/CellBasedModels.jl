@@ -185,15 +185,15 @@ macro update!(platform)
         #List and fill holes left from agent removal
         kernel1 = quote
             kernel1 = CellBasedModels.@cuda launch=false $(Meta.parse("kernelListSurvived$(platform)!"))(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_)
-            kernel1(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_;threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
+            kernel1(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_;threads=community.abm.platform.agentThreads,blocks=community.abm.platform.agentBlocks)
         end
         kernel2 = quote
             kernel2 = CellBasedModels.@cuda launch=false $(Meta.parse("kernelFillHolesParameters$(platform)!"))(p,community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_)
-            kernel2(p,community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
+            kernel2(p,community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_;threads=community.abm.platform.agentThreads,blocks=community.abm.platform.agentBlocks)
         end
         kernel4 = quote
             kernel4 = CellBasedModels.@cuda launch=false $(Meta.parse("kernelUpdateParameters$(platform)!"))(community.N,p,p__)
-            kernel4(community.N,p,p__;threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
+            kernel4(community.N,p,p__;threads=community.abm.platform.agentThreads,blocks=community.abm.platform.agentBlocks)
         end
     end
 
@@ -239,8 +239,8 @@ macro update!(platform)
                     end
                 end
                 #neighbors
-                for sym in fieldnames(typeof(community.neighbors))
-                    p = getfield(community.neighbors,sym)
+                for sym in fieldnames(typeof(community.abm.neighbors))
+                    p = getfield(community.abm.neighbors,sym)
                     if !(typeof(p) <: Function)
                         if length(size(p)) > 0
                             if size(p)[1] == community.nMax_
@@ -278,7 +278,7 @@ macro update!(platform)
             #Update time
             setfield!(community,:t, community.t + community.dt)
             #Update GPU execution
-            platformUpdate!(community.platform,community)
+            platformUpdate!(community.abm.platform,community)
 
             #DE problems update scalar parameters
             for i in [:agentDEProblem,:modelDEProblem,:mediumDEProblem]
@@ -308,7 +308,7 @@ function update!(community)
 
     checkLoaded(community)
 
-    if typeof(community.platform) <: CPU
+    if typeof(community.abm.platform) <: CPU
         updateCPU!(community)
     else
         updateGPU!(community)

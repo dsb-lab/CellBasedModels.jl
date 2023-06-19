@@ -12,6 +12,17 @@ Basic structure which contains the user defined parmeters of the model, the user
 | declaredUpdates::Dict{Symbol,Expr} |  Dictionary of updating rules and their user defined content (high level code). |
 | declaredUpdatesCode::Dict{Symbol,Expr} | Dictionary of updating rules after wrapping into code (low level code). |
 | declaredUpdatesFunction::Dict{Symbol,Function} | Dictionary of updting rules and the compiled functions (compiled code). |
+| agentDEProblem | ODEProblem or SDEProblem object of Agent |
+| agentAlg | Algorithm for the ODEProblem or SDEProblem of Agent |
+| agentSolveArgs | Parameters for the ODEProblem or SDEProblem of Agent |
+| modelDEProblem | ODEProblem or SDEProblem object of Model |
+| modelAlg |Algorithm for the ODEProblem or SDEProblem of Model |
+| modelSolveArgs |Parameters for the ODEProblem or SDEProblem of Model |
+| mediumDEProblem | ODEProblem or SDEProblem object of Medium |
+| mediumAlg |Algorithm for the ODEProblem or SDEProblem of Medium |
+| mediumSolveArgs |Parameters for the ODEProblem or SDEProblem of Medium |
+| neighbors | Algorithm to compute neighbors |
+| platform | Platform in which to run the model |
 | removalOfAgents_::Bool | Stores the information to check wether agents are removed in the code. Auxiliar parameter for generating the code. |
 
 # Constructors
@@ -40,6 +51,18 @@ Generates an empty instance of ABM to be filled.
 
         baseModelInit::Vector{ABM}=ABM[],
         baseModelEnd::Vector{ABM}=ABM[],
+
+        agentAlg::Union{CustomIntegrator,DEAlgorithm} = CBMIntegrators.Euler(),
+        agentSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
+
+        modelAlg::Union{CustomIntegrator,DEAlgorithm} = CBMIntegrators.Euler(),
+        modelSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
+
+        mediumAlg::Union{CustomIntegrator,DEAlgorithm} = DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()),
+        mediumSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
+
+        neighborsAlg::Neighbors = CBMNeighbors.Full(),       
+        platform::Platform = CPU(),     
     )
 
 Generates an agent based model with defined parameters and rules.
@@ -75,6 +98,17 @@ mutable struct ABM
     declaredUpdatesFunction::Dict{Symbol,Function}
 
     removalOfAgents_::Bool
+
+    neighbors
+
+    platform
+
+    agentAlg
+    agentSolveArgs
+    modelAlg
+    modelSolveArgs
+    mediumAlg
+    mediumSolveArgs
         
     function ABM()
         new(0,
@@ -82,7 +116,15 @@ mutable struct ABM
             Dict{Symbol,Expr}(),
             Dict{Symbol,Expr}(),
             Dict{Symbol,Function}(),
-            false
+            false,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing,
+            nothing
             )
     end
 
@@ -106,7 +148,21 @@ mutable struct ABM
 
             baseModelInit::Vector{ABM}=ABM[],
             baseModelEnd::Vector{ABM}=ABM[],
-        )
+
+            agentAlg::Union{CustomIntegrator,DEAlgorithm,Nothing} = nothing,
+            agentSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
+
+            modelAlg::Union{DEAlgorithm,Nothing} = nothing,
+            modelSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
+
+            mediumAlg::Union{DEAlgorithm,Nothing} = nothing,
+            mediumSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
+
+            neighborsAlg::Neighbors = CBMNeighbors.Full(),       
+            platform::Platform = CPU(),     
+
+            compile::Bool = true
+            )
 
         abm = ABM()
 
@@ -203,7 +259,54 @@ mutable struct ABM
         checkCustomCode(abm)
         addUpdates!(abm)
 
+        #Assign other key arguments
+        setfield!(abm,:neighbors,neighborsAlg)
+        setfield!(abm,:platform,platform)
+        if agentAlg === nothing
+            if isemptyupdaterule(abm,:agentSDE)
+                setfield!(abm,:agentAlg,CBMIntegrators.Euler())
+            else
+                setfield!(abm,:agentAlg,CBMIntegrators.EM())
+            end
+        else
+            setfield!(abm,:agentAlg,agentAlg)
+        end
+        setfield!(abm,:agentSolveArgs,agentSolveArgs)
+        if modelAlg === nothing
+            if isemptyupdaterule(abm,:modelSDE)
+                setfield!(abm,:modelAlg,DifferentialEquations.Euler())
+            else
+                setfield!(abm,:modelAlg,DifferentialEquations.EM())
+            end
+        else
+            setfield!(abm,:agentAlg,agentAlg)
+        end
+        setfield!(abm,:modelSolveArgs,modelSolveArgs)
+        if mediumAlg === nothing
+            if isemptyupdaterule(abm,:mediumSDE)
+                setfield!(abm,:mediumAlg,DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()))
+            else
+                setfield!(abm,:mediumAlg,DifferentialEquations.EulerHeun())
+            end
+        else
+            setfield!(abm,:mediumAlg,mediumAlg)
+        end
+        setfield!(abm,:mediumSolveArgs,mediumSolveArgs)
+
         global AGENT = deepcopy(abm)
+
+        #Make compiled functions
+        if compile
+            for (scope,type) in zip(
+                [:agent,:agent,:model,:model,:medium,:medium],
+                [:ODE,:SDE,:ODE,:SDE,:ODE,:SDE]
+            )
+                functionDE(abm,scope,type)
+            end
+            for scope in [:agent,:model,:medium]
+                functionRule(abm,scope)
+            end
+        end
 
         return abm        
     end

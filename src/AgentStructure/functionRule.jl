@@ -8,10 +8,10 @@ Macro that returns the special code based on the arguments provided to `addAgent
 """
 macro addAgent(arguments...)
 
-    com = COMUNITY
+    abm = AGENT
     #List parameters that can be updated by the user
-    updateargs = [sym for (sym,prop) in pairs(com.abm.parameters) if prop.scope == :agent]
-    updateargs2 = [new(sym) for (sym,prop) in pairs(com.abm.parameters) if prop.scope == :agent]
+    updateargs = [sym for (sym,prop) in pairs(abm.parameters) if prop.scope == :agent]
+    updateargs2 = [new(sym) for (sym,prop) in pairs(abm.parameters) if prop.scope == :agent]
     append!(updateargs2,updateargs)
     #Checks that the correct parameters has been declared and not others
     args = []
@@ -34,7 +34,7 @@ macro addAgent(arguments...)
             error("id must not be declared when calling addAgent. It is assigned automatically.")
         end
 
-        if com.abm.parameters[old(g)].update
+        if abm.parameters[old(g)].update
             push!(code.args,:($(new(old(g)))[i1New_]=$f))
         else
             push!(code.args,:($(old(g))[i1New_]=$f))
@@ -46,7 +46,7 @@ macro addAgent(arguments...)
     #Add parameters to agent that have not been user defined
     for i in updateargs
         if !(i in args) && !(new(i) in args)
-            if com.abm.parameters[i].update
+            if abm.parameters[i].update
                 push!(code.args,:($(new(i))[i1New_]=$i[i1_]))
             else
                 push!(code.args,:($i[i1New_]=$i[i1_]))
@@ -71,9 +71,9 @@ macro addAgent(arguments...)
         end
 
     #Adapt code to platform
-    code = cudaAdapt(code,com.platform)
+    code = cudaAdapt(code,abm.platform)
 
-    code = vectorize(code)
+    code = vectorize(code,abm)
 
     return esc(code)
 end
@@ -88,7 +88,7 @@ Macro that returns the special code based on the arguments provided to `removeAg
 """
 macro removeAgent()
 
-    com = COMUNITY
+    abm = AGENT
     code = quote end
 
     #Add 1 to the number of removed
@@ -101,10 +101,10 @@ macro removeAgent()
             flagRecomputeNeighbors_ = 1
         end
 
-    code = vectorize(code)
+    code = vectorize(code,abm)
 
     #Adapt to platform
-    code = cudaAdapt(code,com.platform)
+    code = cudaAdapt(code,abm.platform)
 
     return esc(code)
 
@@ -114,33 +114,32 @@ end
 # local function
 ######################################################################################################
 """
-    function functionRule(com,scope)
+    function functionRule(abm,scope)
 
 Creates the final code provided to ABM in a Rule function and adds it to the ABM. `scope` is between `agent`, `model` and `medium`.
 """
-function functionRule(com,scope)
+function functionRule(abm,scope)
 
     ref = addSymbol(scope,"Rule")
 
-    abm = com.abm
     if !isemptyupdaterule(abm,ref)
         code = abm.declaredUpdates[ref]
 
         #Vectorize
-        code = vectorize(code,com)
+        code = vectorize(code,abm)
         if scope == :agent
-            code = vectorizeMediumInAgents(code,com)
+            code = vectorizeMediumInAgents(code,abm)
         end
         #Put in loop
         if ! contains(string(code),"@loopOverAgents") && scope == :agent
-            code = makeSimpleLoop(code,com)
+            code = makeSimpleLoop(code,abm)
         elseif ! contains(string(code),"@loopOverMedium") && scope == :medium
-            code = makeSimpleLoop(code,com,nloops=abm.dims)
+            code = makeSimpleLoop(code,abm,nloops=abm.dims)
         end
 
-        aux = addCuda(:(rule_($(agentArgs(com,sym=:community)[1:end-1]...))),scope,com) #Add code to execute kernel in cuda if GPU
+        aux = addCuda(:(rule_($(agentArgs(abm,sym=:community)[1:end-1]...))),scope,abm) #Add code to execute kernel in cuda if GPU
         abm.declaredUpdatesCode[ref] = :(function (community)
-                                                        function rule_($(agentArgs(com)[1:end-1]...),)
+                                                        function rule_($(agentArgs(abm)[1:end-1]...),)
 
                                                             $code
 

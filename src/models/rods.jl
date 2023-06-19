@@ -115,7 +115,9 @@ rods2D = ABM(2,
         dt(theta) =  ω 
         dt(ω) =  W/(m*(d+l)^2/12+m*d^2)-βω*ω 
         
-    end
+    end,
+
+    compile=false
 );
 
 rods2dGrowth = ABM(2,
@@ -157,4 +159,6 @@ rods2dGrowth = ABM(2,
             @removeAgent()
         end
     end,
+
+    compile=false
 );

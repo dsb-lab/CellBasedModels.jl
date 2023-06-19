@@ -4,7 +4,7 @@
 """
 Basic structure keeping the parameters of all the agents in the current simulation of a model.
 
-Parameters to sore information essential for Community simulation
+Parameters to store information essential for Community simulation
 
 |Symbol|Description|
 |:---:|:---:|
@@ -12,18 +12,10 @@ Parameters to sore information essential for Community simulation
 |uuid| Unique identifier of the community |
 |loaded| If loaded into the platform CPU or GPU |
 |pastTimes::Array{Community}| Store times when called to saveRAM! |
-|agentDEProblem| ODEProblem or SDEProblem object of Agent |
-|agentAlg| Algorithm for the ODEProblem or SDEProblem of Agent |
-|agentSolveArgs| Parameters for the ODEProblem or SDEProblem of Agent |
-|modelDEProblem| ODEProblem or SDEProblem object of Model |
-|modelAlg|Algorithm for the ODEProblem or SDEProblem of Model |
-|modelSolveArgs|Parameters for the ODEProblem or SDEProblem of Model |
-|mediumDEProblem| ODEProblem or SDEProblem object of Medium |
-|mediumAlg|Algorithm for the ODEProblem or SDEProblem of Medium |
-|mediumSolveArgs|Parameters for the ODEProblem or SDEProblem of Medium |
-|neighbors| Algorithm to compute neighbors |
-|platform| Platform in which to run the model |
 |parameters::OrderedDict{Symbol,AbstractArray}| Dictionary with the User Defined Parameters |
+| agentDEProblem | ODEProblem or SDEProblem object of Agent |
+| modelDEProblem | ODEProblem or SDEProblem object of Model |
+| mediumDEProblem | ODEProblem or SDEProblem object of Medium |
 
 Parameters seen in the kernels that may de used directly by the user
 
@@ -69,17 +61,6 @@ Creates fully empty community. Auxiliar method for the following method of decla
         NMedium::Union{Nothing,Vector{<:Int}} = nothing,
         simBox::Union{Nothing,Matrix{<:Number}} = nothing,
 
-        agentAlg::Union{CustomIntegrator,DEAlgorithm} = CBMIntegrators.Euler(),
-        agentSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
-
-        modelAlg::Union{CustomIntegrator,DEAlgorithm} = CBMIntegrators.Euler(),
-        modelSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
-
-        mediumAlg::Union{CustomIntegrator,DEAlgorithm} = DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()),
-        mediumSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
-
-        neighborsAlg::Neighbors = CBMNeighbors.Full(),       
-        platform::Platform = CPU(),     
         args...
     )
 
@@ -113,21 +94,11 @@ mutable struct Community
     dy
     dz
 
-    parameters::OrderedDict{Symbol,AbstractArray}
-
-    neighbors
-
-    platform
-
     agentDEProblem
-    agentAlg
-    agentSolveArgs
     modelDEProblem
-    modelAlg
-    modelSolveArgs
     mediumDEProblem
-    mediumAlg
-    mediumSolveArgs
+
+    parameters::OrderedDict{Symbol,AbstractArray}
 
     loaded
 
@@ -144,17 +115,6 @@ mutable struct Community
             NMedium::Union{Nothing,Vector{<:Int}} = nothing,
             simBox::Union{Nothing,Matrix{<:Number}} = nothing,
 
-            agentAlg::Union{CustomIntegrator,DEAlgorithm,Nothing} = nothing,
-            agentSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
-
-            modelAlg::Union{DEAlgorithm,Nothing} = nothing,
-            modelSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
-
-            mediumAlg::Union{DEAlgorithm,Nothing} = nothing,
-            mediumSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
-
-            neighborsAlg::Neighbors = CBMNeighbors.Full(),       
-            platform::Platform = CPU(),     
             args...
         )
 
@@ -167,55 +127,11 @@ mutable struct Community
         #Creating the appropiate data arrays for parameters
         setupUserParameters!(com,args)
 
-        #Assign other key arguments
-        setfield!(com,:neighbors,neighborsAlg)
-        setfield!(com,:platform,platform)
-        if agentAlg === nothing
-            if isemptyupdaterule(com.abm,:agentSDE)
-                setfield!(com,:agentAlg,CBMIntegrators.Euler())
-            else
-                setfield!(com,:agentAlg,CBMIntegrators.EM())
-            end
-        else
-            setfield!(com,:agentAlg,agentAlg)
-        end
-        setfield!(com,:agentSolveArgs,agentSolveArgs)
-        if modelAlg === nothing
-            if isemptyupdaterule(com.abm,:modelSDE)
-                setfield!(com,:modelAlg,DifferentialEquations.Euler())
-            else
-                setfield!(com,:modelAlg,DifferentialEquations.EM())
-            end
-        else
-            setfield!(com,:agentAlg,agentAlg)
-        end
-        setfield!(com,:modelSolveArgs,modelSolveArgs)
-        if mediumAlg === nothing
-            if isemptyupdaterule(com.abm,:mediumSDE)
-                setfield!(com,:mediumAlg,DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()))
-            else
-                setfield!(com,:mediumAlg,DifferentialEquations.EulerHeun())
-            end
-        else
-            setfield!(com,:mediumAlg,mediumAlg)
-        end
-        setfield!(com,:mediumSolveArgs,mediumSolveArgs)
         setfield!(com,:loaded,false)
         setfield!(com,:uuid,uuid1())
 
         #Save global reference
         global COMUNITY = com
-
-        #Make compiled functions
-        for (scope,type) in zip(
-            [:agent,:agent,:model,:model,:medium,:medium],
-            [:ODE,:SDE,:ODE,:SDE,:ODE,:SDE]
-        )
-            functionDE(com,scope,type)
-        end
-        for scope in [:agent,:model,:medium]
-            functionRule(com,scope)
-        end
 
         #Save global reference
         global COMUNITY = com
@@ -247,18 +163,10 @@ mutable struct Community
             nothing,
             nothing,
             nothing,
+            nothing,
+            nothing,
+            nothing,
             OrderedDict{Symbol,AbstractArray}(),
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
             nothing,
             Community[],            
             )
@@ -303,7 +211,7 @@ function setupBaseParameters!(com,dt,t,N,id,NMedium,simBox)
     end
     #simBox
     if ( length([i for (i,j) in pairs(com.abm.parameters) if j.scope == :medium]) > 0 && simBox === nothing ) ||
-       ( typeof(com.platform) in [CBMNeighbors.CLVD,CBMNeighbors.CellLinked] && simBox === nothing )
+       ( typeof(com.abm.platform) in [CBMNeighbors.CLVD,CBMNeighbors.CellLinked] && simBox === nothing )
         error("simBox key argument must be defined when models with medium are declared.")
     elseif simBox !== nothing
         if size(simBox) != (com.abm.dims,2)
@@ -398,7 +306,7 @@ Adapt specific CPU forms of calling parameters (e.g. Atomic) to CUDA valid code 
 """
 function cuAdapt(array,com)
 
-    if typeof(com.platform) <: GPU
+    if typeof(com.abm.platform) <: GPU
 
         #Adapt atomic
         if typeof(array) <: Threads.Atomic
@@ -439,14 +347,14 @@ function Base.getindex(community::Community,timePoint::Number)
     else
         com = community.pastTimes[timePoint]
         setfield!(com,:loaded,false)
-        setfield!(com,:platform,community.platform)
-        setfield!(com,:neighbors,community.neighbors)
-        setfield!(com,:agentAlg,community.agentAlg)
-        setfield!(com,:mediumAlg,community.mediumAlg)
-        setfield!(com,:modelAlg,community.modelAlg)
-        setfield!(com,:agentSolveArgs,community.agentSolveArgs)
-        setfield!(com,:mediumSolveArgs,community.mediumSolveArgs)
-        setfield!(com,:modelSolveArgs,community.modelSolveArgs)
+        setfield!(com.abm,:platform,community.abm.platform)
+        setfield!(com.abm,:neighbors,community.abm.neighbors)
+        setfield!(com.abm,:agentAlg,community.abm.agentAlg)
+        setfield!(com.abm,:mediumAlg,community.abm.mediumAlg)
+        setfield!(com.abm,:modelAlg,community.abm.modelAlg)
+        setfield!(com.abm,:agentSolveArgs,community.abm.agentSolveArgs)
+        setfield!(com.abm,:mediumSolveArgs,community.abm.mediumSolveArgs)
+        setfield!(com.abm,:modelSolveArgs,community.abm.modelSolveArgs)
         return com
     end
 
@@ -592,11 +500,11 @@ function createDEProblem(com,scope)
     end
 
     #Assign differential models
-    params = agentArgs(com)
-    paramsCom = agentArgs(com,sym=:com)
+    params = agentArgs(com.abm)
+    paramsCom = agentArgs(com.abm,sym=:com)
     paramsRemove = [sym for (sym,prop) in pairs(com.abm.parameters) if prop.variable && (prop.scope==scope)]
     paramsRemove2 = [new(sym) for sym in paramsRemove if com.abm.parameters[sym].update] #remove news
-    params = [if occursin("neighbors.", string(j)); getfield(com.neighbors,i); elseif occursin("platform.", string(j)); getfield(com.platform,i); else com[i]; end for (i,j) in zip(params,paramsCom) if !(i in [paramsRemove;paramsRemove2])]
+    params = [if occursin("neighbors.", string(j)); getfield(com.abm.neighbors,i); elseif occursin("platform.", string(j)); getfield(com.abm.platform,i); elseif :platform == i; com.abm.platform; else com[i]; end for (i,j) in zip(params,paramsCom) if !(i in [paramsRemove;paramsRemove2])]
 
     ode = addSymbol(scope,"ODE")
     sde = addSymbol(scope,"SDE")
@@ -614,15 +522,15 @@ function createDEProblem(com,scope)
             )
 
         # Overwrite dt
-        getfield(com,arg)[:dt] = com.dt
+        getfield(com.abm,arg)[:dt] = com.dt
         # Add default parameters
         for (i,j) in DEFAULTSOLVEROPTIONS
-            if !(i in keys(getproperty(com,arg)))
-                getproperty(com,arg)[i] = j
+            if !(i in keys(getproperty(com.abm,arg)))
+                getproperty(com.abm,arg)[i] = j
             end
         end
 
-        return DifferentialEquations.init(problem, getproperty(com,alg); getproperty(com,arg)... )
+        return DifferentialEquations.init(problem, getproperty(com.abm,alg); getproperty(com.abm,arg)... )
 
     elseif !isemptyupdaterule(com.abm,ode)
         
@@ -634,15 +542,15 @@ function createDEProblem(com,scope)
         )
 
         # Overwrite dt
-        getfield(com,arg)[:dt] = com.dt
+        getfield(com.abm,arg)[:dt] = com.dt
         # Add default parameters
         for (i,j) in DEFAULTSOLVEROPTIONS
-            if !(i in keys(getproperty(com,arg)))
-                getproperty(com,arg)[i] = j
+            if !(i in keys(getproperty(com.abm,arg)))
+                getproperty(com.abm,arg)[i] = j
             end
         end
 
-        return DifferentialEquations.init(problem, getproperty(com,alg); getproperty(com,arg)... )
+        return DifferentialEquations.init(problem, getproperty(com.abm,alg); getproperty(com.abm,arg)... )
 
     end    
 
@@ -684,7 +592,7 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
         end
 
         #Neighbors
-        CBMNeighbors.initialize!(com.neighbors,com)
+        CBMNeighbors.initialize!(com.abm.neighbors,com)
 
         # Transform to the correct platform the parameters
         setfield!(com,:agentDEProblem,createDEProblem(com,:agent))
@@ -700,7 +608,7 @@ function loadToPlatform!(com::Community;preallocateAgents::Int=0)
         #Compute neighbors and interactions for the first time
         computeNeighbors!(com)
 
-        platformSetup!(com.platform,com)
+        platformSetup!(com.abm.platform,com)
 
     end
 
@@ -740,7 +648,7 @@ function bringFromPlatform!(com::Community)
         end
     end
     setfield!(com,:id, Array{Int64}(com.id)[1:N])
-    neig = com.neighbors
+    neig = com.abm.neighbors
     for i in fieldnames(typeof(neig))
         if string(i)[end:end] == "_"
             setfield!(neig,i, nothing)

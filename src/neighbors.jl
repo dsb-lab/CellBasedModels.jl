@@ -15,7 +15,7 @@ module CBMNeighbors
 
     Function that computes the neighbors of the community according the defined neighbor algorithm in ABM.
     """
-    computeNeighbors!(com) = computeNeighbors!(com.neighbors,com)
+    computeNeighbors!(com) = computeNeighbors!(com.abm.neighbors,com)
 
     #Full
 
@@ -199,7 +199,7 @@ Method that computes VerletList neighbors and updates it at fixed times.
 
     function initialize!(neig::VerletTime,com)
 
-        if typeof(com.platform) <: CPU
+        if typeof(com.abm.platform) <: CPU
             neig.neighborN_ = zeros(Int64,com.nMax_)
             neig.neighborList_ =  zeros(Int64,com.nMax_,neig.nMaxNeighbors)
         else
@@ -207,7 +207,7 @@ Method that computes VerletList neighbors and updates it at fixed times.
             neig.neighborList_ =  CUDA.zeros(Int64,com.nMax_,neig.nMaxNeighbors)
         end
         neig.neighborTimeLastRecompute_ = com.t
-        neig.f_ = eval(Meta.parse("neighborsVerletTime$(com.abm.dims)$(typeof(com.platform))!"))
+        neig.f_ = eval(Meta.parse("neighborsVerletTime$(com.abm.dims)$(typeof(com.abm.platform))!"))
 
         return
 
@@ -239,9 +239,9 @@ Method that computes VerletList neighbors and updates it at fixed times.
 
         base = [
                 :(community.N),
-                :(community.neighbors.neighborN_),
-                :(community.neighbors.neighborList_),
-                :(community.neighbors.skin)
+                :(community.abm.neighbors.neighborN_),
+                :(community.abm.neighbors.neighborList_),
+                :(community.abm.neighbors.skin)
                 ]
 
         base = [base;[:(community.$i) for i in args]]
@@ -252,10 +252,10 @@ Method that computes VerletList neighbors and updates it at fixed times.
             code = :(
                 function $name(community)
 
-                    if community.neighbors.neighborTimeLastRecompute_ <= community.t || community.flagRecomputeNeighbors_[1] == 1
-                        community.neighbors.neighborN_ .= 0
+                    if community.abm.neighbors.neighborTimeLastRecompute_ <= community.t || community.flagRecomputeNeighbors_[1] == 1
+                        community.abm.neighbors.neighborN_ .= 0
                         $namef($(base...),)
-                        community.neighbors.neighborTimeLastRecompute_ = community.t + community.neighbors.dtNeighborRecompute
+                        community.abm.neighbors.neighborTimeLastRecompute_ = community.t + community.abm.neighbors.dtNeighborRecompute
                         community.flagRecomputeNeighbors_ .= 0
                     end
 
@@ -268,10 +268,10 @@ Method that computes VerletList neighbors and updates it at fixed times.
                 function $name(community)
                 
                     kernel = @cuda launch=false $namef($(base...),)
-                    if CUDA.@allowscalar community.neighbors.neighborTimeLastRecompute_ <= community.t || CUDA.@allowscalar community.flagRecomputeNeighbors_[1] == 1
-                        CUDA.@sync community.neighbors.neighborN_ .= 0
+                    if CUDA.@allowscalar community.abm.neighbors.neighborTimeLastRecompute_ <= community.t || CUDA.@allowscalar community.flagRecomputeNeighbors_[1] == 1
+                        CUDA.@sync community.abm.neighbors.neighborN_ .= 0
                         CUDA.@sync kernel($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
-                        CUDA.@sync community.neighbors.neighborTimeLastRecompute_ .= community.t + community.neighbors.dtNeighborRecompute
+                        CUDA.@sync community.abm.neighbors.neighborTimeLastRecompute_ .= community.t + community.abm.neighbors.dtNeighborRecompute
                         CUDA.@sync community.flagRecomputeNeighbors_ .= 0
                     end
                 
@@ -325,7 +325,7 @@ Method that computes VerletList neighbors and updates it whenever an agent moves
 
     function initialize!(neig::VerletDisplacement,com)
 
-        if typeof(com.platform) <: CPU
+        if typeof(com.abm.platform) <: CPU
             neig.neighborN_ = zeros(Int64,com.nMax_)
             neig.neighborList_ =  zeros(Int64,com.nMax_,neig.nMaxNeighbors)
             neig.posOld_ =  zeros(Float64,com.nMax_,com.abm.dims)
@@ -336,7 +336,7 @@ Method that computes VerletList neighbors and updates it whenever an agent moves
             neig.posOld_ =  CUDA.zeros(com.nMax_,com.abm.dims)
             neig.accumulatedDistance_ = CUDA.zeros(com.nMax_)
         end
-        neig.f_ = eval(Meta.parse("neighborsVerletDisplacement$(com.abm.dims)$(typeof(com.platform))!"))
+        neig.f_ = eval(Meta.parse("neighborsVerletDisplacement$(com.abm.dims)$(typeof(com.abm.platform))!"))
 
         return
 
@@ -508,8 +508,8 @@ Method that computes VerletList neighbors and updates it whenever an agent moves
 
         base = agentArgsNeighbors(args,VerletDisplacement,sym=:community)
 
-        base2 = [:(community.N),:(community.neighbors.neighborN_),
-            :(community.neighbors.neighborList_),:(community.neighbors.skin)]
+        base2 = [:(community.N),:(community.abm.neighbors.neighborN_),
+            :(community.abm.neighbors.neighborList_),:(community.abm.neighbors.skin)]
         base2 = [base2;[:(community.$i) for i in args]]
 
         name = Meta.parse(string("neighborsVerletDisplacement$(length(args))$(platform)!"))
@@ -525,8 +525,8 @@ Method that computes VerletList neighbors and updates it whenever an agent moves
 
                     $nameDisp($(base...),)
                     if community.flagRecomputeNeighbors_[1] == 1
-                        community.neighbors.neighborN_ .= 0
-                        community.neighbors.accumulatedDistance_ .= 0.
+                        community.abm.neighbors.neighborN_ .= 0
+                        community.abm.neighbors.accumulatedDistance_ .= 0.
                         community.flagRecomputeNeighbors_ .= 0
                         $nameResDisp($(base...))
                         $nameNeigh($(base2...),)
@@ -546,8 +546,8 @@ Method that computes VerletList neighbors and updates it whenever an agent moves
                     
                     CUDA.@sync kernelDisp($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentThreads)
                     if CUDA.@allowscalar community.flagRecomputeNeighbors_[1] == 1
-                        community.neighbors.neighborN_ .= 0
-                        community.neighbors.accumulatedDistance_ .= 0.
+                        community.abm.neighbors.neighborN_ .= 0
+                        community.abm.neighbors.accumulatedDistance_ .= 0.
                         community.flagRecomputeNeighbors_ .= 0
                         CUDA.@sync kernelResDisp($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
                         CUDA.@sync kernelNeigh($(base2...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
@@ -600,7 +600,7 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
 
     function initialize!(neig::CellLinked,com)
 
-        if typeof(com.platform) <: CPU
+        if typeof(com.abm.platform) <: CPU
             neig.nCells_ = ceil.(Int64,(com.simBox[:,2].-com.simBox[:,1])./neig.cellEdge .+2)
             neig.cellAssignedToAgent_ = zeros(Int64,com.nMax_)
             neig.cellNumAgents_ =  zeros(Int64,prod(neig.nCells_))
@@ -611,7 +611,7 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
             neig.cellNumAgents_ =  cu(zeros(Int64,prod(neig.nCells_)))
             neig.cellCumSum_ =  cu(zeros(Int64,prod(neig.nCells_)))
         end
-        neig.f_ = eval(Meta.parse("neighborsCellLinked$(com.abm.dims)$(typeof(com.platform))!"))
+        neig.f_ = eval(Meta.parse("neighborsCellLinked$(com.abm.dims)$(typeof(com.abm.platform))!"))
 
         return
 
@@ -927,9 +927,9 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
             code = :(
                 function $name(community)
 
-                    community.neighbors.cellNumAgents_ .= 0
+                    community.abm.neighbors.cellNumAgents_ .= 0
                     $namef($(base...),)
-                    community.neighbors.cellCumSum_ .= cumsum(community.neighbors.cellNumAgents_) .- community.neighbors.cellNumAgents_
+                    community.abm.neighbors.cellCumSum_ .= cumsum(community.abm.neighbors.cellNumAgents_) .- community.abm.neighbors.cellNumAgents_
                     $namef2($(base...),)
 
                     return 
@@ -939,10 +939,10 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
             code = :(
                 function $name(community)
 
-                    community.neighbors.cellNumAgents_ .= 0
+                    community.abm.neighbors.cellNumAgents_ .= 0
                     kernel = @cuda launch=false $namef($(base...),)
                     CUDA.@sync kernel($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
-                    community.neighbors.cellCumSum_ .= cumsum(community.neighbors.cellNumAgents_) .- community.neighbors.cellNumAgents_
+                    community.abm.neighbors.cellCumSum_ .= cumsum(community.abm.neighbors.cellNumAgents_) .- community.abm.neighbors.cellNumAgents_
                     kernel2 = @cuda launch=false $namef2($(base...),)
                     CUDA.@sync kernel2($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
 
@@ -1013,7 +1013,7 @@ Method that computes Cell Linked and Verlet Displacement neighbors algorithms to
 
     function initialize!(neig::CLVD,com)
 
-        if typeof(com.platform) <: CPU
+        if typeof(com.abm.platform) <: CPU
             neig.neighborN_ = zeros(Int64,com.nMax_)
             neig.neighborList_ =  zeros(Int64,com.nMax_,neig.nMaxNeighbors)
             neig.posOld_ =  zeros(Float64,com.nMax_,com.abm.dims)
@@ -1032,7 +1032,7 @@ Method that computes Cell Linked and Verlet Displacement neighbors algorithms to
             neig.cellNumAgents_ =  cu(zeros(Int64,prod(neig.nCells_)))
             neig.cellCumSum_ =  cu(zeros(Int64,prod(neig.nCells_)))
         end
-        neig.f_ = eval(Meta.parse("neighborsVerletDisplacement$(com.abm.dims)$(typeof(com.platform))!"))
+        neig.f_ = eval(Meta.parse("neighborsVerletDisplacement$(com.abm.dims)$(typeof(com.abm.platform))!"))
 
         return
 
@@ -1209,13 +1209,13 @@ Method that computes Cell Linked and Verlet Displacement neighbors algorithms to
                     $nameDisp($(base...),)
                     if community.flagRecomputeNeighbors_[1] == 1
                         #Stuff related with CellLink
-                        community.neighbors.cellNumAgents_ .= 0
+                        community.abm.neighbors.cellNumAgents_ .= 0
                         $namef($(base...),)
-                        community.neighbors.cellCumSum_ .= cumsum(community.neighbors.cellNumAgents_) .- community.neighbors.cellNumAgents_
+                        community.abm.neighbors.cellCumSum_ .= cumsum(community.abm.neighbors.cellNumAgents_) .- community.abm.neighbors.cellNumAgents_
                         $namef2($(base...),)
                         #Stuff related with Verlet Displacement
-                        @views community.neighbors.neighborN_[1:community.N] .= 0
-                        @views community.neighbors.accumulatedDistance_[1:community.N] .= 0.
+                        @views community.abm.neighbors.neighborN_[1:community.N] .= 0
+                        @views community.abm.neighbors.accumulatedDistance_[1:community.N] .= 0.
                         @views community.flagRecomputeNeighbors_ .= 0
                         $nameResDisp($(base...))
                         #Assign neighbors
@@ -1235,15 +1235,15 @@ Method that computes Cell Linked and Verlet Displacement neighbors algorithms to
                     CUDA.@sync kernelDisp($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
                     if CUDA.@allowscalar community.flagRecomputeNeighbors_[1] == 1
                         #Stuff relateed with CellLinked
-                        community.neighbors.cellNumAgents_ .= 0
+                        community.abm.neighbors.cellNumAgents_ .= 0
                         kernel = @cuda launch=false $namef($(base...),)
                         CUDA.@sync kernel($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
-                        community.neighbors.cellCumSum_ .= cumsum(community.neighbors.cellNumAgents_) .- community.neighbors.cellNumAgents_
+                        community.abm.neighbors.cellCumSum_ .= cumsum(community.abm.neighbors.cellNumAgents_) .- community.abm.neighbors.cellNumAgents_
                         kernel2 = @cuda launch=false $namef2($(base...),)
                         CUDA.@sync kernel2($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
                         #Stuff related with Verlet Displacement
-                        CUDA.@sync community.neighbors.neighborN_ .= 0
-                        CUDA.@sync community.neighbors.accumulatedDistance_ .= 0.
+                        CUDA.@sync community.abm.neighbors.neighborN_ .= 0
+                        CUDA.@sync community.abm.neighbors.accumulatedDistance_ .= 0.
                         CUDA.@sync community.flagRecomputeNeighbors_ .= 0
                         CUDA.@sync kernelResDisp($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentThreads)
                         #Assign neighbors

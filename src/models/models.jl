@@ -1,6 +1,6 @@
 module CBMModels
 
-#    using CellBasedModels
+    # using CellBasedModels
     import ...CellBasedModels: ABM, CBMMetrics, CBMDistributions
     
     include("./softSpheres.jl")

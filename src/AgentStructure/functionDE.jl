@@ -6,15 +6,14 @@ end
 # Convert the equations
 #######################################################################################################
 """
-    function functionDE(com,scope,type)
+    function functionDE(abm,scope,type)
 
-Creates the final code for Differential Equation functions to be provided to DifferentialEquations.ODEProblem. `scope` is between `agent`, `model` and `medium` and `type` `SDE` or `ODE`
+Creates the final code for Differential Equation functions to be provided to DifferentialEquations.ODEProblem. `scope` is between `agent`, `model` and `medium`, `type` `SDE` or `ODE`.
 """
-function functionDE(com,scope,type)
+function functionDE(abm,scope,type)
 
     ref = addSymbol(scope,type)
 
-    abm = com.abm
     if !isemptyupdaterule(abm,ref)
 
         unwrap = quote end
@@ -31,15 +30,15 @@ function functionDE(com,scope,type)
                     push!(unwrap.args, :(@views $sym = var_[$pos:$pos]))
                     push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:]))
                 elseif prop.scope == :medium && scope == :medium
-                    if com.abm.dims == 1
+                    if abm.dims == 1
                         push!(unwrap.args, :(@views $dsym = dVar_[$pos,:]))
                         push!(unwrap.args, :(@views $sym = var_[$pos,:]))
                         push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:]))
-                    elseif com.abm.dims == 2
+                    elseif abm.dims == 2
                         push!(unwrap.args, :(@views $dsym = dVar_[$pos,:,:]))
                         push!(unwrap.args, :(@views $sym = var_[$pos,:,:]))
                         push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:,:]))
-                    elseif com.abm.dims == 3
+                    elseif abm.dims == 3
                         push!(unwrap.args, :(@views $dsym = dVar_[$pos,:,:,:]))
                         push!(unwrap.args, :(@views $sym = var_[$pos,:,:,:]))
                         push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:,:,:]))
@@ -47,7 +46,7 @@ function functionDE(com,scope,type)
                 end
             end
         end
-        params = agentArgs(com)
+        params = agentArgs(abm)
         paramsRemove = [sym for (sym,prop) in pairs(abm.parameters) if prop.variable && prop.scope == scope] #remove updates
         paramsRemove2 = [new(sym) for sym in paramsRemove if abm.parameters[sym].update] #remove news
         params = Tuple([i for i in params if !(i in [paramsRemove;paramsRemove2])])
@@ -58,18 +57,18 @@ function functionDE(com,scope,type)
             dsym = addSymbol("dt__",sym)
             code = postwalk(x->@capture(x,dt(s_)) && s == sym ? :($dsym[i1_]) : x, code)
         end
-        code = vectorize(code,com)
+        code = vectorize(code,abm)
         if scope == :agent
-            code = vectorizeMediumInAgents(code,com)
+            code = vectorizeMediumInAgents(code,abm)
         end
 
         if ! contains(string(code),"@loopOverAgents") && scope == :agent
-            code = makeSimpleLoop(code,com)
+            code = makeSimpleLoop(code,abm)
         elseif ! contains(string(code),"@loopOverMedium") && scope == :medium
-            code = makeSimpleLoop(code,com,nloops=abm.dims)
+            code = makeSimpleLoop(code,abm,nloops=abm.dims)
         end
 
-        if typeof(com.platform) <: CPU
+        if typeof(abm.platform) <: CPU
             abm.declaredUpdatesCode[ref] = 
                 quote
                     function (dVar_,var_,p_,t_)

@@ -6,7 +6,6 @@ ZEROS =  Dict([:CPU=>zeros,:GPU=>CUDA.zeros])
 ARRAY = Dict([:CPU=>Array,:GPU=>CuArray])
 
 AGENT = 0
-COMUNITY = 0
 
 #Parameters
 BASEPARAMETERS = OrderedDict(

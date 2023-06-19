@@ -32,7 +32,9 @@ softSpheres2D = ABM(2,
         dt(vy) = -b*vy/m+fy/m
         dt(x) = vx
         dt(y) = vy
-    end
+    end,
+
+    compile=false
 )
 
 softSpheres3D = ABM(3,
@@ -74,5 +76,7 @@ softSpheres3D = ABM(3,
             dt(x) = vx
             dt(y) = vy
             dt(z) = vz
-        end
+        end,
+
+        compile=false
     );
