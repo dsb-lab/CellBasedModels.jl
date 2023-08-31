@@ -299,6 +299,7 @@ function vectorize(code,agent)
     code = postwalk(x->@capture(x,id) ? :(id[i1_]) : x, code)
     code = postwalk(x->@capture(x,id[f_][f2_]) ? :(id[$f2]) : x, code) #avoid double indexing
     if typeof(agent) !== Int64 #Avoid empty AGENT
+        print(keys(agent.parameters))
         for (sym,prop) in pairs(agent.parameters)
 
             if :agent == prop.scope
@@ -321,9 +322,9 @@ function vectorize(code,agent)
             else
                 error("Symbol $bs with type $(prop[2]) doesn't has not vectorization implemented.")
             end
-            code = postwalk(x->@capture(x,g_[f_][f2__]) && g == sym ? :($g[$(f2...)]) : x, code) #avoid double indexing
-            code = postwalk(x->@capture(x,g_[f_][f2__]) && g == new(sym) ? :($g[$(f2...)]) : x, code) #avoid double indexing
-            code = postwalk(x->@capture(x,g_[f_][f2__]) && g == opdt(sym) ? :($g[$(f2...)]) : x, code) #avoid double indexing
+            code = postwalk(x->@capture(x,g_[f__][f2__]) && g == sym ? :($g[$(f2...)]) : x, code) #avoid double indexing
+            code = postwalk(x->@capture(x,g_[f__][f2__]) && g == new(sym) ? :($g[$(f2...)]) : x, code) #avoid double indexing
+            code = postwalk(x->@capture(x,g_[f__][f2__]) && g == opdt(sym) ? :($g[$(f2...)]) : x, code) #avoid double indexing
         end
     end
 
