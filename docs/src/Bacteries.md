@@ -87,7 +87,11 @@ rod2D = ABM(2,
         dt(theta) =  ω 
         dt(ω) =  W/(m*(d+l)^2/12+m*d^2)-βω*ω 
         
-    end
+    end,
+
+    neighborsAlg=CBMNeighbors.CellLinked(cellEdge=4),
+    platform=GPU(),
+    agentAlg = CBMIntegrators.Heun()
 );
 
 ```
@@ -100,9 +104,6 @@ com = Community(rod2D,
             N=2,
             dt=0.1,
             simBox = [-20 20;-20 20.],
-            neighborsAlg=CBMNeighbors.CellLinked(cellEdge=4),
-            platform=GPU(),
-            agentAlg = CBMIntegrators.Heun()
             );
 
 #Natural units scales
@@ -249,6 +250,10 @@ rods2dGrowth = ABM(2,
             @removeAgent()
         end
     end,
+
+    neighborsAlg=CBMNeighbors.CellLinked(cellEdge=4),
+    platform=GPU(),
+    agentAlg=CBMIntegrators.Heun()
 );
 ```
 
@@ -260,9 +265,6 @@ com = Community(rods2dGrowth,
             N=1,
             dt=0.1,
             simBox = [-100 100;-100 100.],
-            neighborsAlg=CBMNeighbors.CellLinked(cellEdge=4),
-            platform=GPU(),
-            agentAlg=CBMIntegrators.Heun()
             );
 
 m = 1/100

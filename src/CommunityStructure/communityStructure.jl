@@ -124,6 +124,12 @@ mutable struct Community
         #Check args compulsory to be declared in the community given the agent model
         setupBaseParameters!(com,dt,t,N,id,NMedium,simBox)
 
+        for i in [:agentAlg,:agentSolveArgs,:modelAlg,:modelSolveArgs,:mediumAlg,:mediumSolveArgs,:platform,:neighborsAlg]
+            if i in keys(args)
+                error("Algorithms and platform arguments have been moved since version v0.1.0 to ABM object to account for a World age problem that was affecting efficiency. Move argument $i to ABM object.")
+            end
+        end
+
         #Creating the appropiate data arrays for parameters
         setupUserParameters!(com,args)
 

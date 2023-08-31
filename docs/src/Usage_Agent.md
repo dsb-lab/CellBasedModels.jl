@@ -42,6 +42,9 @@ By default, all agent models have a set of defined set of parameters. A list of 
 |**Grid size Medium**|dx|Float64|Grid separation of the medium in the x axis. This parameter is only present is a model with medium parameters is declared.|
 ||dy|Float64|Grid separation of the medium in the y axis. This parameter is only present is a model with medium parameters is declared.|
 ||dz|Float64|Grid separation of the medium in the z axis. This parameter is only present is a model with medium parameters is declared.|
+|**Grid position Medium**|i1_|Int64|Index of the medium grid in the x coordinate.|
+||i2_|Int64|Index of the medium grid in the x coordinate.|
+||i3_|Int64|Index of the medium grid in the x coordinate.|
 
 There are more parameters predefined in the model. The other parameters, however, are used internaly for the package to work properly and should in rare case used directly by the user. A complete list can be seen in the definition of the `Community` structure in `API`. You can identify them because they have a lower underscore in the end of their name.
 
@@ -74,13 +77,6 @@ agent = ABM(3,                                  #Dimensions of the model
             )
 ```
 
-
-
-
-    
-
-
-
     PARAMETERS
     	x (Float64 agent)
     	y (Float64 agent)
@@ -90,7 +86,13 @@ agent = ABM(3,                                  #Dimensions of the model
     	zₘ (Float64 medium)
     	a2 (Int64 agent)
     	a1 (Float64 agent)
-    	g2 (Array{Float64} model)
+    	g2 (Array{
+
+
+    
+
+
+    Float64} model)
     	g1 (Int64 model)
     	m (Float64 medium)
     
@@ -161,10 +163,7 @@ model = ABM(1, #Dimensions of the model
 ```
 
 
-
-
     
-
 
 
     PARAMETERS
@@ -190,7 +189,7 @@ model = ABM(1, #Dimensions of the model
 Several things to notice: 
 
  1. Parameters with double lower underline. If you notice, the update rule shows that when the modified parameters `x` and `l`, when reasiged with an updating operator, they where converted into `x__` and `l__`, respectively. The underscore variables are the variables that store the modifications of the parameters before making the final step. This is performed this way to avoid modificating the parameters before all the modifications to all the agents, medium and model parameters are made. When calling the functions `update!` or `evolve!`, the new modifications will take place and will be incorporated into the original parameters. 
- 2. Random numbers and GPU. To generate random numbers from distributions we can use the package `Distributions.jl`. This is perfectly fine if your code is going to run only on CPU. However, `Distributions.jl` is not compatible with GPU (yet) hence we provide the submodule `CBMRandom` with some random generators from different distributions that may run both in CPU and GPU.
+ 2. Random numbers and GPU. To generate random numbers from distributions we can use the package `Distributions.jl`. This is perfectly fine if your code is going to run only on CPU. However, `Distributions.jl` is not compatible with GPU hence we provide the submodule `CBMRandom` with some random generators from different distributions that may run both in CPU and GPU.
  3. Macros. `CellBasedModels` provide several macros that are handy to perform some special functions of Agent Based Models. You can see the all the provided macros in `API - Macros`. In here we use the macro for adding agents to a model `@addAgent` and the one for removing agents `@removeAgent`.
  4. Use of Base parameters. For checking that the particle has left the simulation space, we use the base parameter `simBox` that defines the boundaries of the simulation.
 
@@ -228,19 +227,18 @@ model = ABM(1, #Dimensions of the model
 )
 ```
 
-
-
-
-    
-
-
-
     PARAMETERS
     	x (Float64 agent)
     	l (Float64 agent)
     	pDivision (Float64 model)
     	σ2 (Float64 model)
-    	freeze (Bool model)
+    	freeze (
+
+
+    
+
+
+    Bool model)
     
     
     UPDATE RULES
@@ -291,7 +289,7 @@ model = ABM(2,
         ),
     agentRule = quote
         nNeighs = 0 #Set it to zero before starting the computation
-        @loopOverNeigbors it2 begin
+        @loopOverNeighbors it2 begin
             d = CBMMetrics.euclidean(x,x[it2],y,y[it2]) #Using euclidean matric provided in package
             if d < dist
                 nNeighs += 1 #Add 1 to neighbors
@@ -305,15 +303,15 @@ model = ABM(2,
     agentSDE = quote #Here we put the stochastic term
         dt(x) = D
         dt(y) = D
-    end
+    end,
+
+    platform = CPU(),
+    neighborsAlg = CBMNeighbors.CellLinked(cellEdge=1)
 )
 ```
 
 
-
-
     
-
 
 
     PARAMETERS
@@ -334,7 +332,7 @@ model = ABM(2,
     agentRule
      begin
         nNeighs__ = 0
-        @loopOverNeigbors it2 begin
+        @loopOverNeighbors it2 begin
                 d = CBMMetrics.euclidean(x, x[it2], y, y[it2])
                 if d < dist
                     nNeighs__ += 1
@@ -358,11 +356,27 @@ Several things to notice:
 
 Let's see another example.
 
-**Example** Consider that we want to define a model with a diffusive medium and static cells secreting to medium. For now we will limit to have a medium without agents. The equation of diffusion has the form:
+**Example** Consider that we want to define a model with a diffusive medium along the x axis and static cells secreting to medium. For now we will limit to have a medium without agents. The equation of diffusion has the form:
 
 $$\frac{\partial p(x,t)}{\partial t} = D\frac{\partial^2 p(x,t)}{\partial x^2}$$
 
-This continuous equation has to be discretized to be able to be integrated. We can use the macros to have.
+This continuous equation has to be discretized to be able to be integrated. We can use the macros we provide in the code.
+
+For the boundary solutions we can implement Dirichlet conditions:
+
+$$p(x_{max},t) = 0$$
+
+and Newman (reflective):
+
+$$\partial_x p(x,t)|_{x=x_{min}} = 0$$
+
+which in discrete form will correspond to (taking a backward discretization):
+
+$$ \frac{p(x_{min})-p(x_{min}-\Delta x)}{\Delta x} = 0$$
+
+and isolating:
+
+$$ p(x_{min})=p(x_{min}-\Delta x)$$
 
 
 ```julia
@@ -377,32 +391,28 @@ model = ABM(2,
         :p=> Float64  #Number of neighbors that the agent has
         ),
     agentRule = quote
-        p += secrete/dt*dx*dy #Add to the medium the secretion content of each neighbor at each time point
+        p += secrete*dt/dx*dy #Add to the medium the secretion content of each neighbor at each time point
     end,
     mediumODE = quote
-        if @mediumInside()
-            dt(p) = @∂2(1,p)        #Diffusion inside
-        elseif @mediumBorder(1,-1)
-            p = p[2]                #Newman (reflective) boundaries on the borders
-        elseif @mediumBorder(1,1)
-            p = 0                   #Dirichlet (absorvant) boundary
+        if @mediumInside() #Diffusion inside bourders
+            dt(p) = @∂2(1,p)      #Second order diffusive term along x axis
+        elseif @mediumBorder(1,-1) #Newman (reflective) boundaries on the xmin border
+            p = p[2,i2_]    #Reflective at x border, along all y points             
+        elseif @mediumBorder(1,1) #Dirichlet (absorvant) boundary on the xmax border
+            p = 0                   
         end
-    end
+    end,
+    mediumAlg = DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23())
 )
 ```
-
-
 
 
     
 
 
-
     PARAMETERS
     	x (Float64 agent)
-    	y (Float64 agent)
     	xₘ (Float64 medium)
-    	yₘ (Float64 medium)
     	secrete (Float64 agent)
     	D (Float64 model)
     	p (Float64 medium)
@@ -419,7 +429,7 @@ model = ABM(2,
     end
     
     agentRule
-     p__ += (secrete / dt) * dx * dy
+     p__ += ((secrete * dt) / dx) * dy
     
 
 
@@ -428,6 +438,19 @@ By now you can already identify all the things that are happening:
  1. In an agent rule we are adding to the medium whatever the agent is secreting.
  2. We used some provided macros to help out the writing of the model.
  3. Updated parameters adquire the underscore and `dt__` decorators.
+
+# Algorithm arguments
+
+Once defined the rules, you can define specific algorithms for the computation of the model. The possible arguments are:
+
+- `platform` argument to define the type of platform in which you want to evolve the model.
+- `agentAlg`, `modelAlg` and `mediumAlg` to define the integrator that you want to use. You can use our own integrators provided in the submodule `CBMIntegrators` that may be faster in general but in complex cases with stiff operation or in which you need high precission, you can always use the integrators from `DifferentialEquations.jl` suite. 
+- `agentSolveArgs`, `modelSolveArgs` and `mediumSolveArgs` to define additional arguments required by the integrators to work. This arguments are the ones present when definind a problem in `DifferentialEquations.jl`. 
+- `neighbors` algorithm. This defines the way of computing neighbors. This step is one of the most cost expensive in ABMs and the correct selection of algorithm can really afect your computational efficientcy. We provide several possible algorithms in the submodule `CBMNeighbors`.
+
+You should have seen some of this arguments declared in the code above.
+
+> **WARNING**  In Version v0.1.0, these arguments where declared in the 'Community' object. They where moved to this object to solve a [World agent problem](https://arxiv.org/abs/2010.07516) when creating Communities inside functions.
 
 ## Model inheritance
 
@@ -479,10 +502,7 @@ modelCombined = ABM(1, #Dimensions of the model
 ```
 
 
-
-
     
-
 
 
     PARAMETERS

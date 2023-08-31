@@ -164,6 +164,12 @@ com.y=[0.,0.];
 # If we do not define fx and fy, they are initialy set to zeros
 ```
 
+
+    2-element Vector{Float64}:
+     0.0
+     0.0
+
+
 Now that everything is set, we can evolve the community with the function `evolve!` for some number of steps.
 
 
@@ -179,6 +185,15 @@ For that, we extract from the community all the parameters that we want to plot 
 ```julia
 d = getParameter(com,[:t,:x,:y,:fx,:fy])
 ```
+
+
+    Dict{Symbol, Vector} with 5 entries:
+      :fy => [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0…
+      :y  => [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0…
+      :fx => [[-0.6, 0.6], [-0.6, 0.6], [-0.48, 0.48], [-0.36, 0.36], [-0.264, 0.26…
+      :t  => [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0  …  4.1, 4.2, 4.3, 4…
+      :x  => [[-0.1, 0.1], [-0.16, 0.16], [-0.22, 0.22], [-0.268, 0.268], [-0.304, …
+
 
 And then we construct the plot.
 
@@ -256,6 +271,15 @@ d = getParameter(com,[:t,:x,:y,:fx,:fy])
 ```
 
 
+    Dict{Symbol, Vector} with 5 entries:
+      :fy => [[1.0], [1.0], [1.0], [1.0], [1.0], [1.0], [1.0], [1.0], [1.0], [1.0],…
+      :y  => [[-2.5], [-2.4], [-2.3], [-2.2], [-2.1], [-2.0], [-1.9], [-1.8], [-1.7…
+      :fx => [[0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0],…
+      :t  => [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4,…
+      :x  => [[0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0],…
+
+
+
 ```julia
 #Plot
 fig = Figure(resolution=(1100,550))
@@ -315,6 +339,10 @@ model2 = ABM(2,
     modelODE = quote
         dt(D) = -αT*D
     end,
+
+    agentAlg = CBMIntegrators.EM(),
+    modelAlg = DifferentialEquations.Euler(),
+    neighborsAlg = CBMNeighbors.CellLinked(cellEdge=2),
 );
 ```
 
@@ -330,9 +358,6 @@ com = Community(model2,
         N=N,
         dt=0.1,
         simBox = simBox,
-        agentAlg = CBMIntegrators.EM(),
-        modelAlg = DifferentialEquations.Euler(),
-        neighborsAlg = CBMNeighbors.CellLinked(cellEdge=2),
         )
 
 com.rRep=.8
@@ -397,7 +422,11 @@ Check how alternative algorithms improve the speeding time.
 
 
 ```julia
-function initialize(model,N,simBox,neighbors)
+modelFull = ABM(2, baseModelInit=[model2], agentAlg = CBMIntegrators.EM(), neighborsAlg=CBMNeighbors.Full())
+modelVerlet = ABM(2, baseModelInit=[model2], agentAlg = CBMIntegrators.EM(), neighborsAlg=CBMNeighbors.VerletDisplacement(skin=2,nMaxNeighbors=20))
+modelCellLinked = ABM(2, baseModelInit=[model2], agentAlg = CBMIntegrators.EM(), neighborsAlg=CBMNeighbors.CellLinked(cellEdge=2))
+
+function initialize(model,N,simBox)
         return Community(model,N=N,
                 simBox = simBox,
                 
@@ -408,9 +437,7 @@ function initialize(model,N,simBox,neighbors)
                 D = .5,
                 x=rand(N).*(simBox[1,2]-simBox[1,1]).+simBox[1,1],
                 y=rand(N).*(simBox[2,2]-simBox[2,1]).+simBox[2,1],
-                dt=.1,
-                agentAlg = CBMIntegrators.EM(),
-                neighborsAlg=neighbors
+                dt=.1
                 );
 end;
 ```
@@ -429,17 +456,17 @@ for S in 1:.5:7
     n = round(Int64,ρ*(simBox[1,2]-simBox[1,1])*(simBox[2,2]-simBox[2,1]))
     push!(N,n)
 
-    com = initialize(model2,n,simBox,CBMNeighbors.Full()); #Full (default) algorithm
+    com = initialize(modelFull,n,simBox); #Full (default) algorithm
     evolve!(com,steps=10,saveEach=10,saveCurrentState=true)
     t = @elapsed evolve!(com,steps=1000,saveEach=10,saveCurrentState=true)
     push!(tFull,t)
 
-    com2 = initialize(model2,n,simBox,CBMNeighbors.VerletDisplacement(skin=2,nMaxNeighbors=20)); #Verlet list algorithm
+    com2 = initialize(modelVerlet,n,simBox); #Verlet list algorithm
     evolve!(com2,steps=10,saveEach=10,saveCurrentState=true)
     t = @elapsed evolve!(com2,steps=1000,saveEach=10,saveCurrentState=true)
     push!(tVerlet,t)
 
-    com3 = initialize(model2,n,simBox,CBMNeighbors.CellLinked(cellEdge=2)); #Cell linked algorithm
+    com3 = initialize(modelCellLinked,n,simBox); #Cell linked algorithm
     evolve!(com3,steps=10,saveEach=10,saveCurrentState=true)
     t = @elapsed evolve!(com3,steps=1000,saveEach=10,saveCurrentState=true)
     push!(tCellLinked,t)

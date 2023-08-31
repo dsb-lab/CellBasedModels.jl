@@ -79,7 +79,9 @@ model = ABM(2,
 
     agentSDE = quote
         dt(u) = D
-    end
+    end,
+
+    agentAlg=DifferentialEquations.EM()
 );
 ```
 
@@ -95,7 +97,6 @@ Ny = 9
 com = Community(model,
                 N=2*Nx*Ny,
                 dt=0.001,
-                agentAlg=DifferentialEquations.EM()
                 )
 
 #Global parameters

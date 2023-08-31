@@ -137,8 +137,9 @@ rods2DChemotaxis = ABM(2,
         elseif @mediumBorder(2,-1)
             mm = 0
         end
-    end
+    end,
 
+    neighborsAlg=CBMNeighbors.CellLinked(cellEdge=4)
 );
 ```
 
@@ -152,7 +153,6 @@ com = Community(
     dt=0.1,
     simBox=[-20 20;-20 20.],
     NMedium=[200,200],
-    neighborsAlg=CBMNeighbors.CellLinked(cellEdge=4)
 )
 
 m = 1/100

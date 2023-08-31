@@ -67,15 +67,6 @@ using CSV
 using DataFrames
 ```
 
-    [36m[1m[ [22m[39m[36m[1mInfo: [22m[39mPrecompiling CellBasedModels [388cb286-f2b1-4654-a3bb-2e137a39c658]
-    WARNING: Method definition plotRods2D!(Any, Any, Any, Any, Any, Any) in module CBMPlots at /home/gabriel/CellBasedModels.jl/src/plotting/rods.jl:14 overwritten at /home/gabriel/CellBasedModels.jl/src/plotting/rods.jl:51.
-      ** incremental compilation may be fatally broken for this module **
-    
-    WARNING: Method definition plotRods2D!##kw(Any, typeof(CellBasedModels.CBMPlots.plotRods2D!), Any, Any, Any, Any, Any, Any) in module CBMPlots at /home/gabriel/CellBasedModels.jl/src/plotting/rods.jl:14 overwritten at /home/gabriel/CellBasedModels.jl/src/plotting/rods.jl:51.
-      ** incremental compilation may be fatally broken for this module **
-    
-
-
 ### Define the agent
 
 First, we have to create an instance of an agent with all the propoerties of the agents.First, we have to create an instance of an agent with all the propoerties of the agents.
@@ -199,7 +190,9 @@ model = ABM(3,
             @removeAgent() # Remove agent that divided
             
         end
-    end
+    end,
+
+    agentAlg=CBMIntegrators.Heun()
 );
 ```
 
@@ -254,7 +247,6 @@ function initializeEmbryo(parameters;dt)
                 model,
                 N=1,
                 dt=dt,
-                agentAlg=CBMIntegrators.Heun()
                 )
 
     #Global parameters
@@ -596,13 +588,13 @@ function loosFunction(params;parameters=parameters,data=data,nRepetitions=1,save
 
     #Modify the set of parameters
     parametersModified = copy(parameters)
-    parametersModified[:α] = params.α[1]
-    parametersModified[:K] = params.K[1]
-    parametersModified[:nn] = params.nn[1]
-    parametersModified[:mm] = params.mm[1]
-    parametersModified[:nCirc] = params.nCirc[1]
-    parametersModified[:σNCirc] = params.σNCirc[1]
-    parametersModified[:c0] = params.c0[1]
+    parametersModified[:α] = params[:α][1]
+    parametersModified[:K] = params[:K][1]
+    parametersModified[:nn] = params[:nn][1]
+    parametersModified[:mm] = params[:mm][1]
+    parametersModified[:nCirc] = params[:nCirc][1]
+    parametersModified[:σNCirc] = params[:σNCirc][1]
+    parametersModified[:c0] = params[:c0][1]
     
     #Make a batch of simulations and get relevant information
     prop = makeStatistics(com,parametersModified,dt,steps,saveEach,nRepetitions);
@@ -658,7 +650,7 @@ end
 
 
 ```julia
-CBMFitting.swarmAlgorithm(loosFunction,explore,population=10,stopMaxGenerations=10,saveFileName="Optimization",verbose=true)
+#CBMFitting.swarmAlgorithm(loosFunction,explore,population=10,stopMaxGenerations=10,saveFileName="Optimization",verbose=true)
 ```
 
     [32mGeneration 1/10 100%|████████████████████████████████████| Time: 0:06:33[39m
@@ -711,14 +703,15 @@ propQualitative = makeStatistics(com,parameters,dt,steps,saveEach,nRepetitions);
 ```julia
 params = optimization[argmin(optimization[!,"_score_"]),:]
 parametersModified = copy(parameters)
-parametersModified[:α] = params.α[1]
-parametersModified[:K] = params.K[1]
-parametersModified[:nn] = params.nn[1]
-parametersModified[:mm] = params.mm[1]
-parametersModified[:nCirc] = params.nCirc[1]
-parametersModified[:σNCirc] = params.σNCirc[1]
+parametersModified[:α] = params[:α][1]
+parametersModified[:K] = params[:K][1]
+parametersModified[:nn] = params[:nn][1]
+parametersModified[:mm] = params[:mm][1]
+parametersModified[:nCirc] = params[:nCirc][1]
+parametersModified[:σNCirc] = params[:σNCirc][1]
+parametersModified[:c0] = params[:c0][1]
 
-propFitted = makeStatistics(com,parametersModified,dt,steps,saveEach,nRepetitions);
+propFitted = makeStatistics(com,parametersModified,dt,steps,saveEach,10);
 ```
 
 
@@ -772,3 +765,8 @@ display(fig)
 ![png](Development_files/Development_41_0.png)
     
 
+
+
+```julia
+
+```

@@ -299,7 +299,6 @@ function vectorize(code,agent)
     code = postwalk(x->@capture(x,id) ? :(id[i1_]) : x, code)
     code = postwalk(x->@capture(x,id[f_][f2_]) ? :(id[$f2]) : x, code) #avoid double indexing
     if typeof(agent) !== Int64 #Avoid empty AGENT
-        print(keys(agent.parameters))
         for (sym,prop) in pairs(agent.parameters)
 
             if :agent == prop.scope

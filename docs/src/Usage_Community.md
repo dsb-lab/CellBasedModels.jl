@@ -23,6 +23,7 @@ model = ABM(2,
         dt(x) = σ
         dt(y) = σ
     end,
+    agentAlg = DifferentialEquations.EM(), #Let's use an algorithm from DifferentialEquations suite
 )
 ```
 
@@ -60,7 +61,6 @@ To create an initial community we just need to call a Community structure with a
 ```julia
 com = Community(model,
                 dt=0.1,
-                agentAlg=CBMIntegrators.EM()
                 )
 ```
 
@@ -77,9 +77,6 @@ In addition to the model structure, we can provide the Community structure with 
 
  - Base parameters like the time `dt` or the simulation box `simBox`.
  - User parameters.
- - `platform` argument to define the type of platform in which you want to evolve the model.
- - `agentAlg`, `modelAlg` and `mediumAlg` to define the integrator that you want to use. You can use our own integrators provided in the submodule `CBMIntegrators` that may be faster in general but in complex cases with stiff operation or in which you need high precission, you can always use the integrators from `DifferentialEquations.jl` suite. 
- - `neighbors` algorithm. This defines the way of computing neighbors. This step is one of the most cost expensive in ABMs and the correct selection of algorithm can really afect your computational efficientcy. We provide several possible algorithms in the submodule `CBMNeighbors`.
 
 For example, we can define a community with more agents `N`, a `simulationBox` and random positions (`x`,`y`) in the unit box by constructing the Community as
 
@@ -90,7 +87,6 @@ com = Community(model,
         N=N,
         simBox=[0 1;0 1.],
         dt = 0.1,
-        agentAlg = DifferentialEquations.EM(), #Let's use an algorithm from DifferentialEquations suite
         x=Vector(1.:N),
         y=rand(N)
     )
@@ -241,9 +237,7 @@ Once we have defined a model and constructed an initial community, we can evolve
 
 In the following schema we describe the basic collection of functions provided by the package to evolve the model, where some functions perform automatically all the step that are described on the right.
 
-
-```@raw html
- <table>
+<table>
     <thead>
         <th colspan=3> Functions </th>
         <th> Description </th>
@@ -298,9 +292,7 @@ In the following schema we describe the basic collection of functions provided b
             <td>Brings back the community to RAM again.</td>
         </tr>
     </tbody>
-</table> 
-```
-
+</table>
 
 Depending on the control that the user wants to have on the call of the evolution functions, they can decide to use one of the three column schemas proposed above.
 

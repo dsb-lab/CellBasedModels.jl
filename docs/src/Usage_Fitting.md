@@ -109,9 +109,11 @@ CBMFitting.gridSearch(fitting, searchSpace)
 ```
 
 
-<div><div style = "float: left;"><span>DataFrameRow (3 columns)</span></div><div style = "clear: both;"></div></div><div class = "data-frame" style = "overflow-x: scroll;"><table class = "data-frame" style = "margin-bottom: 6px;"><thead><tr class = "header"><th class = "rowLabel" style = "font-weight: bold; text-align: right;">Row</th><th style = "text-align: left;">x0</th><th style = "text-align: left;">δ</th><th style = "text-align: left;">_score_</th></tr><tr class = "subheader headerLastRow"><th class = "rowLabel" style = "font-weight: bold; text-align: right;"></th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th></tr></thead><tbody><tr><td class = "rowLabel" style = "font-weight: bold; text-align: right;">119</td><td style = "text-align: right;">10.0</td><td style = "text-align: right;">1.0</td><td style = "text-align: right;">1.48518</td></tr></tbody></table> 
+
+```@raw html
+ <div><div style = "float: left;"><span>DataFrameRow (3 columns)</span></div><div style = "clear: both;"></div></div><div class = "data-frame" style = "overflow-x: scroll;"><table class = "data-frame" style = "margin-bottom: 6px;"><thead><tr class = "header"><th class = "rowLabel" style = "font-weight: bold; text-align: right;">Row</th><th style = "text-align: left;">x0</th><th style = "text-align: left;">δ</th><th style = "text-align: left;">_score_</th></tr><tr class = "subheader headerLastRow"><th class = "rowLabel" style = "font-weight: bold; text-align: right;"></th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th></tr></thead><tbody><tr><td class = "rowLabel" style = "font-weight: bold; text-align: right;">119</td><td style = "text-align: right;">10.0</td><td style = "text-align: right;">1.0</td><td style = "text-align: right;">1.48518</td></tr></tbody></table></div>
 ```
-</div>
+
 
 
 ## Search space - Swarm Argorithm and others
@@ -137,9 +139,11 @@ CBMFitting.swarmAlgorithm(fitting, searchSpace)
 ```
 
 
-<div><div style = "float: left;"><span>DataFrameRow (6 columns)</span></div><div style = "clear: both;"></div></div><div class = "data-frame" style = "overflow-x: scroll;"><table class = "data-frame" style = "margin-bottom: 6px;"><thead><tr class = "header"><th class = "rowLabel" style = "font-weight: bold; text-align: right;">Row</th><th style = "text-align: left;">x0</th><th style = "text-align: left;">δ</th><th style = "text-align: left;">x0_velocity_</th><th style = "text-align: left;">δ_velocity_</th><th style = "text-align: left;">_score_</th><th style = "text-align: left;">_generation_</th></tr><tr class = "subheader headerLastRow"><th class = "rowLabel" style = "font-weight: bold; text-align: right;"></th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Int64" style = "text-align: left;">Int64</th></tr></thead><tbody><tr><td class = "rowLabel" style = "font-weight: bold; text-align: right;">967</td><td style = "text-align: right;">10.5734</td><td style = "text-align: right;">1.02219</td><td style = "text-align: right;">-0.109951</td><td style = "text-align: right;">-0.0193163</td><td style = "text-align: right;">1.51499</td><td style = "text-align: right;">10</td></tr></tbody></table> 
+
+```@raw html
+ <div><div style = "float: left;"><span>DataFrameRow (6 columns)</span></div><div style = "clear: both;"></div></div><div class = "data-frame" style = "overflow-x: scroll;"><table class = "data-frame" style = "margin-bottom: 6px;"><thead><tr class = "header"><th class = "rowLabel" style = "font-weight: bold; text-align: right;">Row</th><th style = "text-align: left;">x0</th><th style = "text-align: left;">δ</th><th style = "text-align: left;">x0_velocity_</th><th style = "text-align: left;">δ_velocity_</th><th style = "text-align: left;">_score_</th><th style = "text-align: left;">_generation_</th></tr><tr class = "subheader headerLastRow"><th class = "rowLabel" style = "font-weight: bold; text-align: right;"></th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Float64" style = "text-align: left;">Float64</th><th title = "Int64" style = "text-align: left;">Int64</th></tr></thead><tbody><tr><td class = "rowLabel" style = "font-weight: bold; text-align: right;">967</td><td style = "text-align: right;">10.5734</td><td style = "text-align: right;">1.02219</td><td style = "text-align: right;">-0.109951</td><td style = "text-align: right;">-0.0193163</td><td style = "text-align: right;">1.51499</td><td style = "text-align: right;">10</td></tr></tbody></table></div>
 ```
-</div>
+
 
 
 ## Other packages
