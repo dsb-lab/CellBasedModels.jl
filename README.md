@@ -19,17 +19,28 @@ Examples to get an idea of the capabilities of the package.
 
 ## Installation
 
-Hopefully, soon we will make an official release in the Julia repository. For now, you can install the package from Github as:
+You can install the package from the official repositories as:
 
 ```julia
 julia> using Pkg
-julia> Pkg.add(https://github.com/dsb-lab/CellBasedModels.jl)
+julia> Pkg.add("CellBasedModels")
 ```
 
-or from the Pkg REPL
+or you can install the developer version from Github as:
 
 ```julia
-pkg> add https://github.com/dsb-lab/CellBasedModels.jl
+julia> using Pkg
+julia> Pkg.add("https://github.com/dsb-lab/CellBasedModels.jl")
+```
+
+Alternatively, you can install it from the Pkg REPL:
+
+```julia
+] add CellBasedModels
+```
+
+```julia
+] add https://github.com/dsb-lab/CellBasedModels.jl
 ```
 
 ## Examples
