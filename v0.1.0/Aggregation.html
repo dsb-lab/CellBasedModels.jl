@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Particle aggregation · CellBasedModels.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="index.html"><img src="assets/logo.png" alt="CellBasedModels.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">CellBasedModels.jl</span></div><form class="docs-search" action="search.html"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><span class="tocitem">Usage</span><ul><li><a class="tocitem" href="Usage_intro.html">Introduction</a></li><li><a class="tocitem" href="Usage_Agent.html">Defining an ABM model</a></li><li><a class="tocitem" href="Usage_Community.html">Creating and evolving a Community</a></li><li><a class="tocitem" href="Usage_Fitting.html">Model Fitting</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="Patterning.html">Patterning</a></li><li><a class="tocitem" href="Development.html">ICM Development</a></li><li class="is-active"><a class="tocitem" href="Aggregation.html">Particle aggregation</a><ul class="internal"><li><a class="tocitem" href="#The-model"><span>The model</span></a></li><li><a class="tocitem" href="#Load-the-package-and-the-plotting-functions"><span>Load the package and the plotting functions</span></a></li><li><a class="tocitem" href="#Construct-the-AgentBasedModel-(ABM)"><span>Construct the AgentBasedModel (ABM)</span></a></li><li><a class="tocitem" href="#Tests"><span>Tests</span></a></li><li class="toplevel"><a class="tocitem" href="#Constructing-over-a-predefined-model"><span>Constructing over a predefined model</span></a></li><li><a class="tocitem" href="#Neighbors-computational-dependence"><span>Neighbors computational dependence</span></a></li></ul></li><li><a class="tocitem" href="Bacteries.html">Bacterial Colony Growth</a></li><li><a class="tocitem" href="Chemotaxis.html">Bacterial chemotaxis</a></li></ul></li><li><a class="tocitem" href="Models.html">Models</a></li><li><a class="tocitem" href="API.html"><strong>API</strong></a></li><li><a class="tocitem" href="APIdevelopers.html">API for Developers</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href="Aggregation.html">Particle aggregation</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="Aggregation.html">Particle aggregation</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/dsb-lab/CellBasedModels.jl/blob/master/docs/src/Aggregation.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Aggregation"><a class="docs-heading-anchor" href="#Aggregation">Particle aggregation</a><a id="Aggregation-1"></a><a class="docs-heading-anchor-permalink" href="#Aggregation" title="Permalink"></a></h1><p>In this model we are going to make a model with the following properties:</p><ul><li>Soft spheres with repulsion and adeshion</li><li>Viscous brownian motion dynamics</li><li>Particle confinement in a simulation space</li></ul><h2 id="The-model"><a class="docs-heading-anchor" href="#The-model">The model</a><a id="The-model-1"></a><a class="docs-heading-anchor-permalink" href="#The-model" title="Permalink"></a></h2><p>The model will act with viscous brownian motion dynamics of the form:</p><p class="math-container">\[dx_i = \underbrace{\sum_j f(x_i,x_j)}_{\text{deterministic term}} dt + \underbrace{D}_{\text{stochastic term}} dW\]</p><p>where the forces of interaction are of the form</p><p class="math-container">\[f(x,y)=\begin{cases}
+F_{rep}(r_{rep}-x)\hspace{1cm}\text{if   }||x-y||_2 &lt;= r_{rep}\\
+-F_{atr}(r_{atr}-x)\hspace{.75cm}\text{if   }r_{rep} &lt; ||x-y||_2 &lt; r_{at}\\
+0\hspace{2.45cm}\text{otherwise   }\\
+\end{cases}\]</p><p>and some radius of repulsion <span>$r_{rep}$</span> and attraction <span>$r_{atr}$</span>.</p><p>The forces of the particles over the walls will be of the maximum size of repulsion <span>$f_{rep}$</span>.</p><p>We are going to create the model step by step with the corresponding tests to check that it works properly.</p><h2 id="Load-the-package-and-the-plotting-functions"><a class="docs-heading-anchor" href="#Load-the-package-and-the-plotting-functions">Load the package and the plotting functions</a><a id="Load-the-package-and-the-plotting-functions-1"></a><a class="docs-heading-anchor-permalink" href="#Load-the-package-and-the-plotting-functions" title="Permalink"></a></h2><pre><code class="language-julia">using CellBasedModels
+using GLMakie
+Makie.inline!(true);</code></pre><h2 id="Construct-the-AgentBasedModel-(ABM)"><a class="docs-heading-anchor" href="#Construct-the-AgentBasedModel-(ABM)">Construct the AgentBasedModel (ABM)</a><a id="Construct-the-AgentBasedModel-(ABM)-1"></a><a class="docs-heading-anchor-permalink" href="#Construct-the-AgentBasedModel-(ABM)" title="Permalink"></a></h2><p>We are going to make the simulations of a model in 2D. By declaring a model with <code>ABM(2,...)</code> we are already declaring a model that includes two agent parameters: <code>x</code> and <code>y</code>. Agent parameters are parameters that have a value for each agent independently. </p><p>If we want to have track of the forces exerted over each particle, we need to define additionally two more agent parameters:</p><ul><li><code>fx</code></li><li><code>fy</code></li></ul><p>Additionally, our model has several global parameters. That is, parameters that are shared among all the agents in the system. Those are:</p><ul><li><code>rRep</code>: radius of repulsion</li><li><code>frep</code>: force of repulsion</li><li><code>rAtr</code>: radius of attraction</li><li><code>fAtr</code>: force of atraction</li><li><code>D</code>: diffusion coefficient</li></ul><p>For defining the Stochastic Differential Equation, we will need to add two additional keyword arguments:</p><ul><li><code>agentODE</code>: Where we define the deterministic part of the SDE</li><li><code>agentSDE</code>: Where we define the stochastic part of the SDE</li></ul><p>Let&#39;s create the model.</p><pre><code class="language-julia">model = ABM(2,
+
+    #In the keyword argument agent we declare all the agent arguments and its scope
+    agent = Dict(
+            :fx =&gt; Float64,
+            :fy =&gt; Float64,
+        ),
+
+    #In the keyword argument model we declare all the model arguments and its scope   
+    model = Dict(
+            :rRep =&gt; Float64,
+            :fRep =&gt; Float64,
+            :rAtr =&gt; Float64,
+            :fAtr =&gt; Float64,
+            :D =&gt; Float64
+        ),
+
+    # In here we define the ODE part
+    agentODE = quote
+
+        # Compute adhesion and repulsion forces
+            #Reset the parameters to zero zero
+        fx = 0
+        fy = 0
+            #Go over the neighbors and add the forces, for that we use the macro @loopOverNeighbors(iteratorSymbol,code) see more in documentation
+        @loopOverNeighbors i2 begin
+            d = CBMMetrics.euclidean(x,x[i2],y,y[i2])
+            dirx = (x-x[i2])/d
+            diry = (y-y[i2])/d
+            if d &lt; rRep #Repulsion forces
+                fx += fRep*(rRep-d)*dirx  
+                fy += fRep*(rRep-d)*diry  
+            elseif d &lt; rAtr #Attraction forces
+                fx += -fAtr*(rAtr-d)*dirx  
+                fy += -fAtr*(rAtr-d)*diry  
+            end
+        end
+            #Add the forces comming from the boundary interaction
+        if x &lt; simBox[1,1]+rRep/2
+            fx += fRep
+        elseif x &gt; simBox[1,2]-rRep/2
+            fx -= fRep        
+        end
+        if y &lt; simBox[2,1]+rRep/2
+            fy += fRep
+        elseif y &gt; simBox[2,2]-rRep/2
+            fy -= fRep
+        end
+
+        # Finally, define the deterministic term of the SDE
+        dt(x) = fx
+        dt(y) = fy
+    end,
+
+    # In here we define the SDE part
+    agentSDE = quote
+        # SDE term
+        dt(x) = D
+        dt(y) = D
+    end
+);</code></pre><h2 id="Tests"><a class="docs-heading-anchor" href="#Tests">Tests</a><a id="Tests-1"></a><a class="docs-heading-anchor-permalink" href="#Tests" title="Permalink"></a></h2><p>Now, we can test the correct definition of the properties. For that we are going to make two tests:</p><ul><li>Test 1: Repulsion the agents</li><li>Test 2: Resulsion from boundaries</li></ul><h3 id="Test-repulsion-from-boundaries"><a class="docs-heading-anchor" href="#Test-repulsion-from-boundaries">Test repulsion from boundaries</a><a id="Test-repulsion-from-boundaries-1"></a><a class="docs-heading-anchor-permalink" href="#Test-repulsion-from-boundaries" title="Permalink"></a></h3><p>For making this test we are going to create a simulation with two agents, put them close together and see how they separate from each other.</p><p>For that we use the object <code>Community(ABM, kwargs...)</code> and we are going to define the following arguments:</p><ul><li><code>N</code>: The number of agents of the model.</li><li><code>dt</code>: The integration step.</li><li><code>simBox</code>: The simulation space. </li></ul><p>Then, we will initialize the model and agent parameters.</p><pre><code class="language-julia">simBox = [-5. 5; -2 2]
+#Initialize community
+com = Community(model,
+        N=2,
+        dt=.1,
+        simBox = simBox
+        );
+
+#Setup user paramaters
+        #Constants
+com.rRep=.8
+com.fRep=1
+com.rAtr=1.
+com.fAtr=1.
+        #Agent parameters
+com.x=[-.1,.1]
+com.y=[0.,0.];
+# If we do not define fx and fy, they are initialy set to zeros</code></pre><pre><code class="language-none">2-element Vector{Float64}:
+ 0.0
+ 0.0</code></pre><p>Now that everything is set, we can evolve the community with the function <code>evolve!</code> for some number of steps.</p><pre><code class="language-julia">evolve!(com,steps=50)</code></pre><p>And now, we visualize the results using Makie.</p><p>For that, we extract from the community all the parameters that we want to plot for all times.</p><pre><code class="language-julia">d = getParameter(com,[:t,:x,:y,:fx,:fy])</code></pre><pre><code class="language-none">Dict{Symbol, Vector} with 5 entries:
+  :fy =&gt; [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0…
+  :y  =&gt; [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0…
+  :fx =&gt; [[-0.6, 0.6], [-0.6, 0.6], [-0.48, 0.48], [-0.36, 0.36], [-0.264, 0.26…
+  :t  =&gt; [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0  …  4.1, 4.2, 4.3, 4…
+  :x  =&gt; [[-0.1, 0.1], [-0.16, 0.16], [-0.22, 0.22], [-0.268, 0.268], [-0.304, …</code></pre><p>And then we construct the plot.</p><pre><code class="language-julia">#Make the plot
+fig = Figure(resolution=(1100,550))
+
+#Plot the spheres at different times
+for (j,i) in enumerate(1:5:20) #Step times
+    #Create axis
+    ax = Axis(fig[1,j],title=&quot;t = $(round(d[:t][i],digits=2))&quot;)
+    #Add a simulation box rectangle in the background
+    mesh!(ax, [simBox[1,1] simBox[2,1];simBox[1,1] simBox[2,2];simBox[1,2] simBox[2,2];simBox[1,2] simBox[2,1]], [1 2 4; 2 3 4], color=:lightgrey)
+    #Add spheres with attraction radius    
+    meshscatter!(ax,d[:x][i],d[:y][i],markersize=com[:rAtr][1]/2,color=(:blue,.3),transparency=true)
+    #Add spheres with attraction radius
+    meshscatter!(ax,d[:x][i],d[:y][i],markersize=com[:rRep][1]/2,color=:red)
+    #Define the limits
+    xlims!(ax,-2,2)
+    ylims!(ax,-2,2)
+end
+
+#Plot position over time of one of the particles
+ax = Axis(fig[2,1:2],title=&quot;distance&quot;,xlabel=&quot;t&quot;,ylabel=&quot;|x₁-x₂|&quot;)
+lines!(d[:t],[abs(j-i) for (i,j) in d[:x]])
+
+#Plot forces over time of one of the particles
+ax = Axis(fig[2,3:4],title=&quot;fx&quot;,xlabel=&quot;t&quot;,ylabel=&quot;|fx|&quot;)
+lines!(d[:t],[abs(i) for (i,j) in d[:fx]])
+
+#Show the plots
+display(fig)</code></pre><p><img src="Aggregation_files/Aggregation_12_0.png" alt="png"/></p><h3 id="Test-repulsion-from-boundaries-2"><a class="docs-heading-anchor" href="#Test-repulsion-from-boundaries-2">Test repulsion from boundaries</a><a class="docs-heading-anchor-permalink" href="#Test-repulsion-from-boundaries-2" title="Permalink"></a></h3><p>Now that we have shown the process, we do the same for the boundaries.</p><pre><code class="language-julia">simBox = [-2. 2; -2 2]
+#Initialize community
+com = Community(model,
+        N=1,
+        dt=.1,
+        simBox = simBox,
+        );
+
+#Setup user paramaters
+com.rRep=.8
+com.fRep=1
+com.rAtr=1.
+com.fAtr=1.
+com.x=[0]
+com.y=[-2.5];</code></pre><pre><code class="language-julia">#Evolve
+evolve!(com,steps=15)</code></pre><pre><code class="language-julia">#Get parameters
+d = getParameter(com,[:t,:x,:y,:fx,:fy])</code></pre><pre><code class="language-none">Dict{Symbol, Vector} with 5 entries:
+  :fy =&gt; [[1.0], [1.0], [1.0], [1.0], [1.0], [1.0], [1.0], [1.0], [1.0], [1.0],…
+  :y  =&gt; [[-2.5], [-2.4], [-2.3], [-2.2], [-2.1], [-2.0], [-1.9], [-1.8], [-1.7…
+  :fx =&gt; [[0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0],…
+  :t  =&gt; [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4,…
+  :x  =&gt; [[0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0], [0.0],…</code></pre><pre><code class="language-julia">#Plot
+fig = Figure(resolution=(1100,550))
+
+#Plot visually the results
+for (j,i) in enumerate(1:4:13)
+    ax = Axis(fig[1,j],title=&quot;t = $(round(d[:t][i],digits=2))&quot;)
+    mesh!(ax, [simBox[1,1] simBox[2,1];simBox[1,1] simBox[2,2];simBox[1,2] simBox[2,2];simBox[1,2] simBox[2,1]], [1 2 4; 2 3 4], color=:lightgrey)
+    meshscatter!(ax,d[:x][i],d[:y][i],markersize=com[:rAtr][1]/2,color=(:blue,.3),transparency=true)
+    meshscatter!(ax,d[:x][i],d[:y][i],markersize=com[:rRep][1]/2,color=:red)
+    xlims!(ax,-3,3)
+    ylims!(ax,-3,3)
+end
+
+#Plot position in i
+ax = Axis(fig[2,1:2],title=&quot;distance&quot;,xlabel=&quot;t&quot;,ylabel=&quot;|x₁+2|&quot;)
+lines!(d[:t],[i+2 for (i,) in d[:y]])
+
+#Plot forces in i
+ax = Axis(fig[2,3:4],title=&quot;fx&quot;,xlabel=&quot;t&quot;,ylabel=&quot;|fx|&quot;)
+lines!(d[:t],[abs(i) for (i,) in d[:fy]])
+
+display(fig)</code></pre><p><img src="Aggregation_files/Aggregation_17_0.png" alt="png"/></p><h1 id="Constructing-over-a-predefined-model"><a class="docs-heading-anchor" href="#Constructing-over-a-predefined-model">Constructing over a predefined model</a><a id="Constructing-over-a-predefined-model-1"></a><a class="docs-heading-anchor-permalink" href="#Constructing-over-a-predefined-model" title="Permalink"></a></h1><p>Now that we know that everything works for the model, we could start scaling it to many particles. But before we do that, we would like to add one more property to it as we would like to study the behavior of the particles as we cool down the movement. </p><p>For that, we want to make a new model that have exactly the same behaviour as before but in addition we want that the model parameter <code>D</code> that controld the diffusion strength is lowered down slowly.</p><p>We could rewrite all the model again from scratch, but in this case that is not necessary. We can define a new model that uses as a base the previous one and add the additional property.</p><p>Let&#39;s define the cooling down of the model with an exponential decay:</p><p class="math-container">\[dD = -\alpha_TDdt\]</p><pre><code class="language-julia">model2 = ABM(2,
+
+    #Import the previous model
+    baseModelInit = [model],
+
+    #Add an additional model parameter that defines the speed of the diffusion parameter decay
+    model = Dict(
+        :αT =&gt; Float64
+    ),
+
+    #Add a ODE to describe the difussion
+    modelODE = quote
+        dt(D) = -αT*D
+    end,
+
+    agentAlg = CBMIntegrators.EM(),
+    modelAlg = DifferentialEquations.Euler(),
+    neighborsAlg = CBMNeighbors.CellLinked(cellEdge=2),
+);</code></pre><h3 id="Evolve-the-model-an-check-the-behaviour"><a class="docs-heading-anchor" href="#Evolve-the-model-an-check-the-behaviour">Evolve the model an check the behaviour</a><a id="Evolve-the-model-an-check-the-behaviour-1"></a><a class="docs-heading-anchor-permalink" href="#Evolve-the-model-an-check-the-behaviour" title="Permalink"></a></h3><p>We can define now a now Commmunity and see the evolution in time. We can check that as the diffusion constant is reduced the particles start to aggregate as the adhesion forces dominate the behaviour over the active term.</p><pre><code class="language-julia">simBox = [-10. 10; -10 10]
+N = 100
+com = Community(model2,
+        N=N,
+        dt=0.1,
+        simBox = simBox,
+        )
+
+com.rRep=.8
+com.fRep=1
+com.rAtr=1.
+com.fAtr=1.
+com.αT=.001 
+com.x = 20 .*rand(N) .-10
+com.y = 20 .*rand(N) .-10
+com.D=.15</code></pre><pre><code class="language-none">0.15</code></pre><pre><code class="language-julia">evolve!(com,steps=8000,saveEach=1)</code></pre><pre><code class="language-julia">d = getParameter(com,[:x,:y])
+
+fig = Figure(resolution=(1400,200))
+
+for (pos,i) in enumerate(1:999:8000)
+    ax = Axis(fig[1,pos],title=&quot;D=$(round(com[i].D[1],digits=4))&quot;)
+    mesh!(ax, [simBox[1,1] simBox[2,1];simBox[1,1] simBox[2,2];simBox[1,2] simBox[2,2];simBox[1,2] simBox[2,1]], [1 2 4; 2 3 4], color=:lightgrey)
+    meshscatter!(ax,d[:x][i],d[:y][i],markersize=com[:rAtr][1]/2,color=(:blue,.0),transparency=true)
+    meshscatter!(ax,d[:x][i],d[:y][i],markersize=com[:rRep][1]/2,
+                color=[com[i].D[1] for i in 1:100],
+                colorrange=(0.,0.15),
+                colormap=:reds
+                )
+    xlims!(ax,(simBox[1,:].+[-1,1])...)
+    ylims!(ax,(simBox[2,:].+[-1,1])...)
+    # lines!(ax,[i[1] for i in d[:x]],[i[1] for i in d[:y]])
+end
+
+# save(&quot;agg.png&quot;,fig)
+
+display(fig)</code></pre><p><img src="Aggregation_files/Aggregation_23_0.png" alt="png"/></p><h2 id="Neighbors-computational-dependence"><a class="docs-heading-anchor" href="#Neighbors-computational-dependence">Neighbors computational dependence</a><a id="Neighbors-computational-dependence-1"></a><a class="docs-heading-anchor-permalink" href="#Neighbors-computational-dependence" title="Permalink"></a></h2><p>It may be tempting to run simulations with a large number of particles. However, as we increase the number of particles, the computational time increases quadratically with the system size. </p><p>This is due to the fact that the interaction forces in <code>@loopOverNeighbors</code> check all the forces over all neighbors. However, in this model only particles that are close together really interact. </p><p>In CellBasedModels there are implementations of more efficient neighbors searching methods. You can provide them when creating the Community model.</p><p>Check how alternative algorithms improve the speeding time.</p><pre><code class="language-julia">modelFull = ABM(2, baseModelInit=[model2], agentAlg = CBMIntegrators.EM(), neighborsAlg=CBMNeighbors.Full())
+modelVerlet = ABM(2, baseModelInit=[model2], agentAlg = CBMIntegrators.EM(), neighborsAlg=CBMNeighbors.VerletDisplacement(skin=2,nMaxNeighbors=20))
+modelCellLinked = ABM(2, baseModelInit=[model2], agentAlg = CBMIntegrators.EM(), neighborsAlg=CBMNeighbors.CellLinked(cellEdge=2))
+
+function initialize(model,N,simBox)
+        return Community(model,N=N,
+                simBox = simBox,
+                
+                rRep=.8,
+                fRep=1,
+                rAtr=1.,
+                fAtr=1.,
+                D = .5,
+                x=rand(N).*(simBox[1,2]-simBox[1,1]).+simBox[1,1],
+                y=rand(N).*(simBox[2,2]-simBox[2,1]).+simBox[2,1],
+                dt=.1
+                );
+end;</code></pre><pre><code class="language-julia">ρ=.1
+S = 1
+
+N = []
+tFull = []
+tVerlet = []
+tCellLinked = []
+for S in 1:.5:7
+    simBox = S.*[-10. 10; -10 10]
+    n = round(Int64,ρ*(simBox[1,2]-simBox[1,1])*(simBox[2,2]-simBox[2,1]))
+    push!(N,n)
+
+    com = initialize(modelFull,n,simBox); #Full (default) algorithm
+    evolve!(com,steps=10,saveEach=10,saveCurrentState=true)
+    t = @elapsed evolve!(com,steps=1000,saveEach=10,saveCurrentState=true)
+    push!(tFull,t)
+
+    com2 = initialize(modelVerlet,n,simBox); #Verlet list algorithm
+    evolve!(com2,steps=10,saveEach=10,saveCurrentState=true)
+    t = @elapsed evolve!(com2,steps=1000,saveEach=10,saveCurrentState=true)
+    push!(tVerlet,t)
+
+    com3 = initialize(modelCellLinked,n,simBox); #Cell linked algorithm
+    evolve!(com3,steps=10,saveEach=10,saveCurrentState=true)
+    t = @elapsed evolve!(com3,steps=1000,saveEach=10,saveCurrentState=true)
+    push!(tCellLinked,t)
+end</code></pre><pre><code class="language-julia">fig = Figure(resolution=(800,600))
+ax = Axis(fig[1,1],xlabel=&quot;Number of agents&quot;,ylabel=&quot;seconds&quot;)
+
+l1 = scatter!(ax,Float64.(N),Float64.(tFull))
+l2 = scatter!(ax,Float64.(N),Float64.(tVerlet))
+l3 = scatter!(ax,Float64.(N),Float64.(tCellLinked))
+Legend(fig[1,2],[l1,l2,l3],[&quot;Full&quot;,&quot;Verlet List&quot;,&quot;Cell Linked&quot;])
+
+display(fig)</code></pre><p><img src="Aggregation_files/Aggregation_27_0.png" alt="png"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="Development.html">« ICM Development</a><a class="docs-footer-nextpage" href="Bacteries.html">Bacterial Colony Growth »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Saturday 2 September 2023 14:36">Saturday 2 September 2023</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

@@ -1,0 +1,425 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="393.20593mm"
+   height="125.07848mm"
+   viewBox="0 0 393.20588 125.07848"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20, custom)"
+   sodipodi:docname="BacteriaChannel.svg"
+   inkscape:export-filename="/home/gabriel/Documents/Acadèmic/PhD/Projects/Agent Based Simulator/AgentBasedModels.jl/docs/src/assets/BacteriaChannel.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="0.64765011"
+     inkscape:cx="802.90267"
+     inkscape:cy="312.66883"
+     inkscape:window-width="1920"
+     inkscape:window-height="1020"
+     inkscape:window-x="1920"
+     inkscape:window-y="32"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs2">
+    <linearGradient
+       inkscape:collect="always"
+       id="linearGradient16824">
+      <stop
+         style="stop-color:#000000;stop-opacity:1;"
+         offset="0"
+         id="stop16820" />
+      <stop
+         style="stop-color:#000000;stop-opacity:0;"
+         offset="1"
+         id="stop16822" />
+    </linearGradient>
+    <pattern
+       inkscape:collect="always"
+       xlink:href="#Checkerboard-5"
+       id="pattern14130"
+       patternTransform="matrix(10,0,0,10,-488.39007,-2.0305176e-7)" />
+    <pattern
+       inkscape:collect="always"
+       patternUnits="userSpaceOnUse"
+       width="2"
+       height="2"
+       patternTransform="translate(0,0) scale(10,10)"
+       id="Checkerboard"
+       inkscape:stockid="Checkerboard"
+       inkscape:isstock="true">
+      <rect
+         style="fill:black;stroke:none"
+         x="0"
+         y="0"
+         width="1"
+         height="1"
+         id="rect11763" />
+      <rect
+         style="fill:black;stroke:none"
+         x="1"
+         y="1"
+         width="1"
+         height="1"
+         id="rect11765" />
+    </pattern>
+    <rect
+       x="245.84447"
+       y="433.86691"
+       width="324.84512"
+       height="46.680168"
+       id="rect47360" />
+    <rect
+       x="557.27985"
+       y="427.81024"
+       width="358.55136"
+       height="82.463371"
+       id="rect41110" />
+    <rect
+       x="567.68671"
+       y="226.57474"
+       width="52.084896"
+       height="56.372292"
+       id="rect13215" />
+    <rect
+       x="557.16492"
+       y="223.05161"
+       width="50.338612"
+       height="43.967426"
+       id="rect11977" />
+    <rect
+       x="208.15752"
+       y="365.31757"
+       width="98.215462"
+       height="47.479576"
+       id="rect3570" />
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath1210">
+      <g
+         inkscape:label="Clip"
+         id="use1212"
+         style="stroke:none;stroke-opacity:1">
+        <ellipse
+           style="fill:#cccccc;stroke:none;stroke-width:0.976311;stroke-opacity:1"
+           id="ellipse877"
+           cx="80"
+           cy="105"
+           rx="14.511844"
+           ry="14.511845" />
+        <ellipse
+           style="fill:#cccccc;stroke:none;stroke-width:0.976311;stroke-opacity:1"
+           id="ellipse879"
+           cx="180"
+           cy="105"
+           rx="14.511844"
+           ry="14.511845" />
+        <rect
+           style="fill:#cccccc;stroke:none;stroke-width:0.912985;stroke-opacity:1"
+           id="rect881"
+           width="99.087013"
+           height="29.087015"
+           x="80.45649"
+           y="90.45649"
+           ry="3.3578238" />
+      </g>
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath1210-9">
+      <use
+         x="0"
+         y="0"
+         xlink:href="#g1206-8"
+         id="use1212-0"
+         width="100%"
+         height="100%" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath1210-9-3">
+      <g
+         inkscape:label="Clip"
+         id="use1212-0-8"
+         style="stroke:none;stroke-opacity:1">
+        <ellipse
+           style="fill:#cccccc;stroke:none;stroke-width:0.976311;stroke-opacity:1"
+           id="ellipse35781"
+           cx="80"
+           cy="105"
+           rx="14.511844"
+           ry="14.511845" />
+        <ellipse
+           style="fill:#cccccc;stroke:none;stroke-width:0.976311;stroke-opacity:1"
+           id="ellipse35783"
+           cx="180"
+           cy="105"
+           rx="14.511844"
+           ry="14.511845" />
+        <rect
+           style="fill:#cccccc;stroke:none;stroke-width:0.912985;stroke-opacity:1"
+           id="rect35785"
+           width="99.087013"
+           height="29.087015"
+           x="80.45649"
+           y="90.45649"
+           ry="3.3578238" />
+      </g>
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath1210-9-4">
+      <g
+         inkscape:label="Clip"
+         id="use1212-0-81"
+         style="fill:#079600;fill-opacity:1;stroke:none;stroke-opacity:1">
+        <ellipse
+           style="fill:#079600;fill-opacity:1;stroke:none;stroke-width:0.976311;stroke-opacity:1"
+           id="ellipse1223"
+           cx="80"
+           cy="105"
+           rx="14.511844"
+           ry="14.511845" />
+        <ellipse
+           style="fill:#079600;fill-opacity:1;stroke:none;stroke-width:0.976311;stroke-opacity:1"
+           id="ellipse1225"
+           cx="180"
+           cy="105"
+           rx="14.511844"
+           ry="14.511845" />
+        <rect
+           style="fill:#079600;fill-opacity:1;stroke:none;stroke-width:0.912985;stroke-opacity:1"
+           id="rect1227"
+           width="99.087013"
+           height="29.087015"
+           x="80.45649"
+           y="90.45649"
+           ry="3.3578238" />
+      </g>
+    </clipPath>
+    <rect
+       x="245.84447"
+       y="433.86691"
+       width="506.343"
+       height="44.887211"
+       id="rect47360-3" />
+    <pattern
+       inkscape:collect="always"
+       patternUnits="userSpaceOnUse"
+       width="2"
+       height="2"
+       patternTransform="translate(0,0) scale(10,10)"
+       id="Checkerboard-5"
+       inkscape:stockid="Checkerboard"
+       inkscape:isstock="true">
+      <rect
+         style="fill:black;stroke:none"
+         x="0"
+         y="0"
+         width="1"
+         height="1"
+         id="rect11763-3" />
+      <rect
+         style="fill:black;stroke:none"
+         x="1"
+         y="1"
+         width="1"
+         height="1"
+         id="rect11765-5" />
+    </pattern>
+    <rect
+       x="245.84447"
+       y="433.86691"
+       width="434.16763"
+       height="43.592081"
+       id="rect47360-2" />
+    <rect
+       x="245.84447"
+       y="433.86691"
+       width="434.16763"
+       height="43.592079"
+       id="rect47360-2-1" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient16824"
+       id="linearGradient16826"
+       x1="248.98438"
+       y1="453.35156"
+       x2="586.96875"
+       y2="453.35156"
+       gradientUnits="userSpaceOnUse" />
+  </defs>
+  <g
+     inkscape:label="Calque 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-2.5245886,-16.917972)">
+    <rect
+       style="mix-blend-mode:normal;fill:url(#Checkerboard);fill-opacity:1;stroke:none;stroke-width:1.765;stroke-miterlimit:4;stroke-dasharray:none;opacity:0.35239677"
+       id="rect10668"
+       width="55.774769"
+       height="148.35995"
+       x="426.97412"
+       y="6.1472178"
+       ry="3.4901452" />
+    <rect
+       style="opacity:0.352397;mix-blend-mode:normal;fill:url(#pattern14130);fill-opacity:1;stroke:none;stroke-width:1.765;stroke-miterlimit:4;stroke-dasharray:none"
+       id="rect10668-6"
+       width="55.774769"
+       height="148.35995"
+       x="-61.415958"
+       y="6.1472178"
+       ry="3.4901452" />
+    <rect
+       style="fill:#cccccc;stroke:none;stroke-width:1.265;fill-opacity:1"
+       id="rect987"
+       width="432.6153"
+       height="148.39412"
+       x="-5.6411877"
+       y="6.1472178"
+       ry="3.4901452" />
+    <text
+       xml:space="preserve"
+       transform="scale(0.26458333)"
+       id="text11975"
+       style="font-size:40px;line-height:1.25;font-family:ma;-inkscape-font-specification:ma;white-space:pre;shape-inside:url(#rect11977)"><tspan
+         x="557.16406"
+         y="302.41016"
+         id="tspan17618">D</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1.765;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="M -5.6411789,6.1472178 H 426.97412"
+       id="path4835-7" />
+    <g
+       id="g36061"
+       style="fill:#ff6262;fill-opacity:1"
+       transform="translate(-74.659725,-19.761555)">
+      <g
+         id="g1208-8"
+         clip-path="url(#clipPath1210-9)"
+         transform="matrix(0.8660254,-0.5,0.51569405,0.8932083,73.508001,27.651972)"
+         style="fill:#ff6262;fill-opacity:1;stroke:none;stroke-opacity:1">
+        <g
+           inkscape:label="Clip"
+           id="g1206-8"
+           style="fill:#ff6262;fill-opacity:1;stroke:none;stroke-opacity:1">
+          <ellipse
+             style="fill:#ff6262;fill-opacity:1;stroke:none;stroke-width:0.976311;stroke-opacity:1"
+             id="path31-5"
+             cx="80"
+             cy="105"
+             rx="14.511844"
+             ry="14.511845" />
+          <ellipse
+             style="fill:#ff6262;fill-opacity:1;stroke:none;stroke-width:0.976311;stroke-opacity:1"
+             id="path31-3-0"
+             cx="180"
+             cy="105"
+             rx="14.511844"
+             ry="14.511845" />
+          <rect
+             style="fill:#ff6262;fill-opacity:1;stroke:none;stroke-width:0.912985;stroke-opacity:1"
+             id="rect135-9"
+             width="99.087013"
+             height="29.087015"
+             x="80.45649"
+             y="90.45649"
+             ry="3.3578238" />
+        </g>
+      </g>
+      <path
+         style="fill:#ff6262;fill-opacity:1;stroke:#000000;stroke-width:0.305607;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:0.916821, 0.916821;stroke-dashoffset:0;stroke-opacity:1"
+         d="M 179.81461,91.733428 298.46522,23.230457"
+         id="path13838-9" />
+    </g>
+    <circle
+       style="fill:#00006c;fill-opacity:0.470369;stroke:#000000;stroke-width:0.281;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       id="path36158"
+       cx="208.23872"
+       cy="11.589572"
+       r="15" />
+    <circle
+       style="fill:#640000;fill-opacity:0.361198;stroke:#000000;stroke-width:0.281;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       id="path36158-7"
+       cx="209.41551"
+       cy="-9.1580915"
+       r="15" />
+    <text
+       xml:space="preserve"
+       transform="matrix(0.26458333,0,0,0.26458333,179.89145,-77.560328)"
+       id="text47358"
+       style="font-size:32px;line-height:1.25;font-family:ma;-inkscape-font-specification:ma;white-space:pre;shape-inside:url(#rect47360)"><tspan
+         x="245.84375"
+         y="462.17969"
+         id="tspan17620">Virtual soft spheres</tspan></text>
+    <rect
+       style="opacity:0.7954925;fill:#f2f2f2;fill-opacity:1;stroke:none;stroke-width:1.765;stroke-miterlimit:4;stroke-dasharray:none"
+       id="rect16868"
+       width="13.291379"
+       height="96.361046"
+       x="-37.285564"
+       y="30.355068"
+       ry="3.4901452" />
+    <text
+       xml:space="preserve"
+       transform="matrix(0,-0.26458333,0.26458333,0,-150.49837,189.58201)"
+       id="text47358-9"
+       style="font-size:32px;line-height:1.25;font-family:ma;-inkscape-font-specification:ma;white-space:pre;shape-inside:url(#rect47360-2);mix-blend-mode:normal;fill:#000000;fill-opacity:1"><tspan
+         x="245.84375"
+         y="462.17969"
+         id="tspan17622">Remove agent region</tspan></text>
+    <rect
+       style="opacity:0.795492;fill:#f2f2f2;fill-opacity:1;stroke:none;stroke-width:1.765;stroke-miterlimit:4;stroke-dasharray:none"
+       id="rect16868-7"
+       width="13.291379"
+       height="96.361046"
+       x="443.84344"
+       y="28.2927"
+       ry="3.4901452" />
+    <text
+       xml:space="preserve"
+       transform="matrix(0,-0.26458333,0.26458333,0,330.74402,186.38845)"
+       id="text47358-9-2"
+       style="font-size:32px;line-height:1.25;font-family:ma;-inkscape-font-specification:ma;white-space:pre;shape-inside:url(#rect47360-2-1)"><tspan
+         x="245.84375"
+         y="462.17969"
+         id="tspan17624">Remove agent region</tspan></text>
+    <text
+       xml:space="preserve"
+       transform="matrix(0.26458333,0,0,0.26458333,187.63182,-127.93465)"
+       id="text47358-6"
+       style="font-size:32px;line-height:1.25;font-family:ma;-inkscape-font-specification:ma;white-space:pre;shape-inside:url(#rect47360-3)"><tspan
+         x="245.84375"
+         y="462.17969"
+         id="tspan17626">Virtual soft sphere of boundary</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1.165;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
+       d="m 215.43221,16.438517 47.09175,17.274118"
+       id="path1850" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1.165;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="m 214.51312,-12.509908 34.52102,3.5016868"
+       id="path1852"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1.765;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="M -5.6411763,154.54134 H 426.97412"
+       id="path4835" />
+  </g>
+</svg>

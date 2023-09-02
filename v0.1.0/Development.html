@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>ICM Development · CellBasedModels.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="index.html"><img src="assets/logo.png" alt="CellBasedModels.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">CellBasedModels.jl</span></div><form class="docs-search" action="search.html"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><span class="tocitem">Usage</span><ul><li><a class="tocitem" href="Usage_intro.html">Introduction</a></li><li><a class="tocitem" href="Usage_Agent.html">Defining an ABM model</a></li><li><a class="tocitem" href="Usage_Community.html">Creating and evolving a Community</a></li><li><a class="tocitem" href="Usage_Fitting.html">Model Fitting</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="Patterning.html">Patterning</a></li><li class="is-active"><a class="tocitem" href="Development.html">ICM Development</a><ul class="internal"><li><a class="tocitem" href="#Definition-of-the-model"><span>Definition of the model</span></a></li><li><a class="tocitem" href="#Creation-of-the-Agent"><span>Creation of the Agent</span></a></li><li><a class="tocitem" href="#Community-construction-and-initialisation"><span>Community construction and initialisation</span></a></li><li><a class="tocitem" href="#Creating-a-custom-evolve-step"><span>Creating a custom evolve step</span></a></li><li><a class="tocitem" href="#Fitting-the-model"><span>Fitting the model</span></a></li></ul></li><li><a class="tocitem" href="Aggregation.html">Particle aggregation</a></li><li><a class="tocitem" href="Bacteries.html">Bacterial Colony Growth</a></li><li><a class="tocitem" href="Chemotaxis.html">Bacterial chemotaxis</a></li></ul></li><li><a class="tocitem" href="Models.html">Models</a></li><li><a class="tocitem" href="API.html"><strong>API</strong></a></li><li><a class="tocitem" href="APIdevelopers.html">API for Developers</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href="Development.html">ICM Development</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="Development.html">ICM Development</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/dsb-lab/CellBasedModels.jl/blob/master/docs/src/Development.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Development"><a class="docs-heading-anchor" href="#Development">ICM Development</a><a id="Development-1"></a><a class="docs-heading-anchor-permalink" href="#Development" title="Permalink"></a></h1><p>The model from <a href="https://elifesciences.org/articles/56079">Saiz et al.</a> has three parts in the model</p><h2 id="Definition-of-the-model"><a class="docs-heading-anchor" href="#Definition-of-the-model">Definition of the model</a><a id="Definition-of-the-model-1"></a><a class="docs-heading-anchor-permalink" href="#Definition-of-the-model" title="Permalink"></a></h2><h3 id="Mechanics"><a class="docs-heading-anchor" href="#Mechanics">Mechanics</a><a id="Mechanics-1"></a><a class="docs-heading-anchor-permalink" href="#Mechanics" title="Permalink"></a></h3><p>The cells are spheroids that behave under the following equations:</p><p class="math-container">\[m_i\frac{dv_i}{dt} =-bv_i+\sum_j F_{ij}\]</p><p class="math-container">\[\frac{dx_i}{dt} =v_i\]</p><p>where the force is</p><p class="math-container">\[F_{ij}=
+\begin{cases}
+F_0(\frac{r_{ij}}{d_{ij}}-1)(\frac{\mu r_{ij}}{d_{ij}}-1)\frac{(x_i-x_j)}{d_{ij}}\hspace{1cm}if\;d_{ij}&lt;\mu r_{ij}\\
+0\hspace{5cm}otherwise
+\end{cases}\]</p><p>where <span>$d_{ij}$</span> is the Euclidean distance and <span>$r_{ij}$</span> is the sum of both radius.</p><h3 id="Biochemical-interaction"><a class="docs-heading-anchor" href="#Biochemical-interaction">Biochemical interaction</a><a id="Biochemical-interaction-1"></a><a class="docs-heading-anchor-permalink" href="#Biochemical-interaction" title="Permalink"></a></h3><p>Each cell has a biochemical component that follows an equation of the form:</p><p class="math-container">\[\frac{dx_i}{dt}=\frac{α(1+x^n_i)^m}{(1+x^n_i)^m+(1+(\langle x\rangle_i)/K)^{2m}}-x_i\]</p><p>This is similar to the above case. The only detail required is to note that the average expression can be modeled as the combination of two interacting variables. The biochemical system is activated in the interval <span>$[t_{on},t_{off}]$</span>.</p><p>We made explicit that the average operator can be written as two interaction parameters that are the contraction along the second index that runs over the neighbours of each cell as,</p><p class="math-container">\[N_{ij}=
+\begin{cases}
+1\hspace{1cm}d&lt;f_{range}r_{ij}\\
+0\hspace{1cm}otherwise
+\end{cases}\]</p><p class="math-container">\[X_{ij}=
+\begin{cases}
+x_j\hspace{1cm}d&lt;f_{range}r_{ij}\\
+0\hspace{1cm}otherwise
+\end{cases}\]</p><p class="math-container">\[\langle x\rangle_i=\frac{\sum_j X_{ij}}{\sum_j N_{ij}}=\frac{X_{i}}{N_{i}}\]</p><h3 id="Growth"><a class="docs-heading-anchor" href="#Growth">Growth</a><a id="Growth-1"></a><a class="docs-heading-anchor-permalink" href="#Growth" title="Permalink"></a></h3><p>The cells present division. The rules for the division in this model are. Random election of a division direction over the unit sphere. The daughter cells divide equally in mass and volume and are positioned in oposite directions around the division axis centered at the parent cell. The chemical concentration is divided asymmetrically with each cell taking <span>$1\pm\sigma_x \text{Uniform}(0,1)$</span> for the parent cell. A new division time is assigned to each aghter cell from a uniform distribution <span>$\text{Uniform}(\tau_{div}(1-\sigma_{div}),\tau_{div}(1+\sigma_{div}))$</span>.</p><h2 id="Creation-of-the-Agent"><a class="docs-heading-anchor" href="#Creation-of-the-Agent">Creation of the Agent</a><a id="Creation-of-the-Agent-1"></a><a class="docs-heading-anchor-permalink" href="#Creation-of-the-Agent" title="Permalink"></a></h2><pre><code class="language-julia">#Package
+using CellBasedModels
+#Functions for generating random distributions
+using Random
+using Distributions
+#Package for plotting in 3D
+using GLMakie
+Makie.inline!(true)
+
+using CSV
+using DataFrames</code></pre><h3 id="Define-the-agent"><a class="docs-heading-anchor" href="#Define-the-agent">Define the agent</a><a id="Define-the-agent-1"></a><a class="docs-heading-anchor-permalink" href="#Define-the-agent" title="Permalink"></a></h3><p>First, we have to create an instance of an agent with all the propoerties of the agents.First, we have to create an instance of an agent with all the propoerties of the agents.</p><pre><code class="language-julia">model = ABM(3,
+
+    #Inherit model mechanics
+    baseModelInit = [CBMModels.softSpheres3D],
+
+    #Global parameters
+    model = Dict(
+        #Chemical constants
+        :α=&gt;Float64, 
+        :K=&gt;Float64, 
+        :nn=&gt;Float64, 
+        :mm=&gt;Float64,
+        #Physical constants
+        :fRange=&gt;Float64, 
+        :mi=&gt;Float64, 
+        :ri=&gt;Float64, 
+        :k0=&gt;Float64,
+        #Division constants
+        :fAdh=&gt;Float64, 
+        :τDiv=&gt;Float64, 
+        :σDiv=&gt;Float64, 
+        :c0=&gt;Float64, 
+        :σc=&gt;Float64, 
+        :nCirc=&gt;Float64, 
+        :σNCirc=&gt;Float64,
+        :fMin=&gt;Float64, 
+        :fMax=&gt;Float64, 
+        :fPrE=&gt;Float64, 
+        :fEPI=&gt;Float64, 
+        :τCirc=&gt;Float64, 
+        :στCirc=&gt;Float64, 
+        :rESC=&gt;Float64,
+        :nOn=&gt;Float64, 
+        :cMax=&gt;Float64
+    ),
+    #Local float parameters
+    agent = Dict(
+        :c=&gt;Float64,
+        :tDivision=&gt;Float64, #Variable storing the time of division of the cell
+        :ci=&gt;Float64, #Chemical activity of the neighbors
+        :ni=&gt;Float64,  #Number of neighbors
+        :tOff=&gt;Bool,    #indicate if the circuit for that cell is on or off (0,1)
+        :cellFate=&gt;Int64 #Identity of the cell (1 DP, 2 EPI, 3 PRE)
+    ),
+    #Chemical dynamics
+    agentODE = quote
+
+        ni = 0
+        ci = 0
+        @loopOverNeighbors it2 begin
+            dij = CBMMetrics.euclidean(x,x[it2],y,y[it2],z,z[it2])
+            rij = r+r[it2]
+            if dij &lt; fRange*rij
+                ni += 1
+                ci += c[it2]
+            end
+        end
+
+        if tOff == false &amp;&amp; N &gt; nOn #Activate circuit
+            dt( c ) = α*(1+c^nn)^mm/((1+c^nn)^mm+(1+(ci/ni)/K)^(2*mm)) - c
+        end
+
+    end,
+    #Interaction computation
+    agentRule=quote
+        #Circuit deactivation and commitment
+        if c &lt; fPrE*cMax &amp;&amp; tOff == false &amp;&amp; N &gt; nOn
+            cellFate = 3
+        elseif c &gt; fEPI*cMax &amp;&amp; tOff == false &amp;&amp; N &gt; nOn
+            cellFate = 2
+        end
+
+        if c &lt; fMin*cMax &amp;&amp; tOff == false &amp;&amp; N &gt; nOn
+            tOff = true
+        elseif c &gt; fMax*cMax &amp;&amp; tOff == false &amp;&amp; N &gt; nOn
+            tOff = true
+        end
+
+        #Growth
+        if t &gt; tDivision
+            #Choose random direction in unit sphere
+            xₐ = CBMDistributions.normal(0,1); yₐ = CBMDistributions.normal(0,1); zₐ = CBMDistributions.normal(0,1)
+            Tₐ = sqrt(xₐ^2+yₐ^2+zₐ^2)
+            xₐ /= Tₐ;yₐ /= Tₐ;zₐ /= Tₐ    
+
+            #Chose a random distribution of the material
+            dist = CBMDistributions.uniform(1-σc,1+σc)
+
+            rsep = r/2
+            rnew = r/(2. ^(1. /3))
+            @addAgent( #Add new agent
+                x = x+rsep*xₐ,
+                y = y+rsep*yₐ,
+                z = z+rsep*zₐ,
+                vx = 0,
+                vy = 0,
+                vz = 0,
+                r = rnew,
+                m = m/2,
+                c = c*(dist),
+                tDivision = t + CBMDistributions.uniform(τDiv*(1-σDiv),τDiv*(1+σDiv))
+            )
+            @addAgent( #Add new agent
+                x = x-rsep*xₐ,
+                y = y-rsep*yₐ,
+                z = z-rsep*zₐ,
+                vx = 0,
+                vy = 0,
+                vz = 0,
+                r = rnew,
+                m = m/2,
+                c = c*(2-dist),
+                tDivision = t + CBMDistributions.uniform(τDiv*(1-σDiv),τDiv*(1+σDiv))
+            )
+            @removeAgent() # Remove agent that divided
+            
+        end
+    end,
+
+    agentAlg=CBMIntegrators.Heun()
+);</code></pre><h2 id="Community-construction-and-initialisation"><a class="docs-heading-anchor" href="#Community-construction-and-initialisation">Community construction and initialisation</a><a id="Community-construction-and-initialisation-1"></a><a class="docs-heading-anchor-permalink" href="#Community-construction-and-initialisation" title="Permalink"></a></h2><p>Once with the model created, we have to construct an initial Community of agents to evolve.</p><h3 id="Parameters"><a class="docs-heading-anchor" href="#Parameters">Parameters</a><a id="Parameters-1"></a><a class="docs-heading-anchor-permalink" href="#Parameters" title="Permalink"></a></h3><p>The model from the original version has some parameters defined. We create a dictionary with all the parameters from the model assigned.</p><pre><code class="language-julia">parameters = Dict([
+    :α =&gt; 10,
+    :K =&gt; .9,
+    :nn =&gt; 2,
+    :mm =&gt; 2,
+    :fRange =&gt; 1.2,
+    :mi =&gt; 10E-6,
+    :ri =&gt; 5,
+    :b =&gt; 10E-6,
+    :k0 =&gt; 10E-4,
+    :fAdh =&gt; 1.5,
+    :μ =&gt; 2,
+    :τDiv =&gt; 10,
+    :σDiv =&gt; .5,
+    :c0 =&gt; 3,
+    :σc =&gt; 0.01,
+    :nCirc =&gt; 20,
+    :σNCirc =&gt; .1,
+    :fMin =&gt; .05,
+    :fMax =&gt; .95,
+    :fPrE =&gt; .2,
+    :fEPI =&gt; .8,
+    :τCirc =&gt; 45.,
+    :στCirc =&gt; .02,
+    :rESC =&gt; 2,
+    :f0 =&gt; [1 1 1;1 1 1;1 1 1]
+]);</code></pre><h3 id="Initialise-the-community"><a class="docs-heading-anchor" href="#Initialise-the-community">Initialise the community</a><a id="Initialise-the-community-1"></a><a class="docs-heading-anchor-permalink" href="#Initialise-the-community" title="Permalink"></a></h3><p>The model starts from just one agent. Create the community and assign all the parameters to the Community object.</p><pre><code class="language-julia">function initializeEmbryo(parameters;dt)
+
+    com = Community(
+                model,
+                N=1,
+                dt=dt,
+                )
+
+    #Global parameters
+    for (par,val) in pairs(parameters)
+        com[par] = val
+    end
+
+    com.nOn = rand(Uniform(parameters[:nCirc]-parameters[:σNCirc],parameters[:nCirc]+parameters[:σNCirc]))
+    com.cMax = parameters[:α]/(1+1/(2*parameters[:K])^(2*parameters[:mm]))
+
+    #########Local parameters and variables###########
+    com.f0 = parameters[:k0].*parameters[:f0]# / parameters[:fAdh]
+    #Initialise locals
+    com.m = parameters[:mi]
+    com.r = parameters[:ri]
+    com.cellFate = 1 #Start neutral fate
+    com.tOff = false #Start with the tOff deactivated
+    #Initialise variables
+    com.x = 0.
+    com.y = 0.
+    com.z = 0.
+    com.vx = 0.
+    com.vy = 0.
+    com.vz = 0.
+    com.c = com.c0
+    com.tDivision = 1#rand(Uniform(com.τDiv-com.σDiv,com.τDiv+com.σDiv))
+
+    return com
+
+end;</code></pre><pre><code class="language-julia">com = initializeEmbryo(parameters,dt=0.001);</code></pre><h2 id="Creating-a-custom-evolve-step"><a class="docs-heading-anchor" href="#Creating-a-custom-evolve-step">Creating a custom evolve step</a><a id="Creating-a-custom-evolve-step-1"></a><a class="docs-heading-anchor-permalink" href="#Creating-a-custom-evolve-step" title="Permalink"></a></h2><pre><code class="language-julia">function customEvolve!(com,steps,saveEach)
+    loadToPlatform!(com,preallocateAgents = 100)
+    for i in 1:steps
+        agentStepDE!(com)
+        agentStepRule!(com)
+        update!(com)
+        computeNeighbors!(com)
+        if i % saveEach == 0
+            saveRAM!(com)
+        end
+        #Stop by time
+        if all(com.N .&gt; 60)
+            break
+        end
+        #println(com.c[1:com.N])
+    end
+    bringFromPlatform!(com)
+end;</code></pre><pre><code class="language-julia">dt = 0.001
+steps = round(Int64,50/dt)
+saveEach = round(Int64,.5/dt)
+
+com = initializeEmbryo(parameters,dt=dt);
+customEvolve!(com,steps,saveEach)</code></pre><h3 id="Visualization-of-results"><a class="docs-heading-anchor" href="#Visualization-of-results">Visualization of results</a><a id="Visualization-of-results-1"></a><a class="docs-heading-anchor-permalink" href="#Visualization-of-results" title="Permalink"></a></h3><p>We check how the agents starts to divide and choose a fate at late stages of the simulation.</p><pre><code class="language-julia">function getFates(com)
+    d = getParameter(com,[:t,:cellFate])
+
+    dict = Dict()
+    dict[&quot;t&quot;] = [i[1] for i in d[:t]]
+    dict[&quot;N&quot;] = [length(i) for i in d[:cellFate]]
+    for (fateNumber, fate) in zip([1,2,3],[&quot;DP&quot;,&quot;EPI&quot;,&quot;PRE&quot;])
+        dict[fate] = [sum(i.==fateNumber) for i in d[:cellFate]] 
+    end
+
+    return dict
+end;</code></pre><pre><code class="language-julia">colorMap = Dict(&quot;DP&quot;=&gt;Makie.wong_colors()[1],&quot;EPI&quot;=&gt;Makie.wong_colors()[2],&quot;PRE&quot;=&gt;Makie.wong_colors()[3])
+colorMapNum = Dict(1=&gt;Makie.wong_colors()[1],2=&gt;Makie.wong_colors()[2],3=&gt;Makie.wong_colors()[3]);</code></pre><pre><code class="language-julia">fig = Figure(resolution=(1500,300))
+
+d = getParameter(com,[:x,:y,:z,:r,:cellFate])
+for (i,pos) in enumerate([1:round(Int64,length(com)/4):length(com);length(com)])
+    ax = Axis3(fig[1,i],aspect = :data)
+    color = [colorMapNum[i] for i in d[:cellFate][pos]]
+    meshscatter!(ax,d[:x][pos],d[:y][pos],d[:z][pos],markersize=d[:r][pos],color=color)
+    xlims!(ax,-5,5)
+    ylims!(ax,-5,5)
+    zlims!(ax,-5,5)
+end
+
+display(fig)</code></pre><p><img src="Development_files/Development_17_0.png" alt="png"/></p><pre><code class="language-julia">fig = Figure(resolution=(1500,600))
+
+ax = Axis(fig[1,1],xlabel=&quot;Time&quot;,ylabel=&quot;Proportions&quot;,xlabelsize=40,ylabelsize=40)
+fates = getFates(com)
+offset = zeros(length(fates[&quot;N&quot;]))
+plots = []
+for i in [&quot;DP&quot;,&quot;EPI&quot;,&quot;PRE&quot;]
+    prop = fates[i]./fates[&quot;N&quot;]
+    p = barplot!(ax,fates[&quot;t&quot;],prop,offset=offset,color=colorMap[i])
+    push!(plots,p)
+    offset .+= prop
+end
+Legend(fig[1,1], plots, [&quot;DP&quot;,&quot;EPI&quot;,&quot;PRE&quot;], halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=40)
+
+display(fig)</code></pre><p><img src="Development_files/Development_18_0.png" alt="png"/></p><h3 id="Make-statistics-of-the-model"><a class="docs-heading-anchor" href="#Make-statistics-of-the-model">Make statistics of the model</a><a id="Make-statistics-of-the-model-1"></a><a class="docs-heading-anchor-permalink" href="#Make-statistics-of-the-model" title="Permalink"></a></h3><p>This model contains stochasticity in the division times and the concentration of chemical components that the daughter agents receive. This will make different runs of the simulation to differ. In order to make statistics we run the model several times and collect information of the size and fates of the cells.</p><pre><code class="language-julia">function makeStatistics(comBase,parameters,dt,steps,saveEach,nRepetitions)
+
+    #Make simulations and add results to list
+    d = Dict(&quot;id&quot;=&gt;Int64[],&quot;N&quot;=&gt;Int64[],&quot;t&quot;=&gt;Float64[],&quot;DP&quot;=&gt;Int64[],&quot;EPI&quot;=&gt;Int64[],&quot;PRE&quot;=&gt;Int64[])
+    for i in 1:nRepetitions
+        #Make the simulations
+        com = initializeEmbryo(parameters,dt=dt);
+        setfield!(com,:abm,comBase.abm) #Avoid world problem assigning the functions of globally declared function model
+        customEvolve!(com,steps,saveEach)
+    
+        #Add them to the model
+        fates = getFates(com)
+        append!(d[&quot;id&quot;],i*ones(Int64,length(fates[&quot;N&quot;])))
+        append!(d[&quot;N&quot;],fates[&quot;N&quot;])
+        append!(d[&quot;t&quot;],fates[&quot;t&quot;])
+        append!(d[&quot;DP&quot;],fates[&quot;DP&quot;])
+        append!(d[&quot;EPI&quot;],fates[&quot;EPI&quot;])
+        append!(d[&quot;PRE&quot;],fates[&quot;PRE&quot;])
+    end
+
+    return d
+end;</code></pre><pre><code class="language-julia">dt = 0.001
+steps = round(Int64,50/dt)
+saveEach = round(Int64,1/dt)
+nRepetitions = 5
+
+prop = makeStatistics(com,parameters,dt,steps,saveEach,nRepetitions);</code></pre><pre><code class="language-julia">fig = Figure(resolution=(1000,800))
+
+ax = Axis(fig[1,1],xlabel=&quot;N&quot;,xlabelsize=40,ylabel=&quot;proportions&quot;,ylabelsize=40)
+for i in [&quot;DP&quot;,&quot;EPI&quot;,&quot;PRE&quot;]
+    boxplot!(ax,prop[&quot;N&quot;],prop[i]./prop[&quot;N&quot;],color=colorMap[i])
+end
+Legend(fig[1,1], plots, [&quot;DP&quot;,&quot;EPI&quot;,&quot;PRE&quot;], halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=40)
+
+ax = Axis(fig[2,1],xlabel=&quot;t&quot;,xlabelsize=40,ylabel=&quot;proportions&quot;,ylabelsize=40)
+for i in [&quot;DP&quot;,&quot;EPI&quot;,&quot;PRE&quot;]
+    boxplot!(ax,prop[&quot;t&quot;],prop[i]./prop[&quot;N&quot;],color=colorMap[i])
+end
+Legend(fig[2,1], plots, [&quot;DP&quot;,&quot;EPI&quot;,&quot;PRE&quot;], halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=40)
+
+display(fig)</code></pre><p><img src="Development_files/Development_22_0.png" alt="png"/></p><h2 id="Fitting-the-model"><a class="docs-heading-anchor" href="#Fitting-the-model">Fitting the model</a><a id="Fitting-the-model-1"></a><a class="docs-heading-anchor-permalink" href="#Fitting-the-model" title="Permalink"></a></h2><p>The parameters above described were chosen to match the experimental observation. This was a qualitative fitting where the parameters where tuned by hand.</p><p>In this section we will show how we can use tuning functions to choose optimize certain parameters of the model. In particular, we tune the model to fit parameters related with the chemical circuit to match the correct distributions of cells.</p><h3 id="Upload-experimental-data"><a class="docs-heading-anchor" href="#Upload-experimental-data">Upload experimental data</a><a id="Upload-experimental-data-1"></a><a class="docs-heading-anchor-permalink" href="#Upload-experimental-data" title="Permalink"></a></h3><p>We upload the experimental data that gives raise to this model.</p><pre><code class="language-julia">dataFull = CSV.read(&quot;data/development.csv&quot;,DataFrame)
+fates = [&quot;DP&quot;,&quot;EPI&quot;,&quot;PRE&quot;];</code></pre><pre><code class="language-julia">data = Dict(&quot;N&quot;=&gt;Float64[],[i=&gt;Float64[] for i in [&quot;DP&quot;,&quot;EPI&quot;,&quot;PRE&quot;]]...)
+for embryo in unique(dataFull[!,&quot;Embryo_ID&quot;])
+    embryoData = dataFull[dataFull[!,&quot;Embryo_ID&quot;] .== embryo,:]
+    push!(data[&quot;N&quot;], 0)
+    for celltype in fates
+        if celltype in embryoData[!,&quot;Identity.hc&quot;] &amp;&amp; celltype in [&quot;DP&quot;,&quot;EPI&quot;,&quot;PRE&quot;]
+            val = embryoData[embryoData[!,&quot;Identity.hc&quot;].==celltype,&quot;count&quot;][1]
+            push!(data[celltype],val)
+            data[&quot;N&quot;][end] += val 
+        elseif celltype in [&quot;DP&quot;,&quot;EPI&quot;,&quot;PRE&quot;]
+            push!(data[celltype],0)
+        end
+    end
+end</code></pre><pre><code class="language-julia">fig = Figure(resolution=(1000,500))
+
+ax = Axis(fig[1,1],xlabel=&quot;N&quot;,xlabelsize=30,ylabel=&quot;Cell fates&quot;,ylabelsize=30)
+
+offset = zeros(size(data[&quot;DP&quot;])[1])
+legend = []
+order = sortperm(data[&quot;N&quot;])
+for cellId in fates
+    bp = barplot!(ax,data[cellId][order], offset=offset, color = colorMap[cellId])
+    push!(legend,bp)
+    offset .+= data[cellId][order]
+end
+
+fig</code></pre><p><img src="Development_files/Development_27_0.png" alt="png"/></p><p>We see that the data corresponds to sets ranging from 5 to 60 cells, being the usual sized between 5 to 30. </p><pre><code class="language-julia">fig = Figure(resolution=(1000,500))
+ax = Axis(fig[1,1])
+legend = []
+
+cluster = 1
+for cellId in fates
+    Ngrouped = round.(Int64,data[&quot;N&quot;]/cluster).*cluster
+    l = boxplot!(ax,Ngrouped,(data[cellId]./data[&quot;N&quot;]),label=cellId, color=colorMap[cellId])
+    push!(legend,l)
+end
+Legend(fig[1,1], legend, fates, halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=40)
+
+fig</code></pre><p><img src="Development_files/Development_29_0.png" alt="png"/></p><h3 id="Set-the-exploration-space"><a class="docs-heading-anchor" href="#Set-the-exploration-space">Set the exploration space</a><a id="Set-the-exploration-space-1"></a><a class="docs-heading-anchor-permalink" href="#Set-the-exploration-space" title="Permalink"></a></h3><p>The optimization algorithms require that you specify a set of parameters to optimize. in our case, our parameters correspond to parameters to the agent. However, they does not need to correcpond to parameters of the agent at all. They will be specified for the algorithm to sample from them and give new updates while optimising. </p><p>We have to define them as a dicctionary.</p><pre><code class="language-julia">explore = Dict([
+            :α=&gt;(0,20),
+            :K=&gt;(0,2),
+            :nn=&gt;(0,5),
+            :mm=&gt;(0,5),
+            :nCirc=&gt;(0,30),
+            :σNCirc=&gt;(0,20),
+            :c0=&gt;(0,20)
+        ]);</code></pre><h3 id="Construct-loos-function"><a class="docs-heading-anchor" href="#Construct-loos-function">Construct loos function</a><a id="Construct-loos-function-1"></a><a class="docs-heading-anchor-permalink" href="#Construct-loos-function" title="Permalink"></a></h3><p>With the data prepared to be compared, we set the loos function. </p><p>The loos function is a function that has to receive at least one argument, a <code>RowDataframe</code> object that contains the information of the parameters that are being fitted and has to return a value indicating how good wwere the simulations.</p><p>The function is very general so it can fit a many different routines.</p><p>Our function basically contains the following steps:</p><ul><li>Sets the new parameters</li><li>Run several simulations for that set of parameters to get robust statistics</li><li>Cluster the results from the simulations as before to compare it to the experimental data</li><li>Compare the experimental and simulation results using a Chi Square metric as loos value.</li></ul><p>The specific form of the function will depend on the optimization algorithm at hand.</p><pre><code class="language-julia">function loosFunction(params;parameters=parameters,data=data,nRepetitions=1,saveEach=10,dt=0.001)
+
+    #Modify the set of parameters
+    parametersModified = copy(parameters)
+    parametersModified[:α] = params[:α][1]
+    parametersModified[:K] = params[:K][1]
+    parametersModified[:nn] = params[:nn][1]
+    parametersModified[:mm] = params[:mm][1]
+    parametersModified[:nCirc] = params[:nCirc][1]
+    parametersModified[:σNCirc] = params[:σNCirc][1]
+    parametersModified[:c0] = params[:c0][1]
+    
+    #Make a batch of simulations and get relevant information
+    prop = makeStatistics(com,parametersModified,dt,steps,saveEach,nRepetitions);
+
+    #Prepare data for fitting
+    p = transpose([prop[&quot;DP&quot;] prop[&quot;EPI&quot;] prop[&quot;PRE&quot;]]./prop[&quot;N&quot;])
+    
+    #Xi square loos
+    loos = 0.
+    for n in minimum(data[&quot;N&quot;]):maximum(data[&quot;N&quot;])
+        p = prop[&quot;N&quot;] .== n
+        if sum(p) &gt; 0
+            dist = [mean(prop[&quot;DP&quot;][p])/n,mean(prop[&quot;EPI&quot;][p])/n,mean(prop[&quot;PRE&quot;][p])/n]
+            for (nn,dp,epi,pre) in zip(data[&quot;N&quot;],data[&quot;DP&quot;],data[&quot;EPI&quot;],data[&quot;PRE&quot;])
+                if nn == n
+                    loos += sum((dist.-[dp,epi,pre]./n).^2)
+                end
+            end
+        end
+    end
+    #Return loos
+    return loos
+    
+end</code></pre><pre><code class="language-none">loosFunction (generic function with 1 method)</code></pre><h3 id="Check-stability-of-loos-function"><a class="docs-heading-anchor" href="#Check-stability-of-loos-function">Check stability of loos function</a><a id="Check-stability-of-loos-function-1"></a><a class="docs-heading-anchor-permalink" href="#Check-stability-of-loos-function" title="Permalink"></a></h3><p>We run the loos function several times to check that the results are consistent between runs. If the loos function returned different results outside the expected fluctuations, the model would not be proporly fitted as the algorithms would not be able to minimize consistently the cost.</p><p>The fluctuations for the simulations using 10 repetitions of the simulation for the same parameters show already enough consistency.</p><pre><code class="language-julia">initialisation = DataFrame([:α=&gt;parameters[:α],:K=&gt;parameters[:K],:nn=&gt;parameters[:nn],:mm=&gt;parameters[:mm],:nCirc=&gt;parameters[:nCirc],:σNCirc=&gt;parameters[:σNCirc],:c0=&gt;parameters[:c0]])
+
+Threads.@threads for i in 1:3
+    println(loosFunction(initialisation,nRepetitions=1))
+end</code></pre><pre><code class="language-none">43.66465425385882
+40.19961640416682
+39.79395560531394</code></pre><pre><code class="language-julia">#CBMFitting.swarmAlgorithm(loosFunction,explore,population=10,stopMaxGenerations=10,saveFileName=&quot;Optimization&quot;,verbose=true)</code></pre><pre><code class="language-none">[32mGeneration 1/10 100%|████████████████████████████████████| Time: 0:06:33[39m
+[32mGeneration 2/10 100%|████████████████████████████████████| Time: 0:06:18[39m
+[32mGeneration 3/10 100%|████████████████████████████████████| Time: 0:06:29[39m
+[32mGeneration 4/10 100%|████████████████████████████████████| Time: 0:06:22[39m
+[32mGeneration 5/10 100%|████████████████████████████████████| Time: 0:06:28[39m
+[32mGeneration 6/10 100%|████████████████████████████████████| Time: 0:06:35[39m
+[32mGeneration 7/10 100%|████████████████████████████████████| Time: 0:06:20[39m
+[32mGeneration 8/10 100%|████████████████████████████████████| Time: 0:06:27[39m
+[32mGeneration 9/10 100%|████████████████████████████████████| Time: 0:06:41[39m
+[32mGeneration 10/10 100%|███████████████████████████████████| Time: 0:06:25[39m</code></pre><p>&lt;div&gt;&lt;div style = &quot;float: left;&quot;&gt;&lt;span&gt;DataFrameRow (16 columns)&lt;/span&gt;&lt;/div&gt;&lt;div style = &quot;clear: both;&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class = &quot;data-frame&quot; style = &quot;overflow-x: scroll;&quot;&gt;&lt;table class = &quot;data-frame&quot; style = &quot;margin-bottom: 6px;&quot;&gt;&lt;thead&gt;&lt;tr class = &quot;header&quot;&gt;&lt;th class = &quot;rowLabel&quot; style = &quot;font-weight: bold; text-align: right;&quot;&gt;Row&lt;/th&gt;&lt;th style = &quot;text-align: left;&quot;&gt;α&lt;/th&gt;&lt;th style = &quot;text-align: left;&quot;&gt;nn&lt;/th&gt;&lt;th style = &quot;text-align: left;&quot;&gt;K&lt;/th&gt;&lt;th style = &quot;text-align: left;&quot;&gt;mm&lt;/th&gt;&lt;th style = &quot;text-align: left;&quot;&gt;nCirc&lt;/th&gt;&lt;th style = &quot;text-align: left;&quot;&gt;σNCirc&lt;/th&gt;&lt;th style = &quot;text-align: left;&quot;&gt;c0&lt;/th&gt;&lt;th style = &quot;text-align: left;&quot;&gt;α<em>velocity</em>&lt;/th&gt;&lt;th style = &quot;text-align: left;&quot;&gt;nn<em>velocity</em>&lt;/th&gt;&lt;th style = &quot;text-align: left;&quot;&gt;K<em>velocity</em>&lt;/th&gt;&lt;th style = &quot;text-align: left;&quot;&gt;mm<em>velocity</em>&lt;/th&gt;&lt;th style = &quot;text-align: left;&quot;&gt;nCirc<em>velocity</em>&lt;/th&gt;&lt;th style = &quot;text-align: left;&quot;&gt;σNCirc<em>velocity</em>&lt;/th&gt;&lt;th style = &quot;text-align: left;&quot;&gt;c0<em>velocity</em>&lt;/th&gt;&lt;th style = &quot;text-align: left;&quot;&gt;<em>score</em>&lt;/th&gt;&lt;th style = &quot;text-align: left;&quot;&gt;<em>generation</em>&lt;/th&gt;&lt;/tr&gt;&lt;tr class = &quot;subheader headerLastRow&quot;&gt;&lt;th class = &quot;rowLabel&quot; style = &quot;font-weight: bold; text-align: right;&quot;&gt;&lt;/th&gt;&lt;th title = &quot;Float64&quot; style = &quot;text-align: left;&quot;&gt;Float64&lt;/th&gt;&lt;th title = &quot;Float64&quot; style = &quot;text-align: left;&quot;&gt;Float64&lt;/th&gt;&lt;th title = &quot;Float64&quot; style = &quot;text-align: left;&quot;&gt;Float64&lt;/th&gt;&lt;th title = &quot;Float64&quot; style = &quot;text-align: left;&quot;&gt;Float64&lt;/th&gt;&lt;th title = &quot;Float64&quot; style = &quot;text-align: left;&quot;&gt;Float64&lt;/th&gt;&lt;th title = &quot;Float64&quot; style = &quot;text-align: left;&quot;&gt;Float64&lt;/th&gt;&lt;th title = &quot;Float64&quot; style = &quot;text-align: left;&quot;&gt;Float64&lt;/th&gt;&lt;th title = &quot;Float64&quot; style = &quot;text-align: left;&quot;&gt;Float64&lt;/th&gt;&lt;th title = &quot;Float64&quot; style = &quot;text-align: left;&quot;&gt;Float64&lt;/th&gt;&lt;th title = &quot;Float64&quot; style = &quot;text-align: left;&quot;&gt;Float64&lt;/th&gt;&lt;th title = &quot;Float64&quot; style = &quot;text-align: left;&quot;&gt;Float64&lt;/th&gt;&lt;th title = &quot;Float64&quot; style = &quot;text-align: left;&quot;&gt;Float64&lt;/th&gt;&lt;th title = &quot;Float64&quot; style = &quot;text-align: left;&quot;&gt;Float64&lt;/th&gt;&lt;th title = &quot;Float64&quot; style = &quot;text-align: left;&quot;&gt;Float64&lt;/th&gt;&lt;th title = &quot;Float64&quot; style = &quot;text-align: left;&quot;&gt;Float64&lt;/th&gt;&lt;th title = &quot;Int64&quot; style = &quot;text-align: left;&quot;&gt;Int64&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td class = &quot;rowLabel&quot; style = &quot;font-weight: bold; text-align: right;&quot;&gt;93&lt;/td&gt;&lt;td style = &quot;text-align: right;&quot;&gt;14.9389&lt;/td&gt;&lt;td style = &quot;text-align: right;&quot;&gt;1.95144&lt;/td&gt;&lt;td style = &quot;text-align: right;&quot;&gt;1.39619&lt;/td&gt;&lt;td style = &quot;text-align: right;&quot;&gt;1.42773&lt;/td&gt;&lt;td style = &quot;text-align: right;&quot;&gt;12.3225&lt;/td&gt;&lt;td style = &quot;text-align: right;&quot;&gt;9.68273&lt;/td&gt;&lt;td style = &quot;text-align: right;&quot;&gt;9.7174&lt;/td&gt;&lt;td style = &quot;text-align: right;&quot;&gt;-0.0968626&lt;/td&gt;&lt;td style = &quot;text-align: right;&quot;&gt;-0.0562549&lt;/td&gt;&lt;td style = &quot;text-align: right;&quot;&gt;-0.0105383&lt;/td&gt;&lt;td style = &quot;text-align: right;&quot;&gt;0.047756&lt;/td&gt;&lt;td style = &quot;text-align: right;&quot;&gt;0.0882151&lt;/td&gt;&lt;td style = &quot;text-align: right;&quot;&gt;0.278174&lt;/td&gt;&lt;td style = &quot;text-align: right;&quot;&gt;0.0248736&lt;/td&gt;&lt;td style = &quot;text-align: right;&quot;&gt;45.7751&lt;/td&gt;&lt;td style = &quot;text-align: right;&quot;&gt;10&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;</p><pre><code class="language-julia">optimization = CSV.read(&quot;Optimization.csv&quot;,DataFrame);</code></pre><pre><code class="language-julia">fig = Figure()
+ax = Axis(fig[1,1],xticks=1:10,xlabel=&quot;Generations&quot;,xlabelsize=30,ylabel=&quot;Log loos&quot;,ylabelsize=30)
+
+scatter!(ax,optimization._generation_.+rand(Uniform(-.2,.2),length(optimization._generation_)),(optimization._score_))
+#xticks!(ax,[1,2,3],[1,2,3])
+
+display(fig)</code></pre><p><img src="Development_files/Development_38_0.png" alt="png"/></p><pre><code class="language-julia">propQualitative = makeStatistics(com,parameters,dt,steps,saveEach,nRepetitions);</code></pre><pre><code class="language-julia">params = optimization[argmin(optimization[!,&quot;_score_&quot;]),:]
+parametersModified = copy(parameters)
+parametersModified[:α] = params[:α][1]
+parametersModified[:K] = params[:K][1]
+parametersModified[:nn] = params[:nn][1]
+parametersModified[:mm] = params[:mm][1]
+parametersModified[:nCirc] = params[:nCirc][1]
+parametersModified[:σNCirc] = params[:σNCirc][1]
+parametersModified[:c0] = params[:c0][1]
+
+propFitted = makeStatistics(com,parametersModified,dt,steps,saveEach,10);</code></pre><pre><code class="language-julia">cluster = 4
+dt = 0.001
+steps = round(Int64,50/dt)
+saveEach = round(Int64,1/dt)
+nRepetitions = 5
+
+fig = Figure(resolution=(1500,300))
+
+#Real
+ax = Axis(fig[1,1])
+legend = []
+for cellId in fates
+    Ngrouped = round.(Int64,data[&quot;N&quot;]/cluster).*cluster
+    l = boxplot!(ax,Ngrouped,(data[cellId]./data[&quot;N&quot;]),label=cellId, color=colorMap[cellId])
+    push!(legend,l)
+end
+xlims!(0,50)
+Legend(fig[1,1], legend, fates, halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=20)
+
+#Original fit
+ax = Axis(fig[1,2],xlabel=&quot;N&quot;,xlabelsize=40,ylabel=&quot;proportions&quot;,ylabelsize=40)
+legend = []
+for i in [&quot;DP&quot;,&quot;EPI&quot;,&quot;PRE&quot;]
+    Ngrouped = round.(Int64,propQualitative[&quot;N&quot;]/cluster).*cluster
+    l = boxplot!(ax,Ngrouped,propQualitative[i]./propQualitative[&quot;N&quot;],color=colorMap[i])
+    push!(legend,l)
+end
+xlims!(0,50)
+Legend(fig[1,2], legend, [&quot;DP&quot;,&quot;EPI&quot;,&quot;PRE&quot;], halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=20)
+
+#Swarm fit
+ax = Axis(fig[1,3],xlabel=&quot;N&quot;,xlabelsize=40,ylabel=&quot;proportions&quot;,ylabelsize=40)
+legend = []
+for i in [&quot;DP&quot;,&quot;EPI&quot;,&quot;PRE&quot;]
+    Ngrouped = round.(Int64,propFitted[&quot;N&quot;]/cluster).*cluster
+    l = boxplot!(ax,Ngrouped,propFitted[i]./propFitted[&quot;N&quot;],color=colorMap[i])
+    push!(legend,l)
+end
+xlims!(0,50)
+Legend(fig[1,3], legend, [&quot;DP&quot;,&quot;EPI&quot;,&quot;PRE&quot;], halign = :right, valign = :top, tellheight = false, tellwidth = false, labelsize=20)
+
+display(fig)</code></pre><p><img src="Development_files/Development_41_0.png" alt="png"/></p><pre><code class="language-julia"></code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="Patterning.html">« Patterning</a><a class="docs-footer-nextpage" href="Aggregation.html">Particle aggregation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Saturday 2 September 2023 14:36">Saturday 2 September 2023</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
