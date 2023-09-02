@@ -1,0 +1,11 @@
+docs/build
+build
+*.ipynb
+!examples/*.ipynb
+.*
+examples/.*
+examples/*/*
+!examples/data/development.csv
+*.jld2
+
+test/testfiles/*
