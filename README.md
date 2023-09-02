@@ -3,7 +3,7 @@
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://dsb-lab.github.io/CellBasedModels.jl/stable/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://dsb-lab.github.io/CellBasedModels.jl/dev/)
 
-The CellBasedModels.jl package aims to help fast-designing and simulation of agent-based models whit possibilities to be run in CPU and NVidia GPUs for the efficient computation of large-scale systems. 
+The CellBasedModels.jl package aims to help fast-designing and simulation of agent-based models with possibilities to be run in CPU and NVidia GPUs for the efficient computation of large-scale systems. 
 
 The following methods can be implemented in the model:
 
