@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Defining an ABM model · CellBasedModels.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="index.html"><img src="assets/logo.png" alt="CellBasedModels.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">CellBasedModels.jl</span></div><form class="docs-search" action="search.html"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><span class="tocitem">Usage</span><ul><li><a class="tocitem" href="Usage_intro.html">Introduction</a></li><li class="is-active"><a class="tocitem" href="Usage_Agent.html">Defining an ABM model</a><ul class="internal"><li><a class="tocitem" href="#Parameters"><span>Parameters</span></a></li><li><a class="tocitem" href="#Update-Rules"><span>Update Rules</span></a></li><li class="toplevel"><a class="tocitem" href="#Algorithm-arguments"><span>Algorithm arguments</span></a></li><li><a class="tocitem" href="#Model-inheritance"><span>Model inheritance</span></a></li></ul></li><li><a class="tocitem" href="Usage_Community.html">Creating and evolving a Community</a></li><li><a class="tocitem" href="Usage_Fitting.html">Model Fitting</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="Patterning.html">Patterning</a></li><li><a class="tocitem" href="Development.html">ICM Development</a></li><li><a class="tocitem" href="Aggregation.html">Particle aggregation</a></li><li><a class="tocitem" href="Bacteries.html">Bacterial Colony Growth</a></li><li><a class="tocitem" href="Chemotaxis.html">Bacterial chemotaxis</a></li></ul></li><li><a class="tocitem" href="Models.html">Models</a></li><li><a class="tocitem" href="API.html"><strong>API</strong></a></li><li><a class="tocitem" href="APIdevelopers.html">API for Developers</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Usage</a></li><li class="is-active"><a href="Usage_Agent.html">Defining an ABM model</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="Usage_Agent.html">Defining an ABM model</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/dsb-lab/CellBasedModels.jl/blob/master/docs/src/Usage_Agent.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><pre><code class="language-julia">using CellBasedModels</code></pre><h1 id="Defining-an-ABM-model"><a class="docs-heading-anchor" href="#Defining-an-ABM-model">Defining an ABM model</a><a id="Defining-an-ABM-model-1"></a><a class="docs-heading-anchor-permalink" href="#Defining-an-ABM-model" title="Permalink"></a></h1><p>The <code>ABM</code> structure contains all the information of a ABM Based model, their parameters and rules of evolution. There are four elements to take into account when defining agents:</p><ul><li><strong>Parameters</strong>. These can be splited in:<ul><li>User-defined parameters: Parameters that are defined for the specific model that is being used.</li><li>Default parameters: Parameters that are defined for all models by default.</li></ul></li><li><strong>Update rules</strong>. Rules that describe the behavior of the agents during the course of time.</li><li><strong>Model inheritance</strong>. More simple models over which we want to build more complex models.</li></ul><p>Constructing an agent we use</p><pre><code class="language-julia">ABM(dim,kwArgs...)</code></pre><p>where <code>dim</code> is the only required argument of the model and defined the dimensionality of the agent and can take values 0-3. The <code>kwArgs</code> are keyword arguments that define the parameters, rules and base models of the present model and that will be seing in detail in the following.</p><h2 id="Parameters"><a class="docs-heading-anchor" href="#Parameters">Parameters</a><a id="Parameters-1"></a><a class="docs-heading-anchor-permalink" href="#Parameters" title="Permalink"></a></h2><h3 id="Parameters-Default-Parameters"><a class="docs-heading-anchor" href="#Parameters-Default-Parameters">Parameters - Default Parameters</a><a id="Parameters-Default-Parameters-1"></a><a class="docs-heading-anchor-permalink" href="#Parameters-Default-Parameters" title="Permalink"></a></h3><p>By default, all agent models have a set of defined set of parameters. A list of the most relevant parameters for a user is:</p><table><tr><th style="text-align: center"><strong>Topic</strong></th><th style="text-align: center"><strong>Symbol</strong></th><th style="text-align: center"><strong>dtype</strong></th><th style="text-align: left"><strong>Description</strong></th></tr><tr><td style="text-align: center"><strong>Time</strong></td><td style="text-align: center">t</td><td style="text-align: center">Float64</td><td style="text-align: left">Absolute time of evolution of the community.</td></tr><tr><td style="text-align: center"></td><td style="text-align: center">dt</td><td style="text-align: center">Float64</td><td style="text-align: left">Time increments in each step of the evolution.</td></tr><tr><td style="text-align: center"><strong>Size Community</strong></td><td style="text-align: center">N</td><td style="text-align: center">Int64</td><td style="text-align: left">The number of agents active in the community.</td></tr><tr><td style="text-align: center"></td><td style="text-align: center">NMedium</td><td style="text-align: center">Vector{Int64}</td><td style="text-align: left">Size of the grid in which the medium is being computed. This is necessary to be declared if medium parameters are declared by the user.</td></tr><tr><td style="text-align: center"><strong>Id tracking</strong></td><td style="text-align: center">id</td><td style="text-align: center">Int64</td><td style="text-align: left">Unique identifier of the agent.</td></tr><tr><td style="text-align: center"><strong>Simulation space</strong></td><td style="text-align: center">simBox</td><td style="text-align: center">Matrix{Float64}</td><td style="text-align: left">Simulation box in which cells are moving. This is necessary to define a region of space in which a medium will be simulated or for computing neighbors with CellLinked methods.</td></tr><tr><td style="text-align: center"><strong>Position</strong></td><td style="text-align: center">x</td><td style="text-align: center">Vector{Float64}</td><td style="text-align: left">Position of the agent in the x axis.</td></tr><tr><td style="text-align: center"></td><td style="text-align: center">y</td><td style="text-align: center">Vector{Float64}</td><td style="text-align: left">Position of the agent in the y axis.</td></tr><tr><td style="text-align: center"></td><td style="text-align: center">z</td><td style="text-align: center">Vector{Float64}</td><td style="text-align: left">Position of the agent in the z axis.</td></tr><tr><td style="text-align: center"><strong>Position Medium</strong></td><td style="text-align: center">x <span>$_m$</span></td><td style="text-align: center">Array{Float64}</td><td style="text-align: left">Position of the medium gridpoints in the x axis. The shape will depend on the dimensionality o the model. This parameter is only present is a model with medium parameters is declared.</td></tr><tr><td style="text-align: center"></td><td style="text-align: center">y <span>$_m$</span></td><td style="text-align: center">Array{Float64}</td><td style="text-align: left">Position of the medium gridpoints in the y axis. The shape will depend on the dimensionality o the model. This parameter is only present is a model with medium parameters is declared.</td></tr><tr><td style="text-align: center"></td><td style="text-align: center">z <span>$_m$</span></td><td style="text-align: center">Array{Float64}</td><td style="text-align: left">Position of the medium gridpoints in the z axis. The shape will depend on the dimensionality o the model. This parameter is only present is a model with medium parameters is declared.</td></tr><tr><td style="text-align: center"><strong>Grid size Medium</strong></td><td style="text-align: center">dx</td><td style="text-align: center">Float64</td><td style="text-align: left">Grid separation of the medium in the x axis. This parameter is only present is a model with medium parameters is declared.</td></tr><tr><td style="text-align: center"></td><td style="text-align: center">dy</td><td style="text-align: center">Float64</td><td style="text-align: left">Grid separation of the medium in the y axis. This parameter is only present is a model with medium parameters is declared.</td></tr><tr><td style="text-align: center"></td><td style="text-align: center">dz</td><td style="text-align: center">Float64</td><td style="text-align: left">Grid separation of the medium in the z axis. This parameter is only present is a model with medium parameters is declared.</td></tr><tr><td style="text-align: center"><strong>Grid position Medium</strong></td><td style="text-align: center">i1_</td><td style="text-align: center">Int64</td><td style="text-align: left">Index of the medium grid in the x coordinate.</td></tr><tr><td style="text-align: center"></td><td style="text-align: center">i2_</td><td style="text-align: center">Int64</td><td style="text-align: left">Index of the medium grid in the x coordinate.</td></tr><tr><td style="text-align: center"></td><td style="text-align: center">i3_</td><td style="text-align: center">Int64</td><td style="text-align: left">Index of the medium grid in the x coordinate.</td></tr></table><p>There are more parameters predefined in the model. The other parameters, however, are used internaly for the package to work properly and should in rare case used directly by the user. A complete list can be seen in the definition of the <code>Community</code> structure in <code>API</code>. You can identify them because they have a lower underscore in the end of their name.</p><h3 id="Parameters-User-defined-parmaeters"><a class="docs-heading-anchor" href="#Parameters-User-defined-parmaeters">Parameters - User defined parmaeters</a><a id="Parameters-User-defined-parmaeters-1"></a><a class="docs-heading-anchor-permalink" href="#Parameters-User-defined-parmaeters" title="Permalink"></a></h3><p>Apart from the default parameters, the user can define other parameters necessary for its model. </p><p>The user parameters can have three scopes:</p><ul><li><strong>model</strong>: Parameters that affect all the agents. These can be scalars or arrays of any shape.</li><li><strong>agent</strong>: Parameters have a different value for each agent. These will be stored as length N vectors. These can be scalars.</li><li><strong>medium</strong>: Parameters that belong to the medium in which the model is embedded (if there is a medium defined for this model). These can be scalars only.</li></ul><p>For declaring the parameters, you will have to pass a dictionary-like object with keys as symbols of the parameters and datatypes as the stored values. Alternatively you can provide a structure and the <code>ABM</code> object will take the fields as the parameters.</p><pre><code class="language-julia">agent = ABM(3,                                  #Dimensions of the model
+                agent = Dict(                   # Agent parameters
+                    :a1=&gt; Float64,
+                    :a2=&gt; Int64
+                    ),
+                model = Dict(                   # Model parameters
+                    :g1=&gt; Int64,
+                    :g2=&gt; Array{Float64}
+                    ),
+                medium = Dict(                  # Medium parameters
+                    :m=&gt;Float64
+                    )
+            )</code></pre><pre><code class="language-none">PARAMETERS
+	x (Float64 agent)
+	y (Float64 agent)
+	z (Float64 agent)
+	xₘ (Float64 medium)
+	yₘ (Float64 medium)
+	zₘ (Float64 medium)
+	a2 (Int64 agent)
+	a1 (Float64 agent)
+	g2 (Array{
+
+
+
+
+
+Float64} model)
+	g1 (Int64 model)
+	m (Float64 medium)
+
+
+UPDATE RULES</code></pre><blockquote><p><strong>WARNING: User default parameters name convention</strong> </p><p>The is no rule to declare user-defined parameters but we advise that the names do not end with underscore (e.g. :a_).  This nomenclarute is in general used to name hidden parameters that are kept for internal use.</p></blockquote><h2 id="Update-Rules"><a class="docs-heading-anchor" href="#Update-Rules">Update Rules</a><a id="Update-Rules-1"></a><a class="docs-heading-anchor-permalink" href="#Update-Rules" title="Permalink"></a></h2><p>After setting up the parameters of our agent, we can define the rules of evolution of our model and of recomputation.</p><p>We can evolve all parameters in all the scopes with two methods:</p><ul><li>Differential Equations: In the most general form we can define up to Stochastic Differential Equations. In these rules we will define the deterministic function <span>$f$</span> and stochastic functions <span>$g$</span> separately.</li></ul><p class="math-container">\[d(x) = \underbrace{f(x,t)}_{ODE}dt + \underbrace{g(x,t)}_{SDE}dW\]</p><ul><li>Rules: Rules that do not have any underlying differential equation to describe their evolution.</li></ul><h3 id="Writting-update-rules"><a class="docs-heading-anchor" href="#Writting-update-rules">Writting update rules</a><a id="Writting-update-rules-1"></a><a class="docs-heading-anchor-permalink" href="#Writting-update-rules" title="Permalink"></a></h3><p>Update rules in agents is almost normal julia code that you can write in a simplified level and then, when constructing the <code>ABM</code> structure, the code will be vectorized and adapted to be run in the corresponding platform.</p><p>To provide a rule to the <code>ABM</code>, you will need to give the code to the <code>kwArg</code> in form of </p><pre><code class="language-julia">quote 
+#code of update rule in here...
+end</code></pre><p>Let&#39;s see some examples to make it more clear.</p><h3 id="Rules"><a class="docs-heading-anchor" href="#Rules">Rules</a><a id="Rules-1"></a><a class="docs-heading-anchor-permalink" href="#Rules" title="Permalink"></a></h3><p><strong>Example</strong> We want to create an agent that, at each step:</p><ol><li>Makes a jump to left or right brought from a gaussian. </li><li>If the agent surpasses a certain limit in the left limit, is removed. </li><li>At random, with certain probability, it divides with a new parameter <code>l</code>.</li></ol><pre><code class="language-julia">model = ABM(1, #Dimensions of the model
+    agent = Dict(
+        :l =&gt; Float64
+    ),
+    model = Dict(
+        :σ2 =&gt; Float64,    #Spread of the gaussian
+        :pDivision =&gt; Float64 #Global variable to set the probability at which it will divide
+    ),
+    agentRule = quote
+        x += CBMRandom.normal(0.,σ2) #We can call to distributions from Distributions.jl that are 1D
+        #We can make conditionals
+        if x__ &gt; simBox[1,2] #We can use the default parameter simBox to define where is the left margin at which cells are removed. 
+            @removeAgent()
+        elseif pDivision &lt; Uniform(0,1) #We can make conditionals
+            @addAgent(
+                l = sin(CBMRandom.uniform(0,3*π))
+                ) #We add an agent that inherits x and initialize it with a new parameter l
+        end
+    end
+)</code></pre><pre><code class="language-none">PARAMETERS
+	x (Float64 agent)
+	l (Float64 agent)
+	pDivision (Float64 model)
+	σ2 (Float64 model)
+
+
+UPDATE RULES
+agentRule
+ begin
+    x__ += CBMRandom.normal(0.0, σ2)
+    if x__ &gt; simBox[1, 2]
+        @removeAgent
+    elseif pDivision &lt; Uniform(0, 1)
+        @addAgent l__ = sin(CBMRandom.uniform(0, 3π))
+    end
+end</code></pre><p>Several things to notice: </p><ol><li>Parameters with double lower underline. If you notice, the update rule shows that when the modified parameters <code>x</code> and <code>l</code>, when reasiged with an updating operator, they where converted into <code>x__</code> and <code>l__</code>, respectively. The underscore variables are the variables that store the modifications of the parameters before making the final step. This is performed this way to avoid modificating the parameters before all the modifications to all the agents, medium and model parameters are made. When calling the functions <code>update!</code> or <code>evolve!</code>, the new modifications will take place and will be incorporated into the original parameters. </li><li>Random numbers and GPU. To generate random numbers from distributions we can use the package <code>Distributions.jl</code>. This is perfectly fine if your code is going to run only on CPU. However, <code>Distributions.jl</code> is not compatible with GPU hence we provide the submodule <code>CBMRandom</code> with some random generators from different distributions that may run both in CPU and GPU.</li><li>Macros. <code>CellBasedModels</code> provide several macros that are handy to perform some special functions of Agent Based Models. You can see the all the provided macros in <code>API - Macros</code>. In here we use the macro for adding agents to a model <code>@addAgent</code> and the one for removing agents <code>@removeAgent</code>.</li><li>Use of Base parameters. For checking that the particle has left the simulation space, we use the base parameter <code>simBox</code> that defines the boundaries of the simulation.</li></ol><p>Let&#39;s try now other example but now we want to modify a model parameter. For that, we will define a model rule.</p><p><strong>Example</strong> Freeze the agents. Imagine that if certain time is met, we want to freeze all the agents that we described in local. One of the ways we can do it is by setting the jump to zero.</p><pre><code class="language-julia">model = ABM(1, #Dimensions of the model
+    agent = Dict(
+        :l =&gt; Float64
+    ),
+    model = Dict(
+        :σ2 =&gt; Float64,    #Spread of the gaussian
+        :pDivision =&gt; Float64, #Global variable to set the probability at which it will divide
+        :freeze =&gt; Bool
+    ),
+    agentRule = quote
+        x += freeze*Normal(0,σ2) 
+        if x__ &gt; simBox[1,2]
+            @removeAgent()
+        elseif pDivision &lt; Uniform(0,1)
+            @addAgent(l = sin(Uniform(0,3*π)))
+        end
+    end,
+    modelRule = quote #Set freeze to false
+        if t &lt; 10.
+            freeze = true
+        else
+            freeze = false
+        end
+    end
+)</code></pre><pre><code class="language-none">PARAMETERS
+	x (Float64 agent)
+	l (Float64 agent)
+	pDivision (Float64 model)
+	σ2 (Float64 model)
+	freeze (
+
+
+
+
+
+Bool model)
+
+
+UPDATE RULES
+modelRule
+ if t &lt; 10.0
+    freeze__ = true
+else
+    freeze__ = false
+end
+
+agentRule
+ begin
+    x__ += freeze * Normal(0, σ2)
+    if x__ &gt; simBox[1, 2]
+        @removeAgent
+    elseif pDivision &lt; Uniform(0, 1)
+        @addAgent l__ = sin(Uniform(0, 3π))
+    end
+end</code></pre><h3 id="Differential-Equations"><a class="docs-heading-anchor" href="#Differential-Equations">Differential Equations</a><a id="Differential-Equations-1"></a><a class="docs-heading-anchor-permalink" href="#Differential-Equations" title="Permalink"></a></h3><p>Parameters can be evolved also using Differential Equation. The way of defining the equations is very similar to that of <code>DifferentialEquations.jl</code>. <code>CellBasedModels</code> is currently compatible with ODE and SDE problems. The most general form of such problems is,</p><p class="math-container">\[d(x) = \underbrace{f(x,t)}_{ODE}dt + \underbrace{g(x,t)}_{SDE}dW\]</p><p>Where the functions <span>$f$</span> and <span>$g$</span> define the deterministic and stochastic terms, in general. Let&#39;s see an example to learn how to define models with these equations.</p><p><strong>Example</strong> The <a href="https://en.wikipedia.org/wiki/Ornstein%E2%80%93Uhlenbeck_process">Ornstein–Uhlenbeck</a> process is described by a function of the form:</p><p class="math-container">\[d(x) = -xdt + DdW\]</p><p>We want a model that:</p><ol><li>Evolves under a 2D OU process</li><li>Keeps track of the number of neighboring cells in a radius</li></ol><pre><code class="language-julia">model = ABM(2,
+    model = Dict(
+        :dist =&gt; Float64, #Maximum distance to compute neighbor distance
+        :D =&gt; Float64
+        ),
+    agent = Dict(
+        :nNeighs=&gt; Int64  #Number of neighbors that the agent has
+        ),
+    agentRule = quote
+        nNeighs = 0 #Set it to zero before starting the computation
+        @loopOverNeighbors it2 begin
+            d = CBMMetrics.euclidean(x,x[it2],y,y[it2]) #Using euclidean matric provided in package
+            if d &lt; dist
+                nNeighs += 1 #Add 1 to neighbors
+            end
+        end
+    end,
+    agentODE = quote #Here we put the deterministic term
+        dt(x) = -x
+        dt(y) = -y
+    end,
+    agentSDE = quote #Here we put the stochastic term
+        dt(x) = D
+        dt(y) = D
+    end,
+
+    platform = CPU(),
+    neighborsAlg = CBMNeighbors.CellLinked(cellEdge=1)
+)</code></pre><pre><code class="language-none">PARAMETERS
+	x (Float64 agent)
+	y (Float64 agent)
+	nNeighs (Int64 agent)
+	D (Float64 model)
+	dist (Float64 model)
+
+
+UPDATE RULES
+agentSDE
+ begin
+    dt__x = D
+    dt__y = D
+end
+
+agentRule
+ begin
+    nNeighs__ = 0
+    @loopOverNeighbors it2 begin
+            d = CBMMetrics.euclidean(x, x[it2], y, y[it2])
+            if d &lt; dist
+                nNeighs__ += 1
+            end
+        end
+end
+
+agentODE
+ begin
+    dt__x = -x
+    dt__y = -y
+end</code></pre><p>Several things to notice:</p><ol><li>The function <code>dt</code> and the parameter decorator <code>dt__</code>. Similarly what we do with rules adding a double underscore, we mark differential terms with the function <code>dt</code>, this function defines that this parameter is described by a differential equation and a new parameter is added to define that this variable is the differential term.</li><li>ODE and SDE. We put the deterministic term un the rule <code>agentODE</code> and the stochatic term in the rule <code>agentSDE</code>. We may not have a deterministic term or no stochastic term, that is not a problem.</li><li>Use of neighbors macros. To go over the neighbors of an agent, we use the <code>@loopOverNeighbors</code> macro that requires that you specify an iterator index. Inside neighbors macros, you need to make a difference to which parameters are from the agent and which are the neighbors agent. If you see the line where the euclidean distance is computed you will realise that we specify the parameters of the second agent by providing the corresponding index of the neighboring position to them.</li></ol><p>Let&#39;s see another example.</p><p><strong>Example</strong> Consider that we want to define a model with a diffusive medium along the x axis and static cells secreting to medium. For now we will limit to have a medium without agents. The equation of diffusion has the form:</p><p class="math-container">\[\frac{\partial p(x,t)}{\partial t} = D\frac{\partial^2 p(x,t)}{\partial x^2}\]</p><p>This continuous equation has to be discretized to be able to be integrated. We can use the macros we provide in the code.</p><p>For the boundary solutions we can implement Dirichlet conditions:</p><p class="math-container">\[p(x_{max},t) = 0\]</p><p>and Newman (reflective):</p><p class="math-container">\[\partial_x p(x,t)|_{x=x_{min}} = 0\]</p><p>which in discrete form will correspond to (taking a backward discretization):</p>$<p>\frac{p(x<em>{min})-p(x</em>{min}-\Delta x)}{\Delta x} = 0$</p><p>and isolating:</p>$<p>p(x<em>{min})=p(x</em>{min}-\Delta x)$</p><pre><code class="language-julia">model = ABM(2,
+    model = Dict(
+        :D =&gt; Float64
+        ),
+    agent = Dict(
+        :secrete =&gt; Float64
+    ),
+    medium = Dict(
+        :p=&gt; Float64  #Number of neighbors that the agent has
+        ),
+    agentRule = quote
+        p += secrete*dt/dx*dy #Add to the medium the secretion content of each neighbor at each time point
+    end,
+    mediumODE = quote
+        if @mediumInside() #Diffusion inside bourders
+            dt(p) = @∂2(1,p)      #Second order diffusive term along x axis
+        elseif @mediumBorder(1,-1) #Newman (reflective) boundaries on the xmin border
+            p = p[2,i2_]    #Reflective at x border, along all y points             
+        elseif @mediumBorder(1,1) #Dirichlet (absorvant) boundary on the xmax border
+            p = 0                   
+        end
+    end,
+    mediumAlg = DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23())
+)</code></pre><pre><code class="language-none">PARAMETERS
+	x (Float64 agent)
+	xₘ (Float64 medium)
+	secrete (Float64 agent)
+	D (Float64 model)
+	p (Float64 medium)
+
+
+UPDATE RULES
+mediumODE
+ if @mediumInside()
+    dt__p = @∂2(1, p)
+elseif @mediumBorder(1, -1)
+    p__ = p[2]
+elseif @mediumBorder(1, 1)
+    p__ = 0
+end
+
+agentRule
+ p__ += ((secrete * dt) / dx) * dy</code></pre><p>By now you can already identify all the things that are happening:</p><ol><li>In an agent rule we are adding to the medium whatever the agent is secreting.</li><li>We used some provided macros to help out the writing of the model.</li><li>Updated parameters adquire the underscore and <code>dt__</code> decorators.</li></ol><h1 id="Algorithm-arguments"><a class="docs-heading-anchor" href="#Algorithm-arguments">Algorithm arguments</a><a id="Algorithm-arguments-1"></a><a class="docs-heading-anchor-permalink" href="#Algorithm-arguments" title="Permalink"></a></h1><p>Once defined the rules, you can define specific algorithms for the computation of the model. The possible arguments are:</p><ul><li><code>platform</code> argument to define the type of platform in which you want to evolve the model.</li><li><code>agentAlg</code>, <code>modelAlg</code> and <code>mediumAlg</code> to define the integrator that you want to use. You can use our own integrators provided in the submodule <code>CBMIntegrators</code> that may be faster in general but in complex cases with stiff operation or in which you need high precission, you can always use the integrators from <code>DifferentialEquations.jl</code> suite. </li><li><code>agentSolveArgs</code>, <code>modelSolveArgs</code> and <code>mediumSolveArgs</code> to define additional arguments required by the integrators to work. This arguments are the ones present when definind a problem in <code>DifferentialEquations.jl</code>. </li><li><code>neighbors</code> algorithm. This defines the way of computing neighbors. This step is one of the most cost expensive in ABMs and the correct selection of algorithm can really afect your computational efficientcy. We provide several possible algorithms in the submodule <code>CBMNeighbors</code>.</li></ul><p>You should have seen some of this arguments declared in the code above.</p><blockquote><p><strong>WARNING</strong>  In Version v0.1.0, these arguments where declared in the &#39;Community&#39; object. They where moved to this object to solve a <a href="https://arxiv.org/abs/2010.07516">World agent problem</a> when creating Communities inside functions.</p></blockquote><h2 id="Model-inheritance"><a class="docs-heading-anchor" href="#Model-inheritance">Model inheritance</a><a id="Model-inheritance-1"></a><a class="docs-heading-anchor-permalink" href="#Model-inheritance" title="Permalink"></a></h2><p>The above set of parameters and rules can be used to define all type of agent models. Once we have a developed a model, we can extend the model with additional rules and parameters. This allows to contruct the models in a modular maner.</p><p>There are two keyword parameters in the structure <code>ABM</code> for doing that:</p><ol><li><code>baseModelInit</code>: Models whose rules apply before the rules of the present ABM model.</li><li><code>baseModelEnd</code>: Models whose rules apply after the rules of the present ABM model.</li></ol><p>The models provided will be concatenated in order of declaration.</p><p><strong>Example</strong> Let&#39;s make modular the random walker and boundary conditions of the example provided above in <strong>Rules</strong>.</p><pre><code class="language-julia">modelFreeze = ABM(1, #Dimensions of the model
+    model = Dict(
+        :freeze =&gt; Bool
+    ),
+    modelRule = quote #Set freeze to false
+        if t &lt; 10.
+            freeze = true
+        else
+            freeze = false
+        end
+    end,
+)
+
+modelCombined = ABM(1, #Dimensions of the model
+    agent = Dict(
+        :l =&gt; Float64
+    ),
+    model = Dict(
+        :σ2 =&gt; Float64,    #Spread of the gaussian
+        :pDivision =&gt; Float64, #Global variable to set the probability at which it will divide
+    ),
+    agentRule = quote
+        x += freeze*Normal(0,σ2) 
+        if x__ &gt; simBox[1,2]
+            @removeAgent()
+        elseif pDivision &lt; Uniform(0,1)
+            @addAgent(l = sin(Uniform(0,3*π)))
+        end
+    end,
+
+    baseModelInit = [modelFreeze]
+)</code></pre><pre><code class="language-none">PARAMETERS
+	x (Float64 agent)
+	l (Float64 agent)
+	pDivision (Float64 model)
+	σ2 (Float64 model)
+	freeze (Bool model)
+
+
+UPDATE RULES
+modelRule
+ if t &lt; 10.0
+    freeze__ = true
+else
+    freeze__ = false
+end
+
+agentRule
+ begin
+    x__ += freeze * Normal(0, σ2)
+    if x__ &gt; simBox[1, 2]
+        @removeAgent
+    elseif pDivision &lt; Uniform(0, 1)
+        @addAgent l__ = sin(Uniform(0, 3π))
+    end
+end</code></pre><p>As you can see the combined model is the same as the model that we declared with all the rules together.</p><p>Notice that note all models will be inheritable. For example, if we tried to inherit the model the other way around iwe will find that the parameter <code>freeze</code> should have been declared in without declaring what it is. </p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="Usage_intro.html">« Introduction</a><a class="docs-footer-nextpage" href="Usage_Community.html">Creating and evolving a Community »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Saturday 2 September 2023 13:28">Saturday 2 September 2023</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
