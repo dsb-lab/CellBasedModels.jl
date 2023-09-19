@@ -292,11 +292,11 @@ function setupUserParameters!(com,args)
     if com.abm.dims > 2 && com.simBox !== nothing && com.NMedium !== nothing && (:zₘ in keys(com.parameters))
         setfield!(com, :dz, (com.simBox[3,2] .- com.simBox[3,1])./com.NMedium[3])
         if com.abm.dims == 1
-            com[:zₘ] = [com.dy*(k-.5)+com.simBox[3,1] for i = 1:com.NMedium[1]]
+            com[:zₘ] = [com.dz*(k-.5)+com.simBox[3,1] for i = 1:com.NMedium[1]]
         elseif com.abm.dims == 2
-            com[:zₘ] = [com.dy*(k-.5)+com.simBox[3,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2]]
+            com[:zₘ] = [com.dz*(k-.5)+com.simBox[3,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2]]
         elseif com.abm.dims == 3
-            com[:zₘ] = [com.dy*(k-.5)+com.simBox[3,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2],  k = 1:com.NMedium[3]]
+            com[:zₘ] = [com.dz*(k-.5)+com.simBox[3,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2],  k = 1:com.NMedium[3]]
         end
     else
         setfield!(com, :dz, 0.)
