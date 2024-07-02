@@ -3,6 +3,8 @@
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://dsb-lab.github.io/CellBasedModels.jl/stable/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://dsb-lab.github.io/CellBasedModels.jl/dev/)
 
+You can find the documentation [**here!**](https://dsb-lab.github.io/CellBasedModels.jl/stable/)
+
 The CellBasedModels.jl package aims to help fast-designing and simulation of agent-based models with possibilities to be run in CPU and NVidia GPUs for the efficient computation of large-scale systems. 
 
 The following methods can be implemented in the model:
@@ -42,6 +44,12 @@ Alternatively, you can install it from the Pkg REPL:
 ```julia
 ] add https://github.com/dsb-lab/CellBasedModels.jl
 ```
+
+## Docker
+
+There are available docker images that already have everything installed with the packages you may need to execute simulations out-of-the-box.
+
+For more information see [this section](https://dsb-lab/CellBasedModels.jl/tree/master/docker).
 
 ## Examples
 
