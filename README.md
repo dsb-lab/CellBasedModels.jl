@@ -49,7 +49,7 @@ Alternatively, you can install it from the Pkg REPL:
 
 There are available docker images that already have everything installed with the packages you may need to execute simulations out-of-the-box.
 
-For more information see [this section](https://dsb-lab/CellBasedModels.jl/tree/master/docker).
+For more information see [this section](https://github.com/dsb-lab/CellBasedModels.jl/tree/master/docker)
 
 ## Examples
 
