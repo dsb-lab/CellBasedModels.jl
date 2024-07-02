@@ -1,0 +1,32 @@
+# Use the official Julia image as the base image
+FROM julia:1.8.3-buster
+
+# Set environment variables
+ENV JULIA_PATH /usr/local/julia
+ENV PATH $JULIA_PATH/bin:$PATH
+
+# Set the working directory
+WORKDIR /home
+
+# Install Jupyter and Jupyter Lab using pip
+ENV PATH="/root/miniconda3/bin:${PATH}"
+ARG PATH="/root/miniconda3/bin:${PATH}"
+RUN apt-get update
+RUN apt-get install -y wget
+RUN wget \
+    https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && mkdir /root/.conda \
+    && bash Miniconda3-latest-Linux-x86_64.sh -b \
+    && rm -f Miniconda3-latest-Linux-x86_64.sh 
+RUN conda install jupyterlab
+
+# Install IJulia (Jupyter kernel for Julia)
+COPY install.jl .
+RUN julia install.jl
+# RUN julia -e 'using Pkg; Pkg.add("IJulia"); using IJulia; notebook()'
+
+# Expose port 8888 for Jupyter Lab
+EXPOSE 8888
+
+# Run Jupyter Lab
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]
