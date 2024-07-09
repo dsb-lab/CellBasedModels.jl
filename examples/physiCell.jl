@@ -9,6 +9,11 @@ f_vCStarget(fCN,vNStarget) = fCN*vNStarget             #(7)
 f_vFtarget(fF,vF,vNS,vCS) = fF*(vNS + vCS + vF)        #(8)
 f_fNC(fCN) = 1/fCN                                     #(intext)
 
+f_dBM(x,y,z) = Inf
+f_nBMx(x,y,z) = 1
+f_nBMy(x,y,z) = 0
+f_nBMz(x,y,z) = 0
+
 ###########################################################################
 # Volume Models
 ###########################################################################
@@ -422,7 +427,182 @@ cellDeathNecrosisModel = ABM(3,
 ###########################################################################
 # Parameters
 ###########################################################################
-parametersVolumeModel = Dict(
+cellMechanicsModelBegin = ABM(3,
+
+    model = dict(
+        :ncca => Int64,         #Exponent of adhesion and repulsion forces
+        :nccb => Int64,         #Exponent of adhesion and repulsion forces
+        :ccca => Float64     #Cell adhesion parameter
+        :cccr => Float64     #Cell adhesion parameter
+        :ccba => Float64     #Membrane adhesion parameter
+        :ccbr => Float64     #Membrane adhesion parameter
+    ),
+
+    agent = dict(
+        :ν => Float64        #Friction Coefficient
+        :ra => Float64,      #Radius adhesion
+        :rr => Float64,      #Radius repulsion
+        :adeshion => Float64 #Adhesion parameter
+    ),
+
+    agentODE = quote
+        fxₐ = 0.; fyₐ = 0.; fzₐ = 0.
+    end,
+
+    compile=false
+)
+
+cellMechanicsCellCellAdhesionModel = ABM(3,
+
+    model = dict(
+        :ccca => Float64     #Cell adhesion parameter
+        :cccr => Float64     #Cell adhesion parameter
+    ),
+
+    agentODE = quote
+        
+        #Cell-cell forces
+        @loopOverNeighbors i2ₐ begin
+        
+            rxₐ = x[i2ₐ] - x            
+            ryₐ = y[i2ₐ] - y            
+            rzₐ = z[i2ₐ] - z
+            dₐ = sqrt(rxₐ^2+ryₐ^2+rzₐ^2)          
+            raₐ = ra+ra[i2ₐ]  
+            if dₐ < raₐ
+                fxₐ += ccca*adhesion*adhesion[i2ₐ](1-dₐ/raₐ)^(ncca+1)*rxₐ/dₐ
+                fyₐ += ccca*adhesion*adhesion[i2ₐ](1-dₐ/raₐ)^(ncca+1)*ryₐ/dₐ
+                fzₐ += ccca*adhesion*adhesion[i2ₐ](1-dₐ/raₐ)^(ncca+1)*rzₐ/dₐ
+            end
+            if dₐ < rr
+                fxₐ -= cccr*(1-dₐ/rr)^(ncbr+1)*rxₐ/dₐ
+                fyₐ -= cccr*(1-dₐ/rr)^(ncbr+1)*ryₐ/dₐ
+                fzₐ -= cccr*(1-dₐ/rr)^(ncbr+1)*rzₐ/dₐ
+            end
+
+        end
+
+    end,
+
+    compile=false
+)
+
+cellMechanicsBMAdhesionModel = ABM(3,
+
+    model = dict(
+        :ccba => Float64     #Cell adhesion parameter
+        :ccbr => Float64     #Cell adhesion parameter
+    ),
+
+    agentODE = quote
+        
+        #Cell-BM mechanics
+        dₐ = f_dBM(x,y,z)
+        nxₐ = f_nBMx(x,y,z)
+        nyₐ = f_nBMy(x,y,z)
+        nzₐ = f_nBMz(x,y,z)
+        if dₐ < ra
+            fxₐ -= ccba*(1-dₐ/raₐ)^(ncba+1)*nxₐ
+            fyₐ -= ccba*(1-dₐ/raₐ)^(ncba+1)*nyₐ
+            fzₐ -= ccba*(1-dₐ/raₐ)^(ncba+1)*nzₐ
+        end
+        if dₐ < rr
+            fxₐ += ccbr*(1-dₐ/rr)^(ncbr+1)*nxₐ
+            fyₐ += ccbr*(1-dₐ/rr)^(ncbr+1)*nyₐ
+            fzₐ += ccbr*(1-dₐ/rr)^(ncbr+1)*nzₐ
+        end
+
+    end,
+
+    compile=false
+)
+
+cellMechanicsBMAdhesionModel = ABM(3,
+
+    model = dict(
+        :ccba => Float64     #Cell adhesion parameter
+        :ccbr => Float64     #Cell adhesion parameter
+    ),
+
+    agentODE = quote
+        
+        #Cell-BM mechanics
+        dₐ = f_dBM(x,y,z)
+        nxₐ = f_nBMx(x,y,z)
+        nyₐ = f_nBMy(x,y,z)
+        nzₐ = f_nBMz(x,y,z)
+        if dₐ < ra
+            fxₐ -= ccba*(1-dₐ/raₐ)^(ncba+1)*nxₐ
+            fyₐ -= ccba*(1-dₐ/raₐ)^(ncba+1)*nyₐ
+            fzₐ -= ccba*(1-dₐ/raₐ)^(ncba+1)*nzₐ
+        end
+        if dₐ < rr
+            fxₐ += ccbr*(1-dₐ/rr)^(ncbr+1)*nxₐ
+            fyₐ += ccbr*(1-dₐ/rr)^(ncbr+1)*nyₐ
+            fzₐ += ccbr*(1-dₐ/rr)^(ncbr+1)*nzₐ
+        end
+
+    end,
+
+    compile=false
+)
+
+cellMechanicsMotility = ABM(3,
+
+    model = dict(
+        :tPers => Float64, #Time persistence
+        :bBias => Float64, #Time persistence
+        :dBiasx => Float64, #Time persistence
+        :dBiasy => Float64, #Time persistence
+        :dBiasz => Float64, #Time persistence
+    ),
+
+    agent = dict(
+        :sloc => Float64,   # Migration speed
+        :ulocx => Float64,  # Migration direction
+        :ulocy => Float64,  # Migration direction
+        :ulocz => Float64,  # Migration direction
+    ),
+    
+    agentODE = quote
+        
+        uₐ = CBMDistributions.uniform(0,1)
+        if uₐ <= dt/tPers
+            rxₐ = CBMDistributions.normal(0,1); ryₐ = CBMDistributions.normal(0,1); rzₐ = CBMDistributions.normal(0,1)
+            
+            ulocx = b*dBiasx+(1-b)*rxₐ
+            ulocy = b*dBiasy+(1-b)*ryₐ
+            ulocz = b*dBiasz+(1-b)*rzₐ
+            duₐ = sqrt(uxₐ^2+uyₐ^2+uzₐ^2)
+            ulocx /= duₐ
+            ulocy /= duₐ
+            ulocz /= duₐ
+        end
+
+        fxₐ += sloc*ulocx
+        fyₐ += sloc*ulocy
+        fzₐ += sloc*ulocz
+
+    end,
+
+    compile=false
+)
+
+cellMechanicsModelEnd = ABM(3,
+
+    agentODE = quote
+        dt(x) = fxₐ
+        dt(y) = fyₐ
+        dt(z) = fzₐ
+    end,
+
+    compile=false
+)
+
+###########################################################################
+# Parameters
+###########################################################################
+parametersModel = Dict(
     
     # Table 1: Parameters Volume Model
     :v => 2494,         #μm³
@@ -433,42 +613,50 @@ parametersVolumeModel = Dict(
     :vNStarget => 135,  #μm³
     :fCN => 3.6,        #adimensional
     :fF => 0.75,        #adimensional
-)
 
-parametersAdvancedCellCycleModel = Dict(
     # Table 2: Ki67 Advanced Cell Cycle Model
     :tPhaseK1 => 13,     #h
     :tPhaseK2 => 2.5,    #h
     :tPhaseQ => 3.62,    #h
-)
 
-parametersBasicCellCycleModel = Dict(
     # Table 3: Ki67 Basic Cell Cycle Model
     :tPhaseK => 15.5,    #h
     :tPhaseQ => 4.59,    #h
-)
 
-parametersLiveCellCycleModel = Dict(
     # Table 4: Live Cells Cycle Model
     :rb => 0.0432,       #h⁻1
-)
 
-parametersDeathApoptosisModel = Dict(
     # 1.3.1 Apoptosis
     :rFApop => 3.0,         #h⁻1
     :rCApop => 1.0,         #h⁻1
     :rNApop => 0.35,        #h⁻1
-)
 
-parametersDeathNecrosisModel = Dict(
-    # 1.3.1 Apoptosis
+    # 1.3.2 Necrosis
     :rFNecEarly => 0.67,     #h⁻1
     :rFNecLate => 0.05,      #h⁻1
     :rCNec => 0.0032,        #h⁻1
     :rNNec => 0.015,         #h⁻1
-)
 
-parametersDeathCalcificationModel = Dict(
-    # 1.3.1 Apoptosis
+    # 1.3.3 Calcification
     :rCalc => 0.0042,        #h⁻1
+
+    # 1.4.6 Table 5 Mechanics Radius
+    :rr => 8.4,              #μm
+    :ra => 10.5,             #μm
+
+    # 1.4.6 Table 5 Mechanics CellCell
+    :ncca => 1,              #adimensional
+    :nccr => 1,              #adimensional
+    :cccr => 10.,            #ν μm/min
+    :ccca => 0.4,            #ν μm/min
+
+    # 1.4.6 Table 5 Mechanics BM
+    :ncba => 1,              #adimensional
+    :ncbr => 1,              #adimensional
+    :ccbr => 10.,            #ν μm/min
+    :ccba => 4,              #ν μm/min
+
+    # 1.4.6 Table 7 Mechanics Motility
+    :tPers => 0.25,          #h
+    :sloc => 1,            #μm/min
 )
