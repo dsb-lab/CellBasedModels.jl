@@ -20,7 +20,7 @@ macro kernelListSurvived!(platform)
         quote
             count = 1
             lastPos = N[1]+NAdd_[]
-            while NRemove_[] >= count
+            while NRemove_[] >= count && lastPos > 0
                 if flagSurvive_[lastPos] == 1
 
                     repositionAgentInPos_[count] = lastPos

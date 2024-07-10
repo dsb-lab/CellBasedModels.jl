@@ -1,5 +1,12 @@
 @testset "community" begin
 
+    TESTPLATFORMS = [CPU(),GPU()]
+    if CUDA.has_cuda()
+        TESTPLATFORMS = [CPU(),GPU()]
+    else
+        TESTPLATFORMS = [CPU()]
+    end
+
     #Create Community
     @test_nowarn Community()
 
@@ -25,7 +32,7 @@
     # ############################################################################
     # all step rules
     # ############################################################################
-    for platform in [CPU(),GPU()]
+    for platform in TESTPLATFORMS
         @test begin
             #Create community
             abm = ABM(3,
@@ -231,7 +238,7 @@
     # ############################################################################
     # @addAgent, @removeAgent
     # ############################################################################
-    for platform in [CPU(),GPU()]
+    for platform in TESTPLATFORMS
         @test begin
             abm = ABM(1,
                     agent=OrderedDict(
@@ -285,12 +292,33 @@
             end
             all(aux)
         end
+        @test begin
+            result = false
+            try
+                model = ABM(3,
+                    agentRule = quote
+                        @removeAgent()
+                    end,
+                    platform=platform
+                );
+                
+                com = Community(model, N=2, dt=0.1)
+                
+                evolve!(com, steps=10, preallocateAgents=10)    
+                    
+                result = true
+            catch
+                result = false
+            end
+
+            result
+        end
     end
     
     # ############################################################################
     # Random
     # ############################################################################
-    for platform in [CPU(),GPU()]
+    for platform in TESTPLATFORMS
         @test begin
             abm = ABM(1,
                     agent = Dict(
@@ -338,7 +366,7 @@
                             CBMNeighbors.CellLinked(cellEdge=1),
                             CBMNeighbors.CLVD(skin=1.1,nMaxNeighbors=10,cellEdge=10)
                         ]
-            for platform in [CPU(),GPU()]
+            for platform in TESTPLATFORMS
                 @test begin 
                     abm = ABM(dims,
                         agent = OrderedDict(
@@ -391,7 +419,7 @@
     # ############################################################################
     for algorithm in [CBMIntegrators.Euler(),CBMIntegrators.Heun(),CBMIntegrators.RungeKutta4(),
                         DifferentialEquations.Euler(),DifferentialEquations.Heun()]
-        for platform in [CPU(),GPU()]
+        for platform in TESTPLATFORMS
             @test begin
                 abm = ABM(3,
                             agent = Dict(
@@ -439,7 +467,7 @@
     # SDEs
     # ############################################################################
     for algorithm in [CBMIntegrators.EM(),CBMIntegrators.EulerHeun(),DifferentialEquations.EM(),DifferentialEquations.EulerHeun()]
-        for platform in [CPU(),GPU()]
+        for platform in TESTPLATFORMS
             @test begin
                 abm = ABM(3,
                             agent = Dict(
@@ -487,7 +515,7 @@
     # PDEs
     # ############################################################################
     for algorithm in [DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23())]
-        for platform in [CPU(),GPU()]
+        for platform in TESTPLATFORMS
             @test begin
                 abm = ABM(1,
                             agent = Dict(
