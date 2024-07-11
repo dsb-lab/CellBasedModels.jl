@@ -929,9 +929,13 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
 
                     community.abm.neighbors.cellNumAgents_ .= 0
                     $namef($(base...),)
-                    community.abm.neighbors.cellCumSum_ .= cumsum(community.abm.neighbors.cellNumAgents_) .- community.abm.neighbors.cellNumAgents_
+                    # community.abm.neighbors.cellCumSum_ .= cumsum(community.abm.neighbors.cellNumAgents_) .- community.abm.neighbors.cellNumAgents_
+                    begin 
+                        cumsum!(community.abm.neighbors.cellCumSum_, community.abm.neighbors.cellNumAgents_) 
+                        community.abm.neighbors.cellCumSum_ .-= community.abm.neighbors.cellNumAgents_
+                    end
                     $namef2($(base...),)
-
+                    
                     return 
                 end
             )
@@ -943,6 +947,8 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
                     kernel = @cuda launch=false $namef($(base...),)
                     CUDA.@sync kernel($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
                     community.abm.neighbors.cellCumSum_ .= cumsum(community.abm.neighbors.cellNumAgents_) .- community.abm.neighbors.cellNumAgents_
+                    # cumsum!(community.abm.neighbors.cellCumSum_, community.abm.neighbors.cellNumAgents_) 
+                    # community.abm.neighbors.cellCumSum_ .-= community.abm.neighbors.cellNumAgents_
                     kernel2 = @cuda launch=false $namef2($(base...),)
                     CUDA.@sync kernel2($(base...);threads=community.platform.agentThreads,blocks=community.platform.agentBlocks)
 
