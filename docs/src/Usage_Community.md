@@ -237,6 +237,7 @@ Once we have defined a model and constructed an initial community, we can evolve
 
 In the following schema we describe the basic collection of functions provided by the package to evolve the model, where some functions perform automatically all the step that are described on the right.
 
+```@raw html 
 <table>
     <thead>
         <th colspan=3> Functions </th>
@@ -293,6 +294,7 @@ In the following schema we describe the basic collection of functions provided b
         </tr>
     </tbody>
 </table>
+```
 
 Depending on the control that the user wants to have on the call of the evolution functions, they can decide to use one of the three column schemas proposed above.
 

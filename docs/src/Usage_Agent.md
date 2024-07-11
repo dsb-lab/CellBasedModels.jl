@@ -446,7 +446,7 @@ Once defined the rules, you can define specific algorithms for the computation o
 - `platform` argument to define the type of platform in which you want to evolve the model.
 - `agentAlg`, `modelAlg` and `mediumAlg` to define the integrator that you want to use. You can use our own integrators provided in the submodule `CBMIntegrators` that may be faster in general but in complex cases with stiff operation or in which you need high precission, you can always use the integrators from `DifferentialEquations.jl` suite. 
 - `agentSolveArgs`, `modelSolveArgs` and `mediumSolveArgs` to define additional arguments required by the integrators to work. This arguments are the ones present when definind a problem in `DifferentialEquations.jl`. 
-- `neighbors` algorithm. This defines the way of computing neighbors. This step is one of the most cost expensive in ABMs and the correct selection of algorithm can really afect your computational efficientcy. We provide several possible algorithms in the submodule `CBMNeighbors`.
+- `neighborsAlg` algorithm. This defines the way of computing neighbors. This step is one of the most cost expensive in ABMs and the correct selection of algorithm can really afect your computational efficientcy. We provide several possible algorithms in the submodule `CBMNeighbors`.
 
 You should have seen some of this arguments declared in the code above.
 

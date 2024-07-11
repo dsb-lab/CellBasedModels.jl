@@ -21,7 +21,7 @@ Basic structure which contains the user defined parmeters of the model, the user
 | mediumDEProblem | ODEProblem or SDEProblem object of Medium |
 | mediumAlg |Algorithm for the ODEProblem or SDEProblem of Medium |
 | mediumSolveArgs |Parameters for the ODEProblem or SDEProblem of Medium |
-| neighbors | Algorithm to compute neighbors |
+| neighborsAlg | Algorithm to compute neighbors |
 | platform | Platform in which to run the model |
 | removalOfAgents_::Bool | Stores the information to check wether agents are removed in the code. Auxiliar parameter for generating the code. |
 
