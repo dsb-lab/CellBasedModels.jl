@@ -316,7 +316,8 @@ function cuAdapt(array,com)
 
         #Adapt atomic
         if typeof(array) <: Threads.Atomic
-            return CUDA.ones(typeof(array).types[1],1).*array[]
+            # return CUDA.ones(typeof(array).types[1],1).*array[]
+            return cu([array[]])
         else
             return cu(array)
         end
