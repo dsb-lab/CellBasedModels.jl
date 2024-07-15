@@ -90,14 +90,31 @@ end
 function mediumResources(nMax,s,NMedium)
 
     ndiv = copy(NMedium)
-    t = [1,1,1][1:s]
+    t = copy(ndiv[1:s])
     p = prod(t)
-    while !(p >= nMax) && !(p >= prod(NMedium))
-        i = argmax(NMedium./t)
-        t[i] += 1
+    while p > nMax
+        i = argmin(NMedium./t)
+        t[i] -= 1
         p = prod(t)
     end
 
     return tuple(t...)
 
 end
+
+# function mediumResources(nMax,s,NMedium)
+
+#     ndiv = copy(NMedium)
+#     t = [1,1,1][1:s]
+#     p = prod(t)
+    # tLast = copy(t)
+#     while !(p >= nMax) && !(p >= prod(NMedium))
+#         tLast = copy(t)
+#         i = argmax(NMedium./t)
+#         t[i] += 1
+#         p = prod(t)
+#     end
+
+#     return tuple(tLast...)
+
+# end
