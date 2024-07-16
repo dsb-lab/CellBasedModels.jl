@@ -1,5 +1,6 @@
 using Random
 using LinearAlgebra
+using Distributions
 
 # Function to generate a random direction
 function random_direction()
@@ -26,6 +27,19 @@ function generate_fractal_tree(point, direction, depth; max_depth=10, base_branc
                         sparsity=sparsity, persistence=persistence, n_branches=n_branches, stop_ratio=stop_ratio)
 
     return nodes, edges
+end
+
+function make_grid(nodes, edges)
+
+    nodes_ = unique([round.(Int,i) for i in nodes])
+    minx = minimum([i[1] for i in nodes_])
+    miny = minimum([i[2] for i in nodes_])
+    minz = minimum([i[3] for i in nodes_])
+    m = [minx,miny,minz]
+    nodes_ = [i.-m for i in nodes_]
+    edges_ = [(round.(Int,i.-m),round.(Int,j.-m)) for (i,j) in edges if round.(Int,i) != round.(Int,j)]
+    
+    return nodes_, edges_
 end
 
 function generate_fractal_tree!(nodes, edges, point, direction, depth; max_depth=10, base_branch_length=1, sparsity=0.5, persistence=0.7, n_branches=4, stop_ratio=0.9)
