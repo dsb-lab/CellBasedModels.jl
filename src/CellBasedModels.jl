@@ -19,6 +19,7 @@ module CellBasedModels
     using Test
     using DifferentialEquations
     import UUIDs: uuid1
+    import Accessors: @reset
 
     export DifferentialEquations, OrderedDict
 

@@ -52,13 +52,13 @@ Generates an empty instance of ABM to be filled.
         baseModelInit::Vector{ABM}=ABM[],
         baseModelEnd::Vector{ABM}=ABM[],
 
-        agentAlg::Union{CustomIntegrator,DEAlgorithm} = CBMIntegrators.Euler(),
+        agentAlg::Union{CustomAgentIntegrator,DEAlgorithm;Nothing} = CBMIntegrators.Euler(),
         agentSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
-        modelAlg::Union{CustomIntegrator,DEAlgorithm} = CBMIntegrators.Euler(),
+        modelAlg::Union{DEAlgorithm;Nothing} = CBMIntegrators.Euler(),
         modelSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
-        mediumAlg::Union{CustomIntegrator,DEAlgorithm} = DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()),
+        mediumAlg::Union{CustomMediumIntegrator,DEAlgorithm;Nothing} = DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()),
         mediumSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
         neighborsAlg::Neighbors = CBMNeighbors.Full(),       
@@ -155,7 +155,7 @@ mutable struct ABM
             modelAlg::Union{DEAlgorithm,Nothing} = nothing,
             modelSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
-            mediumAlg::Union{DEAlgorithm,Nothing} = nothing,
+            mediumAlg::Union{CustomMediumIntegrator,DEAlgorithm,Nothing} = nothing,
             mediumSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
 
             neighborsAlg::Neighbors = CBMNeighbors.Full(),       
