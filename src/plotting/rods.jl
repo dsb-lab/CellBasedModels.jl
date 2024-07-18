@@ -36,7 +36,7 @@ function plotRods2D!(ax, x, y, d, l, angle; kargs...)
     Main.meshscatter!(ax,
                 x.+l./2 .*cos.(angle),
                 y.+l./2 .*sin.(angle),
-                marker=GeometryBasics.Sphere(Point3f0(0,0,0.),Float32(1)),
+                marker=Sphere(Point3f0(0,0,0.),Float32(1)),
                 markersize=[
                     Point3f0(i/2,i/2,0)
                     for i in d
@@ -47,7 +47,7 @@ function plotRods2D!(ax, x, y, d, l, angle; kargs...)
     Main.meshscatter!(ax,
                 x.-l./2 .*cos.(angle),
                 y.-l./2 .*sin.(angle),
-                marker=GeometryBasics.Sphere(Point3f0(0,0,0),Float32(1)),
+                marker=Sphere(Point3f0(0,0,0),Float32(1)),
                 markersize=[
                     Point3f0(i/2,i/2,0)
                     for i in d
@@ -58,7 +58,7 @@ function plotRods2D!(ax, x, y, d, l, angle; kargs...)
     Main.meshscatter!(ax,
                 x,
                 y,
-                marker=GeometryBasics.Cylinder(Point3f0(-.5,0,0),Point3f0(.5,0,0),Float32(1)),
+                marker=Cylinder(Point3f0(-.5,0,0),Point3f0(.5,0,0),Float32(1)),
                 markersize=[Point3f0(ll,dd/2,dd/2) for (ll,dd) in zip(l,d)],
                 rotations=angle,
                 kargs...
@@ -73,7 +73,7 @@ function plotRods2D!(ax, x, y, xs1, ys1, xs2, ys2, markerSphere, markerCylinder,
     m = meshscatter!(ax,
                 xs1,
                 ys1,
-                marker=GeometryBasics.Sphere(Point3f0(0,0,0.),Float32(1)),
+                marker=Sphere(Point3f0(0,0,0.),Float32(1)),
                 markersize=markerSphere;
                 kargs...
             )
@@ -81,7 +81,7 @@ function plotRods2D!(ax, x, y, xs1, ys1, xs2, ys2, markerSphere, markerCylinder,
     Main.meshscatter!(ax,
                 xs2,
                 ys2,
-                marker=GeometryBasics.Sphere(Point3f0(0,0,0),Float32(1)),
+                marker=Sphere(Point3f0(0,0,0),Float32(1)),
                 markersize=markerSphere;
                 kargs...
             )
@@ -89,7 +89,7 @@ function plotRods2D!(ax, x, y, xs1, ys1, xs2, ys2, markerSphere, markerCylinder,
     Main.meshscatter!(ax,
                 x,
                 y,
-                marker=GeometryBasics.Cylinder(Point3f0(-.5,0,0),Point3f0(.5,0,0),Float32(1)),
+                marker=Cylinder(Point3f0(-.5,0,0),Point3f0(.5,0,0),Float32(1)),
                 markersize=markerCylinder,
                 rotations=angle;
                 kargs...

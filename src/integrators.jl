@@ -841,7 +841,7 @@ Douglas-Gunn integrator for PDE difussion problems.
         main_diag
         super_diag
 
-        function DGADI(problem,kwargs; difussionCoefs=nothing)
+        function DGADI(problem,kwargs; difussionCoefs::NamedTuple=nothing)
 
             # Coefficients for the tridiagonal matrix
             nDims = length(problem.p.NMedium)
@@ -855,7 +855,7 @@ Douglas-Gunn integrator for PDE difussion problems.
 
         end
 
-        function DGADI(;difussionCoefs=nothing)
+        function DGADI(;difussionCoefs::NamedTuple=nothing)
 
             return new(nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,difussionCoefs,nothing,nothing,nothing)
 
