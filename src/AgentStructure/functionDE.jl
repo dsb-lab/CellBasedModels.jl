@@ -98,7 +98,7 @@ function functionDE(abm,scope,type)
 
                             return
                         end
-                        CUDA.@sync CUDA.@cuda threads=p_[end].$(addSymbol(scope,"Threads")) blocks=p_[end].$(addSymbol(scope,"Blocks")) kernel(dVar_,var_,p_[1:end-1]...)
+                        CUDA.@sync CUDA.@cuda threads=p_.platform.$(addSymbol(scope,"Threads")) blocks=p_.platform.$(addSymbol(scope,"Blocks")) kernel(dVar_,var_,[i for i in p_ if typeof(i) <: CuArray || typeof(i) <: Number]...)
 
                         return
                     end

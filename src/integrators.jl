@@ -52,97 +52,104 @@ end
 @createOperator! 2
 @createOperator! 3
 
-# macro createTridiagonalSolver!(dim, x)
+macro createTridiagonalSolver!(dim, x, platform)
 
-#     baseFunction = quote
-#         function operator!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
-#             (dummy,nx,) = size(x_old)
+    baseFunction = quote
+        function operator!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
+            (dummy,nx,) = size(x_old)
             
-#             code
+            code
             
-#             return
-#         end
-#     end  
+            return
+        end
+    end  
     
-#     code = quote
-#         for l in difussion
-#             # Forward sweep
-#             c_star[l,2] = super_diag / main_diag
-#             d_star[l,2] = (x_old[l,2] - sub_diag * x_old[l,1]) / main_diag
-#             for i in 3:1:nx-2
-#                 m = 1.0 / (main_diag - sub_diag * c_star[l,i-1])
-#                 c_star[l,i] = super_diag * m
-#                 d_star[l,i] = (x_old[l,i] - sub_diag * d_star[l,i-1]) * m
-#             end
-#             m = 1.0 / (main_diag - sub_diag * c_star[l,nx-2])
-#             d_star[l,nx-1] = (x_old[l,nx-1] - super_diag * x_old[l,nx] - sub_diag * d_star[l,nx-2]) * m #Newman
+    code = quote
+        for l in difussion
+            # Forward sweep
+            c_star[l,2] = super_diag[l,$dim] / main_diag[l,$dim]
+            d_star[l,2] = (x_old[l,2] - sub_diag[l,$dim] * x_old[l,1]) / main_diag[l,$dim]
+            for i in 3:1:nx-2
+                m = 1.0 / (main_diag[l,$dim] - sub_diag[l,$dim] * c_star[l,i-1])
+                c_star[l,i] = super_diag[l,$dim] * m
+                d_star[l,i] = (x_old[l,i] - sub_diag[l,$dim] * d_star[l,i-1]) * m
+            end
+            m = 1.0 / (main_diag[l,$dim] - sub_diag[l,$dim] * c_star[l,nx-2])
+            d_star[l,nx-1] = (x_old[l,nx-1] - super_diag[l,$dim] * x_old[l,nx] - sub_diag[l,$dim] * d_star[l,nx-2]) * m #Newman
             
-#             # Back substitution
-#             x_new[l,nx-1] = d_star[l,nx-1]
-#             for i in nx-2:-1:2
-#                 x_new[l,i] = d_star[l,i] - c_star[l,i] * x_new[l,i+1]
-#             end
-#         end
-#     end
+            # Back substitution
+            x_new[l,nx-1] = d_star[l,nx-1]
+            for i in nx-2:-1:2
+                x_new[l,i] = d_star[l,i] - c_star[l,i] * x_new[l,i+1]
+            end
+        end
+    end
 
-#     s = Symbol("tridiagonal$(dim)D$(x)!")
-#     m = copy(baseFunction)
-#     m = postwalk(x -> @capture(x, a_) && a == :operator! ? s : x, m)
-#     if dim == 1
-#         m = postwalk(x -> @capture(x, code) ? code : x, m)
-#     elseif dim == 2
-#         m = postwalk(x -> @capture(x, (dummy,nx,)) ? :((dummy,nx,ny)) : x, m)
-#         if x == :x
-#             m = postwalk(x -> @capture(x, code) ? quote @inbounds Threads.@threads for j = 2:ny-1; $code; end end : x, m)
-#             m = postwalk(x -> @capture(x, a_[l,b_]) ? :($a[l,$b,j]) : x, m)
-#         elseif x == :y
-#             code = postwalk(x -> @capture(x, i) ? :j : x, code)
-#             code = postwalk(x -> @capture(x, nx) ? :ny : x, code)
-#             m = postwalk(x -> @capture(x, code) ? quote @inbounds Threads.@threads for i = 2:nx-1; $code; end end : x, m)
-#             m = postwalk(x -> @capture(x, a_[l,b_]) ? :($a[l,i,$b]) : x, m)
-#         end
-#     elseif dim == 3
-#         m = postwalk(x -> @capture(x, (dummy,nx,)) ? :((dummy,nx,ny,nz)) : x, m)
-#         if x == :x
-#             m = postwalk(x -> @capture(x, code) ? quote @inbounds Threads.@threads for j = 2:ny-1; @inbounds Threads.@threads for k = 2:nz-1; $code; end end end : x, m)
-#             m = postwalk(x -> @capture(x, a_[l,b_]) ? :($a[l,$b,j,k]) : x, m)
-#         elseif x == :y
-#             code = postwalk(x -> @capture(x, i) ? :j : x, code)
-#             code = postwalk(x -> @capture(x, nx) ? :ny : x, code)
-#             m = postwalk(x -> @capture(x, code) ? quote @inbounds Threads.@threads for i = 2:nx-1; @inbounds Threads.@threads for k = 2:nz-1; $code; end end end : x, m)
-#             m = postwalk(x -> @capture(x, a_[l,b_]) ? :($a[l,i,$b,k]) : x, m)
-#         elseif x == :z
-#             code = postwalk(x -> @capture(x, i) ? :k : x, code)
-#             code = postwalk(x -> @capture(x, nx) ? :nz : x, code)
-#             m = postwalk(x -> @capture(x, code) ? quote @inbounds Threads.@threads for i = 2:nx-1; @inbounds Threads.@threads for j = 2:ny-1; $code; end end end : x, m)
-#             m = postwalk(x -> @capture(x, a_[l,b_]) ? :($a[l,i,j,$b]) : x, m)
-#         end
-#     end
-#     # m = prettify(m)
-#     m = unblock(m)
-#     println(prettify(m))
-#     m
-# end
+    s = Symbol("tridiagonal$(dim)D$(x)$(platform)!")
+    m = copy(baseFunction)
+    m = postwalk(x -> @capture(x, a_) && a == :operator! ? s : x, m)
+    skip = [:sub_diag,:super_diag,:main_diag]
+    if dim == 1
+        m = postwalk(x -> @capture(x, code) ? code : x, m)
+    elseif dim == 2
+        m = postwalk(x -> @capture(x, (dummy,nx,)) ? :((dummy,nx,ny)) : x, m)
+        if x == :x
+            m = postwalk(x -> @capture(x, code) ? quote @inbounds Threads.@threads for j = 2:ny-1; $code; end end : x, m)
+            m = postwalk(x -> @capture(x, a_[l,b_]) && !(a in skip) ? :($a[l,$b,j]) : x, m)
+        elseif x == :y
+            code = postwalk(x -> @capture(x, i) ? :j : x, code)
+            code = postwalk(x -> @capture(x, nx) ? :ny : x, code)
+            m = postwalk(x -> @capture(x, code) ? quote @inbounds Threads.@threads for i = 2:nx-1; $code; end end : x, m)
+            m = postwalk(x -> @capture(x, a_[l,b_]) && !(a in skip) ? :($a[l,i,$b]) : x, m)
+        end
+    elseif dim == 3
+        m = postwalk(x -> @capture(x, (dummy,nx,)) ? :((dummy,nx,ny,nz)) : x, m)
+        if x == :x
+            m = postwalk(x -> @capture(x, code) ? quote @inbounds Threads.@threads for j = 2:ny-1; @inbounds Threads.@threads for k = 2:nz-1; $code; end end end : x, m)
+            m = postwalk(x -> @capture(x, a_[l,b_]) && !(a in skip) ? :($a[l,$b,j,k]) : x, m)
+        elseif x == :y
+            code = postwalk(x -> @capture(x, i) ? :j : x, code)
+            code = postwalk(x -> @capture(x, nx) ? :ny : x, code)
+            m = postwalk(x -> @capture(x, code) ? quote @inbounds Threads.@threads for i = 2:nx-1; @inbounds Threads.@threads for k = 2:nz-1; $code; end end end : x, m)
+            m = postwalk(x -> @capture(x, a_[l,b_]) && !(a in skip) ? :($a[l,i,$b,k]) : x, m)
+        elseif x == :z
+            code = postwalk(x -> @capture(x, i) ? :k : x, code)
+            code = postwalk(x -> @capture(x, nx) ? :nz : x, code)
+            m = postwalk(x -> @capture(x, code) ? quote @inbounds Threads.@threads for i = 2:nx-1; @inbounds Threads.@threads for j = 2:ny-1; $code; end end end : x, m)
+            m = postwalk(x -> @capture(x, a_[l,b_]) && !(a in skip) ? :($a[l,i,j,$b]) : x, m)
+        end
+    end
+    # m = prettify(m)
+    m = unblock(m)
+    println(prettify(m))
+    m
+end
 
-# @createTridiagonalSolver! 1 x
-# @createTridiagonalSolver! 2 x
-# @createTridiagonalSolver! 2 y
-# @createTridiagonalSolver! 3 x
-# @createTridiagonalSolver! 3 y
-# @createTridiagonalSolver! 3 z
+# @createTridiagonalSolver! 1 x CPU
+# @createTridiagonalSolver! 2 x CPU
+# @createTridiagonalSolver! 2 y CPU
+# @createTridiagonalSolver! 3 x CPU
+# @createTridiagonalSolver! 3 y CPU
+# @createTridiagonalSolver! 3 z CPU
+# @createTridiagonalSolver! 1 x GPU
+# @createTridiagonalSolver! 2 x GPU
+# @createTridiagonalSolver! 2 y GPU
+# @createTridiagonalSolver! 3 x GPU
+# @createTridiagonalSolver! 3 y GPU
+# @createTridiagonalSolver! 3 z GPU
 
-function tridiagonal1Dx!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
+function tridiagonal1DxCPU!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
     (dummy, nx) = size(x_old)
     for l = difussion
-        c_star[l, 2] = super_diag / main_diag
-        d_star[l, 2] = (x_old[l, 2] - sub_diag * x_old[l, 1]) / main_diag
+        c_star[l, 2] = super_diag[l, 1] / main_diag[l, 1]
+        d_star[l, 2] = (x_old[l, 2] - sub_diag[l, 1] * x_old[l, 1]) / main_diag[l, 1]
         for i = 3:1:nx - 2
-            m = 1.0 / (main_diag - sub_diag * c_star[l, i - 1])
-            c_star[l, i] = super_diag * m
-            d_star[l, i] = (x_old[l, i] - sub_diag * d_star[l, i - 1]) * m
+            m = 1.0 / (main_diag[l, 1] - sub_diag[l, 1] * c_star[l, i - 1])
+            c_star[l, i] = super_diag[l, 1] * m
+            d_star[l, i] = (x_old[l, i] - sub_diag[l, 1] * d_star[l, i - 1]) * m
         end
-        m = 1.0 / (main_diag - sub_diag * c_star[l, nx - 2])
-        d_star[l, nx - 1] = ((x_old[l, nx - 1] - super_diag * x_old[l, nx]) - sub_diag * d_star[l, nx - 2]) * m
+        m = 1.0 / (main_diag[l, 1] - sub_diag[l, 1] * c_star[l, nx - 2])
+        d_star[l, nx - 1] = ((x_old[l, nx - 1] - super_diag[l, 1] * x_old[l, nx]) - sub_diag[l, 1] * d_star[l, nx - 2]) * m
         x_new[l, nx - 1] = d_star[l, nx - 1]
         for i = nx - 2:-1:2
             x_new[l, i] = d_star[l, i] - c_star[l, i] * x_new[l, i + 1]
@@ -150,19 +157,19 @@ function tridiagonal1Dx!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, 
     end
     return
 end
-function tridiagonal2Dx!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
+function tridiagonal2DxCPU!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
     (dummy, nx, ny) = size(x_old)
     @inbounds Threads.@threads for j = 2:ny - 1
                 for l = difussion
-                    c_star[l, 2, j] = super_diag / main_diag
-                    d_star[l, 2, j] = (x_old[l, 2, j] - sub_diag * x_old[l, 1, j]) / main_diag
+                    c_star[l, 2, j] = super_diag[l, 2] / main_diag[l, 2]
+                    d_star[l, 2, j] = (x_old[l, 2, j] - sub_diag[l, 2] * x_old[l, 1, j]) / main_diag[l, 2]
                     for i = 3:1:nx - 2
-                        m = 1.0 / (main_diag - sub_diag * c_star[l, i - 1, j])
-                        c_star[l, i, j] = super_diag * m
-                        d_star[l, i, j] = (x_old[l, i, j] - sub_diag * d_star[l, i - 1, j]) * m
+                        m = 1.0 / (main_diag[l, 2] - sub_diag[l, 2] * c_star[l, i - 1, j])
+                        c_star[l, i, j] = super_diag[l, 2] * m
+                        d_star[l, i, j] = (x_old[l, i, j] - sub_diag[l, 2] * d_star[l, i - 1, j]) * m
                     end
-                    m = 1.0 / (main_diag - sub_diag * c_star[l, nx - 2, j])
-                    d_star[l, nx - 1, j] = ((x_old[l, nx - 1, j] - super_diag * x_old[l, nx, j]) - sub_diag * d_star[l, nx - 2, j]) * m
+                    m = 1.0 / (main_diag[l, 2] - sub_diag[l, 2] * c_star[l, nx - 2, j])
+                    d_star[l, nx - 1, j] = ((x_old[l, nx - 1, j] - super_diag[l, 2] * x_old[l, nx, j]) - sub_diag[l, 2] * d_star[l, nx - 2, j]) * m
                     x_new[l, nx - 1, j] = d_star[l, nx - 1, j]
                     for i = nx - 2:-1:2
                         x_new[l, i, j] = d_star[l, i, j] - c_star[l, i, j] * x_new[l, i + 1, j]
@@ -171,19 +178,19 @@ function tridiagonal2Dx!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, 
             end
     return
 end
-function tridiagonal2Dy!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
+function tridiagonal2DyCPU!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
     (dummy, nx, ny) = size(x_old)
     @inbounds Threads.@threads for i = 2:nx - 1
                 for l = difussion
-                    c_star[l, i, 2] = super_diag / main_diag
-                    d_star[l, i, 2] = (x_old[l, i, 2] - sub_diag * x_old[l, i, 1]) / main_diag
+                    c_star[l, i, 2] = super_diag[l, 2] / main_diag[l, 2]
+                    d_star[l, i, 2] = (x_old[l, i, 2] - sub_diag[l, 2] * x_old[l, i, 1]) / main_diag[l, 2]
                     for j = 3:1:ny - 2
-                        m = 1.0 / (main_diag - sub_diag * c_star[l, i, j - 1])
-                        c_star[l, i, j] = super_diag * m
-                        d_star[l, i, j] = (x_old[l, i, j] - sub_diag * d_star[l, i, j - 1]) * m
+                        m = 1.0 / (main_diag[l, 2] - sub_diag[l, 2] * c_star[l, i, j - 1])
+                        c_star[l, i, j] = super_diag[l, 2] * m
+                        d_star[l, i, j] = (x_old[l, i, j] - sub_diag[l, 2] * d_star[l, i, j - 1]) * m
                     end
-                    m = 1.0 / (main_diag - sub_diag * c_star[l, i, ny - 2])
-                    d_star[l, i, ny - 1] = ((x_old[l, i, ny - 1] - super_diag * x_old[l, i, ny]) - sub_diag * d_star[l, i, ny - 2]) * m
+                    m = 1.0 / (main_diag[l, 2] - sub_diag[l, 2] * c_star[l, i, ny - 2])
+                    d_star[l, i, ny - 1] = ((x_old[l, i, ny - 1] - super_diag[l, 2] * x_old[l, i, ny]) - sub_diag[l, 2] * d_star[l, i, ny - 2]) * m
                     x_new[l, i, ny - 1] = d_star[l, i, ny - 1]
                     for j = ny - 2:-1:2
                         x_new[l, i, j] = d_star[l, i, j] - c_star[l, i, j] * x_new[l, i, j + 1]
@@ -192,20 +199,20 @@ function tridiagonal2Dy!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, 
             end
     return
 end
-function tridiagonal3Dx!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
+function tridiagonal3DxCPU!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
     (dummy, nx, ny, nz) = size(x_old)
     @inbounds Threads.@threads for j = 2:ny - 1
                 @inbounds Threads.@threads for k = 2:nz - 1
                             for l = difussion
-                                c_star[l, 2, j, k] = super_diag / main_diag
-                                d_star[l, 2, j, k] = (x_old[l, 2, j, k] - sub_diag * x_old[l, 1, j, k]) / main_diag
+                                c_star[l, 2, j, k] = super_diag[l, 3] / main_diag[l, 3]
+                                d_star[l, 2, j, k] = (x_old[l, 2, j, k] - sub_diag[l, 3] * x_old[l, 1, j, k]) / main_diag[l, 3]
                                 for i = 3:1:nx - 2
-                                    m = 1.0 / (main_diag - sub_diag * c_star[l, i - 1, j, k])
-                                    c_star[l, i, j, k] = super_diag * m
-                                    d_star[l, i, j, k] = (x_old[l, i, j, k] - sub_diag * d_star[l, i - 1, j, k]) * m
+                                    m = 1.0 / (main_diag[l, 3] - sub_diag[l, 3] * c_star[l, i - 1, j, k])
+                                    c_star[l, i, j, k] = super_diag[l, 3] * m
+                                    d_star[l, i, j, k] = (x_old[l, i, j, k] - sub_diag[l, 3] * d_star[l, i - 1, j, k]) * m
                                 end
-                                m = 1.0 / (main_diag - sub_diag * c_star[l, nx - 2, j, k])
-                                d_star[l, nx - 1, j, k] = ((x_old[l, nx - 1, j, k] - super_diag * x_old[l, nx, j, k]) - sub_diag * d_star[l, nx - 2, j, k]) * m
+                                m = 1.0 / (main_diag[l, 3] - sub_diag[l, 3] * c_star[l, nx - 2, j, k])
+                                d_star[l, nx - 1, j, k] = ((x_old[l, nx - 1, j, k] - super_diag[l, 3] * x_old[l, nx, j, k]) - sub_diag[l, 3] * d_star[l, nx - 2, j, k]) * m
                                 x_new[l, nx - 1, j, k] = d_star[l, nx - 1, j, k]
                                 for i = nx - 2:-1:2
                                     x_new[l, i, j, k] = d_star[l, i, j, k] - c_star[l, i, j, k] * x_new[l, i + 1, j, k]
@@ -215,50 +222,208 @@ function tridiagonal3Dx!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, 
             end
     return
 end
-function tridiagonal3Dy!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
+function tridiagonal3DyCPU!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
     (dummy, nx, ny, nz) = size(x_old)
     @inbounds Threads.@threads for i = 2:nx - 1
                 @inbounds Threads.@threads for k = 2:nz - 1
                             for l = difussion
-                                c_star[l, i, 2, k] = super_diag / main_diag
-                                d_star[l, i, 2, k] = (x_old[l, i, 2, k] - sub_diag * x_old[l, i, 1, k]) / main_diag
+                                c_star[l, i, 2, k] = super_diag[l, 3] / main_diag[l, 3]
+                                d_star[l, i, 2, k] = (x_old[l, i, 2, k] - sub_diag[l, 3] * x_old[l, i, 1, k]) / main_diag[l, 3]
                                 for j = 3:1:ny - 2
-                                    m = 1.0 / (main_diag - sub_diag * c_star[l, i, j - 1, k])
-                                    c_star[l, i, j, k] = super_diag * m
-                                    d_star[l, i, j, k] = (x_old[l, i, j, k] - sub_diag * d_star[l, i, j - 1, k]) * m
+                                    m = 1.0 / (main_diag[l, 3] - sub_diag[l, 3] * c_star[l, i, j - 1, k])
+                                    c_star[l, i, j, k] = super_diag[l, 3] * m
+                                    d_star[l, i, j, k] = (x_old[l, i, j, k] - sub_diag[l, 3] * d_star[l, i, j - 1, k]) * m
                                 end
-                                m = 1.0 / (main_diag - sub_diag * c_star[l, i, ny - 2, k])
-                                d_star[l, i, ny - 1, k] = ((x_old[l, i, ny - 1, k] - super_diag * x_old[l, i, ny, k]) - sub_diag * d_star[l, i, ny - 2, k]) * m
+                                m = 1.0 / (main_diag[l, 3] - sub_diag[l, 3] * c_star[l, i, ny - 2, k])
+                                d_star[l, i, ny - 1, k] = ((x_old[l, i, ny - 1, k] - super_diag[l, 3] * x_old[l, i, ny, k]) - sub_diag[l, 3] * d_star[l, i, ny - 2, k]) * m
                                 x_new[l, i, ny - 1, k] = d_star[l, i, ny - 1, k]
                                 for j = ny - 2:-1:2
                                     x_new[l, i, j, k] = d_star[l, i, j, k] - c_star[l, i, j, k] * x_new[l, i, j + 1, k]
                                 end
                             end
-                        end 
-            end 
+                        end
+            end
     return
 end
-function tridiagonal3Dz!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
+function tridiagonal3DzCPU!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
     (dummy, nx, ny, nz) = size(x_old)
     @inbounds Threads.@threads for i = 2:nx - 1
                 @inbounds Threads.@threads for j = 2:ny - 1
                             for l = difussion
-                                c_star[l, i, j, 2] = super_diag / main_diag
-                                d_star[l, i, j, 2] = (x_old[l, i, j, 2] - sub_diag * x_old[l, i, j, 1]) / main_diag
+                                c_star[l, i, j, 2] = super_diag[l, 3] / main_diag[l, 3]
+                                d_star[l, i, j, 2] = (x_old[l, i, j, 2] - sub_diag[l, 3] * x_old[l, i, j, 1]) / main_diag[l, 3]
                                 for k = 3:1:nz - 2
-                                    m = 1.0 / (main_diag - sub_diag * c_star[l, i, j, k - 1])
-                                    c_star[l, i, j, k] = super_diag * m
-                                    d_star[l, i, j, k] = (x_old[l, i, j, k] - sub_diag * d_star[l, i, j, k - 1]) * m
+                                    m = 1.0 / (main_diag[l, 3] - sub_diag[l, 3] * c_star[l, i, j, k - 1])
+                                    c_star[l, i, j, k] = super_diag[l, 3] * m
+                                    d_star[l, i, j, k] = (x_old[l, i, j, k] - sub_diag[l, 3] * d_star[l, i, j, k - 1]) * m
                                 end
-                                m = 1.0 / (main_diag - sub_diag * c_star[l, i, j, nz - 2])
-                                d_star[l, i, j, nz - 1] = ((x_old[l, i, j, nz - 1] - super_diag * x_old[l, i, j, nz]) - sub_diag * d_star[l, i, j, nz - 2]) * m
+                                m = 1.0 / (main_diag[l, 3] - sub_diag[l, 3] * c_star[l, i, j, nz - 2])
+                                d_star[l, i, j, nz - 1] = ((x_old[l, i, j, nz - 1] - super_diag[l, 3] * x_old[l, i, j, nz]) - sub_diag[l, 3] * d_star[l, i, j, nz - 2]) * m
                                 x_new[l, i, j, nz - 1] = d_star[l, i, j, nz - 1]
                                 for k = nz - 2:-1:2
                                     x_new[l, i, j, k] = d_star[l, i, j, k] - c_star[l, i, j, k] * x_new[l, i, j, k + 1]
                                 end
                             end
-                        end 
-            end 
+                        end
+            end
+    return
+end
+function tridiagonal1DxGPU!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
+    indexX = ((blockIdx()).x - 1) * (blockDim()).x + (threadIdx()).x
+    strideY = (gridDim()).x * (blockDim()).x
+    (dummy, nx) = size(x_old)
+    for l = difussion
+        c_star[l, 2] = super_diag[l, 1] / main_diag[l, 1]
+        d_star[l, 2] = (x_old[l, 2] - sub_diag[l, 1] * x_old[l, 1]) / main_diag[l, 1]
+        for i = 3:1:nx - 2
+            m = 1.0 / (main_diag[l, 1] - sub_diag[l, 1] * c_star[l, i - 1])
+            c_star[l, i] = super_diag[l, 1] * m
+            d_star[l, i] = (x_old[l, i] - sub_diag[l, 1] * d_star[l, i - 1]) * m
+        end
+        m = 1.0 / (main_diag[l, 1] - sub_diag[l, 1] * c_star[l, nx - 2])
+        d_star[l, nx - 1] = ((x_old[l, nx - 1] - super_diag[l, 1] * x_old[l, nx]) - sub_diag[l, 1] * d_star[l, nx - 2]) * m
+        x_new[l, nx - 1] = d_star[l, nx - 1]
+        for i = nx - 2:-1:2
+            x_new[l, i] = d_star[l, i] - c_star[l, i] * x_new[l, i + 1]
+        end
+    end
+    return
+end
+function tridiagonal2DxGPU!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
+    indexX = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    strideX = gridDim().x * blockDim().x
+    indexY = (blockIdx().y - 1) * blockDim().y + threadIdx().y
+    strideY = gridDim().y * blockDim().y
+    (dummy, nx, ny) = size(x_old)
+    for j = 2+indexY:strideY:ny - 1
+        for l = difussion
+            c_star[l, 2, j] = super_diag[l, 2] / main_diag[l, 2]
+            d_star[l, 2, j] = (x_old[l, 2, j] - sub_diag[l, 2] * x_old[l, 1, j]) / main_diag[l, 2]
+            for i = 3:1:nx - 2
+                m = 1.0 / (main_diag[l, 2] - sub_diag[l, 2] * c_star[l, i - 1, j])
+                c_star[l, i, j] = super_diag[l, 2] * m
+                d_star[l, i, j] = (x_old[l, i, j] - sub_diag[l, 2] * d_star[l, i - 1, j]) * m
+            end
+            m = 1.0 / (main_diag[l, 2] - sub_diag[l, 2] * c_star[l, nx - 2, j])
+            d_star[l, nx - 1, j] = ((x_old[l, nx - 1, j] - super_diag[l, 2] * x_old[l, nx, j]) - sub_diag[l, 2] * d_star[l, nx - 2, j]) * m
+            x_new[l, nx - 1, j] = d_star[l, nx - 1, j]
+            for i = nx - 2:-1:2
+                x_new[l, i, j] = d_star[l, i, j] - c_star[l, i, j] * x_new[l, i + 1, j]
+            end
+        end
+    end
+    return
+end
+function tridiagonal2DyGPU!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
+    indexX = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    strideX = gridDim().x * blockDim().x
+    indexY = (blockIdx().y - 1) * blockDim().y + threadIdx().y
+    strideY = gridDim().y * blockDim().y
+    (dummy, nx, ny) = size(x_old)
+    for i = 2+indexX:strideX:nx - 1
+        for l = difussion
+            c_star[l, i, 2] = super_diag[l, 2] / main_diag[l, 2]
+            d_star[l, i, 2] = (x_old[l, i, 2] - sub_diag[l, 2] * x_old[l, i, 1]) / main_diag[l, 2]
+            for j = 3:1:ny - 2
+                m = 1.0 / (main_diag[l, 2] - sub_diag[l, 2] * c_star[l, i, j - 1])
+                c_star[l, i, j] = super_diag[l, 2] * m
+                d_star[l, i, j] = (x_old[l, i, j] - sub_diag[l, 2] * d_star[l, i, j - 1]) * m
+            end
+            m = 1.0 / (main_diag[l, 2] - sub_diag[l, 2] * c_star[l, i, ny - 2])
+            d_star[l, i, ny - 1] = ((x_old[l, i, ny - 1] - super_diag[l, 2] * x_old[l, i, ny]) - sub_diag[l, 2] * d_star[l, i, ny - 2]) * m
+            x_new[l, i, ny - 1] = d_star[l, i, ny - 1]
+            for j = ny - 2:-1:2
+                x_new[l, i, j] = d_star[l, i, j] - c_star[l, i, j] * x_new[l, i, j + 1]
+            end
+        end
+    end
+    return
+end
+function tridiagonal3DxGPU!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
+    indexX = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    strideX = gridDim().x * blockDim().x
+    indexY = (blockIdx().y - 1) * blockDim().y + threadIdx().y
+    strideY = gridDim().y * blockDim().y
+    indexZ = (blockIdx().z - 1) * blockDim().z + threadIdx().z
+    strideZ = gridDim().z * blockDim().z
+    (dummy, nx, ny, nz) = size(x_old)
+    for j = 2+indexY:strideY:ny - 1
+        for k = 2+indexZ:strideZ:nz - 1
+            for l = difussion
+                c_star[l, 2, j, k] = super_diag[l, 3] / main_diag[l, 3]
+                d_star[l, 2, j, k] = (x_old[l, 2, j, k] - sub_diag[l, 3] * x_old[l, 1, j, k]) / main_diag[l, 3]
+                for i = 3:1:nx - 2
+                    m = 1.0 / (main_diag[l, 3] - sub_diag[l, 3] * c_star[l, i - 1, j, k])
+                    c_star[l, i, j, k] = super_diag[l, 3] * m
+                    d_star[l, i, j, k] = (x_old[l, i, j, k] - sub_diag[l, 3] * d_star[l, i - 1, j, k]) * m
+                end
+                m = 1.0 / (main_diag[l, 3] - sub_diag[l, 3] * c_star[l, nx - 2, j, k])
+                d_star[l, nx - 1, j, k] = ((x_old[l, nx - 1, j, k] - super_diag[l, 3] * x_old[l, nx, j, k]) - sub_diag[l, 3] * d_star[l, nx - 2, j, k]) * m
+                x_new[l, nx - 1, j, k] = d_star[l, nx - 1, j, k]
+                for i = nx - 2:-1:2
+                    x_new[l, i, j, k] = d_star[l, i, j, k] - c_star[l, i, j, k] * x_new[l, i + 1, j, k]
+                end
+            end
+        end
+    end
+    return
+end
+function tridiagonal3DyGPU!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
+    indexX = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    strideX = gridDim().x * blockDim().x
+    indexY = (blockIdx().y - 1) * blockDim().y + threadIdx().y
+    strideY = gridDim().y * blockDim().y
+    indexZ = (blockIdx().z - 1) * blockDim().z + threadIdx().z
+    strideZ = gridDim().z * blockDim().z
+    (dummy, nx, ny, nz) = size(x_old)
+    for i = 2+indexX:strideX:nx - 1
+        for k = 2+indexZ:strideZ:nz - 1
+            for l = difussion
+                c_star[l, i, 2, k] = super_diag[l, 3] / main_diag[l, 3]
+                d_star[l, i, 2, k] = (x_old[l, i, 2, k] - sub_diag[l, 3] * x_old[l, i, 1, k]) / main_diag[l, 3]
+                for j = 3:1:ny - 2
+                    m = 1.0 / (main_diag[l, 3] - sub_diag[l, 3] * c_star[l, i, j - 1, k])
+                    c_star[l, i, j, k] = super_diag[l, 3] * m
+                    d_star[l, i, j, k] = (x_old[l, i, j, k] - sub_diag[l, 3] * d_star[l, i, j - 1, k]) * m
+                end
+                m = 1.0 / (main_diag[l, 3] - sub_diag[l, 3] * c_star[l, i, ny - 2, k])
+                d_star[l, i, ny - 1, k] = ((x_old[l, i, ny - 1, k] - super_diag[l, 3] * x_old[l, i, ny, k]) - sub_diag[l, 3] * d_star[l, i, ny - 2, k]) * m
+                x_new[l, i, ny - 1, k] = d_star[l, i, ny - 1, k]
+                for j = ny - 2:-1:2
+                    x_new[l, i, j, k] = d_star[l, i, j, k] - c_star[l, i, j, k] * x_new[l, i, j + 1, k]
+                end
+            end
+        end
+    end
+    return
+end
+function tridiagonal3DzGPU!(sub_diag, main_diag, super_diag, x_old, x_new, c_star, d_star, difussion)
+    indexX = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    strideX = gridDim().x * blockDim().x
+    indexY = (blockIdx().y - 1) * blockDim().y + threadIdx().y
+    strideY = gridDim().y * blockDim().y
+    indexZ = (blockIdx().z - 1) * blockDim().z + threadIdx().z
+    strideZ = gridDim().z * blockDim().z
+    (dummy, nx, ny, nz) = size(x_old)
+    for i = 2+indexX:strideX:nx - 1
+        for j = 2+indexY:strideY:ny - 1
+            for l = difussion
+                c_star[l, i, j, 2] = super_diag[l, 3] / main_diag[l, 3]
+                d_star[l, i, j, 2] = (x_old[l, i, j, 2] - sub_diag[l, 3] * x_old[l, i, j, 1]) / main_diag[l, 3]
+                for k = 3:1:nz - 2
+                    m = 1.0 / (main_diag[l, 3] - sub_diag[l, 3] * c_star[l, i, j, k - 1])
+                    c_star[l, i, j, k] = super_diag[l, 3] * m
+                    d_star[l, i, j, k] = (x_old[l, i, j, k] - sub_diag[l, 3] * d_star[l, i, j, k - 1]) * m
+                end
+                m = 1.0 / (main_diag[l, 3] - sub_diag[l, 3] * c_star[l, i, j, nz - 2])
+                d_star[l, i, j, nz - 1] = ((x_old[l, i, j, nz - 1] - super_diag[l, 3] * x_old[l, i, j, nz]) - sub_diag[l, 3] * d_star[l, i, j, nz - 2]) * m
+                x_new[l, i, j, nz - 1] = d_star[l, i, j, nz - 1]
+                for k = nz - 2:-1:2
+                    x_new[l, i, j, k] = d_star[l, i, j, k] - c_star[l, i, j, k] * x_new[l, i, j, k + 1]
+                end
+            end
+        end
+    end
     return
 end
 
@@ -652,7 +817,7 @@ Euler-Heun method for SDE integration.
     # DGADI
     ##########################################
 
-    """
+"""
     mutable struct DGADI <: CustomIntegrator
 
 Douglas-Gunn integrator for PDE difussion problems.
@@ -672,20 +837,27 @@ Douglas-Gunn integrator for PDE difussion problems.
         dims
         difussion
         difussionCoefs
+        sub_diag
+        main_diag
+        super_diag
 
         function DGADI(problem,kwargs; difussionCoefs=nothing)
 
             # Coefficients for the tridiagonal matrix
             nDims = length(problem.p.NMedium)
+            nVars = length(problem.p.difussionVariables_)
             r = problem.p.dt ./ (nDims .*((problem.p.simBox[:,2].-problem.p.simBox[:,1])./problem.p.NMedium).^2)
-            
-            return new(problem.f,problem.p,problem.u0,problem.tspan[1],copy(problem.u0),copy(problem.u0),kwargs[:dt],r,copy(problem.u0),copy(problem.u0),nDims,problem.p.difussionVariables_, difussionCoefs)
+            sub_diag = zeros(nVars,nDims)
+            main_diag = zeros(nVars,nDims)
+            super_diag = zeros(nVars,nDims)
+                
+            return new(problem.f,problem.p,problem.u0,problem.tspan[1],copy(problem.u0),copy(problem.u0),kwargs[:dt],r,copy(problem.u0),copy(problem.u0),nDims,problem.p.difussionVariables_, difussionCoefs,sub_diag,main_diag,super_diag)
 
         end
 
         function DGADI(;difussionCoefs=nothing)
 
-            return new(nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,difussionCoefs)
+            return new(nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,difussionCoefs,nothing,nothing,nothing)
 
         end
 
@@ -706,26 +878,54 @@ Douglas-Gunn integrator for PDE difussion problems.
 
         obj.f(obj.du,obj.u,obj.p,obj.t)
 
-        r = obj.r .* obj.p[obj.difussionCoefs]
+        if typeof(obj.du) <: Array
+            obj.sub_diag .= [-obj.p[i][1]*j for i in obj.difussionCoefs, j in obj.r]
+            obj.main_diag .= [1+2obj.p[i][1]*j for i in obj.difussionCoefs, j in obj.r]
+            obj.super_diag .= [-obj.p[i][1]*j for i in obj.difussionCoefs, j in obj.r]
 
-        if obj.dims == 1
-            obj.u .+= obj.du
-            CellBasedModels.tridiagonal1Dx!(-r[1], 1+2*r[1], -r[1], obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
-            obj.u .= obj.u_new
-        elseif obj.dims == 2
-            obj.u .+= obj.du
-            CellBasedModels.tridiagonal2Dx!(-r[1], 1+2*r[1], -r[1], obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
-            obj.u .= obj.u_new
-            CellBasedModels.tridiagonal2Dy!(-r[2], 1+2*r[2], -r[2], obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
-            obj.u .= obj.u_new
-        elseif obj.dims == 3
-            obj.u .+= obj.du
-            CellBasedModels.tridiagonal3Dx!(-r[1], 1+2*r[1], -r[1], obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
-            obj.u .= obj.u_new
-            CellBasedModels.tridiagonal3Dy!(-r[2], 1+2*r[2], -r[2], obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
-            obj.u .= obj.u_new
-            CellBasedModels.tridiagonal3Dz!(-r[3], 1+2*r[3], -r[3], obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
-            obj.u .= obj.u_new
+            if obj.dims == 1
+                obj.u .+= obj.du
+                CellBasedModels.tridiagonal1DxCPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+                obj.u .= obj.u_new
+            elseif obj.dims == 2
+                obj.u .+= obj.du
+                CellBasedModels.tridiagonal2DxCPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+                obj.u .= obj.u_new
+                CellBasedModels.tridiagonal2DyCPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+                obj.u .= obj.u_new
+            elseif obj.dims == 3
+                obj.u .+= obj.du
+                CellBasedModels.tridiagonal3DxCPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+                obj.u .= obj.u_new
+                CellBasedModels.tridiagonal3DyCPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+                obj.u .= obj.u_new
+                CellBasedModels.tridiagonal3DzCPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+                obj.u .= obj.u_new
+            end
+        else
+            obj.sub_diag .= CellBasedModels.CUDA.cu([-obj.p[i][1]*j for i in obj.difussionCoefs, j in obj.r])
+            obj.main_diag .= CellBasedModels.CUDA.cu([1+2*obj.p[i][1]*j for i in obj.difussionCoefs, j in obj.r])
+            obj.super_diag .= CellBasedModels.CUDA.cu([-obj.p[i][1]*j for i in obj.difussionCoefs, j in obj.r])
+
+            if obj.dims == 1
+                obj.u .+= obj.du
+                CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal1DxGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+                obj.u .= obj.u_new
+            elseif obj.dims == 2
+                obj.u .+= obj.du
+                CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal2DxGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+                obj.u .= obj.u_new
+                CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal2DyGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+                obj.u .= obj.u_new
+            elseif obj.dims == 3
+                obj.u .+= obj.du
+                CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal3DxGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+                obj.u .= obj.u_new
+                CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal3DyGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+                obj.u .= obj.u_new
+                CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal3DzGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+                obj.u .= obj.u_new
+            end
         end
         
         obj.t += dt

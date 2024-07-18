@@ -534,6 +534,7 @@ function createDEProblem(com,scope)
     alg = addSymbol(scope,"Alg")
     arg = addSymbol(scope,"SolveArgs")
 
+    problem = nothing
     if !isemptyupdaterule(com.abm,sde)
 
         problem = SDEProblem(
@@ -553,7 +554,7 @@ function createDEProblem(com,scope)
             end
         end
 
-        return DifferentialEquations.init(problem, getproperty(com.abm,alg); getproperty(com.abm,arg)... )
+        problem = DifferentialEquations.init(problem, getproperty(com.abm,alg); getproperty(com.abm,arg)... )
 
     elseif !isemptyupdaterule(com.abm,ode)
         
@@ -573,9 +574,17 @@ function createDEProblem(com,scope)
             end
         end
 
-        return DifferentialEquations.init(problem, getproperty(com.abm,alg); getproperty(com.abm,arg)... )
+        problem = DifferentialEquations.init(problem, getproperty(com.abm,alg); getproperty(com.abm,arg)... )
 
     end    
+
+    if typeof(com.abm.platform) == GPU && typeof(problem) <: CustomIntegrator
+        for i in fieldnames(typeof(problem))
+            setfield!(problem,i,cu(getfield(problem,i)))
+        end
+    end
+
+    return problem
 
 end
 
