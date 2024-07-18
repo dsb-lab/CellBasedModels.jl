@@ -123,6 +123,17 @@ function packagingCubic(box::Array{<:Real,2},r::Number)
 
 end
 
+function initializeSpheres(box,r;packaging::Function=packagingCompactHexagonal,fExtrude=acceptAll,args...)
+
+    X = packaging(box,r)
+
+    #Extrude
+    ext = fExtrude.([X[i,:] for i in 1:size(X)[1]])
+    X = X[ext,:]
+        
+    return X[:,1], X[:,2], X[:,3]
+end
+
 """
     function initializeCommunity(model,box,r;packaging::Function,fExtrude=acceptAll,args...)
 
@@ -136,7 +147,7 @@ Create Community object with the positions of the agents in positioned in an spe
 ||fExtrude|Function that given an array of positions, returns true for positions that want to be kept.|
 ||args...|Arguments to be passed to Community structure for initialization (except `N`)|
 """
-function initializeSpheresCommunity(model,box,r;packaging::Function,fExtrude=acceptAll,args...)
+function initializeSpheresCommunity(model,box,r;packaging::Function=packagingCompactHexagonal,fExtrude=acceptAll,args...)
 
     if :N in keys(args)
         error("For shape initialization, no N has to be passed.")

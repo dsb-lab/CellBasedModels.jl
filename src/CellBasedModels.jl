@@ -89,6 +89,9 @@ module CellBasedModels
     export CBMModels
     include("./models/models.jl")
 
+    module CBMUtils
+        include("./CommunityStructure/initializers.jl")
+    end
     #Visualization functions
     # export CBMPlots
     # include("./plotting/plotting.jl")
