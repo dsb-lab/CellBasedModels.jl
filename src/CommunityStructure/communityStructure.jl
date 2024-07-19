@@ -580,7 +580,9 @@ function createDEProblem(com,scope)
 
     if typeof(com.abm.platform) == GPU && typeof(problem) <: CustomIntegrator
         for i in fieldnames(typeof(problem))
-            setfield!(problem,i,cu(getfield(problem,i)))
+            if typeof(getfield(problem,i)) <: Array
+                setfield!(problem,i,cu(getfield(problem,i)))
+            end
         end
     end
 

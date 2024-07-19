@@ -98,6 +98,8 @@ function mediumResources(nMax,s,NMedium)
         p = prod(t)
     end
 
+    t = [if i == 0; 1; else i; end for i in t]
+
     return tuple(t...)
 
 end
