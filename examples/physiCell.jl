@@ -618,6 +618,60 @@ module PhysiCell
     )
 
     ###########################################################################
+    # Medium
+    ###########################################################################
+    mediumCO2 = ABM(3,
+
+        model = Dict(
+            :Dco2 => Float64,
+            :λco2 => Float64,
+            :co2saturation => Float64
+        ),
+        
+        medium = Dict(
+            :co2 => Float64,
+            :veins => Float64
+        ),
+
+        mediumODE = quote
+
+            if @mediumInside()            
+                dt(co2) = veins*(co2saturation-co2)-λco2*co2
+            end
+
+        end,
+
+        mediumAlg = CBMIntegrators.DGADI(difussionCoefs=(co2=:Dco2,)),
+
+        compile=false
+    )
+
+    mediumCO2Newmann = ABM(3,
+
+        mediumODE = quote
+
+            if @mediumBorder(1,-1)
+                co2 = co2[2,i2_,i3_]        
+            elseif @mediumBorder(1,1)
+                co2 = co2[end-1,i2_,i3_]        
+            elseif @mediumBorder(2,-1)
+                co2 = co2[i1_,2,i3_]        
+            elseif @mediumBorder(2,1)
+                co2 = co2[i1_,end-1,i3_]        
+            elseif @mediumBorder(3,-1)
+                co2 = co2[i1_,i2_,2]        
+            elseif @mediumBorder(3,1)
+                co2 = co2[i1_,i2_,end-1]        
+            end
+
+        end,
+
+        mediumAlg = CBMIntegrators.DGADI(difussionCoefs=(co2=:Dco2,)),
+
+        compile=false
+    )
+
+    ###########################################################################
     # Parameters
     ###########################################################################
     parameters = Dict(
@@ -679,6 +733,11 @@ module PhysiCell
         # 1.4.6 Table 7 Mechanics Motility
         :tPers => 15,            #min
         :sloc =>60* 1.,          #μm h⁻1
+
+        # Co2 mechanics
+        :Dco2 => 10. ^ 5,
+        :λco2 => 0.1,
+        :co2saturation => 70.
     )
 
 end
