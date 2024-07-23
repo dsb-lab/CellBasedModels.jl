@@ -443,6 +443,21 @@ function old(sym)
 end
 
 """
+    function make_symbol_unique(a,b)
+
+Function make symbols unique.
+"""
+function make_symbol_unique(a,b)
+
+    if a == :Main
+        return b
+    else
+        return Meta.parse(string(a,"_",b,"_"))
+    end
+
+end
+
+"""
     function addSymbol(args...)
 
 Function to make a new symbol putting together all the arguments.

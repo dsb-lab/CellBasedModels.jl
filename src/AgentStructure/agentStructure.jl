@@ -131,7 +131,7 @@ mutable struct ABM
     function ABM(
             dims;
 
-            agent=OrderedDict{Symbol,DataType}(),
+            agent::Union{OrderedDict{Symbol,DataType},Dict{Symbol,DataType},Agent,Vector{Agent}}=OrderedDict{Symbol,DataType}(),
             agentRule::Expr=quote end,
             agentODE::Expr=quote end,
             agentSDE::Expr=quote end,
@@ -162,17 +162,15 @@ mutable struct ABM
             platform::Platform = CPU(),     
 
             compile::Bool = true
-            )
+        )
 
         abm = ABM()
 
         abm.dims = dims
 
         #Add basic agent symbols
-        for (i,sym) in enumerate(keys(positionParameters))
-            if i <= dims
-                abm.parameters[sym] = UserParameter(i,positionParameters[sym],:agent)
-            end
+        if !(typeof(agent) <: Union{Agent,Vector{Agent}})
+            agent = Agent[Agent(:Main,parameters=deepcopy(agent))]
         end
 
         #Add basic medium symbols
@@ -183,20 +181,33 @@ mutable struct ABM
         end
 
         #Go over parameter inputs and add them to list
-        for (arg,scope) = [
-                            (agent,:agent),
+        for ag in agent #Agent
+            #Add position
+            for i in 1:1:dims
+                par = keys(ag.pos)[i]
+                dataType = ag.pos[i]
+                checkDeclared(par, abm)
+                abm.parameters[par] = UserParameter(par,dataType,:agent,ag.name)
+            end
+            #Add id
+            checkDeclared(ag.id, abm)
+            abm.parameters[ag.id] = UserParameter(ag.id,Int,:agent,ag.name)
+            #Add parameters
+            for (par,dataType) in pairs(ag.parameters)
+                checkDeclared(par,abm)
+                abm.parameters[par] = UserParameter(par,dataType,:agent,ag.name)
+            end
+            #Add additional parameters
+            abm.parameters[make_symbol_unique(ag.name, :N)] = UserParameter(make_symbol_unique(:N,ag.name),Int,:model,ag.name)
+            abm.parameters[make_symbol_unique(ag.name, :NMax)] = UserParameter(make_symbol_unique(:NMax,ag.name),Int,:model,ag.name)
+            abm.parameters[make_symbol_unique(ag.name,:idMax)] = UserParameter(make_symbol_unique(ag.id,:Max),Threads.Atomic,:model,ag.name)
+        end
+        for (arg,scope) in [
                             (model,:model),
                             (medium,:medium)            
-                            ]
-            #Promote input to ordered dictionary
-            params = 0
-            if typeof(arg) == DataType #Transform structures like Agent to dictionary
-                params = OrderedDict([i=>j for (i,j) in zip(fieldnames(arg),fieldtypes(arg))])
-            else
-                params = OrderedDict(arg)
-            end
+                        ]
             #Add parameters
-            for (par,dataType) in pairs(params)
+            for (par,dataType) in pairs(arg)
                 checkDeclared(par,abm)
                 abm.parameters[par] = UserParameter(par,dataType,scope)
             end
@@ -205,8 +216,8 @@ mutable struct ABM
         #Add symbols from base objects
         for base in [baseModelInit; baseModelEnd]
             for (i,j) in pairs(base.parameters)
-                if !(i in keys(BASEPARAMETERS)) && !(i in [:x,:y,:z,:xₘ,:yₘ,:zₘ])
-                    checkDeclared(i,abm)
+                if !(i in keys(BASEPARAMETERS)) && !(i in [:xₘ,:yₘ,:zₘ])
+                    checkDeclared(i, abm)
                     abm.parameters[i] = j
                 end
             end
@@ -308,16 +319,23 @@ mutable struct ABM
             end
         end
 
-        return abm        
+        return abm
     end
 
 end
 
 function Base.show(io::IO,abm::ABM)
-    print("PARAMETERS\n")
+    print("PARAMETERS USER\n")
     for (i,j) in pairs(abm.parameters)
         if string(i)[end] != '_' #Only print parameters used by the user 
-            println("\t",i," (",j.dtype," ",j.scope,")")
+            println("\t",i," (",j.dtype," ",j.scope, ".", j.subscope, ")")
+        end
+    end
+
+    print("\n\nAUTOMATICALLY GENERATED PARAMETERS\n")
+    for (i,j) in pairs(abm.parameters)
+        if string(i)[end] == '_' #Only print parameters used by the user 
+            println("\t",i," (",j.dtype," ",j.scope, ".", j.subscope, ")")
         end
     end
 
@@ -331,15 +349,16 @@ function Base.show(io::IO,abm::ABM)
 end
 
 """
-    function checkDeclared(a::Symbol, abm::ABM) 
-    function checkDeclared(a::Array{Symbol}, abm::ABM) 
+    function checkDeclared(a::Symbol, abm) 
+    function checkDeclared(a::Array{Symbol}, abm::ABM)
+    function checkDeclared(a::Array{Symbol}, abm::OrderedDict) 
 
 Check if a symbol is already declared in the model or inherited models.
 """
-function checkDeclared(a::Array{Symbol}, abm::ABM) 
+function checkDeclared(a::Array{Symbol}, abm, subscope::Symbol=:Main) 
 
     for s in a
-        checkDeclared(s,abm)
+        checkDeclared(s, abm, subscope)
     end
 
 end
@@ -347,7 +366,15 @@ end
 function checkDeclared(a::Symbol, abm::ABM) 
 
     if a in keys(abm.parameters)
-        error("Symbol ", a, " already declared in the abm.")
+        error("Symbol ", a, " already declared in the abm in scope ", abm.parameters[a].scope, "-", abm.parameters[a].subscope,". Change name.")
+    end
+
+end
+
+function checkDeclared(a::Symbol, abm::OrderedDict)
+
+    if a in keys(abm)
+        error("Symbol ", a, " already declared in the abm in scope ", abm.parameters[a].scope, "-", abm.parameters[a].subscope,". Change name.")
     end
 
 end

@@ -36,6 +36,7 @@ Structure that contains the properties of each of the user declared parameters.
 |:---|:---|
 | dtype::DataType | Type of data |
 | scope::Symbol | If :agent, :model or :medium parameter |
+| subscope::Symbol | Which type of agent, model or medium this parameter corresponds to |
 | update::Bool | If the variable is updated |
 | variable::Bool | Whether if this parameter is described with a Differential Equation |
 | pos::Int | Position that ocupies at the integration matrix |
@@ -43,15 +44,16 @@ Structure that contains the properties of each of the user declared parameters.
 mutable struct UserParameter
     dtype
     scope::Symbol
+    subscope::Symbol
     update::Bool
     variable::Bool
     pos::Int
 
-    function UserParameter(name, dataType, scope)
-        if scope in [:agent,:medium] && !(dataType <: Number)
-            error("Parameters of agent and medium must be of type Number. $name is defined with type $dataType.")
+    function UserParameter(name, dataType, scope, subscope=:Main)
+        if scope in [:medium] && !(dataType <: Number)
+            error("Parameters of medium must be of type Number. $name is defined with type $dataType.")
         else
-            return new(dataType,scope,false,false,0)
+            return new(dataType,scope,subscope,false,false,0)
         end
     end
 end
@@ -67,3 +69,28 @@ mutable struct SavingFile
     file
 
 end
+
+"""
+    struct Agent
+
+Object containing the parameters of an agent.
+
+|Field|Description|
+|:---|:---|
+| name::Symbol | Name of the agent. |
+| parameters::OrderedDict{Symbol,UserParameter} | Parameters of the agent. |
+"""
+struct Agent
+
+    name::Symbol
+    pos::Union{Nothing,Symbol,NamedTuple, OrderedDict{Symbol,DataType}, Dict{Symbol,DataType}}
+    id::Symbol
+    parameters::Union{OrderedDict{Symbol,DataType}, Dict{Symbol,DataType}, NamedTuple}
+
+    function Agent(name::Symbol; pos, id, parameters::Union{Tuple, OrderedDict{Symbol,DataType}, Dict{Symbol,DataType}}=Dict())
+        new(name, pos, id, parameters)
+    end
+
+end
+
+Base.length(x::Agent) = 1

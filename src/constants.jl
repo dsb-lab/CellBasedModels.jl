@@ -14,12 +14,12 @@ BASEPARAMETERS = OrderedDict(
     :t                            => BaseParameter(:Float,   (:Global,),                1,          :Base,        false,       false,     false,    Symbol[],                                       @eval (com,agent) -> [0.]                                                                      ),
     :dt                           => BaseParameter(:Float,   (:Global,),                1,          :Base,        false,       false,     false,    Symbol[],                                       @eval (com,agent) -> [1.]                                                                      ),
 #Parameters of system size
-    :N                            => BaseParameter(:Int,     (:Global,),                1,          :Base,        false,       true,      false,    Symbol[],                                       @eval (com,agent) -> [1]                                                                       ),
+    # :N                            => BaseParameter(:Int,     (:Global,),                1,          :Base,        false,       true,      false,    Symbol[],                                       @eval (com,agent) -> [1]                                                                       ),
     :NMedium                      => BaseParameter(:Int,     (:Dims,),                  0,          :Base,        false,       true,      false,    Symbol[:Medium],                                @eval (com,agent) -> zeros(Int64,agent.dims)                                                                       ),
-    :nMax_                        => BaseParameter(:Int,     (:Global,),                2,          :Base,        false,       true,      false,    Symbol[],                                       @eval (com,agent) -> copy(com[:N])                                                               ),
+    # :nMax_                        => BaseParameter(:Int,     (:Global,),                2,          :Base,        false,       true,      false,    Symbol[],                                       @eval (com,agent) -> copy(com[:N])                                                               ),
 #Parameters of id identity
-    :id                           => BaseParameter(:Int,     (:Local,),                 1,          :Base,        true,        true,      false,    Symbol[],                                       @eval (com,agent) -> 1:com[:N][1]                                                                ),
-    :idMax_                       => BaseParameter(:Int,     (:Atomic,),                2,          :Base,        false,       true,      false,    Symbol[],                                       @eval (com,agent) -> Threads.Atomic{Int64}(com[:N][1])                                             ),
+    # :id                           => BaseParameter(:Int,     (:Local,),                 1,          :Base,        true,        true,      false,    Symbol[],                                       @eval (com,agent) -> 1:com[:N][1]                                                                ),
+    # :idMax_                       => BaseParameter(:Int,     (:Atomic,),                2,          :Base,        false,       true,      false,    Symbol[],                                       @eval (com,agent) -> Threads.Atomic{Int64}(com[:N][1])                                             ),
 #Parameters of simulation topology
     :simBox                       => BaseParameter(:Float,   (:Dims,2),                 0,          :Base,        false,       false,     false,    Symbol[:Medium,:CellLinked,:CLVD],              @eval (com,agent) -> Float64[0. 1;0 1;0 1][1:agent.dims,:]                                            ),
 #Parameters of medium
@@ -37,11 +37,11 @@ BASEPARAMETERS = OrderedDict(
 
 POSITIONPARAMETERS = [:x,:y,:z]
 
-positionParameters=OrderedDict(
-    :x=>Float64,
-    :y=>Float64,
-    :z=>Float64,
-)
+# positionParameters=OrderedDict(
+#     :x=>Float64,
+#     :y=>Float64,
+#     :z=>Float64,
+# )
 
 positionMediumParameters=OrderedDict(
     :xₘ=>Float64,

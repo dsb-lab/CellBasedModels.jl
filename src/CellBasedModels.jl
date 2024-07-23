@@ -55,7 +55,7 @@ module CellBasedModels
     using .CBMNeighbors
 
     #Agent
-    export ABM
+    export ABM, Agent
         #Macros and custom code
     export @addAgent, @removeAgent, @loopOverNeighbors, @mediumInside, @mediumBorder, @∂, @∂2, @distanceEuclidean, @distanceManhattan
     include("./AgentStructure/macros.jl")   
@@ -86,13 +86,13 @@ module CellBasedModels
     include("./fitting/fitting.jl")
 
     #Implemented Models
-    export CBMModels
-    include("./models/models.jl")
+    # export CBMModels
+    # include("./models/models.jl")
 
-    module CBMUtils
-        include("./CommunityStructure/initializers.jl")
-    end
-    #Visualization functions
+    # module CBMUtils
+    #     include("./CommunityStructure/initializers.jl")
+    # end
+    # #Visualization functions
     # export CBMPlots
     # include("./plotting/plotting.jl")
 
