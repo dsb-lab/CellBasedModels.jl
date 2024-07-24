@@ -124,6 +124,7 @@ function functionRule(abm,scope)
 
     if !isemptyupdaterule(abm,ref)
         code = abm.declaredUpdates[ref]
+        code = substitute_macros(code, abm)
 
         #Vectorize
         code = vectorize(code,abm)

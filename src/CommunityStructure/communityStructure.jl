@@ -73,26 +73,26 @@ mutable struct Community
     abm
     uuid
 
-    t
-    dt
-    N
-    NMedium
-    simBox
+    # t
+    # dt
+    # N
+    # NMedium
+    # simBox
 
-    id
+    # id
 
-    nMax_
-    idMax_
-    NAdd_
-    NRemove_
-    NSurvive_
-    flagSurvive_
-    holeFromRemoveAt_
-    repositionAgentInPos_
-    flagRecomputeNeighbors_
-    dx
-    dy
-    dz
+    # nMax_
+    # idMax_
+    # NAdd_
+    # NRemove_
+    # NSurvive_
+    # flagSurvive_
+    # holeFromRemoveAt_
+    # repositionAgentInPos_
+    # flagRecomputeNeighbors_
+    # dx
+    # dy
+    # dz
 
     agentDEProblem
     modelDEProblem
@@ -110,8 +110,7 @@ mutable struct Community
 
             dt::Union{Nothing,AbstractFloat} = nothing,
             t::AbstractFloat = 0.,
-            N::Int = 1,
-            id::AbstractArray{Int} = 1:N,
+            N::Union{Int, NamedTuple, Dict{Symbol, Int}, OrderedDict{Symbol, Int}} = 1,
             NMedium::Union{Nothing,Vector{<:Int}} = nothing,
             simBox::Union{Nothing,Matrix{<:Number}} = nothing,
 
@@ -124,23 +123,14 @@ mutable struct Community
         #Check args compulsory to be declared in the community given the agent model
         setupBaseParameters!(com,dt,t,N,id,NMedium,simBox)
 
-        for i in [:agentAlg,:agentSolveArgs,:modelAlg,:modelSolveArgs,:mediumAlg,:mediumSolveArgs,:platform,:neighborsAlg]
-            if i in keys(args)
-                error("Algorithms and platform arguments have been moved since version v0.1.0 to ABM object to account for a World age problem that was affecting efficiency. Move argument $i to ABM object.")
-            end
-        end
-
         #Creating the appropiate data arrays for parameters
         setupUserParameters!(com,args)
 
         setfield!(com,:loaded,false)
         setfield!(com,:uuid,uuid1())
 
-        #Save global reference
-        global COMUNITY = com
-
-        #Save global reference
-        global COMUNITY = com
+        # #Save global reference
+        # global COMUNITY = com
 
         return com
 
@@ -149,25 +139,6 @@ mutable struct Community
     function Community()
     
         return new(
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
             nothing,
             nothing,
             nothing,
@@ -462,11 +433,11 @@ end
 ######################################################################################################
 function loadBaseParameters!(com::Community,preallocateAgents::Int)
 
-    setfield!(com, :id, cuAdapt([com.id;zeros(preallocateAgents)],com))
+    # setfield!(com, :id, cuAdapt([com.id;zeros(preallocateAgents)],com))
     setfield!(com, :NMedium, cuAdapt(com.NMedium,com))
     setfield!(com, :simBox, cuAdapt(com.simBox,com))
-    setfield!(com, :nMax_, com.N + preallocateAgents)
-    setfield!(com, :idMax_, cuAdapt(Threads.Atomic{Int64}(com.N),com))
+    # setfield!(com, :nMax_, com.N + preallocateAgents)
+    # setfield!(com, :idMax_, cuAdapt(Threads.Atomic{Int64}(com.N),com))
     setfield!(com, :NAdd_, cuAdapt(Threads.Atomic{Int64}(0),com))
     setfield!(com, :NRemove_, cuAdapt(Threads.Atomic{Int64}(0),com))
     setfield!(com, :NSurvive_, cuAdapt(Threads.Atomic{Int64}(0),com))

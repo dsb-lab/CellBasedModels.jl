@@ -53,6 +53,7 @@ function functionDE(abm,scope,type)
 
         #Get deterministic function
         code = abm.declaredUpdates[ref]
+        code = substitute_macros(code, abm)
         for sym in keys(abm.parameters)
             dsym = addSymbol("dt__",sym)
             code = postwalk(x->@capture(x,dt(s_)) && s == sym ? :($dsym[i1_]) : x, code)

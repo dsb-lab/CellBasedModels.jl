@@ -131,7 +131,7 @@ mutable struct ABM
     function ABM(
             dims;
 
-            agent::Union{OrderedDict{Symbol,DataType},Dict{Symbol,DataType},Agent,Vector{Agent}}=OrderedDict{Symbol,DataType}(),
+            agent::Union{OrderedDict{Symbol,DataType},Dict{Symbol,DataType},Agent,Vector{Agent}}=Agent[],
             agentRule::Expr=quote end,
             agentODE::Expr=quote end,
             agentSDE::Expr=quote end,
@@ -168,16 +168,21 @@ mutable struct ABM
 
         abm.dims = dims
 
+        #Add basic parameters
+        abm.parameters[:t] = UserParameter(:t,Float64,:modelBase,:Main)
+        abm.parameters[:dt] = UserParameter(:dt,Float64,:modelBase,:Main)
+        abm.parameters[:NMedium] = UserParameter(:NMedium,Int,:Dims,:Main)
+        abm.parameters[:simBox] = UserParameter(:simBox,Float64,:SimBox,:Main)
+        abm.parameters[:dx] = UserParameter(:dx,Float64,:modelBase,:Main)
+        abm.parameters[:dy] = UserParameter(:dy,Float64,:modelBase,:Main)
+        abm.parameters[:dz] = UserParameter(:dz,Float64,:modelBase,:Main)
+        abm.parameters[:xₘ] = UserParameter(:xₘ,Float64,:modelBase,:Main)
+        abm.parameters[:yₘ] = UserParameter(:xₘ,Float64,:modelBase,:Main)
+        abm.parameters[:zₘ] = UserParameter(:xₘ,Float64,:modelBase,:Main)
+        
         #Add basic agent symbols
         if !(typeof(agent) <: Union{Agent,Vector{Agent}})
-            agent = Agent[Agent(:Main,parameters=deepcopy(agent))]
-        end
-
-        #Add basic medium symbols
-        for (i,sym) in enumerate(keys(positionMediumParameters))
-            if i <= dims && length(medium) > 0
-                abm.parameters[sym] = UserParameter(i,positionMediumParameters[sym],:medium)
-            end
+            agent = Agent[Agent(:Main,pos=(x=Float64,y=Float64,z=Float64),id=:id,parameters=deepcopy(agent))]
         end
 
         #Go over parameter inputs and add them to list
@@ -191,16 +196,16 @@ mutable struct ABM
             end
             #Add id
             checkDeclared(ag.id, abm)
-            abm.parameters[ag.id] = UserParameter(ag.id,Int,:agent,ag.name)
+            abm.parameters[ag.id] = UserParameter(ag.id,Int,:agentBase,ag.name)
             #Add parameters
             for (par,dataType) in pairs(ag.parameters)
                 checkDeclared(par,abm)
                 abm.parameters[par] = UserParameter(par,dataType,:agent,ag.name)
             end
             #Add additional parameters
-            abm.parameters[make_symbol_unique(ag.name, :N)] = UserParameter(make_symbol_unique(:N,ag.name),Int,:model,ag.name)
-            abm.parameters[make_symbol_unique(ag.name, :NMax)] = UserParameter(make_symbol_unique(:NMax,ag.name),Int,:model,ag.name)
-            abm.parameters[make_symbol_unique(ag.name,:idMax)] = UserParameter(make_symbol_unique(ag.id,:Max),Threads.Atomic,:model,ag.name)
+            abm.parameters[make_symbol_unique(ag.name, :N)] = UserParameter(make_symbol_unique(:N,ag.name),Int,:modelBase,ag.name)
+            abm.parameters[make_symbol_unique(ag.name, :NMax)] = UserParameter(make_symbol_unique(:NMax,ag.name),Int,:modelBase,ag.name)
+            abm.parameters[make_symbol_unique(ag.name, :idMax)] = UserParameter(make_symbol_unique(ag.id,:Max),Threads.Atomic,:modelBase,ag.name)
         end
         for (arg,scope) in [
                             (model,:model),
@@ -224,6 +229,56 @@ mutable struct ABM
         end
         
         #Add Updates
+        for (update,code) in ( #Add @inagent if only one agent declared
+                (:agentRule, agentRule),
+                (:agentODE, agentODE),
+                (:agentSDE, agentSDE)
+            )
+
+            if !iscodeempty(code) && length(agent) == 1
+
+                if !occursin("@inagent", string(code))
+                    # codecheck = postwalk(x->@capture(x, @inagent a_ b_) && a == agent[1].name ? quote end : x, code)
+                    # codecheck = prettify(codecheck)
+                    if !iscodeempty(code)
+                        code = quote 
+                            @inagent $(agent[1].name) begin
+                                $code
+                            end
+                        end
+                        if update == :agentRule
+                            agentRule = code
+                        elseif update == :agentODE
+                            agentODE = code
+                        elseif update == :agentSDE
+                            agentSDE = code
+                        end
+                    end
+                end
+
+            elseif !iscodeempty(code) && length(agent) == 0
+
+                if !occursin("@inagent", string(code))
+                    # codecheck = postwalk(x->@capture(x, @inagent a_ b_) && a == agent[1].name ? quote end : x, code)
+                    # codecheck = prettify(codecheck)
+                    if !iscodeempty(code)
+                        code = quote 
+                            @inagent Main begin
+                                $code
+                            end
+                        end
+                        if update == :agentRule
+                            agentRule = code
+                        elseif update == :agentODE
+                            agentODE = code
+                        elseif update == :agentSDE
+                            agentSDE = code
+                        end
+                    end
+                end
+
+            end
+        end
         for a in baseModelInit
             for (update,code) in pairs(a.declaredUpdates)
                 if update in keys(abm.declaredUpdates)
@@ -260,15 +315,14 @@ mutable struct ABM
             end
         end
 
-        #Check if there are removed agents
-        for update in keys(abm.declaredUpdates)
-            if occursin("@removeAgent",string(abm.declaredUpdates[update]))
-                abm.removalOfAgents_ = true
-            end
-        end        
+        #Check in @inagent
+        checkInAgent(abm)
+
+        #Group block from @inagent
+        groupInAgent(abm)
 
         checkCustomCode(abm)
-        addUpdates!(abm)
+        addUpdates!(abm)     
 
         #Assign other key arguments
         setfield!(abm,:neighbors,neighborsAlg)
@@ -304,7 +358,7 @@ mutable struct ABM
         end
         setfield!(abm,:mediumSolveArgs,mediumSolveArgs)
 
-        global AGENT = deepcopy(abm)
+        # global AGENT = deepcopy(abm)
 
         #Make compiled functions
         if compile
@@ -365,16 +419,14 @@ end
 
 function checkDeclared(a::Symbol, abm::ABM) 
 
-    if a in keys(abm.parameters)
-        error("Symbol ", a, " already declared in the abm in scope ", abm.parameters[a].scope, "-", abm.parameters[a].subscope,". Change name.")
-    end
+    checkDeclared(a, abm.parameters)
 
 end
 
 function checkDeclared(a::Symbol, abm::OrderedDict)
 
     if a in keys(abm)
-        error("Symbol ", a, " already declared in the abm in scope ", abm.parameters[a].scope, "-", abm.parameters[a].subscope,". Change name.")
+        error("Symbol ", a, " already declared in the ABM in other scope ", abm[a].scope, "-", abm[a].subscope,". Change name in one of the two scopes.")
     end
 
 end
@@ -409,17 +461,6 @@ function update(code,s)
 
     return code
 end
-
-# """
-# Function called by update that checks that a function is a macro functions before adding the .new
-# """
-# function updateMacroFunctions(s,code)
-#     if code.args[1] in [BASESYMBOLS[:AddAgentMacro],BASESYMBOLS[:RemoveAgentMacro]]
-#         code = postwalk(x-> isexpr(x,:kw) ? change(s,x) : x, code)
-#     end
-
-#     return code
-# end
 
 """
 Function that adds to the UserParameters is they are updated, variables or variables medium and adds a position assignation when generating the matrices.
@@ -485,4 +526,60 @@ function addUpdates!(abm::ABM)
     end
     
     return
+end
+
+function checkInAgent(abm)
+
+    agents = unique([j.subscope for (i,j) in pairs(abm.parameters) if j.scope == :agent])
+
+    for update in (
+            :agentRule, 
+            :agentODE, 
+            :agentSDE, 
+        )
+
+        if !isemptyupdaterule(abm,update)
+
+            code = copy(abm.declaredUpdates[update])
+            codecheck = postwalk(x->@capture(x, @inagent a_ b_) ? quote end : x, code)
+            # codecheck = postwalk(x->@capture(x, @inagent a_ b_) ? error("Name agent declared in `@inagent` [", a, "] does not exist.") : x, codecheck)
+            codecheck = prettify(codecheck)
+            if !iscodeempty(codecheck)
+                codeprint = prettify(postwalk(x->@capture(x, @inagent a_ b_) && a in agents ? quote [good code] end : x, code))
+                error("Problem in code declaration in a ABM with multiple agents declared. All code should be assigned to one or several agents in the form of: \n `\n@inagent #nameofagent1# begin\n\t ...code of agent 1...\nend\n@inagent #nameofagent2# begin\n\t ...code of agent 2...\nend`\n Problematic code: \n",codeprint)
+            end
+
+        end
+
+    end
+
+end
+
+function groupInAgent(abm)
+
+    agents = unique([j.subscope for (i,j) in pairs(abm.parameters) if j.scope == :agent])
+
+    for update in (
+            :agentRule, 
+            :agentODE, 
+            :agentSDE, 
+        )
+
+        if !isemptyupdaterule(abm,update)
+
+            finalcode = quote end
+            code = copy(abm.declaredUpdates[update])
+            for agent in unique([agents;:Main])
+                codes = []
+                postwalk(x->@capture(x, @inagent a_ b_) && a == agent ? push!(codes,b) : x, code)
+                if length(codes) > 0
+                    finalcode = :($finalcode; @inagent $(agent) begin $(codes...) end)
+                end
+            end
+            abm.declaredUpdates[update] = finalcode
+
+        end
+
+    end
+
 end
