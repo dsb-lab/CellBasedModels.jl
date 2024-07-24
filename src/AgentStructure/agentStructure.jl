@@ -183,6 +183,8 @@ mutable struct ABM
         #Add basic agent symbols
         if !(typeof(agent) <: Union{Agent,Vector{Agent}})
             agent = Agent[Agent(:Main,pos=(x=Float64,y=Float64,z=Float64),id=:id,parameters=deepcopy(agent))]
+        elseif typeof(agent) <: Agent
+            agent = [agent]
         end
 
         #Go over parameter inputs and add them to list
@@ -203,7 +205,7 @@ mutable struct ABM
                 abm.parameters[par] = UserParameter(par,dataType,:agent,ag.name)
             end
             #Add additional parameters
-            abm.parameters[make_symbol_unique(ag.name, :N)] = UserParameter(make_symbol_unique(:N,ag.name),Int,:modelBase,ag.name)
+            abm.parameters[make_symbol_unique(ag.name, :N)] = UserParameter(make_symbol_unique(:N,ag.name),Threads.Atomic,:modelBase,ag.name)
             abm.parameters[make_symbol_unique(ag.name, :NMax)] = UserParameter(make_symbol_unique(:NMax,ag.name),Int,:modelBase,ag.name)
             abm.parameters[make_symbol_unique(ag.name, :idMax)] = UserParameter(make_symbol_unique(ag.id,:Max),Threads.Atomic,:modelBase,ag.name)
         end
@@ -426,7 +428,9 @@ end
 function checkDeclared(a::Symbol, abm::OrderedDict)
 
     if a in keys(abm)
-        error("Symbol ", a, " already declared in the ABM in other scope ", abm[a].scope, "-", abm[a].subscope,". Change name in one of the two scopes.")
+        if !(abm[a].scope in [:agentBase, :mediumBase, :modelBase, :Dims, :SimBox])
+            error("Symbol ", a, " already declared in the ABM in other scope ", abm[a].scope, "-", abm[a].subscope,". Change name in one of the two scopes.")
+        end
     end
 
 end

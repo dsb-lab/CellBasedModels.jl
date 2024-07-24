@@ -98,7 +98,7 @@ mutable struct Community
     modelDEProblem
     mediumDEProblem
 
-    parameters::OrderedDict{Symbol,AbstractArray}
+    parameters
 
     loaded
 
@@ -121,7 +121,24 @@ mutable struct Community
         setfield!(com,:abm,deepcopy(abm))
 
         #Check args compulsory to be declared in the community given the agent model
-        setupBaseParameters!(com,dt,t,N,id,NMedium,simBox)
+        checkBaseParameters!(com,dt,t,NMedium,simBox)
+        args = Dict(i=>j for (i,j) in pairs(args))
+        args[:dt] = dt
+        args[:t] = t
+        args[:NMedium] = NMedium
+        args[:simBox] = simBox
+        agents = unique([j.subscope for (i,j) in abm.parameters if j.scope == :agent])
+        if typeof(N) <: Int && length(agents) == 1
+            args[make_symbol_unique(agents[1],:N)] = N
+        elseif typeof(N) <: Int
+            error("Error in argument `N`. There are several agents defined, you have to define it as a named tuple N=(agent1=#agents1,agent2=#agents2)")
+        elseif all([i in keys(N) for i in agents]) && all([i in agents for i in keys(N)])
+            for (i,j) in pairs(N)
+                args[make_symbol_unique(i,:N)] = N[i]         
+            end
+        else
+            error("Error in argument `N`. You have to define it as a named tuple N=(agent1=#agents1,agent2=#agents2)")
+        end
 
         #Creating the appropiate data arrays for parameters
         setupUserParameters!(com,args)
@@ -143,7 +160,8 @@ mutable struct Community
             nothing,
             nothing,
             nothing,
-            OrderedDict{Symbol,AbstractArray}(),
+            nothing,
+            nothing,
             nothing,
             Community[],            
             )
@@ -155,49 +173,39 @@ end
 """
 Function to setup the base parameters (t,dt,simBox...) of the Community object.
 """
-function setupBaseParameters!(com,dt,t,N,id,NMedium,simBox)
+function checkBaseParameters!(com,dt,t,NMedium,simBox)
     #dt
     if !all(isemptyupdaterule(com.abm,rule) for rule in [:agentODE,:agentSDE,:mediumODE]) && dt === nothing
-        error("dt key argument must be defined when models use differential equation rules.")
-    elseif all([isemptyupdaterule(com.abm,rule) for rule in [:agentODE,:agentSDE,:modelODE,:modelSDE,:mediumODE,:mediumSDE]]) && dt === nothing
-        setfield!(com,:dt, 1.)
-    else
-        setfield!(com,:dt,dt)
-    end
-    #t
-    setfield!(com,:t,t)
-    #N
-    setfield!(com,:N,Int(N))
-    #id
-    if length(id) != N
-        error("id has to be a Int Array of the same length as the number of agents N.")
-    else
-        setfield!(com,:id,id)
+        error("dt key argument must be defined in `Community` when models use differential equation rules.")
+    # elseif all([isemptyupdaterule(com.abm,rule) for rule in [:agentODE,:agentSDE,:modelODE,:modelSDE,:mediumODE,:mediumSDE]]) && dt === nothing
+    #     setfield!(com,:dt, 1.)
+    # else
+    #     setfield!(com,:dt,dt)
     end
     #NMedium
     if length([i for (i,j) in pairs(com.abm.parameters) if j.scope == :medium]) > 0 && NMedium === nothing
         error("NMedium key argument must be defined when models with medium are declared.")
-    elseif NMedium !== nothing
-        if length(NMedium) != com.abm.dims
-            error("NMedium is expected to be a vector of length $(com.abm.dims)")
-        else
-            setfield!(com,:NMedium,NMedium)
-        end
-    else
-        setfield!(com,:NMedium,[0,0,0][1:com.abm.dims])
+    # elseif NMedium !== nothing
+    #     if length(NMedium) != com.abm.dims
+    #         error("NMedium is expected to be a vector of length $(com.abm.dims)")
+    #     else
+    #         setfield!(com,:NMedium,NMedium)
+    #     end
+    # else
+    #     setfield!(com,:NMedium,[0,0,0][1:com.abm.dims])
     end
     #simBox
     if ( length([i for (i,j) in pairs(com.abm.parameters) if j.scope == :medium]) > 0 && simBox === nothing ) ||
        ( typeof(com.abm.platform) in [CBMNeighbors.CLVD,CBMNeighbors.CellLinked] && simBox === nothing )
         error("simBox key argument must be defined when models with medium are declared.")
-    elseif simBox !== nothing
-        if size(simBox) != (com.abm.dims,2)
-            error("simBox is expected to have shape ($(com.abm.dims),2)")
-        else
-            setfield!(com,:simBox,simBox)
-        end
-    else
-        setfield!(com,:simBox,[0 1.;0 1;0 1][1:com.abm.dims,:])
+    # elseif simBox !== nothing
+    #     if size(simBox) != (com.abm.dims,2)
+    #         error("simBox is expected to have shape ($(com.abm.dims),2)")
+    #     else
+    #         setfield!(com,:simBox,simBox)
+    #     end
+    # else
+    #     setfield!(com,:simBox,[0 1.;0 1;0 1][1:com.abm.dims,:])
     end
 
 end
@@ -207,11 +215,11 @@ Function that initializes the user parameters in the Community and assigns the a
 """
 function setupUserParameters!(com,args)
     #Create dictionary
-    parameters = OrderedDict{Symbol,AbstractArray}()
+    parameters = OrderedDict()
     #Go over parameters
     for (sym,struc) in pairs(com.abm.parameters)
-        if struc.scope == :agent
-            parameters[sym] = zeros(struc.dtype,com.N)
+        if struc.scope in [:agent, :agentBase]
+            parameters[sym] = zeros(struc.dtype,args[make_symbol_unique(struc.subscope,:N)])
         elseif struc.scope == :model
             if struc.dtype <: Number
                 parameters[sym] = zeros(struc.dtype,1)
@@ -220,58 +228,40 @@ function setupUserParameters!(com,args)
             else #Initialize as an array
                 parameters[sym] = copy(args[sym])
             end
+        elseif struc.scope == :modelBase && struc.dtype <: Number
+            parameters[sym] = struc.dtype(0)
+        elseif struc.scope == :modelBase && struc.dtype <: Threads.Atomic
+            parameters[sym] = Threads.Atomic{Int}(0)
         elseif struc.scope == :medium
-            parameters[sym] = zeros(struc.dtype,com.NMedium...)
+            parameters[sym] = zeros(struc.dtype, NMedium...)
         end
         #Initialize the parameters that have been declared
         if sym in keys(args)
             try
-                parameters[sym] .= args[sym]
+                if typeof(args[sym]) <: Array
+                    parameters[sym] .= args[sym]
+                else
+                    parameters[sym] = args[sym]
+                end
             catch
-                error("Provided initialization for parameter $sym is incorrect. Expected type $(com.abm.parameters[sym].dtype) and size $(size(params[sym])); got size $(size(args[sym])).")
+                error("Provided initialization for parameter $sym is incorrect. Expected type $(com.abm.parameters[sym].dtype) and size $(size(parameters[sym])); got size $(size(args[sym])).")
             end
         end
     end
 
-    setfield!(com,:parameters,parameters)
-
     #dx dy dz and xₘ yₘ zₘ
-    if com.abm.dims > 0 && com.simBox !== nothing && com.NMedium !== nothing && (:xₘ in keys(com.parameters))
-        setfield!(com, :dx, (com.simBox[1,2] .- com.simBox[1,1])./com.NMedium[1])
-        if com.abm.dims == 1
-            com[:xₘ] = [com.dx*(i-.5)+com.simBox[1,1] for i = 1:com.NMedium[1]]
-        elseif com.abm.dims == 2
-            com[:xₘ] = [com.dx*(i-.5)+com.simBox[1,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2]]
-        elseif com.abm.dims == 3
-            com[:xₘ] = [com.dx*(i-.5)+com.simBox[1,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2],  k = 1:com.NMedium[3]]
-        end
-    else
-        setfield!(com, :dx, 0.)
+    if com.abm.dims > 0 && parameters[:NMedium] !== nothing
+        parameters[:dx] = (com.simBox[1,2] .- com.simBox[1,1])./parameters[:NMedium][1]
     end
-    if com.abm.dims > 1 && com.simBox !== nothing && com.NMedium !== nothing && (:yₘ in keys(com.parameters))
-        setfield!(com, :dy, (com.simBox[2,2] .- com.simBox[2,1])./com.NMedium[2])
-        if com.abm.dims == 1
-            com[:yₘ] = [com.dy*(j-.5)+com.simBox[2,1] for i = 1:com.NMedium[1]]
-        elseif com.abm.dims == 2
-            com[:yₘ] = [com.dy*(j-.5)+com.simBox[2,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2]]
-        elseif com.abm.dims == 3
-            com[:yₘ] = [com.dy*(j-.5)+com.simBox[2,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2],  k = 1:com.NMedium[3]]
-        end
-    else
-        setfield!(com, :dy, 0.)
+    if com.abm.dims > 1 && parameters[:NMedium] !== nothing
+        parameters[:dy] = (com.simBox[2,2] .- com.simBox[2,1])./parameters[:NMedium][2]
     end
-    if com.abm.dims > 2 && com.simBox !== nothing && com.NMedium !== nothing && (:zₘ in keys(com.parameters))
-        setfield!(com, :dz, (com.simBox[3,2] .- com.simBox[3,1])./com.NMedium[3])
-        if com.abm.dims == 1
-            com[:zₘ] = [com.dz*(k-.5)+com.simBox[3,1] for i = 1:com.NMedium[1]]
-        elseif com.abm.dims == 2
-            com[:zₘ] = [com.dz*(k-.5)+com.simBox[3,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2]]
-        elseif com.abm.dims == 3
-            com[:zₘ] = [com.dz*(k-.5)+com.simBox[3,1] for i = 1:com.NMedium[1],  j = 1:com.NMedium[2],  k = 1:com.NMedium[3]]
-        end
-    else
-        setfield!(com, :dz, 0.)
+    if com.abm.dims > 2 && parameters[:NMedium] !== nothing
+        parameters[:dx] = (com.simBox[3,2] .- com.simBox[3,1])./parameters[:NMedium][3]
     end
+
+    parameters = (;parameters...)
+    setfield!(com,:parameters,parameters)
 
     return
 end
@@ -307,11 +297,7 @@ end
 
 # Overload show
 function Base.show(io::IO,com::Community)
-    if com.N === nothing
-        println("Empty Community.")
-    else
-        println("Community with ", com.N, " agents.")
-    end
+    println("Community.")
 end
 
 # Overload ways of calling and assigning the parameters in community
@@ -373,7 +359,9 @@ function Base.setproperty!(com::Community,var::Symbol,v)
     elseif !(var in keys(com.parameters))
         error(var," is not in community.")
     else
-        if com.abm.parameters[old(var)].scope != :model
+        if com.abm.parameters[old(var)].scope in [:modelBase, :agentBase, :mediumBase]
+            error("Parameter ", old(var), " is an internal parameter and should not be tried to be reassigned.")
+        elseif com.abm.parameters[old(var)].scope != :model
             com.parameters[var] .= v
         elseif com.abm.parameters[old(var)].scope == :model
             if typeof(v) <: Number
@@ -454,16 +442,23 @@ function createDEProblem(com,scope)
 
     vars = nothing
     if scope == :agent
-        vars = cuAdapt(zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variable && j.scope == :agent]),com.nMax_),com)
+        vars = cuAdapt(zeros(Float64,sum([length(com[i]) for (i,j) in pairs(com.abm.parameters) if j.variable && j.scope == :agent])),com)
     elseif scope == :model
         vars = cuAdapt(zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variable && j.scope == :model])),com)
     elseif scope == :medium
-        CUDA.@allowscalar vars = cuAdapt(zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variable && j.scope == :medium]),com.NMedium...),com)
+        if com.NMedium !== nothing
+            CUDA.@allowscalar vars = cuAdapt(zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variable && j.scope == :medium]),com.NMedium...),com)
+        else
+            CUDA.@allowscalar vars = cuAdapt(zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variable && j.scope == :medium]),0),com)
+        end
     end
 
+    agent_cum = 1
     for (sym,struc) in pairs(com.abm.parameters)
         if scope == :agent && struc.variable && struc.scope == :agent
-            vars[struc.pos,:] .= com.parameters[sym]
+            extension = length(com[sym])
+            vars[agent_cum:agent_cum+extension-1] .= com.parameters[sym]
+            agent_cum += extension
         elseif scope == :model && struc.variable && struc.scope == :model
             vars[struc.pos:struc.pos] .= com.parameters[sym]
         elseif scope == :medium && struc.variable && struc.scope == :medium
@@ -569,30 +564,39 @@ It locks the possibility of accessing and manipulating the data by indexing and 
 If `preallocateAgents` is provided, it allocates that additional number of agents to the community. 
 Preallocating is necesssary as if more agents will be added during the evolution of the model (Going over the number of preallocated agents will run into an error.).
 """
-function loadToPlatform!(com::Community;preallocateAgents::Int=0)
+function loadToPlatform!(com::Community;preallocateAgents::Union{Nothing, Int, NamedTuple, Dict{Symbol, Int}, OrderedDict{Symbol, Int}}=nothing)
 
     if com.loaded
         println("WARNING: Community already loaded. Ignoring operation.")
     else
         #Add preallocated agents to maximum
-        loadBaseParameters!(com,preallocateAgents)
+        # loadBaseParameters!(com,preallocateAgents)
+
+        agents = unique([j.subscope for (i,j) in com.abm.parameters if j.scope == :agent])
+        if typeof(preallocateAgents) <: Nothing
+            preallocateAgents = NamedTuple{Tuple(agents)}(zeros(Int, length(agents)))
+        elseif typeof(preallocateAgents) <: Int && length(agents) > 1
+            error("Error in argument `preallocateAgents`. There are several agents defined, you have to define it as a named tuple N=(agent1=#agents1,agent2=#agents2)")
+        elseif !all([i in keys(preallocateAgents) for i in agents]) || !all([i in agents for i in keys(preallocateAgents)])
+            error("Error in argument `preallocateAgents`. You have to define it as a named tuple N=(agent1=#agents1,agent2=#agents2)")
+        end
 
         #Adapt user parameters
         for (sym,prop) in pairs(com.abm.parameters)
             p = getproperty(com,sym)
             if prop.scope == :agent
-                com.parameters[sym] = cuAdapt(Array{prop.dtype}([p;zeros(prop.dtype,preallocateAgents)]),com)
+                setparameter!(com, sym, cuAdapt(Array{prop.dtype}([p;zeros(prop.dtype,preallocateAgents[prop.subscope])]),com))
             elseif prop.scope in [:model,:medium]
                 if prop.dtype <: Number
-                    com.parameters[sym] = cuAdapt(Array{prop.dtype}(p),com)
+                    setparameter!(com, sym, cuAdapt(Array{prop.dtype}(p),com))
                 else
-                    com.parameters[sym] = cuAdapt((prop.dtype)(p),com)
+                    setparameter!(com, sym, cuAdapt((prop.dtype)(p),com))
                 end
             end
             if prop.update && !prop.variable
-                com.parameters[new(sym)] = copy(com.parameters[sym])
+                setparameter!(com, new(sym), copy(com.parameters[sym]))
             elseif prop.variable
-                com.parameters[new(sym)] = cuAdapt(zeros(0),com)
+                setparameter!(com, new(sym), cuAdapt(zeros(0),com))
             end
         end
 
@@ -693,16 +697,16 @@ function linkVariables(com::Community,scope)
 
     for (sym,struc) in pairs(com.abm.parameters)
         if struc.scope == :agent && scope == :agent && struc.variable
-            @views com.parameters[new(sym)] = getfield(com,var2).u[struc.pos,:]
+            setparameter!(com, new(sym), @views getfield(com,var2).u[struc.pos,:])
         elseif struc.scope == :model && scope == :model && struc.variable
-            @views com.parameters[new(sym)] = getfield(com,var2).u[struc.pos:struc.pos]
+            setparameter!(com, new(sym), @views getfield(com,var2).u[struc.pos:struc.pos])
         elseif struc.scope == :medium && scope == :medium && struc.variable
             if com.abm.dims == 1
-                @views com.parameters[new(sym)] = getfield(com,var2).u[struc.pos,:]
+                setparameter!(com, new(sym), @views getfield(com,var2).u[struc.pos,:])
             elseif com.abm.dims == 2
-                @views com.parameters[new(sym)] = getfield(com,var2).u[struc.pos,:,:]
+                setparameter!(com, new(sym), @views getfield(com,var2).u[struc.pos,:,:])
             else
-                @views com.parameters[new(sym)] = getfield(com,var2).u[struc.pos,:,:,:]
+                setparameter!(com, new(sym), @views getfield(com,var2).u[struc.pos,:,:,:])
             end
         end
     end

@@ -442,8 +442,7 @@ module CBMIntegrators
     function cleanArray(du,p)
         #Clean array
         if typeof(du) <: Array
-            r = 1:1:p[3][1]
-            du[:,r] .= 0
+            du .= 0
         else
             du .= 0
         end

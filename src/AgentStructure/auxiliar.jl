@@ -595,3 +595,11 @@ function substitute_macros(code, abm)
     return code
     
 end
+
+function setparameter!(com::Community, sym::Symbol, X)
+
+    params = com.parameters
+    @reset params[sym] = X
+    setfield!(com,:parameters,params)
+
+end

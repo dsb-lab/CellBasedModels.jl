@@ -87,7 +87,7 @@ struct Agent
     id::Symbol
     parameters::Union{OrderedDict{Symbol,DataType}, Dict{Symbol,DataType}, NamedTuple}
 
-    function Agent(name::Symbol; pos, id, parameters::Union{Tuple, OrderedDict{Symbol,DataType}, Dict{Symbol,DataType}}=Dict())
+    function Agent(name::Symbol; pos, id, parameters::Union{NamedTuple, OrderedDict{Symbol,DataType}, Dict{Symbol,DataType}}=Dict())
         new(name, pos, id, parameters)
     end
 
