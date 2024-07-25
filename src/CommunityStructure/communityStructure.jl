@@ -120,28 +120,38 @@ mutable struct Community
         com = Community()
         setfield!(com,:abm,deepcopy(abm))
 
-        #Check args compulsory to be declared in the community given the agent model
+        # Check args compulsory to be declared in the community given the agent model
         checkBaseParameters!(com,dt,t,NMedium,simBox)
-        args = Dict(i=>j for (i,j) in pairs(args))
-        args[:dt] = dt
-        args[:t] = t
-        args[:NMedium] = NMedium
-        args[:simBox] = simBox
+        baseargs = Dict()
+        baseargs[:t] = t
+        baseargs[:dt] = dt
+        baseargs[:simBox] = simBox
+        # N
         agents = unique([j.subscope for (i,j) in abm.parameters if j.scope == :agent])
         if typeof(N) <: Int && length(agents) == 1
-            args[make_symbol_unique(agents[1],:N)] = N
+            baseargs[make_symbol_unique(agents[1],:N)] = N
         elseif typeof(N) <: Int
             error("Error in argument `N`. There are several agents defined, you have to define it as a named tuple N=(agent1=#agents1,agent2=#agents2)")
         elseif all([i in keys(N) for i in agents]) && all([i in agents for i in keys(N)])
             for (i,j) in pairs(N)
-                args[make_symbol_unique(i,:N)] = N[i]         
+                baseargs[make_symbol_unique(i,:N)] = N[i]         
             end
         else
             error("Error in argument `N`. You have to define it as a named tuple N=(agent1=#agents1,agent2=#agents2)")
         end
+        # id
+        for (i,j) in pairs(abm.parameters)
+            if j.isId
+                baseargs[i] = 1:N[j.subscope]
+            end
+        end
+        # dx dy dz
+        if NMedium !== nothing
+            baseargs[:NMedium_] = NMedium
+        end
 
         #Creating the appropiate data arrays for parameters
-        setupUserParameters!(com,args)
+        setupUserParameters!(com,args,baseargs)
 
         setfield!(com,:loaded,false)
         setfield!(com,:uuid,uuid1())
@@ -189,10 +199,10 @@ function checkBaseParameters!(com,dt,t,NMedium,simBox)
     #     if length(NMedium) != com.abm.dims
     #         error("NMedium is expected to be a vector of length $(com.abm.dims)")
     #     else
-    #         setfield!(com,:NMedium,NMedium)
+    #         setfield!(com,:NMedium_,NMedium)
     #     end
     # else
-    #     setfield!(com,:NMedium,[0,0,0][1:com.abm.dims])
+    #     setfield!(com,:NMedium_,[0,0,0][1:com.abm.dims])
     end
     #simBox
     if ( length([i for (i,j) in pairs(com.abm.parameters) if j.scope == :medium]) > 0 && simBox === nothing ) ||
@@ -213,13 +223,13 @@ end
 """
 Function that initializes the user parameters in the Community and assigns the arguments if initialized inside Community args.
 """
-function setupUserParameters!(com,args)
+function setupUserParameters!(com,args,baseargs)
     #Create dictionary
     parameters = OrderedDict()
     #Go over parameters
     for (sym,struc) in pairs(com.abm.parameters)
-        if struc.scope in [:agent, :agentBase]
-            parameters[sym] = zeros(struc.dtype,args[make_symbol_unique(struc.subscope,:N)])
+        if struc.scope in [:agent]
+            parameters[sym] = zeros(struc.dtype,baseargs[make_symbol_unique(struc.subscope,:N)])
         elseif struc.scope == :model
             if struc.dtype <: Number
                 parameters[sym] = zeros(struc.dtype,1)
@@ -228,10 +238,6 @@ function setupUserParameters!(com,args)
             else #Initialize as an array
                 parameters[sym] = copy(args[sym])
             end
-        elseif struc.scope == :modelBase && struc.dtype <: Number
-            parameters[sym] = struc.dtype(0)
-        elseif struc.scope == :modelBase && struc.dtype <: Threads.Atomic
-            parameters[sym] = Threads.Atomic{Int}(0)
         elseif struc.scope == :medium
             parameters[sym] = zeros(struc.dtype, NMedium...)
         end
@@ -249,18 +255,7 @@ function setupUserParameters!(com,args)
         end
     end
 
-    #dx dy dz and xₘ yₘ zₘ
-    if com.abm.dims > 0 && parameters[:NMedium] !== nothing
-        parameters[:dx] = (com.simBox[1,2] .- com.simBox[1,1])./parameters[:NMedium][1]
-    end
-    if com.abm.dims > 1 && parameters[:NMedium] !== nothing
-        parameters[:dy] = (com.simBox[2,2] .- com.simBox[2,1])./parameters[:NMedium][2]
-    end
-    if com.abm.dims > 2 && parameters[:NMedium] !== nothing
-        parameters[:dx] = (com.simBox[3,2] .- com.simBox[3,1])./parameters[:NMedium][3]
-    end
-
-    parameters = (;parameters...)
+    parameters = (;parameters...,baseargs...)
     setfield!(com,:parameters,parameters)
 
     return
@@ -419,25 +414,6 @@ end
 ######################################################################################################
 # Load to platform
 ######################################################################################################
-function loadBaseParameters!(com::Community,preallocateAgents::Int)
-
-    # setfield!(com, :id, cuAdapt([com.id;zeros(preallocateAgents)],com))
-    setfield!(com, :NMedium, cuAdapt(com.NMedium,com))
-    setfield!(com, :simBox, cuAdapt(com.simBox,com))
-    # setfield!(com, :nMax_, com.N + preallocateAgents)
-    # setfield!(com, :idMax_, cuAdapt(Threads.Atomic{Int64}(com.N),com))
-    setfield!(com, :NAdd_, cuAdapt(Threads.Atomic{Int64}(0),com))
-    setfield!(com, :NRemove_, cuAdapt(Threads.Atomic{Int64}(0),com))
-    setfield!(com, :NSurvive_, cuAdapt(Threads.Atomic{Int64}(0),com))
-    setfield!(com, :flagSurvive_, cuAdapt(if com.abm.removalOfAgents_; ones(Int64,com.nMax_); else ones(Int64,0); end,com))
-    setfield!(com, :holeFromRemoveAt_, cuAdapt(if com.abm.removalOfAgents_; zeros(Int64,com.nMax_); else zeros(Int64,0); end,com))
-    setfield!(com, :repositionAgentInPos_, cuAdapt(if com.abm.removalOfAgents_; zeros(Int64,com.nMax_); else zeros(Int64,0); end,com))
-    setfield!(com, :flagRecomputeNeighbors_, cuAdapt([1],com))
-
-    return 
-
-end
-
 function createDEProblem(com,scope)
 
     vars = nothing
@@ -446,9 +422,7 @@ function createDEProblem(com,scope)
     elseif scope == :model
         vars = cuAdapt(zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variable && j.scope == :model])),com)
     elseif scope == :medium
-        if com.NMedium !== nothing
-            CUDA.@allowscalar vars = cuAdapt(zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variable && j.scope == :medium]),com.NMedium...),com)
-        else
+        if :NMedium_ in keys(com.parameters)
             CUDA.@allowscalar vars = cuAdapt(zeros(Float64,length([1 for (i,j) in pairs(com.abm.parameters) if j.variable && j.scope == :medium]),0),com)
         end
     end
@@ -458,42 +432,47 @@ function createDEProblem(com,scope)
         if scope == :agent && struc.variable && struc.scope == :agent
             extension = length(com[sym])
             vars[agent_cum:agent_cum+extension-1] .= com.parameters[sym]
+            setparameter!(com, sym, @views vars[agent_cum:agent_cum+extension-1])
             agent_cum += extension
         elseif scope == :model && struc.variable && struc.scope == :model
             vars[struc.pos:struc.pos] .= com.parameters[sym]
+            setparameter!(com, sym, @views vars[struc.pos:struc.pos])
         elseif scope == :medium && struc.variable && struc.scope == :medium
             if com.abm.dims == 1
                 vars[struc.pos,:] .= com.parameters[sym]
+                setparameter!(com, sym, @views vars[struc.pos,:])
             elseif com.abm.dims == 2
                 vars[struc.pos,:,:] .= com.parameters[sym]
+                setparameter!(com, sym, @views vars[struc.pos,:,:])
             elseif com.abm.dims == 3
                 vars[struc.pos,:,:,:] .= com.parameters[sym]
+                setparameter!(com, sym, @views vars[struc.pos,:,:,:])
             end
         end
     end
 
     #Assign differential models
-    params = agentArgs(com.abm)
-    paramsCom = agentArgs(com.abm,sym=:com)
-    paramsRemove = [sym for (sym,prop) in pairs(com.abm.parameters) if prop.variable && (prop.scope==scope)]
-    paramsRemove2 = [new(sym) for sym in paramsRemove if com.abm.parameters[sym].update] #remove news
-    paramsNames = [i for (i,j) in zip(params,paramsCom) if !(i in [paramsRemove;paramsRemove2])]
-    params = [if occursin("neighbors.", string(j)); getfield(com.abm.neighbors,i); elseif occursin("platform.", string(j)); getfield(com.abm.platform,i); elseif :platform == i; com.abm.platform; else com[i]; end for (i,j) in zip(params,paramsCom) if !(i in [paramsRemove;paramsRemove2])]
-    paramsIntegratorName,paramsIntegrator = [],[]
-    try
-        if scope == :agent
-            paramsIntegratorName,paramsIntegrator = specialIntegratorArguments(com.abm.agentAlg,com.abm)
-        elseif scope == :model
-            paramsIntegratorName,paramsIntegrator = specialIntegratorArguments(com.abm.modelAlg,com.abm)
-        elseif scope == :medium
-            paramsIntegratorName,paramsIntegrator = CBMIntegrators.specialIntegratorArguments(com.abm.mediumAlg,com.abm)
-        end
-    catch
-        nothing
-    end
-    paramsNames = [paramsNames;paramsIntegratorName]
-    params = [params;paramsIntegrator]
-    params = NamedTuple{Tuple(paramsNames)}(params)
+    params = keys(com.abm.parameters)
+    # paramsCom = agentArgs(com.abm,sym=:com)
+    # paramsRemove = [sym for (sym,prop) in pairs(com.abm.parameters) if prop.variable && (prop.scope==scope)]
+    # paramsRemove2 = [new(sym) for sym in paramsRemove if com.abm.parameters[sym].update] #remove news
+    # paramsNames = [i for (i,j) in zip(params,paramsCom) if !(i in [paramsRemove;paramsRemove2])]
+    # params = [if occursin("neighbors.", string(j)); getfield(com.abm.neighbors,i); elseif occursin("platform.", string(j)); getfield(com.abm.platform,i); elseif :platform == i; com.abm.platform; else com[i]; end for (i,j) in zip(params,paramsCom) if !(i in [paramsRemove;paramsRemove2])]
+    # paramsIntegratorName,paramsIntegrator = [],[]
+    # try
+    #     if scope == :agent
+    #         paramsIntegratorName,paramsIntegrator = specialIntegratorArguments(com.abm.agentAlg,com.abm)
+    #     elseif scope == :model
+    #         paramsIntegratorName,paramsIntegrator = specialIntegratorArguments(com.abm.modelAlg,com.abm)
+    #     elseif scope == :medium
+    #         paramsIntegratorName,paramsIntegrator = CBMIntegrators.specialIntegratorArguments(com.abm.mediumAlg,com.abm)
+    #     end
+    # catch
+    #     nothing
+    # end
+    # paramsNames = [paramsNames;paramsIntegratorName]
+    # params = [params;paramsIntegrator]
+    params = NamedTuple{Tuple(params)}([com[i] for i in params])
 
     ode = addSymbol(scope,"ODE")
     sde = addSymbol(scope,"SDE")
@@ -569,8 +548,32 @@ function loadToPlatform!(com::Community;preallocateAgents::Union{Nothing, Int, N
     if com.loaded
         println("WARNING: Community already loaded. Ignoring operation.")
     else
-        #Add preallocated agents to maximum
-        # loadBaseParameters!(com,preallocateAgents)
+        #Go over parameters
+        abm = com.abm
+        # id
+        for (i,j) in pairs(abm.parameters)
+            if j.scope == :agent
+                setparameter!(com, make_symbol_unique(j.subscope,:NMax), com[make_symbol_unique(j.subscope,:N)])
+                setparameter!(com, make_symbol_unique(j.subscope,:idMax), com[make_symbol_unique(j.subscope,:N)])
+            end
+        end
+        if :NMedium in keys(com.parameters)
+            if abm.dims > 0
+                setparameter!(com, :dx, (com[:simBox][1,2] .- com[:simBox][1,1])./com[:NMedium_][1])
+            end
+            if abm.dims > 1
+                setparameter!(com, :dy, (com[:simBox][2,2] .- com[:simBox][2,1])./com[:NMedium_][2])
+            end
+            if abm.dims > 2
+                setparameter!(com, :dz, (com[:simBox][3,2] .- com[:simBox][3,1])./com[:NMedium_][3])
+            end
+        end
+        #User
+        for (sym,struc) in pairs(com.abm.parameters)
+            if struc.primitive !== nothing
+                setparameter!(com, sym, copy(com[struc.primitive]))
+            end
+        end
 
         agents = unique([j.subscope for (i,j) in com.abm.parameters if j.scope == :agent])
         if typeof(preallocateAgents) <: Nothing
@@ -583,21 +586,23 @@ function loadToPlatform!(com::Community;preallocateAgents::Union{Nothing, Int, N
 
         #Adapt user parameters
         for (sym,prop) in pairs(com.abm.parameters)
-            p = getproperty(com,sym)
-            if prop.scope == :agent
-                setparameter!(com, sym, cuAdapt(Array{prop.dtype}([p;zeros(prop.dtype,preallocateAgents[prop.subscope])]),com))
-            elseif prop.scope in [:model,:medium]
-                if prop.dtype <: Number
-                    setparameter!(com, sym, cuAdapt(Array{prop.dtype}(p),com))
-                else
-                    setparameter!(com, sym, cuAdapt((prop.dtype)(p),com))
+            if sym in keys(com.parameters)
+                p = getproperty(com,sym)
+                if prop.scope in [:agent]
+                    setparameter!(com, sym, cuAdapt(Array{prop.dtype}([p;zeros(prop.dtype,preallocateAgents[prop.subscope])]),com))
+                elseif prop.scope in [:model,:medium]
+                    if prop.dtype <: Number
+                        setparameter!(com, sym, cuAdapt(Array{prop.dtype}(p),com))
+                    else
+                        setparameter!(com, sym, cuAdapt((prop.dtype)(p),com))
+                    end
                 end
             end
-            if prop.update && !prop.variable
-                setparameter!(com, new(sym), copy(com.parameters[sym]))
-            elseif prop.variable
-                setparameter!(com, new(sym), cuAdapt(zeros(0),com))
-            end
+            # if prop.update && !prop.variable
+            #     setparameter!(com, new(sym), copy(com.parameters[sym]))
+            # elseif prop.variable
+            #     setparameter!(com, new(sym), cuAdapt(zeros(0),com))
+            # end
         end
 
         #Neighbors
@@ -605,11 +610,11 @@ function loadToPlatform!(com::Community;preallocateAgents::Union{Nothing, Int, N
 
         # Transform to the correct platform the parameters
         setfield!(com,:agentDEProblem,createDEProblem(com,:agent))
-        linkVariables(com,:agent)
+        # linkVariables(com,:agent)
         setfield!(com,:modelDEProblem,createDEProblem(com,:model))
-        linkVariables(com,:model)
+        # linkVariables(com,:model)
         setfield!(com,:mediumDEProblem,createDEProblem(com,:medium))
-        linkVariables(com,:medium)
+        # linkVariables(com,:medium)
 
         #Set loaded to true
         setfield!(com,:loaded,true)

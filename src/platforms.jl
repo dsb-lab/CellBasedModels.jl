@@ -70,9 +70,9 @@ function platformSetup!(platform::GPU,com)
     platform.agentBlocks = min(ceil(Int64,com.N/MAXTHREADS),MAXBLOCKS)
     platform.modelThreads = 1
     platform.modelBlocks = 1
-    platform.mediumThreads = mediumResources(MAXTHREADS,com.abm.dims,Array(com.NMedium))
-    platform.mediumBlocks = mediumResources(min(ceil(Int64,prod(com.NMedium)/prod(platform.mediumThreads)),MAXBLOCKS),
-                                                com.abm.dims,Array(com.NMedium))
+    platform.mediumThreads = mediumResources(MAXTHREADS,com.abm.dims,Array(com.NMedium_))
+    platform.mediumBlocks = mediumResources(min(ceil(Int64,prod(com.NMedium_)/prod(platform.mediumThreads)),MAXBLOCKS),
+                                                com.abm.dims,Array(com.NMedium_))
     
     return
 

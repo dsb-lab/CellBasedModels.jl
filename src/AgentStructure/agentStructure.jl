@@ -171,14 +171,16 @@ mutable struct ABM
         #Add basic parameters
         abm.parameters[:t] = UserParameter(:t,Float64,:modelBase,:Main)
         abm.parameters[:dt] = UserParameter(:dt,Float64,:modelBase,:Main)
-        abm.parameters[:NMedium] = UserParameter(:NMedium,Int,:Dims,:Main)
         abm.parameters[:simBox] = UserParameter(:simBox,Float64,:SimBox,:Main)
-        abm.parameters[:dx] = UserParameter(:dx,Float64,:modelBase,:Main)
-        abm.parameters[:dy] = UserParameter(:dy,Float64,:modelBase,:Main)
-        abm.parameters[:dz] = UserParameter(:dz,Float64,:modelBase,:Main)
-        abm.parameters[:xₘ] = UserParameter(:xₘ,Float64,:modelBase,:Main)
-        abm.parameters[:yₘ] = UserParameter(:xₘ,Float64,:modelBase,:Main)
-        abm.parameters[:zₘ] = UserParameter(:xₘ,Float64,:modelBase,:Main)
+        if !iscodeempty(mediumODE)
+            abm.parameters[:NMedium_] = UserParameter(:NMedium_,Int,:Dims,:Main)
+            abm.parameters[:dx] = UserParameter(:dx,Float64,:modelBase,:Main)
+            abm.parameters[:dy] = UserParameter(:dy,Float64,:modelBase,:Main)
+            abm.parameters[:dz] = UserParameter(:dz,Float64,:modelBase,:Main)
+            # abm.parameters[:xₘ] = UserParameter(:xₘ,Float64,:modelBase,:Main)
+            # abm.parameters[:yₘ] = UserParameter(:xₘ,Float64,:modelBase,:Main)
+            # abm.parameters[:zₘ] = UserParameter(:xₘ,Float64,:modelBase,:Main)
+        end
         
         #Add basic agent symbols
         if !(typeof(agent) <: Union{Agent,Vector{Agent}})
@@ -198,7 +200,7 @@ mutable struct ABM
             end
             #Add id
             checkDeclared(ag.id, abm)
-            abm.parameters[ag.id] = UserParameter(ag.id,Int,:agentBase,ag.name)
+            abm.parameters[ag.id] = UserParameter(ag.id,Int,:agentBase,ag.name,isId=true)
             #Add parameters
             for (par,dataType) in pairs(ag.parameters)
                 checkDeclared(par,abm)
@@ -361,6 +363,9 @@ mutable struct ABM
         setfield!(abm,:mediumSolveArgs,mediumSolveArgs)
 
         # global AGENT = deepcopy(abm)
+        for (update,code) in pairs(abm.declaredUpdates)
+            abm.declaredUpdates[update] = substitute_macros(copy(code),abm)
+        end
 
         #Make compiled functions
         if compile
@@ -486,7 +491,7 @@ function addUpdates!(abm::ABM)
             code = postwalk(x->@capture(x,f_(g__)) ? :(_) : x , code)
             if inexpr(code,new(sym))
                 abm.parameters[sym].update = true
-                abm.parameters[make_symbol_unique(sym,:_)] = UserParameter(make_symbol_unique(sym,:_), abm.parameters[sym].dtype, Meta.parse(string(abm.parameters[sym].scope,"Base")), abm.parameters[a].subscope, update=true,variable=false,pos=0)
+                abm.parameters[sym_update(sym)] = UserParameter(sym_update(sym), abm.parameters[sym].dtype, Meta.parse(string(abm.parameters[sym].scope,"Base")), abm.parameters[sym].subscope, update=true,variable=false,pos=0, primitive=sym)
             end
         end
     end
@@ -704,9 +709,9 @@ end
 function add_dt(a, abm)
 
     if a in keys(abm.parameters)
-        abm.parameters[make_symbol_unique(a,:_)] = UserParameter(make_symbol_unique(a,:_), abm.parameters[a].dtype, Meta.parse(string(abm.parameters[a].scope,"Base")), abm.parameters[a].subscope, update=true,variable=false,pos=0)
-        abm.parameters[make_symbol_unique(:dt_,a)] = UserParameter(make_symbol_unique(:dt_,a), Float64, :agentBase, abm.parameters[a].subscope,update=false,variable=true,pos=0)
-        return make_symbol_unique(:dt_,a)
+        abm.parameters[sym_derivative(a)] = UserParameter(sym_derivative(a), abm.parameters[a].dtype, sym_base(abm.parameters[a].scope), abm.parameters[a].subscope, update=true,variable=false,pos=0,primitive=a)
+        abm.parameters[sym_update(a)] = UserParameter(sym_update(a), Float64, sym_base(abm.parameters[a].scope), abm.parameters[a].subscope,update=false,variable=true,pos=0,primitive=a)
+        return sym_derivative(a)
     else
         error("Error in dt() operator declaration. Symbol ", a, " is not a parameter of model.")
     end

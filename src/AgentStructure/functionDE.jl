@@ -46,14 +46,13 @@ function functionDE(abm,scope,type)
         #         end
         #     end
         # end
-        params = Tuple(agentArgs(abm))
+        params = Tuple(keys(abm.parameters))
         # paramsRemove = [sym for (sym,prop) in pairs(abm.parameters) if prop.variable && prop.scope == scope] #remove updates
         # paramsRemove2 = [new(sym) for sym in paramsRemove if abm.parameters[sym].update] #remove news
         #params = Tuple([i for i in params if !(i in [paramsRemove;paramsRemove2])])
 
         #Get deterministic function
         code = abm.declaredUpdates[ref]
-        code = substitute_macros(code, abm)
         # for sym in keys(abm.parameters)
         #     dsym = addSymbol("dt__",sym)
         #     code = postwalk(x->@capture(x,dt(s_)) && s == sym ? :($dsym[i1_]) : x, code)
@@ -73,7 +72,9 @@ function functionDE(abm,scope,type)
             abm.declaredUpdatesCode[ref] = 
                 quote
                     function (dVar_,var_,p_,t_)
-
+                        for (i,j) in enumerate(keys(p_))
+                            println((i,j))
+                        end
                         ($(params...),) = p_
                         # $unwrap
                         $code

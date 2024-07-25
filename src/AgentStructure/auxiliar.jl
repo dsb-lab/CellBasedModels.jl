@@ -174,11 +174,11 @@ function makeSimpleLoop(code,abm;nloops=nothing)
         if nloops === nothing
             return postwalk(x->@capture(x, @inagent a_ b_) ? quote @inbounds Threads.@threads for i1_ in 1:1:$(make_symbol_unique(a,:N)); $b; end end : x, code)
         elseif nloops == 1
-            return :(@inbounds Threads.@threads for i1_ in 1:1:NMedium[1]; $code; end)
+            return :(@inbounds Threads.@threads for i1_ in 1:1:NMedium_[1]; $code; end)
         elseif nloops == 2
-            return :(@inbounds Threads.@threads for i1_ in 1:1:NMedium[1]; for i2_ in 1:1:NMedium[2]; $code; end; end)
+            return :(@inbounds Threads.@threads for i1_ in 1:1:NMedium_[1]; for i2_ in 1:1:NMedium_[2]; $code; end; end)
         elseif nloops == 3
-            return :(@inbounds Threads.@threads for i1_ in 1:1:NMedium[1]; for i2_ in 1:1:NMedium[2];  for i3_ in 1:1:NMedium[3]; $code; end; end; end)
+            return :(@inbounds Threads.@threads for i1_ in 1:1:NMedium_[1]; for i2_ in 1:1:NMedium_[2];  for i3_ in 1:1:NMedium_[3]; $code; end; end; end)
         end
 
     else typeof(abm.platform) <: GPU
@@ -197,7 +197,7 @@ function makeSimpleLoop(code,abm;nloops=nothing)
                 stride = gridDim().x * blockDim().x
             end            
 
-            return :($CUDATHREADS1D; @inbounds for i1_ in index:stride:NMedium[1]; $code; end)
+            return :($CUDATHREADS1D; @inbounds for i1_ in index:stride:NMedium_[1]; $code; end)
         elseif nloops == 2
             CUDATHREADS2D = quote
                 index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
@@ -206,7 +206,7 @@ function makeSimpleLoop(code,abm;nloops=nothing)
                 strideY = gridDim().y * blockDim().y
             end            
 
-            return :($CUDATHREADS2D; @inbounds for i1_ in index:stride:NMedium[1]; for i2_ in indexY:strideY:NMedium[2]; $code; end; end)
+            return :($CUDATHREADS2D; @inbounds for i1_ in index:stride:NMedium_[1]; for i2_ in indexY:strideY:NMedium_[2]; $code; end; end)
         elseif nloops == 3
             CUDATHREADS3D = quote
                 index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
@@ -217,7 +217,7 @@ function makeSimpleLoop(code,abm;nloops=nothing)
                 strideZ = gridDim().z * blockDim().z
             end            
 
-            return :($CUDATHREADS3D; @inbounds for i1_ in index:stride:NMedium[1]; for i2_ in indexY:strideY:NMedium[2]; for i3_ in indexZ:strideZ:NMedium[3]; $code; end; end; end)
+            return :($CUDATHREADS3D; @inbounds for i1_ in index:stride:NMedium_[1]; for i2_ in indexY:strideY:NMedium_[2]; for i3_ in indexZ:strideZ:NMedium_[3]; $code; end; end; end)
         end
 
     end
@@ -232,11 +232,11 @@ Function that limits the computations to the inner set of a grid.
 function noBorders(code,agent)
 
     if agent.dims == 1
-        return :(if 1 < i1_ < NMedium[1]; $code; end)
+        return :(if 1 < i1_ < NMedium_[1]; $code; end)
     elseif agent.dims == 2
-        return :(if 1 < i1_ < NMedium[1] && 1 < i2_ < NMedium[2]; $code; end)
+        return :(if 1 < i1_ < NMedium_[1] && 1 < i2_ < NMedium_[2]; $code; end)
     elseif agent.dims == 3
-        return :(if 1 < i1_ < NMedium[1] && 1 < i2_ < NMedium[2] && 1 < i3_ < NMedium[3]; $code; end)
+        return :(if 1 < i1_ < NMedium_[1] && 1 < i2_ < NMedium_[2] && 1 < i3_ < NMedium_[3]; $code; end)
     end
 
 end
@@ -368,9 +368,9 @@ function vectorizeMediumInAgents(code,abm)
 
     for (sym,prop) in pairs(abm.parameters)
         if prop.scope == :medium
-            code = postwalk(x->@capture(x,m_[g_]) && (m == sym || m == new(sym)) ? :($m[CBMMetrics.cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium[1])]) : x ,code)
-            code = postwalk(x->@capture(x,m_[g_,g2_]) && (m == sym || m == new(sym)) ? :($m[CBMMetrics.cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium[1]),CBMMetrics.cellInMesh(dy,y[i1_],simBox[2,1],simBox[2,2],NMedium[2])]) : x ,code)
-            code = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && (m == sym || m == new(sym)) ? :($m[CBMMetrics.cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium[1]),CBMMetrics.cellInMesh(dy,y[i1_],simBox[2,1],simBox[2,2],NMedium[2]),CBMMetrics.cellInMesh(dz,z[i1_],simBox[3,1],simBox[3,2],NMedium[3])]) : x ,code)
+            code = postwalk(x->@capture(x,m_[g_]) && (m == sym || m == new(sym)) ? :($m[CBMMetrics.cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium_[1])]) : x ,code)
+            code = postwalk(x->@capture(x,m_[g_,g2_]) && (m == sym || m == new(sym)) ? :($m[CBMMetrics.cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium_[1]),CBMMetrics.cellInMesh(dy,y[i1_],simBox[2,1],simBox[2,2],NMedium_[2])]) : x ,code)
+            code = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && (m == sym || m == new(sym)) ? :($m[CBMMetrics.cellInMesh(dx,x[i1_],simBox[1,1],simBox[1,2],NMedium_[1]),CBMMetrics.cellInMesh(dy,y[i1_],simBox[2,1],simBox[2,2],NMedium_[2]),CBMMetrics.cellInMesh(dz,z[i1_],simBox[3,1],simBox[3,2],NMedium_[3])]) : x ,code)
         end
     end
 
@@ -454,6 +454,22 @@ function old(sym)
     else
         return sym
     end
+end
+
+function sym_derivative(s)
+
+    return Meta.parse(string("dt__",s,"_"))
+
+end
+
+function sym_update(s)
+
+    return Meta.parse(string(s,"_"))
+
+end
+
+function sym_base(s)
+    return Meta.parse(string(s,"Base"))
 end
 
 """

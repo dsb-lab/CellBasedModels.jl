@@ -22,7 +22,7 @@ function saveRAM!(community::Community)
     end
     #id
     setfield!(com,:id,copy(Array{Int64}(getfield(community,:id))[1:community.N]))
-    setfield!(com,:NMedium,copy(Array{Int64}(getfield(community,:NMedium))))
+    setfield!(com,:NMedium_,copy(Array{Int64}(getfield(community,:NMedium_))))
     setfield!(com,:simBox,copy(Array{Float64}(getfield(community,:simBox))))
     setfield!(com,:abm,community.abm)
 
@@ -111,7 +111,7 @@ function saveJLD2(file::String, community::Community; overwrite=false)
     for sym in [:N,:t,:dt]
         f["times/$t/$sym"] = copy(getfield(community,sym))
     end
-    for sym in [:NMedium,:simBox]
+    for sym in [:NMedium_,:simBox]
         f["times/$t/$sym"] = copy(Array(getfield(community,sym)))
     end
     f["times/$t/id"] = copy(Array{Int64}(getfield(community,:id))[1:community.N])

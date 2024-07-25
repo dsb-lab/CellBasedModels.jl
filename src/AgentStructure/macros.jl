@@ -265,12 +265,12 @@ macro mediumInside()
 
     abm = AGENT
 
-    code = :(i1_ > 1 && i1_ < NMedium[1])
+    code = :(i1_ > 1 && i1_ < NMedium_[1])
     if abm.dims > 1
-        code = :($code && i2_ > 1 && i2_ < NMedium[2])
+        code = :($code && i2_ > 1 && i2_ < NMedium_[2])
     end
     if abm.dims > 2
-        code = :($code && i3_ > 1 && i3_ < NMedium[3])
+        code = :($code && i3_ > 1 && i3_ < NMedium_[3])
     end
 
     return esc(code)
@@ -297,15 +297,15 @@ macro mediumBorder(coord, border)
     if coord == 1 && border == -1
         return esc(:(i1_ == 1))
     elseif coord == 1 && border == 1
-        return esc(:(i1_ == NMedium[1]))
+        return esc(:(i1_ == NMedium_[1]))
     elseif coord == 2 && border == -1
         return esc(:(i2_ == 1))
     elseif coord == 2 && border == 1
-        return esc(:(i2_ == NMedium[2]))
+        return esc(:(i2_ == NMedium_[2]))
     elseif coord == 3 && border == -1
         return esc(:(i3_ == 1))
     elseif coord == 3 && border == 1
-        return esc(:(i3_ == NMedium[3]))
+        return esc(:(i3_ == NMedium_[3]))
     end
 
 end

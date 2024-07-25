@@ -36,7 +36,7 @@ macro kernelListSurvived!(platform)
     #For global parameters
     code = cudaAdapt(code, eval(platform))
 
-    code = :(  function $name(N,NAdd_,NRemove_,flagSurvive_,repositionAgentInPos_)
+    code = :(function $name(N,NAdd_,NRemove_,flagSurvive_,repositionAgentInPos_)
 
             $code
 
@@ -180,7 +180,6 @@ macro update!(platform)
         kernel1 = :($(Meta.parse("kernelListSurvived$(platform)!"))(community.N,community.NAdd_,community.NRemove_,community.flagSurvive_,community.repositionAgentInPos_))
         kernel2 = :($(Meta.parse("kernelFillHolesParameters$(platform)!"))(p,community.NRemove_,community.holeFromRemoveAt_,community.repositionAgentInPos_))
         kernel4 = :($(Meta.parse("kernelUpdateParameters$(platform)!"))(community.N,community.parameters[sym],community.parameters[new(sym)]))
-
     else
         #List and fill holes left from agent removal
         kernel1 = quote

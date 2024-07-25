@@ -491,8 +491,7 @@ Euler integrator for ODE problems.
         obj.f(obj.du,obj.u,obj.p,obj.t)
 
         if typeof(obj.du) <: Array
-            r = 1:obj.p[3][1]
-            obj.u[:,r] .+= obj.du[:,r].*dt
+            obj.u .+= obj.du.*dt
         else
             obj.u .+= obj.du.*dt
         end
@@ -843,9 +842,9 @@ Douglas-Gunn integrator for PDE difussion problems.
         function DGADI(problem,kwargs; difussionCoefs::NamedTuple=nothing)
 
             # Coefficients for the tridiagonal matrix
-            nDims = length(problem.p.NMedium)
+            nDims = length(problem.p.NMedium_)
             nVars = length(problem.p.difussionVariables_)
-            r = problem.p.dt ./ (nDims .*((problem.p.simBox[:,2].-problem.p.simBox[:,1])./problem.p.NMedium).^2)
+            r = problem.p.dt ./ (nDims .*((problem.p.simBox[:,2].-problem.p.simBox[:,1])./problem.p.NMedium_).^2)
             sub_diag = zeros(nVars,nDims)
             main_diag = zeros(nVars,nDims)
             super_diag = zeros(nVars,nDims)

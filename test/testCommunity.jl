@@ -128,7 +128,7 @@
             push!(aa,com.t == 1.)
             push!(aa,com.N == 10)
             push!(aa,all(com.id .== 1:10))
-            push!(aa,com.NMedium == [5,5,5])
+            push!(aa,com.NMedium_ == [5,5,5])
             push!(aa,com.simBox == [0 1;0 50;0 1])
 
             loadToPlatform!(com)
@@ -197,7 +197,7 @@
             push!(aa,com[end].t == 1.1)
             push!(aa,com[end].N == 10)
             push!(aa,all(com[end].id .== 1:10))
-            push!(aa,com[end].NMedium == [5,5,5])
+            push!(aa,com[end].NMedium_ == [5,5,5])
             push!(aa,com[end].simBox == [0 1;0 50;0 1])
 
             bringFromPlatform!(com)

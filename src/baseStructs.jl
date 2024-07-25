@@ -48,12 +48,14 @@ mutable struct UserParameter
     update::Bool
     variable::Bool
     pos::Int
+    primitive::Union{Nothing,Symbol}
+    isId::Bool
 
-    function UserParameter(name, dataType, scope, subscope=:Main; update=false, variable=false, pos=0)
+    function UserParameter(name, dataType, scope, subscope=:Main; update=false, variable=false, pos=0, primitive=nothing, isId=false)
         if scope in [:medium] && !(dataType <: Number)
             error("Parameters of medium must be of type Number. $name is defined with type $dataType.")
         else
-            return new(dataType,scope,subscope,update,variable,pos)
+            return new(dataType,scope,subscope,update,variable,pos,primitive,isId)
         end
     end
 end
