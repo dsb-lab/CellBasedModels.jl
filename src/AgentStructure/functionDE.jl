@@ -16,48 +16,48 @@ function functionDE(abm,scope,type)
 
     if !isemptyupdaterule(abm,ref)
 
-        unwrap = quote end
-        for (sym,prop) in pairs(abm.parameters)
-            if prop.variable
-                pos = prop.pos
-                dsym = addSymbol("dt__",sym)
-                if prop.scope == :agent && scope == :agent
-                    push!(unwrap.args, :(@views $dsym = dVar_[$pos,:]))
-                    push!(unwrap.args, :(@views $sym = var_[$pos,:]))
-                    push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:]))
-                elseif prop.scope == :model && scope == :model
-                    push!(unwrap.args, :(@views $dsym = dVar_[$pos:$pos]))
-                    push!(unwrap.args, :(@views $sym = var_[$pos:$pos]))
-                    push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:]))
-                elseif prop.scope == :medium && scope == :medium
-                    if abm.dims == 1
-                        push!(unwrap.args, :(@views $dsym = dVar_[$pos,:]))
-                        push!(unwrap.args, :(@views $sym = var_[$pos,:]))
-                        push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:]))
-                    elseif abm.dims == 2
-                        push!(unwrap.args, :(@views $dsym = dVar_[$pos,:,:]))
-                        push!(unwrap.args, :(@views $sym = var_[$pos,:,:]))
-                        push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:,:]))
-                    elseif abm.dims == 3
-                        push!(unwrap.args, :(@views $dsym = dVar_[$pos,:,:,:]))
-                        push!(unwrap.args, :(@views $sym = var_[$pos,:,:,:]))
-                        push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:,:,:]))
-                    end
-                end
-            end
-        end
-        params = agentArgs(abm)
-        paramsRemove = [sym for (sym,prop) in pairs(abm.parameters) if prop.variable && prop.scope == scope] #remove updates
-        paramsRemove2 = [new(sym) for sym in paramsRemove if abm.parameters[sym].update] #remove news
-        params = Tuple([i for i in params if !(i in [paramsRemove;paramsRemove2])])
+        # unwrap = quote end
+        # for (sym,prop) in pairs(abm.parameters)
+        #     if prop.variable
+        #         pos = prop.pos
+        #         dsym = addSymbol("dt__",sym)
+        #         if prop.scope == :agent && scope == :agent
+        #             push!(unwrap.args, :(@views $dsym = dVar_[$pos,:]))
+        #             push!(unwrap.args, :(@views $sym = var_[$pos,:]))
+        #             push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:]))
+        #         elseif prop.scope == :model && scope == :model
+        #             push!(unwrap.args, :(@views $dsym = dVar_[$pos:$pos]))
+        #             push!(unwrap.args, :(@views $sym = var_[$pos:$pos]))
+        #             push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:]))
+        #         elseif prop.scope == :medium && scope == :medium
+        #             if abm.dims == 1
+        #                 push!(unwrap.args, :(@views $dsym = dVar_[$pos,:]))
+        #                 push!(unwrap.args, :(@views $sym = var_[$pos,:]))
+        #                 push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:]))
+        #             elseif abm.dims == 2
+        #                 push!(unwrap.args, :(@views $dsym = dVar_[$pos,:,:]))
+        #                 push!(unwrap.args, :(@views $sym = var_[$pos,:,:]))
+        #                 push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:,:]))
+        #             elseif abm.dims == 3
+        #                 push!(unwrap.args, :(@views $dsym = dVar_[$pos,:,:,:]))
+        #                 push!(unwrap.args, :(@views $sym = var_[$pos,:,:,:]))
+        #                 push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:,:,:]))
+        #             end
+        #         end
+        #     end
+        # end
+        params = Tuple(agentArgs(abm))
+        # paramsRemove = [sym for (sym,prop) in pairs(abm.parameters) if prop.variable && prop.scope == scope] #remove updates
+        # paramsRemove2 = [new(sym) for sym in paramsRemove if abm.parameters[sym].update] #remove news
+        #params = Tuple([i for i in params if !(i in [paramsRemove;paramsRemove2])])
 
         #Get deterministic function
         code = abm.declaredUpdates[ref]
         code = substitute_macros(code, abm)
-        for sym in keys(abm.parameters)
-            dsym = addSymbol("dt__",sym)
-            code = postwalk(x->@capture(x,dt(s_)) && s == sym ? :($dsym[i1_]) : x, code)
-        end
+        # for sym in keys(abm.parameters)
+        #     dsym = addSymbol("dt__",sym)
+        #     code = postwalk(x->@capture(x,dt(s_)) && s == sym ? :($dsym[i1_]) : x, code)
+        # end
         code = vectorize(code,abm)
         if scope == :agent
             code = vectorizeMediumInAgents(code,abm)
@@ -75,7 +75,7 @@ function functionDE(abm,scope,type)
                     function (dVar_,var_,p_,t_)
 
                         ($(params...),) = p_
-                        $unwrap
+                        # $unwrap
                         $code
 
                         return
@@ -94,7 +94,7 @@ function functionDE(abm,scope,type)
                 quote
                     function (dVar_,var_,p_,t_)
                         function kernel(dVar_,var_,$(params[1:end-1]...))
-                            $unwrap
+                            # $unwrap
                             $code
 
                             return

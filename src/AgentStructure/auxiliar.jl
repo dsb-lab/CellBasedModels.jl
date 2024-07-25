@@ -172,7 +172,7 @@ function makeSimpleLoop(code,abm;nloops=nothing)
     if typeof(abm.platform) <: CPU
         
         if nloops === nothing
-            return postwalk(x->@capture(x, @inagent a_ b_) ? quote @inbounds Threads.@threads for i1_ in 1:1:$(make_symbol_unique(a,:N))[1]; $b; end end : x, code)
+            return postwalk(x->@capture(x, @inagent a_ b_) ? quote @inbounds Threads.@threads for i1_ in 1:1:$(make_symbol_unique(a,:N)); $b; end end : x, code)
         elseif nloops == 1
             return :(@inbounds Threads.@threads for i1_ in 1:1:NMedium[1]; $code; end)
         elseif nloops == 2
@@ -413,10 +413,10 @@ function captureVariables(code)
     function add(a,s)
         push!(a,s)
         unique!(a)
-        return addSymbol("dt__",s)
+        return s
     end
     a = []
-    code = postwalk(x->@capture(x,dt(m_)) ? add(a,m) : x, code)
+    code = postwalk(x->@capture(x,dt(m_)) ? :(dt($(add(a,m)))) : x, code)
     return a, code
 end
 
@@ -476,130 +476,18 @@ function addSymbol(args...)
     return Meta.parse(string(args...))
 end
 
-function removeAgent(code, agent, abm)
-
-    function addParameters(abm, agent)
-
-        abm.removalOfAgents_ = true
-        abm.parameters[make_symbol_unique(agent,:NAdd)] = UserParameter(make_symbol_unique(agent,:NAdd), Threads.Atomic{Int}, :modelBase, agent)
-        abm.parameters[make_symbol_unique(agent,:NRemove)] = UserParameter(make_symbol_unique(agent,:NRemove), Threads.Atomic{Int}, :modelBase, agent)
-        abm.parameters[make_symbol_unique(agent,:NSurvive)] = UserParameter(make_symbol_unique(agent,:NSurvive), Threads.Atomic{Int}, :modelBase, agent)
-        abm.parameters[make_symbol_unique(agent,:flagSurvive)] = UserParameter(make_symbol_unique(agent,:flagSurvive), Int, :agentBase, agent)
-        abm.parameters[make_symbol_unique(agent,:holeFromRemoveAt)] = UserParameter(make_symbol_unique(agent,:holeFromRemoveAt), Int, :agentBase, agent)
-        abm.parameters[make_symbol_unique(agent,:repositionAgentInPos)] = UserParameter(make_symbol_unique(agent,:repositionAgentInPos), Int, :agentBase, agent)
-    
-    end
-
-    code = postwalk(x->@capture(x,@removeAgent()) ? 
-            begin addParameters(abm, agent); quote 
-            idNew_ = Threads.atomic_add!($(make_symbol_unique(agent,:NRemove)),1) + 1
-            $(make_symbol_unique(agent,:holeFromRemoveAt))[idNew_] = i1_ 
-            $(make_symbol_unique(agent,:flagSurvive))[i1_] = 0
-            flagRecomputeNeighbors_ = 1
-        end end : x, code
-    )
-
-    return code
-
-end
-
-function addAgent(code, agent, abm)
-
-    function addParameters(abm, agent)
-
-        abm.parameters[make_symbol_unique(agent,:NAdd)] = UserParameter(make_symbol_unique(agent,:NAdd), Threads.Atomic{Int}, :model, agent)
-    
-    end
-
-    function addAgentCode(abm, agent, arguments)
-
-        #List parameters that can be updated by the user
-        updateargs = [sym for (sym,prop) in pairs(abm.parameters) if prop.scope == :agent && prop.subscope == agent]
-        updateargs2 = [new(sym) for (sym,prop) in pairs(abm.parameters) if prop.scope == :agent && prop.subscope == agent]
-        append!(updateargs2,updateargs)
-        #Checks that the correct parameters have been declared and not others
-        args = []
-        code = quote end
-        for i in arguments
-            found = @capture(i,g_ = f_)
-            if found
-                if !(g in updateargs2)
-                    error("Error in @addAgent. `", old(g), "`` is not a parameter of agent type ", agent, " or it is protected from direct update.")
-                end
-            else
-                error(i, " is not a valid assignation of code when declaring addAgent. A Valid one should be of the form parameterOfAgent = value")
-            end
-
-            if g in args
-            error(g," has been declared more than once in addAgent.") 
-            end
-
-            if i.args[1] == :id
-                error("id must not be declared when calling addAgent. It is assigned automatically.")
-            end
-
-            if abm.parameters[old(g)].update
-                push!(code.args,:($(new(old(g)))[i1New_]=$f))
-            else
-                push!(code.args,:($(old(g))[i1New_]=$f))
-            end
-            push!(args,g)
-
-        end
-
-        #Add parameters to agent that have not been user defined
-        for i in updateargs
-            if !(i in args) && !(new(i) in args)
-                if abm.parameters[i].update
-                    push!(code.args,:($(new(i))[i1New_]=$i[i1_]))
-                else
-                    push!(code.args,:($i[i1New_]=$i[i1_]))
-                end
-            end
-        end
-
-        #Make code
-        code = quote
-                i1New_ = $(make_symbol_unique(agent,:N))+Threads.atomic_add!($(make_symbol_unique(agent,:NAdd)),1) + 1
-                idNew_ = Threads.atomic_add!($(make_symbol_unique(agent,:idMax)),1) + 1
-                if $(make_symbol_unique(agent,:NMax)) >= i1New_
-                    # flagNeighbors_[i1New_] = 1
-                    id[i1New_] = idNew_
-                    flagRecomputeNeighbors_ = 1
-                    $(make_symbol_unique(agent,:flagSurvive))[i1New_] = 1
-                    $code
-                else
-                    Threads.atomic_add!($(make_symbol_unique(agent,:NAdd)),-1)
-                end
-            end
-
-        return code
-    end
-
-    code = postwalk(x->@capture(x,@addAgent(b__)) ? 
-            begin addParameters(abm, agent); addAgentCode(abm, agent, b) end : x, code
-    )
-
-    return code
-
-end
-
-function substitute_macros(code, abm)
-
-    #@removeAgent 
-    code = postwalk(x->@capture(x, @inagent a_ b_) ? quote @inagent $a $(removeAgent(b,a,abm)) end : x, code)      
-
-    #@addAgent 
-    code = postwalk(x->@capture(x, @inagent a_ b_) ? quote @inagent $a $(addAgent(b,a,abm)) end : x, code)
-
-    return code
-    
-end
-
-function setparameter!(com::Community, sym::Symbol, X)
+function setparameter!(com, sym::Symbol, X)
 
     params = com.parameters
     @reset params[sym] = X
+    setfield!(com,:parameters,params)
+
+end
+
+function deleteparameter!(com, sym::Symbol)
+
+    params = com.parameters
+    params = @delete params[sym]
     setfield!(com,:parameters,params)
 
 end

@@ -1,7 +1,6 @@
 module CBMMetrics
 
     using CUDA
-    import CellBasedModels: AGENT
 
     """
         function cellInMesh(edge,x,xMin,xMax,nX) 
@@ -43,8 +42,6 @@ module CBMMetrics
     If it1 is not provided it asumes the default iteration index of agents (i1_).
     """
     macro euclidean(it2)
-
-        abm = AGENT
     
         args = [:(x[i1_]), :(x[$it2])]
         if abm.dims > 1
@@ -59,9 +56,7 @@ module CBMMetrics
     end
     
     macro euclidean(it1,it2)
-    
-        abm = AGENT
-    
+        
         args = [:(x[$it1]), :(x[$it2])]
         if abm.dims > 1
             args = [args;[:(y[$it1]), :(y[$it2])]]
@@ -95,9 +90,7 @@ module CBMMetrics
     If it1 is not provided it asumes the default iteration index of agents (i1_).
     """
     macro manhattan(it2)
-    
-        abm = AGENT
-    
+        
         args = [:(x[i1_]), :(x[$it2])]
         if abm.dims > 1
             args = [args;[:(y[i1_]), :(y[$it2])]]
@@ -111,9 +104,7 @@ module CBMMetrics
     end
 
     macro manhattan(it1,it2)
-    
-        abm = AGENT
-    
+        
         args = [:(x[$it1]), :(x[$it2])]
         if abm.dims > 1
             args = [args;[:(y[$it1]), :(y[$it2])]]

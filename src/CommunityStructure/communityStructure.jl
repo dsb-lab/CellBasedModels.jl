@@ -632,16 +632,15 @@ It locks the possibility of accessing and manipulating the data by indexing and 
 """
 function bringFromPlatform!(com::Community)
 
-    N = com.N
     # Transform to the correct platform the parameters
     for (sym,prop) in pairs(com.abm.parameters)
         p = com.parameters[sym]
         #Remove auxiliar
         if prop.update
-            delete!(com.parameters,new(sym))
+            deleteparameter!(com,new(sym))
         end
         if prop.scope == :agent
-            com.parameters[sym] = Array{prop.dtype}(p)[1:N]
+            setparameter!(com, sym, Array{prop.dtype}(p)[1:com[make_symbol_unique(prop.subscope,:N)]])
         elseif prop.scope in [:model,:medium]
             if prop.dtype <: Number
                 com.parameters[sym] = Array{prop.dtype}(p)
@@ -651,12 +650,11 @@ function bringFromPlatform!(com::Community)
         end
     end
 
-    for i in fieldnames(Community)
-        if string(i)[end:end] == "_"
-            setfield!(com,i,nothing)
-        end
-    end
-    setfield!(com,:id, Array{Int64}(com.id)[1:N])
+    # for i in fieldnames(Community)
+    #     if string(i)[end:end] == "_"
+    #         setfield!(com,i,nothing)
+    #     end
+    # end
     neig = com.abm.neighbors
     for i in fieldnames(typeof(neig))
         if string(i)[end:end] == "_"
