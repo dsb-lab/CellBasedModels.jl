@@ -91,6 +91,8 @@ mutable struct ABM
 
     dims::Int    
 
+    agents::Vector{Agent}
+
     parameters::OrderedDict{Symbol,UserParameter}
     
     declaredUpdates::Dict{Symbol,Expr}
@@ -113,6 +115,7 @@ mutable struct ABM
     function ABM()
         new(0,
             OrderedDict{Symbol,DataType}(),
+            Dict{Symbol,Agent}(),
             Dict{Symbol,Expr}(),
             Dict{Symbol,Expr}(),
             Dict{Symbol,Function}(),

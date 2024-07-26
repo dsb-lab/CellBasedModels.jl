@@ -223,72 +223,86 @@ macro update!(platform)
     return :(function $(Meta.parse("update$(platform)!"))(community)
 
             #List and fill holes left from agent removal
-            if community.abm.removalOfAgents_
-                $kernel1
-                #id
-                p = getfield(community,:id)
-                if size(p)[1] == community.nMax_
-                    $kernel2
-                end
-                #agentDE
-                if community.agentDEProblem !== nothing
-                    p = getfield(community.agentDEProblem,:u)
+
+            agents = unique([j.subscope for (i,j) in pairs(community.abm.parameters)])
+            for agent in agents
+                if make_symbol_unique(agent,:flagSurvive_) in keys(community.parameters)
+
+                    id = community[make_symbol_unique()]
+                    nMax_ =
+                    N =
+                    NAdd_ =
+                    NRemove_ =
+                    flagSurvive_ =
+                    holeFromRemoveAt_ =
+                    repositionAgentInPos_ =
+
+                    $kernel1
+                    #id
+                    p = getfield(community,:id)
                     if size(p)[1] == community.nMax_
                         $kernel2
                     end
-                end
-                #neighbors
-                for sym in fieldnames(typeof(community.abm.neighbors))
-                    p = getfield(community.abm.neighbors,sym)
-                    if !(typeof(p) <: Function)
-                        if length(size(p)) > 0
-                            if size(p)[1] == community.nMax_
-                                $kernel2
+                    #agentDE
+                    if community.agentDEProblem !== nothing
+                        p = getfield(community.agentDEProblem,:u)
+                        if size(p)[1] == community.nMax_
+                            $kernel2
+                        end
+                    end
+                    #neighbors
+                    for sym in fieldnames(typeof(community.abm.neighbors))
+                        p = getfield(community.abm.neighbors,sym)
+                        if !(typeof(p) <: Function)
+                            if length(size(p)) > 0
+                                if size(p)[1] == community.nMax_
+                                    $kernel2
+                                end
                             end
                         end
                     end
+                    #Allocate parameters
+                    for (sym,prop) in pairs(community.abm.parameters)
+                        if prop.scope == :agent && prop.update
+                            p = community.parameters[new(sym)]
+                            $kernel2
+                        elseif prop.scope == :agent
+                            p = community.parameters[sym]
+                            $kernel2
+                        end
+                    end
                 end
+                $code
                 #Allocate parameters
                 for (sym,prop) in pairs(community.abm.parameters)
-                    if prop.scope == :agent && prop.update
-                        p = community.parameters[new(sym)]
-                        $kernel2
-                    elseif prop.scope == :agent
-                        p = community.parameters[sym]
-                        $kernel2
+                    if prop.update
+                        if prop.scope == :agent
+                            p = community[sym]
+                            p__ = community[new(sym)]
+                            $kernel4
+                        elseif prop.scope == :model
+                            community[sym] .= community[new(sym)]
+                        elseif prop.scope == :medium
+                            community[sym] .= community[new(sym)]
+                        end
                     end
                 end
-            end
-            $code
-            #Allocate parameters
-            for (sym,prop) in pairs(community.abm.parameters)
-                if prop.update
-                    if prop.scope == :agent
-                        p = community[sym]
-                        p__ = community[new(sym)]
-                        $kernel4
-                    elseif prop.scope == :model
-                        community[sym] .= community[new(sym)]
-                    elseif prop.scope == :medium
-                        community[sym] .= community[new(sym)]
-                    end
-                end
-            end
-            #Update time
-            setfield!(community,:t, community.t + community.dt)
-            #Update GPU execution
-            platformUpdate!(community.abm.platform,community)
+                #Update time
+                setparameter!(community,:t, community.t + community.dt)
+                #Update GPU execution
+                platformUpdate!(community.abm.platform,community)
 
-            #DE problems update scalar parameters
-            for i in [:agentDEProblem,:modelDEProblem,:mediumDEProblem]
-                if getfield(community,i) !== nothing
-                    params = getfield(community,i).p
-                    t = community.t
-                    #t
-                    @reset params.t = t
-                    #N
-                    @reset params.N = community.N
-                    getfield(community,i).p = params
+                #DE problems update scalar parameters
+                for i in [:agentDEProblem,:modelDEProblem,:mediumDEProblem]
+                    if getfield(community,i) !== nothing
+                        params = getfield(community,i).p
+                        t = community.t
+                        #t
+                        @reset params.t = t
+                        #N
+                        @reset params.N = community.N
+                        getfield(community,i).p = params
+                    end
                 end
             end
             

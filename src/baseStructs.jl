@@ -85,12 +85,10 @@ Object containing the parameters of an agent.
 struct Agent
 
     name::Symbol
-    pos::Union{Nothing,Symbol,NamedTuple, OrderedDict{Symbol,DataType}, Dict{Symbol,DataType}}
-    id::Symbol
     parameters::Union{OrderedDict{Symbol,DataType}, Dict{Symbol,DataType}, NamedTuple}
 
-    function Agent(name::Symbol; pos, id, parameters::Union{NamedTuple, OrderedDict{Symbol,DataType}, Dict{Symbol,DataType}}=Dict())
-        new(name, pos, id, parameters)
+    function Agent(name::Symbol; parameters::Union{NamedTuple, OrderedDict{Symbol,DataType}, Dict{Symbol,DataType}}=Dict())
+        new(name, parameters)
     end
 
 end
