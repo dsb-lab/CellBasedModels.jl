@@ -55,7 +55,7 @@ module CellBasedModels
     using .CBMNeighbors
 
     #Agent
-    export ABM, Agent
+    export ABM, compileABM!, Agent
         #Macros and custom code
     export @addAgent, @removeAgent, @loopOverNeighbors, @mediumInside, @mediumBorder, @∂, @∂2, @distanceEuclidean, @distanceManhattan
     include("./AgentStructure/macros.jl")   

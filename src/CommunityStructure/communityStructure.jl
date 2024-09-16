@@ -117,6 +117,11 @@ mutable struct Community
             args...
         )
 
+        #Check compiled
+        if length(keys(abm.declaredUpdates)) != length(keys(abm.declaredUpdatesFunction))
+            error("Model seems to not be compiled. Call `compileABM!(model)` before constructing a `Community` object.")
+        end
+
         com = Community()
         setfield!(com,:abm,deepcopy(abm))
 

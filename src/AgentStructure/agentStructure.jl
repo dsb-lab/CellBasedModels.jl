@@ -372,15 +372,7 @@ mutable struct ABM
 
         #Make compiled functions
         if compile
-            for (scope,type) in zip(
-                [:agent,:agent,:model,:model,:medium,:medium],
-                [:ODE,:SDE,:ODE,:SDE,:ODE,:SDE]
-            )
-                functionDE(abm,scope,type)
-            end
-            for scope in [:agent,:model,:medium]
-                functionRule(abm,scope)
-            end
+            compileABM!(abm)
         end
 
         return abm
@@ -539,6 +531,22 @@ function addUpdates!(abm::ABM)
     # end
     
     return
+end
+
+function compileABM!(abm)
+
+    for (scope,type) in zip(
+        [:agent,:agent,:model,:model,:medium,:medium],
+        [:ODE,:SDE,:ODE,:SDE,:ODE,:SDE]
+    )
+        functionDE(abm,scope,type)
+    end
+    for scope in [:agent,:model,:medium]
+        functionRule(abm,scope)
+    end
+
+    return
+
 end
 
 function checkInAgent(abm)
