@@ -18,7 +18,7 @@ Hopefully, soon we will make an official release in the Julia repository. For no
 
 ```julia
 julia> using Pkg
-julia> Pkg.add(https://github.com/dsb-lab/CellBasedModels.jl)
+julia> Pkg.add(url="https://github.com/dsb-lab/CellBasedModels.jl")
 ```
 
 or from the Pkg REPL
