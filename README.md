@@ -32,7 +32,7 @@ or you can install the developer version from Github as:
 
 ```julia
 julia> using Pkg
-julia> Pkg.add("https://github.com/dsb-lab/CellBasedModels.jl")
+julia> Pkg.add(url="https://github.com/dsb-lab/CellBasedModels.jl")
 ```
 
 Alternatively, you can install it from the Pkg REPL:
