@@ -35,7 +35,7 @@ function rodForces(
     rij = sqrt((xiAux-xjAux)^2 +(yiAux-yjAux)^2)
     if rij > 0. && rij < (d+d2)/2 #If it is smaller than a diameter compute forces
         #Compute auxiliar
-        δAux = d - rij
+        δAux = (d+d2)/2 - rij
         MeAux = m/2
         #Compute interaction
         nijx = (xiAux-xjAux)/rij
