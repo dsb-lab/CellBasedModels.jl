@@ -21,4 +21,13 @@ module CBMDistributions
     """
     exponential(θ) = -log(1-rand())*θ
 
+    """
+        rand_pm()
+
+    Randomly returns `1` or `-1` with equal probability (50%).  
+    Useful for symmetric binary decision
+    """
+    rand_pm() = ifelse(rand() < 0.5, -1, 1)
+
+
 end
