@@ -1,6 +1,6 @@
 docs/build
 build
-*.ipynb
+# *.ipynb
 !examples/*.ipynb
 .*
 examples/.*
@@ -9,3 +9,6 @@ examples/*/*
 *.jld2
 
 test/testfiles/*
+*.gif
+*.pdf
+*.png
