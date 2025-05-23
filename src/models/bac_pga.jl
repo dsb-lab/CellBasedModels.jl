@@ -22,9 +22,7 @@ Computes the repulsive interaction forces between two agents (either rods or gel
 """
 function repulsiveForces(
     x,y,d,l,theta,etab,type,
-    x2,y2,d2,l2,theta2,etag,type2, Ebb, Ebg, Egg
-    
-)
+    x2,y2,d2,l2,theta2,etag,type2, Ebb, Ebg, Egg )
 
     Fijx = 0.
     Fijy = 0.
@@ -77,6 +75,57 @@ function repulsiveForces(
 
 end
 
+@inline function repulsiveForces_gpu(
+    x::Float32, y::Float32, d::Float32, l::Float32, theta::Float32, etab::Float32, type::Int32,
+    x2::Float32, y2::Float32, d2::Float32, l2::Float32, theta2::Float32, etag::Float32, type2::Int32,
+    Ebb::Float32, Ebg::Float32, Egg::Float32
+)::NTuple{3, Float32}
+
+    Fijx = 0.
+    Fijy = 0.
+    Wij = 0.
+
+    xiAux = x
+    yiAux = y
+    xjAux = x2
+    yjAux = y2
+
+    # Aquí deberías implementar una versión GPU-compatible de rodIntersection
+    # o sustituirlo por un comportamiento simplificado como el de arriba.
+
+    dx = xiAux - xjAux
+    dy = yiAux - yjAux
+    rij = sqrt(dx^2 + dy^2)
+
+    M = (d + d2) * 0.5
+
+    if rij > 0. && rij < M
+        hAux = M - rij
+        nijx = dx / rij
+        nijy = dy / rij
+
+        if type == 0
+            if type2 == 0
+                FnAux = Ebb * sqrt(d2* hAux^3)  / (etab * (l + d))
+            else
+                FnAux = Ebg * sqrt(d2* hAux^3) / (etab * (l + d))
+            end
+            Fijx = FnAux * nijx
+            Fijy = FnAux * nijy
+            Wij = (dx * Fijy - dy * Fijx) * 12. / (etab * (l + d)^3)
+        else
+            if type2 == 0
+                FnAux = Ebg * sqrt(d2* hAux^3) / (etag * d)
+            else
+                FnAux = Egg * ssqrt(d2* hAux^3) / (etag * d)
+            end
+            Fijx = FnAux * nijx
+            Fijy = FnAux * nijy
+        end
+    end
+
+    return (Fijx, Fijy, Wij)
+end
 
 """
     attractiveForces(

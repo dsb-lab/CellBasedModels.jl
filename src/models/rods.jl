@@ -58,6 +58,8 @@ function rodForces(
 
 end
 
+
+
 rods2D = ABM(2,
     agent = Dict(
             :vx=>Float64,

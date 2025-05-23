@@ -5,4 +5,5 @@ module CBMModels
     
     include("./softSpheres.jl")
     include("./rods.jl")
+    include("./bac_pga.jl")
 end
