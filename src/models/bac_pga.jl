@@ -75,11 +75,11 @@ function repulsiveForces(
 
 end
 
-@inline function repulsiveForces_gpu(
-    x::Float32, y::Float32, d::Float32, l::Float32, theta::Float32, etab::Float32, type::Int32,
-    x2::Float32, y2::Float32, d2::Float32, l2::Float32, theta2::Float32, etag::Float32, type2::Int32,
-    Ebb::Float32, Ebg::Float32, Egg::Float32
-)::NTuple{3, Float32}
+function repulsiveForces_gpu(
+    x, y, d, l, theta, etab, type,
+    x2, y2, d2, l2, theta2, etag, type2,
+    Ebb, Ebg, Egg
+)
 
     Fijx = 0.
     Fijy = 0.
@@ -124,7 +124,7 @@ end
         end
     end
 
-    return (Fijx, Fijy, Wij)
+    return Fijx, Fijy, Wij
 end
 
 """
@@ -163,7 +163,7 @@ function attractiveForces(
     xiAux,yiAux,xjAux,yjAux=x,y,x2,y2
     #Compute distance between central masses
     rij = sqrt((xiAux-xjAux)^2 +(yiAux-yjAux)^2)
-    if rij > (d+d2)/2 && rij < (2*d+l) #If it is smaller than a diameter compute forces
+    if rij > (d+d2)/2 && rij < (2*d+l/2) #If it is smaller than a diameter compute forces
         #Compute direction
         nijx = (xiAux-xjAux)/rij
         nijy = (yiAux-yjAux)/rij
