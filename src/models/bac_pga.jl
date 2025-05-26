@@ -37,73 +37,12 @@ function repulsiveForces(
 
     #Compute distance between virtual spheres
     rij = sqrt((xiAux-xjAux)^2 +(yiAux-yjAux)^2)
-    if rij > 0. && rij < (d+d2)/2 #If it is smaller than a diameter compute forces
+    if rij > 0. && rij < (d+d2)/2. #If it is smaller than a diameter compute forces
         #Compute auxiliar
-        hAux = (d+d2)/2 - rij
+        hAux = (d+d2)/2. - rij
         #Compute direction
         nijx = (xiAux-xjAux)/rij
         nijy = (yiAux-yjAux)/rij
-        if type==0 #rod
-
-            #Compute the forces
-            if type2==0 #rod-rod
-                FnAux = Ebb*d2^(1/2)*hAux^(3/2)/(etab*(l+d))
-            else #rod-gel
-                FnAux = Ebg*d2^(1/2)*hAux^(3/2)/(etab*(l+d)) 
-            end
-            #Compute the interaction forces
-            Fijx = FnAux*nijx
-            Fijy = FnAux*nijy
-            #Append radial forces
-            Wij = ((xiAux-x)*Fijy - (yiAux-y)*Fijx)*12/(etab*(l+d)^3)
-        else # gel
-             #Compute the forces
-            if type2==0 #gel-rod
-                FnAux = Ebg*d2^(1/2)*hAux^(3/2)/(etag*d)  #d2??
-
-            else #gel-gel
-                FnAux = Egg*d2^(1/2)*hAux^(3/2)/(etag*d)
-            end
-            #Compute the interaction forces
-            Fijx = FnAux*nijx
-            Fijy = FnAux*nijy
-            #No radial forces
-        end
-    end
-
-    return Fijx, Fijy, Wij
-
-end
-
-function repulsiveForces_gpu(
-    x, y, d, l, theta, etab, type,
-    x2, y2, d2, l2, theta2, etag, type2,
-    Ebb, Ebg, Egg
-)
-
-    Fijx = 0.
-    Fijy = 0.
-    Wij = 0.
-
-    xiAux = x
-    yiAux = y
-    xjAux = x2
-    yjAux = y2
-
-    # Aquí deberías implementar una versión GPU-compatible de rodIntersection
-    # o sustituirlo por un comportamiento simplificado como el de arriba.
-
-    dx = xiAux - xjAux
-    dy = yiAux - yjAux
-    rij = sqrt(dx^2 + dy^2)
-
-    M = (d + d2) * 0.5
-
-    if rij > 0. && rij < M
-        hAux = M - rij
-        nijx = dx / rij
-        nijy = dy / rij
-
         if type == 0
             if type2 == 0
                 FnAux = Ebb * sqrt(d2* hAux^3)  / (etab * (l + d))
@@ -112,12 +51,12 @@ function repulsiveForces_gpu(
             end
             Fijx = FnAux * nijx
             Fijy = FnAux * nijy
-            Wij = (dx * Fijy - dy * Fijx) * 12. / (etab * (l + d)^3)
+            Wij = ((xiAux-x)*Fijy - (yiAux-y)*Fijx) * 12. / (etab * (l + d)^3)
         else
             if type2 == 0
                 FnAux = Ebg * sqrt(d2* hAux^3) / (etag * d)
             else
-                FnAux = Egg * ssqrt(d2* hAux^3) / (etag * d)
+                FnAux = Egg * sqrt(d2* hAux^3) / (etag * d)
             end
             Fijx = FnAux * nijx
             Fijy = FnAux * nijy
@@ -125,6 +64,7 @@ function repulsiveForces_gpu(
     end
 
     return Fijx, Fijy, Wij
+
 end
 
 """
@@ -160,7 +100,10 @@ function attractiveForces(
     Fijy = 0.
     Wij = 0.
 
-    xiAux,yiAux,xjAux,yjAux=x,y,x2,y2
+    xiAux = x
+    yiAux = y
+    xjAux = x2
+    yjAux = y2
     #Compute distance between central masses
     rij = sqrt((xiAux-xjAux)^2 +(yiAux-yjAux)^2)
     if rij > (d+d2)/2 && rij < (2*d+l/2) #If it is smaller than a diameter compute forces
@@ -174,23 +117,23 @@ function attractiveForces(
             #Compute the forces
             if type2==0 #rod-rod
                
-                FnAux = epsbb*(rij/D-1)*(rij/M-1)*(rij/D)/(etab*d) 
+                FnAux = epsbb*(rij/D-1.)*(rij/M-1.)*(rij/D)/(etab*d) 
                 
             else #rod-gel
-                FnAux = epsbg*(rij/D-1)*(rij/M-1)*(rij/D)/(etab*d) 
+                FnAux = epsbg*(rij/D-1.)*(rij/M-1.)*(rij/D)/(etab*d) 
           
             end
             #Compute the interaction forces
             Fijx = FnAux*nijx
             Fijy = FnAux*nijy
             #Append radial forces
-            Wij = ((xiAux-x)*Fijy - (yiAux-y)*Fijx)/(etab*(l+d)^3)
+            Wij = ((xiAux-x)*Fijy - (yiAux-y)*Fijx)* 12. /(etab*(l+d)^3)
         else # gel
             #Compute the forces
             if type2==0 #gel-rod
-                FnAux = epsbg*(rij/D-1)*(rij/M-1)*(rij/D)/(etag*d) 
+                FnAux = epsbg*(rij/D-1.)*(rij/M-1.)*(rij/D)/(etag*d) 
             else #gel-gel
-                FnAux = epsgg*(rij/D-1)*(rij/M-1)*(rij/D)/(etag*d) 
+                FnAux = epsgg*(rij/D-1.)*(rij/M-1.)*(rij/D)/(etag*d) 
             end
             #Compute the interaction forces
             Fijx = FnAux*nijx
