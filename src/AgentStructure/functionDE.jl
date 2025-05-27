@@ -26,8 +26,8 @@ function functionDE(abm,scope,type)
                     push!(unwrap.args, :(@views $sym = var_[$pos,:]))
                     push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:]))
                 elseif prop.scope == :model && scope == :model
-                    push!(unwrap.args, :(@views $dsym = dVar_[$pos:$pos]))
-                    push!(unwrap.args, :(@views $sym = var_[$pos:$pos]))
+                    push!(unwrap.args, :($dsym = dVar_[$pos:$pos]))
+                    push!(unwrap.args, :($sym = var_[$pos:$pos]))
                     push!(unwrap.args, :(@views $(new(sym)) = var_[$pos,:]))
                 elseif prop.scope == :medium && scope == :medium
                     if abm.dims == 1
@@ -50,6 +50,7 @@ function functionDE(abm,scope,type)
         paramsRemove = [sym for (sym,prop) in pairs(abm.parameters) if prop.variable && prop.scope == scope] #remove updates
         paramsRemove2 = [new(sym) for sym in paramsRemove if abm.parameters[sym].update] #remove news
         params = Tuple([i for i in params if !(i in [paramsRemove;paramsRemove2])])
+        # cleaned_p = [i isa SubArray ? copy(i) : i for i in p_]
 
         #Get deterministic function
         code = abm.declaredUpdates[ref]
@@ -92,13 +93,28 @@ function functionDE(abm,scope,type)
             abm.declaredUpdatesCode[ref] = 
                 quote
                     function (dVar_,var_,p_,t_)
+                        
+
+                        # for (i, val) in enumerate(cleaned_p)
+                        #     if val isa SubArray
+                        #         println(" Param $i es un SubArray: $(typeof(val))")
+                        #     elseif !(val isa CuArray || val isa Number)
+                        #         println("Param $i es raro: $(typeof(val))")
+                        #     end
+                        # end
+
+                        # @show typeof.([i for i in p_])
+                        cleaned_p = [i isa SubArray ? copy(i) : i for i in p_]
+                        # println("p_:", length(p_),$v)
+
                         function kernel(dVar_,var_,$(params[1:end-1]...))
                             $unwrap
                             $code
 
                             return
                         end
-                        CUDA.@sync CUDA.@cuda threads=p_.platform.$(addSymbol(scope,"Threads")) blocks=p_.platform.$(addSymbol(scope,"Blocks")) kernel(dVar_,var_,[i for i in p_ if typeof(i) <: CuArray || typeof(i) <: Number]...)
+                        CUDA.@sync CUDA.@cuda threads=p_.platform.$(addSymbol(scope,"Threads")) blocks=p_.platform.$(addSymbol(scope,"Blocks")) kernel(dVar_,var_,[i for i in cleaned_p if typeof(i) <: CuArray || typeof(i) <: Number]...)
+                        # CUDA.@sync CUDA.@cuda threads=p_.platform.$(addSymbol(scope,"Threads")) blocks=p_.platform.$(addSymbol(scope,"Blocks")) kernel(dVar_,var_,[i for i in cleaned_p if i isa CuArray || isa(i, Number) || (isa(i, SubArray) && isa(parent(i), CuArray))]...)
 
                         return
                     end

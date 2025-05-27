@@ -106,7 +106,7 @@ function attractiveForces(
     yjAux = y2
     #Compute distance between central masses
     rij = sqrt((xiAux-xjAux)^2 +(yiAux-yjAux)^2)
-    if rij > (d+d2)/2 && rij < (2*d+l/2) #If it is smaller than a diameter compute forces
+    if rij > (d+d2)/2 && rij < (2*d) #If it is smaller than a diameter compute forces
         #Compute direction
         nijx = (xiAux-xjAux)/rij
         nijy = (yiAux-yjAux)/rij
