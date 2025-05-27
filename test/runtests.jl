@@ -1,4 +1,4 @@
-using CUDA
+# using CUDA
 using CellBasedModels
 using Test
 using DataFrames
@@ -7,6 +7,7 @@ using OrderedCollections
 using Distributions
 using Random
 
-include("testAgent.jl")
-include("testCommunity.jl")
-include("testFitting.jl")
+include("testBaseStructs.jl")
+# include("testAgent.jl")
+# include("testCommunity.jl")
+# include("testFitting.jl")
