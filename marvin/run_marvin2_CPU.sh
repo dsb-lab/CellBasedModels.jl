@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=julia-notebook
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=8
 #SBATCH --mem=16G
 ##SBATCH --time=01:00:00
 #SBATCH --output=notebook-%j.out
@@ -24,7 +24,7 @@ which jupyter
 jupyter --version
 
 # Ejecutar el notebook
-jupyter nbconvert --to notebook --execute ../proves/Bacteries_overdamped.ipynb --output resultado_$SLURM_JOB_ID.ipynb
+jupyter nbconvert --to notebook --execute ../proves/Bacteries_marvin.ipynb --output resultado_$SLURM_JOB_ID.ipynb
 
 # Desactivar entorno
 deactivate
