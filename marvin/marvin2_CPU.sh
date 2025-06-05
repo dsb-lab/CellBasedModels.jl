@@ -30,7 +30,7 @@ jupyter --version
 NOTEBOOK="../proves/Bacteries_QS_marvin.ipynb"
 OUTPUT="Bacteries_QS_marvin_res_${SLURM_JOB_ID}.ipynb"
 
-export JULIA_NUM_THREADS=16
+export JULIA_NUM_THREADS=32
 # Ejecutar el notebook con kernel explícito
 echo "🚀 Ejecutando notebook: $NOTEBOOK"
 jupyter nbconvert --to notebook --execute "$NOTEBOOK" --output "$OUTPUT" \

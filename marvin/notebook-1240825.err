@@ -1,0 +1,116 @@
+[NbConvertApp] Converting notebook ../proves/Bacteries_QS_marvin.ipynb to notebook
+Traceback (most recent call last):
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/bin/jupyter-nbconvert", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/jupyter_core/application.py", line 283, in launch_instance
+    super().launch_instance(argv=argv, **kwargs)
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/traitlets/config/application.py", line 1075, in launch_instance
+    app.start()
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/nbconvert/nbconvertapp.py", line 420, in start
+    self.convert_notebooks()
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/nbconvert/nbconvertapp.py", line 597, in convert_notebooks
+    self.convert_single_notebook(notebook_filename)
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/nbconvert/nbconvertapp.py", line 563, in convert_single_notebook
+    output, resources = self.export_single_notebook(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/nbconvert/nbconvertapp.py", line 487, in export_single_notebook
+    output, resources = self.exporter.from_filename(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/nbconvert/exporters/exporter.py", line 201, in from_filename
+    return self.from_file(f, resources=resources, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/nbconvert/exporters/exporter.py", line 220, in from_file
+    return self.from_notebook_node(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/nbconvert/exporters/notebook.py", line 36, in from_notebook_node
+    nb_copy, resources = super().from_notebook_node(nb, resources, **kw)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/nbconvert/exporters/exporter.py", line 154, in from_notebook_node
+    nb_copy, resources = self._preprocess(nb_copy, resources)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/nbconvert/exporters/exporter.py", line 353, in _preprocess
+    nbc, resc = preprocessor(nbc, resc)
+                ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/nbconvert/preprocessors/base.py", line 48, in __call__
+    return self.preprocess(nb, resources)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/nbconvert/preprocessors/execute.py", line 103, in preprocess
+    self.preprocess_cell(cell, resources, index)
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/nbconvert/preprocessors/execute.py", line 124, in preprocess_cell
+    cell = self.execute_cell(cell, index, store_history=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/jupyter_core/utils/__init__.py", line 165, in wrapped
+    return loop.run_until_complete(inner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/asyncio/base_events.py", line 653, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/nbclient/client.py", line 1062, in async_execute_cell
+    await self._check_raise_for_error(cell, cell_index, exec_reply)
+  File "/homes/aplic/noarch/software/Python/3.11.5-GCCcore-13.2.0/lib/python3.11/site-packages/nbclient/client.py", line 918, in _check_raise_for_error
+    raise CellExecutionError.from_cell_and_msg(cell, exec_reply_content)
+nbclient.exceptions.CellExecutionError: An error occurred while executing the following cell:
+------------------
+# Colormap común y colorrange fijo
+colormap = :viridis
+colorrange = (0.0, maximum(maximum.(com_load[end][:mm])))
+
+
+fig = Figure(size=(1500,300))
+
+js = [1:round(Int, length(com_load)/4):length(com_load); length(com_load)]
+
+for (i,j) in enumerate(js)
+    ax = Axis3(fig[1,i],
+                azimuth=3*π/2,
+                elevation=π/2,
+                zlabelvisible=false,
+                zticklabelsvisible=false,
+                zgridvisible=false,
+                zspinesvisible=false
+            )
+    m = heatmap!(ax,
+                range(com.simBox[1,1],com.simBox[1,2],length=size(hcat(com_load[end][:mm]...))[1]),
+                range(com.simBox[2,1],com.simBox[2,2],length=size(hcat(com_load[end][:mm]...))[1]),
+                Float64.(hcat(com_load[j][:mm]...)),
+                colormap = colormap,
+                colorrange = colorrange
+            )
+    
+
+    plotMixedAgents2D!(
+    ax,
+    com_load[j][:x],
+    com_load[j][:y],
+    com_load[j][:d],
+    com_load[j][:l],
+    com_load[j][:theta],
+    com_load[j][:type],
+    com_load[j][:pressure],
+    colorrange = (0, 0.03)
+    )
+
+    xlims!(-50,50)
+    ylims!(-50,50)
+end
+
+# Añadir colorbar común al final
+Colorbar(fig[1, length(js) + 1],
+    colormap = colormap,
+    colorrange = colorrange,
+    label = "QS"
+)
+
+display(fig)
+------------------
+
+
+KeyError: key :mm not found
+
+Stacktrace:
+ [1] getindex(h::OrderedDict{Symbol, Any}, key::Symbol)
+   @ OrderedCollections ~/.julia/packages/OrderedCollections/9C4Uz/src/ordered_dict.jl:385
+ [2] top-level scope
+   @ ./In[19]:19
+
