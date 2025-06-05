@@ -67,6 +67,44 @@ function repulsiveForces(
 
 end
 
+
+
+
+
+function repulsiveForces_rods(
+    x,y,d,l,theta,
+    x2,y2,d2,l2,theta2,eta, E)
+
+    Fijx = 0.
+    Fijy = 0.
+    Wij = 0.
+
+
+    #Function that finds the virtual spheres of contact between both rods
+    xiAux,yiAux,xjAux,yjAux = CBMMetrics.rodIntersection(x,y,l,theta,x2,y2,l2,theta2)
+   
+
+    #Compute distance between virtual spheres
+    rij = sqrt((xiAux-xjAux)^2 +(yiAux-yjAux)^2)
+    if rij > 0. && rij < (d+d2)/2. #If it is smaller than a diameter compute forces
+        #Compute auxiliar
+        hAux = (d+d2)/2. - rij
+        #Compute direction
+        nijx = (xiAux-xjAux)/rij
+        nijy = (yiAux-yjAux)/rij
+    
+        FnAux = E * sqrt(d2* hAux^3)  / (eta * (l + d))
+           
+        Fijx = FnAux * nijx
+        Fijy = FnAux * nijy
+        Wij = ((xiAux-x)*Fijy - (yiAux-y)*Fijx) * 12. / (eta * (l + d)^3)
+      
+    end
+
+    return Fijx, Fijy, Wij
+
+end
+
 """
     attractiveForces(
         x, y, d, l, theta, etab, type,
