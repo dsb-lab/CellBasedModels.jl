@@ -130,7 +130,7 @@ end
 
 Discretizes the `code` term of a drift process. e.g. Agent in 2D
 
-∂(1,m) → (m[i1_-1,i2_]-m[i1_-1,i2_])/(2*dx)
+∂(1,m) → (m[i1_+1,i2_]-m[i1_-1,i2_])/(2*dx)
 
 the coordinate must be 1, 2 or 3, specifing the axis of differentiation.
 """
@@ -164,7 +164,7 @@ macro ∂(coord,code)
         code1p = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g+1,$g2,$g3]) : x, code)
         code1m = postwalk(x->@capture(x,m_[g_,g2_,g3_]) && m in medium ? :($m[$g-1,$g2,$g3]) : x, code)
 
-        return esc(:(($code1p -$code1m)/(dx)))
+        return esc(:(($code1p -$code1m)/(2*dx)))
 
     elseif coord == 2 && abm.dims == 2
 
