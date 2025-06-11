@@ -27,7 +27,7 @@ echo "📦 Jupyter version:"
 jupyter --version
 
 # Definir rutas del notebook
-NOTEBOOK="../proves/Bacteries_QS_marvin.ipynb"
+NOTEBOOK="../proves/Bacteries_QS copy 2.ipynb"
 OUTPUT="Bacteries_QS_marvin_res_${SLURM_JOB_ID}.ipynb"
 
 export JULIA_NUM_THREADS=32
