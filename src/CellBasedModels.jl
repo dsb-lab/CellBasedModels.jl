@@ -23,10 +23,15 @@ module CellBasedModels
 
     export DifferentialEquations, OrderedDict
 
+
+
     #Constants
+    export UNITS
+    include("./constants.jl")
+
     include("./baseStructs.jl")
     export ValueUnits, Parameter, Agent, GlobalEnvironment, Medium, Interaction
-    # include("./constants.jl")
+    include("./baseFunctions.jl")
 
     # #Custom integrators
     # export CBMIntegrators

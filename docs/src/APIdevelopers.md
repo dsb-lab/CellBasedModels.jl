@@ -5,6 +5,15 @@ addEventGlobalAddAgent
 CurrentModule = CellBasedModels
 ```
 
+## Baser Functions
+
+```@docs
+isDimension
+isDimensionUnit
+dimensionUnits2dimensions
+compareDimensionsUnits2dimensions
+```
+
 ## Base Structures
 
 ```@docs

@@ -1,4 +1,4 @@
-@testset "CustomStructs" begin
+@testset "BaseStructs" begin
 
     @testset "ValueUnits" begin
         vu = ValueUnits(42, :m) # Value with units
@@ -18,6 +18,15 @@
         p = Parameter(:velocity, Float64) # Minimum definition
         @test p.name == :velocity
         @test p.dataType == Float64
+        @test p.units === nothing
+        @test p.defaultValue.value === nothing
+        @test p.defaultValue.units === nothing
+        @test p.description == ""
+
+        p = Parameter(:velocity, Float64, units=:(L/T)) # Minimum definition
+        @test p.name == :velocity
+        @test p.dataType == Float64
+        @test p.units == :(L/T)
         @test p.defaultValue.value === nothing
         @test p.defaultValue.units === nothing
         @test p.description == ""
@@ -29,11 +38,12 @@
         @test p.defaultValue.units === nothing
         @test p.description == "Velocity of the agent"
 
-        p = Parameter(:velocity, Float64, defaultValue=ValueUnits(12.0, :kg), description="Velocity of the agent")
+        p = Parameter(:velocity, Float64, units=:(L/T), defaultValue=ValueUnits(12.0, :(m/s)), description="Velocity of the agent")
         @test p.name == :velocity
         @test p.dataType == Float64
+        @test p.units == :(L/T)
         @test p.defaultValue.value == 12.0
-        @test p.defaultValue.units == :kg
+        @test p.defaultValue.units == :(m/s)
         @test p.description == "Velocity of the agent"
 
         @test_throws ArgumentError Parameter(:invalid, String, defaultValue=ValueUnits(12.0, :kg), description="Invalid type")
@@ -41,10 +51,10 @@
 
     @testset "Agent" begin
         for agent in [
-            Agent(:cell, parameters=(mass=Float64, alive=Bool)),
-            Agent(:cell, parameters=OrderedDict(:mass => Float64, :alive => Bool)),
-            Agent(:cell, parameters=Dict(:mass => Float64, :alive => Bool)),
-            Agent(:cell, 
+            Agent(:cell, 3, parameters=(mass=Float64, alive=Bool)),
+            Agent(:cell, 3, parameters=OrderedDict(:mass => Float64, :alive => Bool)),
+            Agent(:cell, 3, parameters=Dict(:mass => Float64, :alive => Bool)),
+            Agent(:cell, 3, 
                             parameters=[
                                 Parameter(:mass, Float64),
                                 Parameter(:alive, Bool)
@@ -52,6 +62,10 @@
             ]
 
             @test agent.name == :cell        
+            @test agent.dimensions == 3
+            @test agent.parameters.x.dataType == Float64
+            @test agent.parameters.x.defaultValue.value === nothing
+            @test agent.parameters.x.defaultValue.units === nothing
             @test agent.parameters.mass.dataType == Float64
             @test agent.parameters.mass.defaultValue.value === nothing
             @test agent.parameters.mass.defaultValue.units === nothing
@@ -64,7 +78,7 @@
     end
 
     @testset "GlobalEnvironment" begin
-        for agent in [
+        for globalEnvironment in [
             GlobalEnvironment(parameters=(mass=Float64, alive=Bool)),
             GlobalEnvironment(parameters=OrderedDict(:mass => Float64, :alive => Bool)),
             GlobalEnvironment(parameters=Dict(:mass => Float64, :alive => Bool)),
@@ -74,38 +88,38 @@
                             ])
             ]
 
-            @test agent.parameters.mass.dataType == Float64
-            @test agent.parameters.mass.defaultValue.value === nothing
-            @test agent.parameters.mass.defaultValue.units === nothing
-            @test agent.parameters.mass.description == ""
-            @test agent.parameters.alive.dataType == Bool
-            @test agent.parameters.alive.defaultValue.value === nothing
-            @test agent.parameters.alive.defaultValue.units === nothing
-            @test agent.parameters.alive.description == ""
+            @test globalEnvironment.parameters.mass.dataType == Float64
+            @test globalEnvironment.parameters.mass.defaultValue.value === nothing
+            @test globalEnvironment.parameters.mass.defaultValue.units === nothing
+            @test globalEnvironment.parameters.mass.description == ""
+            @test globalEnvironment.parameters.alive.dataType == Bool
+            @test globalEnvironment.parameters.alive.defaultValue.value === nothing
+            @test globalEnvironment.parameters.alive.defaultValue.units === nothing
+            @test globalEnvironment.parameters.alive.description == ""
         end
     end
 
     @testset "Medium" begin
-        for agent in [
-            Medium(:cell, parameters=(mass=Float64, alive=Bool)),
-            Medium(:cell, parameters=OrderedDict(:mass => Float64, :alive => Bool)),
-            Medium(:cell, parameters=Dict(:mass => Float64, :alive => Bool)),
-            Medium(:cell, 
+        for medium in [
+            Medium(:medium, parameters=(mass=Float64, alive=Bool)),
+            Medium(:medium, parameters=OrderedDict(:mass => Float64, :alive => Bool)),
+            Medium(:medium, parameters=Dict(:mass => Float64, :alive => Bool)),
+            Medium(:medium, 
                             parameters=[
                                 Parameter(:mass, Float64),
                                 Parameter(:alive, Bool)
                             ])
             ]
 
-            @test agent.name == :cell        
-            @test agent.parameters.mass.dataType == Float64
-            @test agent.parameters.mass.defaultValue.value === nothing
-            @test agent.parameters.mass.defaultValue.units === nothing
-            @test agent.parameters.mass.description == ""
-            @test agent.parameters.alive.dataType == Bool
-            @test agent.parameters.alive.defaultValue.value === nothing
-            @test agent.parameters.alive.defaultValue.units === nothing
-            @test agent.parameters.alive.description == ""
+            @test medium.name == :cell        
+            @test medium.parameters.mass.dataType == Float64
+            @test medium.parameters.mass.defaultValue.value === nothing
+            @test medium.parameters.mass.defaultValue.units === nothing
+            @test medium.parameters.mass.description == ""
+            @test medium.parameters.alive.dataType == Bool
+            @test medium.parameters.alive.defaultValue.value === nothing
+            @test medium.parameters.alive.defaultValue.units === nothing
+            @test medium.parameters.alive.description == ""
         end
     end
 
