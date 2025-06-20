@@ -11,6 +11,7 @@ Parameter
 Agent
 GlobalEnvironment
 Medium
+Interaction
 ABM
 ```
 

@@ -25,7 +25,7 @@ module CellBasedModels
 
     #Constants
     include("./baseStructs.jl")
-    export ValueUnits, Parameter, Agent, Medium, GlobalEnvironment
+    export ValueUnits, Parameter, Agent, GlobalEnvironment, Medium, Interaction
     # include("./constants.jl")
 
     # #Custom integrators
