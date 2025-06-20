@@ -75,10 +75,28 @@ end
 """
     mutable struct ValueUnits
 Object containing a value and its units.
+
+    Parameters
+    ----------
+
 |Field|Description|
 |:---|:---|
 | value::Any | Value of the parameter. |
-| units::Symbol | Units of the parameter. |
+| units::Union{Nothing, Symbol, Expr} | Units of the parameter. |
+
+    Constructors
+    ------------
+
+ValueUnits(value::Any, units::Union{Nothing, Symbol, Expr}=nothing)
+
+    Examples
+    --------
+
+```julia
+    vu = ValueUnits(42, :m) # Value with units
+    vu = ValueUnits(42, :(m/s^2)) # Value with complex units
+    vu = ValueUnits(42) # Value without units
+```
 """
 mutable struct ValueUnits
     value::Any
@@ -91,23 +109,38 @@ end
 
 function Base.show(io::IO, x::ValueUnits)
 
-    if x.units === nothing
-        return print(io, x.value)
-    else
-        print(io, x.value, x.units)
-    end
+    print(io, (x.value, x.units))
+
 end
 
 """
     mutable struct Parameter
 Object containing the information of each parameter of an Agent.
+
+    Parameters
+    ----------
+
 |Field|Description|
 |:---|:---|
 | name::Symbol | Name of the parameter. |
 | dataType::DataType | Type of data. |
 | units::String | Units of the parameter. |
-| defaultValue::Any | Default value of the parameter. |
-| description::String | Description of the parameter. |
+| defaultValue::Union{ValueUnits, Number, Nothing} = nothing | Default value of the parameter. |
+| description::String = "" | Description of the parameter. |
+
+    Constructors
+    ------------
+
+Parameter(name::Symbol, dataType::DataType; defaultValue=ValueUnits(nothing, nothing), description::String="")
+
+    Examples
+    --------
+
+```julia
+    p = Parameter(:velocity, Float64) # Minimum definition
+    p = Parameter(:velocity, Float64, defaultValue=12.0, description="Velocity of the agent")
+    p = Parameter(:velocity, Float64, defaultValue=ValueUnits(12.0, :kg), description="Velocity of the agent")
+```
 """
 mutable struct Parameter
     name::Symbol
@@ -116,7 +149,7 @@ mutable struct Parameter
     description::String
 
     function Parameter(name::Symbol, dataType::DataType;
-                       defaultValue::Union{ValueUnits, Any}=nothing,
+                       defaultValue::Union{ValueUnits, Number, Nothing}=nothing,
                        description::String="")
 
         # Convert defaultValue to ValueUnits if needed
@@ -125,11 +158,12 @@ mutable struct Parameter
         end
 
         # Check that the value is in the correct format
-        defaultValue.value = dataType(defaultValue.value)
-
-        # Check that the wrapped value type matches the specified dataType
-        if defaultValue !== nothing && dataType != typeof(defaultValue.value)
-            throw(TypeError("defaultValue has a different data type than dataType declared", dataType, defaultValue.value))
+        if defaultValue.value !== nothing
+            try
+                defaultValue.value = dataType(defaultValue.value)
+            catch e
+                throw(ArgumentError("defaultValue does not match the specified dataType"))
+            end
         end
 
         new(name, dataType, defaultValue, description)
@@ -143,42 +177,80 @@ function Base.show(io::IO, x::Parameter)
     println("\t Description: ", x.description)
 end
 
+function parameter_convert(parameters::Union{
+        OrderedDict{Symbol,DataType}, 
+        Dict{Symbol,DataType}, 
+        Vector{Parameter}, 
+        NamedTuple,
+    })
+    parameter_namedtuple = if parameters isa OrderedDict || parameters isa Dict
+        keys_tuple = Tuple(keys(parameters))
+        values_tuple = Tuple([Parameter(i, parameters[i]) for i in keys_tuple])
+        NamedTuple{keys_tuple}(values_tuple)
+    elseif parameters isa NamedTuple
+        keys_tuple = Tuple(keys(parameters))
+        values_tuple = Tuple([Parameter(i, parameters[i]) for i in keys_tuple])
+        NamedTuple{keys_tuple}(values_tuple)
+    elseif parameters isa Vector{Parameter}
+        names = Tuple(p.name for p in parameters)
+        values = Tuple(p for p in parameters)
+        NamedTuple{names}(values)
+    else
+        error("Unsupported parameter type: $(typeof(parameters))")
+    end
+
+    return parameter_namedtuple
+end
+
 """
-    struct Agent
+    mutable struct Agent
 
 Object containing the parameters of an agent.
+
+    Parameters
+    ----------
 
 |Field|Description|
 |:---|:---|
 | name::Symbol | Name of the agent. |
-| parameters::OrderedDict{Symbol,UserParameter} | Parameters of the agent. |
+| parameters::NamedTuple{Symbol, Parameter} | Named Tuple with name => Parameter. Parameter.name corresponds with key.|
+
+    Constructors
+    ------------
+
+Agent(name::Symbol; parameters::Union{
+            OrderedDict{Symbol,DataType}, 
+            Dict{Symbol,DataType}, 
+            Vector{Parameter}, 
+            NamedTuple, 
+        }=Dict())
+
+    Examples
+    --------
+
+```julia
+    agent = Agent(:cell, parameters=(mass=Float64, alive=Bool)) # Using NamedTuple
+    agent = Agent(:cell, parameters=OrderedDict(:mass => Float64, :alive => Bool)) # Using OrderedDict
+    agent = Agent(:cell, parameters=Dict(:mass => Float64, :alive => Bool)) # Using Dict
+    agent = Agent(:cell, 
+                    parameters=[
+                        Parameter(:mass, Float64, defaultValue=10.0),
+                        Parameter(:alive, Bool, defaultValue=true)
+                    ]) # Using Vector{Parameter}
+```
 """
-struct Agent
+mutable struct Agent
     name::Symbol
     parameters::NamedTuple
 
     function Agent(name::Symbol; parameters::Union{
             OrderedDict{Symbol,DataType}, 
-            OrderedDict{Symbol,Parameter}, 
             Dict{Symbol,DataType}, 
-            Dict{Symbol,Parameter}, 
+            Vector{Parameter}, 
             NamedTuple, 
-            Vector{Parameter}
         }=Dict())
 
-        parameter_namedtuple = if parameters isa OrderedDict || parameters isa Dict
-            keys_tuple = Tuple(keys(parameters))
-            values_tuple = Tuple(parameters[i] for i in keys_tuple)
-            NamedTuple{keys_tuple}(values_tuple)
-        elseif parameters isa Vector{Parameter}
-            names = Tuple(p.name for p in parameters)
-            values = Tuple(p for p in parameters)
-            NamedTuple{names}(values)
-        elseif parameters isa NamedTuple
-            parameters  # already a NamedTuple
-        else
-            error("Unsupported parameter type: $(typeof(parameters))")
-        end
+        parameter_namedtuple = parameter_convert(parameters)
 
         new(name, parameter_namedtuple)
     end
@@ -188,10 +260,147 @@ Base.length(x::Agent) = 1
 
 function Base.show(io::IO, x::Agent)
     println(io, "Agent: ", x.name, "\n")
-    println(io, @sprintf("\t%-15s %-15s %-15s %-s", "Name", "DataType", "Default_Value", "Description"))
+    println(io, @sprintf("\t%-15s %-15s %-20s %-s", "Name", "DataType", "Default_Value", "Description"))
     println(io, "\t" * repeat("-", 65))
     for (_, par) in pairs(x.parameters)
-        println(io, @sprintf("\t%-15s %-15s %-15s %-s", 
+        println(io, @sprintf("\t%-15s %-15s %-20s %-s", 
+            par.name, 
+            string(par.dataType), 
+            par.defaultValue, 
+            par.description))
+    end
+    println(io)
+end
+
+"""
+    mutable struct Medium
+
+Object containing the parameters of a medium.
+
+    Parameters
+    ----------
+
+|Field|Description|
+|:---|:---|
+| name::Symbol | Name of the medium. |
+| parameters::NamedTuple{Symbol, Parameter} | Named Tuple with name => Parameter. Parameter.name corresponds with key.|
+
+    Constructors
+    ------------
+
+Medium(name::Symbol; parameters::Union{
+            OrderedDict{Symbol,DataType}, 
+            Dict{Symbol,DataType}, 
+            Vector{Parameter}, 
+            NamedTuple, 
+        }=Dict())
+
+    Examples
+    --------
+
+```julia
+    medium = Medium(:cell, parameters=(mass=Float64, alive=Bool)) # Using NamedTuple
+    medium = Medium(:cell, parameters=OrderedDict(:mass => Float64, :alive => Bool)) # Using OrderedDict
+    medium = Medium(:cell, parameters=Dict(:mass => Float64, :alive => Bool)) # Using Dict
+    medium = Medium(:cell, 
+                    parameters=[
+                        Parameter(:mass, Float64, defaultValue=10.0),
+                        Parameter(:alive, Bool, defaultValue=true)
+                    ]) # Using Vector{Parameter}
+```
+"""
+mutable struct Medium
+    name::Symbol
+    parameters::NamedTuple
+
+    function Medium(name::Symbol; parameters::Union{
+            OrderedDict{Symbol,DataType}, 
+            Dict{Symbol,DataType}, 
+            Vector{Parameter}, 
+            NamedTuple, 
+        }=Dict())
+
+        parameter_namedtuple = parameter_convert(parameters)
+
+        new(name, parameter_namedtuple)
+    end
+end
+
+Base.length(x::Medium) = 1
+
+function Base.show(io::IO, x::Medium)
+    println(io, "Medium: ", x.name, "\n")
+    println(io, @sprintf("\t%-15s %-15s %-s %-s", "Name", "DataType", "Default_Value", "Description"))
+    println(io, "\t" * repeat("-", 65))
+    for (_, par) in pairs(x.parameters)
+        println(io, @sprintf("\t%-15s %-15s %-20s %-s", 
+            par.name, 
+            string(par.dataType), 
+            par.defaultValue, 
+            par.description))
+    end
+    println(io)
+end
+
+"""
+    mutable struct GlobalEnvironment
+
+Object containing the parameters of the globalEnvironment.
+
+    Parameters
+    ----------
+
+|Field|Description|
+|:---|:---|
+| parameters::NamedTuple{Symbol, Parameter} | Named Tuple with name => Parameter. Parameter.name corresponds with key.|
+
+    Constructors
+    ------------
+
+GlobalEnvironment(parameters::Union{
+            OrderedDict{Symbol,DataType}, 
+            Dict{Symbol,DataType}, 
+            Vector{Parameter}, 
+            NamedTuple, 
+        }=Dict())
+
+    Examples
+    --------
+
+```julia
+    globalEnvironment = GlobalEnvironment(parameters=(mass=Float64, alive=Bool)) # Using NamedTuple
+    globalEnvironment = GlobalEnvironment(parameters=OrderedDict(:mass => Float64, :alive => Bool)) # Using OrderedDict
+    globalEnvironment = GlobalEnvironment(parameters=Dict(:mass => Float64, :alive => Bool)) # Using Dict
+    globalEnvironment = GlobalEnvironment(
+                    parameters=[
+                        Parameter(:mass, Float64, defaultValue=10.0),
+                        Parameter(:alive, Bool, defaultValue=true)
+                    ]) # Using Vector{Parameter}
+```
+"""
+mutable struct GlobalEnvironment
+    parameters::NamedTuple
+
+    function GlobalEnvironment(; parameters::Union{
+            OrderedDict{Symbol,DataType}, 
+            Dict{Symbol,DataType}, 
+            Vector{Parameter}, 
+            NamedTuple, 
+        }=Dict())
+
+        parameter_namedtuple = parameter_convert(parameters)
+
+        new(parameter_namedtuple)
+    end
+end
+
+Base.length(x::GlobalEnvironment) = 1
+
+function Base.show(io::IO, x::GlobalEnvironment)
+    println(io, @sprintf("\t%-15s %-15s %-20s %-s", "Name", "DataType", "Default_Value", "Description"))
+    println(io, "\t" * repeat("-", 65))
+    for (_, par) in pairs(x.parameters)
+        println(io, @sprintf("\t%-15s %-15s %-20s %-s", 
             par.name, 
             string(par.dataType), 
             par.defaultValue, 

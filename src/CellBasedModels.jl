@@ -25,7 +25,7 @@ module CellBasedModels
 
     #Constants
     include("./baseStructs.jl")
-    export Parameter, Agent, ValueUnits
+    export ValueUnits, Parameter, Agent, Medium, GlobalEnvironment
     # include("./constants.jl")
 
     # #Custom integrators
@@ -56,8 +56,8 @@ module CellBasedModels
     # include("./neighbors.jl")
     # using .CBMNeighbors
 
-    # #Agent
-    # export ABM, compileABM!
+    #Agent
+    export ABM#, compileABM!
     #     #Macros and custom code
     # export @addAgent, @removeAgent, @loopOverNeighbors, @mediumInside, @mediumBorder, @∂, @∂2, @distanceEuclidean, @distanceManhattan
     # include("./AgentStructure/macros.jl")   

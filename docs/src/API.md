@@ -3,9 +3,14 @@
 ```@meta
 CurrentModule = CellBasedModels
 ```
-## Agent
+## Structures
 
 ```@docs
+ValueUnits
+Parameter
+Agent
+GlobalEnvironment
+Medium
 ABM
 ```
 
