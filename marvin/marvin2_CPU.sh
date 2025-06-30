@@ -27,8 +27,8 @@ echo "📦 Jupyter version:"
 jupyter --version
 
 # Definir rutas del notebook
-NOTEBOOK="../proves/Bacteries_QS copy 2.ipynb"
-OUTPUT="Bacteries_QS_marvin_res_${SLURM_JOB_ID}.ipynb"
+NOTEBOOK="../proves/PGA_agents/QS_dependent/Bacteries_QS.ipynb"
+OUTPUT="../proves/PGA_agents/QS_dependent/Bacteries_QS_marvin_sigma_5e2.ipynb"
 
 export JULIA_NUM_THREADS=32
 # Ejecutar el notebook con kernel explícito
