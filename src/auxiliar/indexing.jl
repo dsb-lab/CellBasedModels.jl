@@ -407,6 +407,8 @@ to 1-based Cartesian indices.
     return (Int(x0) + 1, Int(y0) + 1, Int(z0) + 1)
 end
 
+
+
 """
     cartesianNeighbors2D(pos::Tuple{Int,Int}, shape::Tuple{Int,Int}) -> NTuple{9,Tuple{Int,Int}}
 

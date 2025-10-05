@@ -1,5 +1,31 @@
 # [**API**](@id API)
 
+## Indexing
+
+Functions to convert between positions to methods in positions in grid laticces of different indexing methods.
+
+```@docs
+CellBasedModels.IndexingType
+CellBasedModels.LinearIndexing
+CellBasedMOdels.MortonIndexing
+CellBasedModels.positionToCartesian2D
+CellBasedModels.positionToCartesian3D
+CellBasedModels.cartesianToLinear2D
+CellBasedModels.cartesianToLinear3D
+CellBasedModels.linearToCartesian2D
+CellBasedModels.linearToCartesian3D
+CellBasedModels.cartesianToMorton2D
+CellBasedModels.cartesianToMorton3D
+CellBasedModels.mortonToCartesian2D
+CellBasedModels.mortonToCartesian3D
+CellBasedModels.cartesianNeighbors2D
+CellBasedModels.cartesianNeighbors3D
+CellBasedModels.linearNeighbors2D
+CellBasedModels.linearNeighbors3D
+CellBasedModels.mortonNeighbors2D
+CellBasedModels.mortonNeighbors3D
+```
+
 ```@meta
 CurrentModule = CellBasedModels
 ```
