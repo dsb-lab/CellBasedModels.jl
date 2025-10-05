@@ -1,8 +1,12 @@
 # [**API**](@id API)
 
+```@meta
+CurrentModule = CellBasedModels
+```
+
 ## Indexing
 
-Functions to convert between positions to methods in positions in grid laticces of different indexing methods.
+Structures and Functions to convert between positions to methods in positions in grid laticces of different indexing methods.
 
 ```@docs
 CellBasedModels.IndexingType
@@ -26,9 +30,15 @@ CellBasedModels.mortonNeighbors2D
 CellBasedModels.mortonNeighbors3D
 ```
 
-```@meta
-CurrentModule = CellBasedModels
+## Parameter
+
+Structures and functions to declare parameters.
+
+```@docs
+CellBasedModels.Parameter
+CellBasedModels.parameterConvert
 ```
+
 ## Agent
 
 ```@docs
