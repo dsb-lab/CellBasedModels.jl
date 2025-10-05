@@ -20,7 +20,7 @@ macro kernelListSurvived!(platform)
         quote
             count = 1
             lastPos = N[1]+NAdd_[]
-            while NRemove_[] >= count
+            while NRemove_[] >= count && lastPos > 0
                 if flagSurvive_[lastPos] == 1
 
                     repositionAgentInPos_[count] = lastPos
@@ -283,10 +283,13 @@ macro update!(platform)
             #DE problems update scalar parameters
             for i in [:agentDEProblem,:modelDEProblem,:mediumDEProblem]
                 if getfield(community,i) !== nothing
+                    params = getfield(community,i).p
+                    t = community.t
                     #t
-                    getfield(community,i).p[1] = community.t
+                    @reset params.t = t
                     #N
-                    getfield(community,i).p[3] = community.N
+                    @reset params.N = community.N
+                    getfield(community,i).p = params
                 end
             end
             

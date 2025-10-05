@@ -40,7 +40,7 @@ Return sym coming from UserParameter.basePar to new. (e.g. liM_ -> liMNew_)
 baseParameterNew(sym) = Meta.parse(string(split(string(sym),"_")[1],"New_"))
 
 """
-    function agentArgs(sym=nothing;params=BASEPARAMETERS) 
+    function agentArgsNeighbors(args,neig;sym=nothing) 
 
 Function that returns the arguments obervable for the constructed functions. If symbol is given, it substitutes by the fielnames in form of by *sym.fieldname*.
 """

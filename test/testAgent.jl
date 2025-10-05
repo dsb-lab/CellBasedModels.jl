@@ -1,5 +1,13 @@
 @testset "abm" begin
 
+    TESTPLATFORMS = [CPU(),GPU()]
+    if CUDA.has_cuda()
+        TESTPLATFORMS = [CPU(),GPU()]
+    else
+        TESTPLATFORMS = [CPU()]
+        println("CUDA was not found, only checking cpu.")
+    end
+
     @test_nowarn ABM()
     @test_nowarn ABM(3)
 

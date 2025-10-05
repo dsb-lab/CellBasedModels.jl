@@ -11,7 +11,6 @@ module CellBasedModels
     using DataFrames
     using CSV
     using JLD2
-    import GeometryBasics
     import MacroTools: postwalk, prewalk, @capture, inexpr, prettify, gensym, flatten, unblock, isexpr
     export prettify
     import SpecialFunctions
@@ -19,6 +18,7 @@ module CellBasedModels
     using Test
     using DifferentialEquations
     import UUIDs: uuid1
+    import Accessors: @reset
 
     export DifferentialEquations, OrderedDict
 
@@ -89,8 +89,11 @@ module CellBasedModels
     export CBMModels
     include("./models/models.jl")
 
+    module CBMUtils
+        include("./CommunityStructure/initializers.jl")
+    end
     #Visualization functions
-    export CBMPlots
-    include("./plotting/plotting.jl")
+    # export CBMPlots
+    # include("./plotting/plotting.jl")
 
 end

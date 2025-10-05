@@ -321,7 +321,8 @@ function cuAdapt(array,com)
 
         #Adapt atomic
         if typeof(array) <: Threads.Atomic
-            return CUDA.ones(typeof(array).types[1],1).*array[]
+            # return CUDA.ones(typeof(array).types[1],1).*array[]
+            return cu([array[]])
         else
             return cu(array)
         end
@@ -515,13 +516,30 @@ function createDEProblem(com,scope)
     paramsCom = agentArgs(com.abm,sym=:com)
     paramsRemove = [sym for (sym,prop) in pairs(com.abm.parameters) if prop.variable && (prop.scope==scope)]
     paramsRemove2 = [new(sym) for sym in paramsRemove if com.abm.parameters[sym].update] #remove news
+    paramsNames = [i for (i,j) in zip(params,paramsCom) if !(i in [paramsRemove;paramsRemove2])]
     params = [if occursin("neighbors.", string(j)); getfield(com.abm.neighbors,i); elseif occursin("platform.", string(j)); getfield(com.abm.platform,i); elseif :platform == i; com.abm.platform; else com[i]; end for (i,j) in zip(params,paramsCom) if !(i in [paramsRemove;paramsRemove2])]
+    paramsIntegratorName,paramsIntegrator = [],[]
+    try
+        if scope == :agent
+            paramsIntegratorName,paramsIntegrator = specialIntegratorArguments(com.abm.agentAlg,com.abm)
+        elseif scope == :model
+            paramsIntegratorName,paramsIntegrator = specialIntegratorArguments(com.abm.modelAlg,com.abm)
+        elseif scope == :medium
+            paramsIntegratorName,paramsIntegrator = CBMIntegrators.specialIntegratorArguments(com.abm.mediumAlg,com.abm)
+        end
+    catch
+        nothing
+    end
+    paramsNames = [paramsNames;paramsIntegratorName]
+    params = [params;paramsIntegrator]
+    params = NamedTuple{Tuple(paramsNames)}(params)
 
     ode = addSymbol(scope,"ODE")
     sde = addSymbol(scope,"SDE")
     alg = addSymbol(scope,"Alg")
     arg = addSymbol(scope,"SolveArgs")
 
+    problem = nothing
     if !isemptyupdaterule(com.abm,sde)
 
         problem = SDEProblem(
@@ -541,7 +559,7 @@ function createDEProblem(com,scope)
             end
         end
 
-        return DifferentialEquations.init(problem, getproperty(com.abm,alg); getproperty(com.abm,arg)... )
+        problem = DifferentialEquations.init(problem, getproperty(com.abm,alg); getproperty(com.abm,arg)... )
 
     elseif !isemptyupdaterule(com.abm,ode)
         
@@ -561,9 +579,19 @@ function createDEProblem(com,scope)
             end
         end
 
-        return DifferentialEquations.init(problem, getproperty(com.abm,alg); getproperty(com.abm,arg)... )
+        problem = DifferentialEquations.init(problem, getproperty(com.abm,alg); getproperty(com.abm,arg)... )
 
     end    
+
+    if typeof(com.abm.platform) == GPU && typeof(problem) <: CustomIntegrator
+        for i in fieldnames(typeof(problem))
+            if typeof(getfield(problem,i)) <: Array
+                setfield!(problem,i,cu(getfield(problem,i)))
+            end
+        end
+    end
+
+    return problem
 
 end
 

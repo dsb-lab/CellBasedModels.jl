@@ -2,7 +2,6 @@ using Pkg
 
 packages = [
     "IJulia",
-    "CellBasedModels",
     "CSV",
     "DataFrames",
     "Plots",
@@ -16,5 +15,14 @@ packages = [
 
 for package in packages
     Pkg.add(package)
+    eval(string("using ",package))
+end
+
+packages = [
+    ("CellBasedModels","develop"),
+]
+
+for (package, version) in packages
+    Pkg.add(Pkg.PackageSpec(name=package; rev=version))
     eval(string("using ",package))
 end
