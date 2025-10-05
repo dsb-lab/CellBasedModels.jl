@@ -22,7 +22,9 @@ module CellBasedModels
 
     export DifferentialEquations, OrderedDict
 
-    #Constants
+    #Auxiliar
+    include("./auxiliar/indexing.jl")
+
     include("./baseStructs.jl")
     include("./constants.jl")
 
