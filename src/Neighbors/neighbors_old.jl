@@ -4,7 +4,7 @@ module CBMNeighbors
 
     import CellBasedModels: agentArgsNeighbors, POSITIONPARAMETERS, CPU, GPU
     import MacroTools: postwalk, @capture
-    using CUDA
+    # using CUDA
     import ..CBMMetrics
 
     abstract type Neighbors end
@@ -160,9 +160,9 @@ Method that computes all against all neighbors.
     @verletNeighbors CPU x
     @verletNeighbors CPU x y
     @verletNeighbors CPU x y z
-    @verletNeighbors GPU x
-    @verletNeighbors GPU x y
-    @verletNeighbors GPU x y z
+    # @verletNeighbors GPU x
+    # @verletNeighbors GPU x y
+    # @verletNeighbors GPU x y z
 
         #Verlet Time
 
@@ -287,9 +287,9 @@ Method that computes VerletList neighbors and updates it at fixed times.
     @neighborsVerletTime CPU x
     @neighborsVerletTime CPU x y
     @neighborsVerletTime CPU x y z
-    @neighborsVerletTime GPU x
-    @neighborsVerletTime GPU x y
-    @neighborsVerletTime GPU x y z
+    # @neighborsVerletTime GPU x
+    # @neighborsVerletTime GPU x y
+    # @neighborsVerletTime GPU x y z
 
         #Verlet Displacement
 
@@ -417,9 +417,9 @@ Method that computes VerletList neighbors and updates it whenever an agent moves
     @verletDisplacement CPU x
     @verletDisplacement CPU x y
     @verletDisplacement CPU x y z
-    @verletDisplacement GPU x
-    @verletDisplacement GPU x y
-    @verletDisplacement GPU x y z
+    # @verletDisplacement GPU x
+    # @verletDisplacement GPU x y
+    # @verletDisplacement GPU x y z
 
     """
         macro verletResetDisplacement(platform, args...)
@@ -482,9 +482,9 @@ Method that computes VerletList neighbors and updates it whenever an agent moves
     @verletResetDisplacement CPU x
     @verletResetDisplacement CPU x y
     @verletResetDisplacement CPU x y z
-    @verletResetDisplacement GPU x
-    @verletResetDisplacement GPU x y
-    @verletResetDisplacement GPU x y z
+    # @verletResetDisplacement GPU x
+    # @verletResetDisplacement GPU x y
+    # @verletResetDisplacement GPU x y z
 
     """
         macro neighborsVerletDisplacement(platform, args...)
@@ -565,9 +565,9 @@ Method that computes VerletList neighbors and updates it whenever an agent moves
     @neighborsVerletDisplacement CPU x
     @neighborsVerletDisplacement CPU x y
     @neighborsVerletDisplacement CPU x y z
-    @neighborsVerletDisplacement GPU x
-    @neighborsVerletDisplacement GPU x y
-    @neighborsVerletDisplacement GPU x y z
+    # @neighborsVerletDisplacement GPU x
+    # @neighborsVerletDisplacement GPU x y
+    # @neighborsVerletDisplacement GPU x y z
 
     #Grid
 
@@ -816,9 +816,9 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
     @assignCells CPU x
     @assignCells CPU x y
     @assignCells CPU x y z
-    @assignCells GPU x
-    @assignCells GPU x y
-    @assignCells GPU x y z
+    # @assignCells GPU x
+    # @assignCells GPU x y
+    # @assignCells GPU x y z
 
     """
         macro sortAgentsInCells(platform, args...)
@@ -894,9 +894,9 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
     @sortAgentsInCells CPU x
     @sortAgentsInCells CPU x y
     @sortAgentsInCells CPU x y z
-    @sortAgentsInCells GPU x
-    @sortAgentsInCells GPU x y
-    @sortAgentsInCells GPU x y z
+    # @sortAgentsInCells GPU x
+    # @sortAgentsInCells GPU x y
+    # @sortAgentsInCells GPU x y z
 
     """
         macro neighborsCellLinked(platform, args...)
@@ -974,9 +974,9 @@ Method that computes Cell Linked neighbors and updates it whenever an agent move
     @neighborsCellLinked CPU x
     @neighborsCellLinked CPU x y
     @neighborsCellLinked CPU x y z
-    @neighborsCellLinked GPU x
-    @neighborsCellLinked GPU x y
-    @neighborsCellLinked GPU x y z
+    # @neighborsCellLinked GPU x
+    # @neighborsCellLinked GPU x y
+    # @neighborsCellLinked GPU x y z
 
     #CLVD
 """
@@ -1178,9 +1178,9 @@ Method that computes Cell Linked and Verlet Displacement neighbors algorithms to
     @verletNeighborsCLVD CPU x
     @verletNeighborsCLVD CPU x y
     @verletNeighborsCLVD CPU x y z
-    @verletNeighborsCLVD GPU x
-    @verletNeighborsCLVD GPU x y
-    @verletNeighborsCLVD GPU x y z
+    # @verletNeighborsCLVD GPU x
+    # @verletNeighborsCLVD GPU x y
+    # @verletNeighborsCLVD GPU x y z
 
     """
         macro neighborsCLVD(platform, args...)
@@ -1270,8 +1270,8 @@ Method that computes Cell Linked and Verlet Displacement neighbors algorithms to
     @neighborsCLVD CPU x
     @neighborsCLVD CPU x y
     @neighborsCLVD CPU x y z
-    @neighborsCLVD GPU x
-    @neighborsCLVD GPU x y
-    @neighborsCLVD GPU x y z
+    # @neighborsCLVD GPU x
+    # @neighborsCLVD GPU x y
+    # @neighborsCLVD GPU x y z
 
 end

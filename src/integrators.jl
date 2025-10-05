@@ -900,30 +900,30 @@ Douglas-Gunn integrator for PDE difussion problems.
                 CellBasedModels.tridiagonal3DzCPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
                 obj.u .= obj.u_new
             end
-        else
-            obj.sub_diag .= CellBasedModels.CUDA.cu([-obj.p[i][1]*j for i in obj.difussionCoefs, j in obj.r])
-            obj.main_diag .= CellBasedModels.CUDA.cu([1+2*obj.p[i][1]*j for i in obj.difussionCoefs, j in obj.r])
-            obj.super_diag .= CellBasedModels.CUDA.cu([-obj.p[i][1]*j for i in obj.difussionCoefs, j in obj.r])
+        # else
+        #     obj.sub_diag .= CellBasedModels.CUDA.cu([-obj.p[i][1]*j for i in obj.difussionCoefs, j in obj.r])
+        #     obj.main_diag .= CellBasedModels.CUDA.cu([1+2*obj.p[i][1]*j for i in obj.difussionCoefs, j in obj.r])
+        #     obj.super_diag .= CellBasedModels.CUDA.cu([-obj.p[i][1]*j for i in obj.difussionCoefs, j in obj.r])
 
-            if obj.dims == 1
-                obj.u .+= obj.du
-                CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal1DxGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
-                obj.u .= obj.u_new
-            elseif obj.dims == 2
-                obj.u .+= obj.du
-                CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal2DxGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
-                obj.u .= obj.u_new
-                CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal2DyGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
-                obj.u .= obj.u_new
-            elseif obj.dims == 3
-                obj.u .+= obj.du
-                CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal3DxGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
-                obj.u .= obj.u_new
-                CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal3DyGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
-                obj.u .= obj.u_new
-                CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal3DzGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
-                obj.u .= obj.u_new
-            end
+        #     if obj.dims == 1
+        #         obj.u .+= obj.du
+        #         CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal1DxGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+        #         obj.u .= obj.u_new
+        #     elseif obj.dims == 2
+        #         obj.u .+= obj.du
+        #         CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal2DxGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+        #         obj.u .= obj.u_new
+        #         CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal2DyGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+        #         obj.u .= obj.u_new
+        #     elseif obj.dims == 3
+        #         obj.u .+= obj.du
+        #         CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal3DxGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+        #         obj.u .= obj.u_new
+        #         CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal3DyGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+        #         obj.u .= obj.u_new
+        #         CellBasedModels.CUDA.@sync CellBasedModels.CUDA.@cuda threads=obj.p.platform.mediumThreads blocks=obj.p.platform.mediumBlocks CellBasedModels.tridiagonal3DzGPU!(obj.sub_diag, obj.main_diag, obj.super_diag, obj.u, obj.u_new, obj.c_star, obj.d_star, obj.difussion)
+        #         obj.u .= obj.u_new
+        #     end
         end
         
         obj.t += dt

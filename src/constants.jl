@@ -66,6 +66,8 @@ UNITS = Dict(
 
 DIMENSION_OPERATORS = [:*,:/,:^]
 
+POSITIONPARAMETERS = [:x,:y,:z]
+
 # DTYPE = Dict(
 #                 :Float => Dict([:CPU=>Float64,:GPU=>Float32]),
 #                 :Int => Dict([:CPU=>Int,:GPU=>Int32])
@@ -100,8 +102,6 @@ DIMENSION_OPERATORS = [:*,:/,:^]
 #     # :holeFromRemoveAt_            => BaseParameter(:Int,     (:Local,),                 2,          :Base,        true,        true,      false,    Symbol[],                                       @eval (com,agent) -> if agent.removalOfAgents_; zeros(Int64,com[:N][1]); else zeros(Int64,0); end                                                       ),
 #     # :repositionAgentInPos_        => BaseParameter(:Int,     (:Local,),                 2,          :Base,        false,       true,      false,    Symbol[],                                       @eval (com,agent) -> if agent.removalOfAgents_; zeros(Int64,com[:N][1]); else zeros(Int64,0); end                                                       ),
 # )
-
-# POSITIONPARAMETERS = [:x,:y,:z]
 
 # # positionParameters=OrderedDict(
 # #     :x=>Float64,

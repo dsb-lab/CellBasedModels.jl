@@ -1,6 +1,6 @@
 module CBMMetrics
 
-    using CUDA
+    # using CUDA
 
     """
         function cellInMesh(edge,x,xMin,xMax,nX) 

@@ -132,34 +132,33 @@ Object containing the information of each parameter of an Agent.
 |:---|:---|
 | name::Symbol | Name of the parameter. |
 | dataType::DataType | Type of data. |
-| units::Union{Nothing, Symbol, Expr} = nothing | Dimensions of the parameter, if applicable. |
+| dimensions::Union{Nothing, Symbol, Expr} = nothing | Dimensions of the parameter, if applicable. |
 | defaultValue::Union{ValueUnits, Number, Nothing} = nothing | Default value of the parameter. |
 | description::String = "" | Description of the parameter. |
 
     Constructors
     ------------
 
-Parameter(name::Symbol, dataType::DataType; units=nothing, defaultValue=ValueUnits(nothing, nothing), description::String="")
+Parameter(name::Symbol, dataType::DataType; dimensions=nothing, defaultValue=ValueUnits(nothing, nothing), description::String="")
 
     Examples
     --------
 
 ```julia
     p = Parameter(:velocity, Float64) # Minimum definition
-    p = Parameter(:velocity, Float64, units=:(L/T)) # Minimum definition
+    p = Parameter(:velocity, Float64, dimensions=:(L/T)) # Minimum definition
     p = Parameter(:velocity, Float64, defaultValue=12.0, description="Velocity of the agent")
-    p = Parameter(:velocity, Float64, units=:(L/T), defaultValue=ValueUnits(12.0, :(m/s)), description="Velocity of the agent")
+    p = Parameter(:velocity, Float64, dimensions=:(L/T), defaultValue=ValueUnits(12.0, :(m/s)), description="Velocity of the agent")
 ```
 """
 mutable struct Parameter
-    name::Symbol
     dataType::DataType
-    units::Union{Nothing, Symbol, Expr}
+    dimensions::Union{Nothing, Symbol, Expr}
     defaultValue::ValueUnits
     description::String
 
-    function Parameter(name::Symbol, dataType::DataType;
-                       units::Union{Nothing, Symbol, Expr}=nothing,
+    function Parameter(dataType::DataType;
+                       dimensions::Union{Nothing, Symbol, Expr}=nothing,
                        defaultValue::Union{ValueUnits, Number, Nothing}=nothing,
                        description::String="")
 
@@ -177,22 +176,22 @@ mutable struct Parameter
             end
         end
 
-        if units === nothing && defaultValue.units !== nothing
-            units = dimensionUnits2dimensions(defaultValue.units)
-        elseif units !== nothing && defaultValue.units !== nothing
-            if !compareDimensionsUnits2dimensions(defaultValue.units, units)
-                throw(ArgumentError("The units of the parameter do not match the default value's units. Expected: $units, Given: $(defaultValue.units)"))
+        if dimensions === nothing && defaultValue.units !== nothing
+            dimensions = defaultValue.units
+        elseif dimensions !== nothing && defaultValue.units !== nothing
+            if !compareDimensionsUnits2dimensions(defaultValue.units, dimensions)
+                throw(ArgumentError("The dimensions of the parameter do not match the default value's dimensions. Expected: $dimensions, Given: $(defaultValue.units)"))
             end
         end
 
-        new(name, dataType, units, defaultValue, description)
+        new(dataType, dimensions, defaultValue, description)
     end
 end
 
 function Base.show(io::IO, x::Parameter)
-    println("Parameter: ", x.name)
+    println("Parameter: ")
     println("\t DataType: ", x.dataType)
-    println("\t Dimensions: ", x.units)
+    println("\t Dimensions: ", x.dimensions)
     println("\t Default Value: ", x.defaultValue)
     println("\t Description: ", x.description)
 end
@@ -226,347 +225,302 @@ end
     namedtuple_params = parameter_convert(parameters)
 ```
 """
-function parameter_convert(parameters::Union{
-                OrderedDict{Symbol,DataType}, 
-                Dict{Symbol,DataType}, 
-                Vector{Parameter}, 
-                NamedTuple,
-            })
-    parameter_namedtuple = if parameters isa OrderedDict || parameters isa Dict
-        keys_tuple = Tuple(keys(parameters))
-        values_tuple = Tuple([Parameter(i, parameters[i]) for i in keys_tuple])
-        NamedTuple{keys_tuple}(values_tuple)
-    elseif parameters isa NamedTuple
-        keys_tuple = Tuple(keys(parameters))
-        values_tuple = Tuple([Parameter(i, parameters[i]) for i in keys_tuple])
-        NamedTuple{keys_tuple}(values_tuple)
-    elseif parameters isa Vector{Parameter}
-        names = Tuple(p.name for p in parameters)
-        values = Tuple(p for p in parameters)
-        NamedTuple{names}(values)
-    else
-        error("Unsupported parameter type: $(typeof(parameters))")
+function parameter_convert(parameters)
+
+    keys_tuple = Tuple(keys(parameters))
+    l = []
+    for i in keys_tuple
+        if typeof(parameters[i]) <: Parameter
+            push!(l, parameters[i])
+        elseif typeof(parameters[i]) <: DataType
+            push!(l, Parameter(parameters[i]))
+        else
+            error("Parameters must be of type Parameter or DataType. Given: $(typeof(parameters[i])) for parameter $i")
+        end
     end
+    values_tuple = Tuple(l)
+    parameter_namedtuple = NamedTuple{keys_tuple}(values_tuple)
 
     return parameter_namedtuple
 end
 
-"""
-    struct Agent
 
-Object containing the parameters of an agent.
+# """
+#     struct Model
 
-    Parameters
-    ----------
+# Object containing the parameters of the Model.
 
-|Field|Description|
-|:---|:---|
-| name::Symbol | Name of the agent. |
-| dims::Int | Number of dimensions of the agent (0, 1, 2, or 3). |
-| idType::Symbol | Type of the agent's unique identifier. Default is `Int`. |
-| posType::Symbol | Type of the agent's position. Default is `Float64`.
-| parameters::NamedTuple{Symbol, Parameter} | Named Tuple with name => Parameter. Parameter.name corresponds with key.|
+#     Parameters
+#     ----------
 
-    Constructors
-    ------------
+# |Field|Description|
+# |:---|:---|
+# | parameters::NamedTuple{Symbol, Parameter} | Named Tuple with name => Parameter. Parameter.name corresponds with key.|
 
-Agent(name::Symbol, dims::Int; idType::Type=Int, posType::Type=Float64, parameters::Union{
-            OrderedDict{Symbol,DataType}, 
-            Dict{Symbol,DataType}, 
-            Vector{Parameter}, 
-            NamedTuple, 
-        }=Dict())
+#     Constructors
+#     ------------
 
-    Examples
-    --------
+# Model(parameters::Union{
+#             OrderedDict{Symbol,DataType}, 
+#             Dict{Symbol,DataType}, 
+#             Vector{Parameter}, 
+#             NamedTuple, 
+#         }=Dict())
 
-```julia
-    agent = Agent(:cell, 3, parameters=(mass=Float64, alive=Bool)) # Using NamedTuple
-    agent = Agent(:cell, 3, parameters=OrderedDict(:mass => Float64, :alive => Bool)) # Using OrderedDict
-    agent = Agent(:cell, 3, parameters=Dict(:mass => Float64, :alive => Bool)) # Using Dict
-    agent = Agent(:cell, 3, 
-                    parameters=[
-                        Parameter(:mass, Float64, defaultValue=10.0),
-                        Parameter(:alive, Bool, defaultValue=true)
-                    ]) # Using Vector{Parameter}
-```
-"""
-struct Agent
-    name::Symbol
-    dims::Int
-    parameters::NamedTuple
+#     Examples
+#     --------
 
-    function Agent(name::Symbol, dims::Int; idType::Type=Int, posType::Type=Float64, parameters::Union{
-                    OrderedDict{Symbol,DataType}, 
-                    Dict{Symbol,DataType}, 
-                    Vector{Parameter}, 
-                    NamedTuple, 
-                }=Dict())
+# ```julia
+#     Model = Model(parameters=(mass=Float64, alive=Bool)) # Using NamedTuple
+#     Model = Model(parameters=OrderedDict(:mass => Float64, :alive => Bool)) # Using OrderedDict
+#     Model = Model(parameters=Dict(:mass => Float64, :alive => Bool)) # Using Dict
+#     Model = Model(
+#                     parameters=[
+#                         Parameter(:mass, Float64, defaultValue=10.0),
+#                         Parameter(:alive, Bool, defaultValue=true)
+#                     ]) # Using Vector{Parameter}
+# ```
+# """
+# struct Model
+#     parameters::NamedTuple
 
-        if dims < 0 || dims > 3
-            error("Dimensions must be between 0 and 3. Given: $dims")
-        end
+#     function Model(; parameters::Union{
+#                     OrderedDict{Symbol,DataType}, 
+#                     Dict{Symbol,DataType}, 
+#                     Vector{Parameter}, 
+#                     NamedTuple, 
+#                 }=Dict{Symbol,DataType}())
 
-        parameter_namedtuple = parameter_convert(parameters)
+#         parameter_namedtuple = parameter_convert(parameters)
 
-        if :id in keys(parameter_namedtuple)
-            error("The parameter :id is reserved for the agent's unique identifier. Please choose a different name.")
-        elseif any(p.name in [:x, :y, :z] for p in values(parameter_namedtuple))
-            error("The parameters :x, :y, and :z are reserved for the agent's position. Please choose different names.")
-        end
+#         if :t in keys(parameter_namedtuple)
+#             error("The parameter :t is reserved for the simulation time. Please choose a different name.")
+#         elseif :dt in keys(parameter_namedtuple)
+#             error("The parameter :dt is reserved for the time step. Please choose a different name.")
+#         elseif :simBox in keys(parameter_namedtuple)
+#             error("The parameter :simBox is reserved for the simulation box. Please choose a different name.")
+#         end
 
-        id = (id=Parameter(:id, idType, description="Unique identifier for the agent"),)
-        position = parameter_convert([
-            Parameter(:x, posType, units=:L, description="X position of the agent"),
-            Parameter(:y, posType, units=:L, description="Y position of the agent"),
-            Parameter(:z, posType, units=:L, description="Z position of the agent")
-        ][1:1:dims])
+#         pars = (
+#             t=Parameter(:t, Float64, units=:T, description="Simulation time"),
+#             dt=Parameter(:dt, Float64, units=:T, description="Time step for the simulation"),
+#             simBox=Parameter(:simBox, Array{Float64,2}, units=:L, description="Simulation box")
+#         )
 
-        joined_parameters = merge(id, position, parameter_namedtuple)
+#         merged_parameters = merge(pars, parameter_namedtuple)
 
-        new(name, dims, joined_parameters)
-    end
-end
+#         new(merged_parameters)
+#     end
+# end
 
-Base.length(x::Agent) = 1
+# Base.length(x::Model) = 1
 
-function Base.show(io::IO, x::Agent)
-    println(io, "Agent: ", x.name, "\n")
-    println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-s", "Name", "DataType", "Units", "Default_Value", "Description"))
-    println(io, "\t" * repeat("-", 85))
-    for (_, par) in pairs(x.parameters)
-        println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-s", 
-            par.name, 
-            string(par.dataType), 
-            par.units,
-            par.defaultValue, 
-            par.description))
-    end
-    println(io)
-end
+# function Base.show(io::IO, x::Model)
+#     println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-s", "Name", "DataType", "Units", "Default_Value", "Description"))
+#     println(io, "\t" * repeat("-", 85))
+#     for (_, par) in pairs(x.parameters)
+#         println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-s", 
+#             par.name, 
+#             string(par.dataType), 
+#             par.units,
+#             par.defaultValue, 
+#             par.description))
+#     end
+#     println(io)
+# end
 
-"""
-    struct GlobalEnvironment
+# """
+#     struct Medium
 
-Object containing the parameters of the globalEnvironment.
+# Object containing the parameters of a medium.
 
-    Parameters
-    ----------
+#     Parameters
+#     ----------
 
-|Field|Description|
-|:---|:---|
-| parameters::NamedTuple{Symbol, Parameter} | Named Tuple with name => Parameter. Parameter.name corresponds with key.|
+# |Field|Description|
+# |:---|:---|
+# | dims::Int | Number of dimensions of the medium (1, 2, or 3). |
+# | name::Symbol | Name of the medium. |
+# | parameters::NamedTuple{Symbol, Parameter} | Named Tuple with name => Parameter. Parameter.name corresponds with key.|
 
-    Constructors
-    ------------
+#     Constructors
+#     ------------
 
-GlobalEnvironment(parameters::Union{
-            OrderedDict{Symbol,DataType}, 
-            Dict{Symbol,DataType}, 
-            Vector{Parameter}, 
-            NamedTuple, 
-        }=Dict())
+# Medium(dim::Int, name::Symbol=:medium; parameters::Union{
+#             OrderedDict{Symbol,DataType}, 
+#             Dict{Symbol,DataType}, 
+#             Vector{Parameter}, 
+#             NamedTuple, 
+#         }=Dict())
 
-    Examples
-    --------
+#     Arguments
+#     ---------
 
-```julia
-    globalEnvironment = GlobalEnvironment(parameters=(mass=Float64, alive=Bool)) # Using NamedTuple
-    globalEnvironment = GlobalEnvironment(parameters=OrderedDict(:mass => Float64, :alive => Bool)) # Using OrderedDict
-    globalEnvironment = GlobalEnvironment(parameters=Dict(:mass => Float64, :alive => Bool)) # Using Dict
-    globalEnvironment = GlobalEnvironment(
-                    parameters=[
-                        Parameter(:mass, Float64, defaultValue=10.0),
-                        Parameter(:alive, Bool, defaultValue=true)
-                    ]) # Using Vector{Parameter}
-```
-"""
-struct GlobalEnvironment
-    parameters::NamedTuple
+# |Field|Description|
+# |:---|:---|
+# | dim::Int | Number of dimensions of the medium (1, 2, or 3). |
+# | name::Symbol | Name of the medium. Default is :medium |
+# | parameters::NamedTuple{Symbol, Parameter} | Named Tuple with name => Parameter. Parameter.name corresponds with key.|
 
-    function GlobalEnvironment(; parameters::Union{
-                    OrderedDict{Symbol,DataType}, 
-                    Dict{Symbol,DataType}, 
-                    Vector{Parameter}, 
-                    NamedTuple, 
-                }=Dict())
+#     Examples
+#     --------
 
-        parameter_namedtuple = parameter_convert(parameters)
+# ```julia
+#     medium = Medium(3, name=:medium, parameters=(mass=Float64, alive=Bool)) # Using NamedTuple
+#     medium = Medium(3, name=:medium, parameters=OrderedDict(:mass => Float64, :alive => Bool)) # Using OrderedDict
+#     medium = Medium(3, name=:medium, parameters=Dict(:mass => Float64, :alive => Bool)) # Using Dict
+#     medium = Medium(3, name=:medium, 
+#                     parameters=[
+#                         Parameter(:mass, Float64, defaultValue=10.0),
+#                         Parameter(:alive, Bool, defaultValue=true)
+#                     ]) # Using Vector{Parameter}
+# ```
+# """
+# struct Medium
+#     name::Symbol
+#     dims::Int
+#     parameters::NamedTuple
 
-        new(parameter_namedtuple)
-    end
-end
+#     function Medium(dim::Int; name::Symbol=:medium, parameters::Union{
+#                     OrderedDict{Symbol,DataType}, 
+#                     Dict{Symbol,DataType}, 
+#                     Vector{Parameter}, 
+#                     NamedTuple, 
+#                 }=Dict{Symbol,DataType}())
+        
+#         if dim < 1 || dim > 3
+#             error("Dimensions must be between 1 and 3. Given: $dim")
+#         end
+        
+#         parameter_namedtuple = parameter_convert(parameters)
 
-Base.length(x::GlobalEnvironment) = 1
+#         if :NMedium_ in keys(parameter_namedtuple)
+#             error("The parameter :NMedium_ is reserved for the number of mediums. Please choose a different name.")
+#         elseif any(p.name in [:dx, :dy, :dz] for p in values(parameter_namedtuple))
+#             error("The parameters :dx, :dy, and :dz are reserved for the medium's step sizes. Please choose different names.")
+#         end
 
-function Base.show(io::IO, x::GlobalEnvironment)
-    println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-s", "Name", "DataType", "Units", "Default_Value", "Description"))
-    println(io, "\t" * repeat("-", 85))
-    for (_, par) in pairs(x.parameters)
-        println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-s", 
-            par.name, 
-            string(par.dataType), 
-            par.units,
-            par.defaultValue, 
-            par.description))
-    end
-    println(io)
-end
+#         pars = (
+#             NMedium_=Parameter(:NMedium_, Int, defaultValue=0, description="Number of mediums in the simulation"),
+#         )
+#         position = parameter_convert([
+#             Parameter(:dx, Float64, units=:L, description="X position of the medium"),
+#             Parameter(:dy, Float64, units=:L, description="Y position of the medium"),
+#             Parameter(:dz, Float64, units=:L, description="Z position of the medium")
+#         ][1:1:dim])
 
-"""
-    struct Medium
+#         merged_parameters = merge(pars, position, parameter_namedtuple)
 
-Object containing the parameters of a medium.
+#         new(name, dim, merged_parameters)
+#     end
+# end
 
-    Parameters
-    ----------
+# Base.length(x::Medium) = 1
 
-|Field|Description|
-|:---|:---|
-| name::Symbol | Name of the medium. |
-| parameters::NamedTuple{Symbol, Parameter} | Named Tuple with name => Parameter. Parameter.name corresponds with key.|
+# function Base.show(io::IO, x::Medium)
+#     println(io, "Medium: ", x.name, "\n")
+#     println(io, @sprintf("\t%-15s %-15s %-15s %-s %-s", "Name", "DataType", "Units", "Default_Value", "Description"))
+#     println(io, "\t" * repeat("-", 85))
+#     for (_, par) in pairs(x.parameters)
+#         println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-s", 
+#             par.name, 
+#             string(par.dataType),
+#             par.units, 
+#             par.defaultValue, 
+#             par.description))
+#     end
+#     println(io)
+# end
 
-    Constructors
-    ------------
+# """
+#     struct Interaction
 
-Medium(name::Symbol; parameters::Union{
-            OrderedDict{Symbol,DataType}, 
-            Dict{Symbol,DataType}, 
-            Vector{Parameter}, 
-            NamedTuple, 
-        }=Dict())
+# Object containing the parameters of an agent.
 
-    Examples
-    --------
+#     Parameters
+#     ----------
 
-```julia
-    medium = Medium(:cell, parameters=(mass=Float64, alive=Bool)) # Using NamedTuple
-    medium = Medium(:cell, parameters=OrderedDict(:mass => Float64, :alive => Bool)) # Using OrderedDict
-    medium = Medium(:cell, parameters=Dict(:mass => Float64, :alive => Bool)) # Using Dict
-    medium = Medium(:cell, 
-                    parameters=[
-                        Parameter(:mass, Float64, defaultValue=10.0),
-                        Parameter(:alive, Bool, defaultValue=true)
-                    ]) # Using Vector{Parameter}
-```
-"""
-struct Medium
-    name::Symbol
-    parameters::NamedTuple
+# |Field|Description|
+# |:---|:---|
+# | name::Symbol | Name of the agent. |
+# | interactionAgents::Union{Symbol, Tuple{Symbol, Symbol}} | Name of the agents involved in the interaction. If a single agent is provided, it is assumed to interact with itself. |
+# | parameters::NamedTuple{Symbol, Parameter} | Named Tuple with name => Parameter. Parameter.name corresponds with key.|
 
-    function Medium(name::Symbol; parameters::Union{
-                    OrderedDict{Symbol,DataType}, 
-                    Dict{Symbol,DataType}, 
-                    Vector{Parameter}, 
-                    NamedTuple, 
-                }=Dict())
+#     Constructors
+#     ------------
 
-        parameter_namedtuple = parameter_convert(parameters)
+# Interaction(interactionAgents::Union{Symbol, Tuple{Symbol, Symbol}}; name::Symbol=:interaction, parameters::Union{
+#             OrderedDict{Symbol,DataType}, 
+#             Dict{Symbol,DataType}, 
+#             Vector{Parameter}, 
+#             NamedTuple, 
+#         }=Dict())
 
-        new(name, parameter_namedtuple)
-    end
-end
+# |Field|Description|
+# |:---|:---|
+# | interactionAgents::Union{Symbol, Tuple{Symbol, Symbol}} | Name of the agents involved in the interaction. If a single agent is provided, it is assumed to interact with itself. |
+# | name::Symbol | Name of the agent. Default :interaction |
+# | parameters::NamedTuple{Symbol, Parameter} | Named Tuple with name => Parameter. Parameter.name corresponds with key.|
 
-Base.length(x::Medium) = 1
+#     Examples
+#     --------
 
-function Base.show(io::IO, x::Medium)
-    println(io, "Medium: ", x.name, "\n")
-    println(io, @sprintf("\t%-15s %-15s %-15s %-s %-s", "Name", "DataType", "Units", "Default_Value", "Description"))
-    println(io, "\t" * repeat("-", 85))
-    for (_, par) in pairs(x.parameters)
-        println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-s", 
-            par.name, 
-            string(par.dataType),
-            par.units, 
-            par.defaultValue, 
-            par.description))
-    end
-    println(io)
-end
+# ```julia
+#     # Considering that you have defined some agents named :agent1 and :agent2, you can create an interaction as follows:
+#     interaction = Interaction(:agent1, parameters=(mass=Float64, alive=Bool)) # Using NamedTuple
+#     interaction = Interaction((:agent1, :agent2), parameters=(mass=Float64, alive=Bool)) # Using NamedTuple
+#     interaction = Interaction(:agent1, parameters=OrderedDict(:mass => Float64, :alive => Bool)) # Using OrderedDict
+#     interaction = Interaction((:agent1, :agent2), parameters=OrderedDict(:mass => Float64, :alive => Bool)) # Using OrderedDict
+#     interaction = Interaction(:agent1, parameters=Dict(:mass => Float64, :alive => Bool)) # Using Dict
+#     interaction = Interaction((:agent1, :agent2), parameters=Dict(:mass => Float64, :alive => Bool)) # Using Dict
+#     interaction = Interaction(:agent1, 
+#                     parameters=[
+#                         Parameter(:mass, Float64, defaultValue=10.0),
+#                         Parameter(:alive, Bool, defaultValue=true)
+#                     ]) # Using Vector{Parameter}
+#     interaction = Interaction((:agent1, :agent2), 
+#                     parameters=[
+#                         Parameter(:mass, Float64, defaultValue=10.0),
+#                         Parameter(:alive, Bool, defaultValue=true)
+#                     ]) # Using Vector{Parameter}
+# ```
+# """
+# struct Interaction
+#     name::Symbol
+#     interactionAgents::Tuple{Symbol, Symbol}
+#     parameters::NamedTuple
 
-"""
-    struct Interaction
+#     function Interaction(interactionAgents::Union{Symbol, Tuple{Symbol, Symbol}}; name::Symbol=:interaction,
+#                 parameters::Union{
+#                     OrderedDict{Symbol,DataType}, 
+#                     Dict{Symbol,DataType}, 
+#                     Vector{Parameter}, 
+#                     NamedTuple, 
+#                 }=Dict{Symbol,DataType}())
 
-Object containing the parameters of an agent.
+#         if interactionAgents isa Symbol
+#             interactionAgents = (interactionAgents, interactionAgents)
+#         end
 
-    Parameters
-    ----------
+#         parameter_namedtuple = parameter_convert(parameters)
 
-|Field|Description|
-|:---|:---|
-| name::Symbol | Name of the agent. |
-| interactionAgents::Union{Symbol, Tuple{Symbol, Symbol}} | Name of the agents involved in the interaction. If a single agent is provided, it is assumed to interact with itself. |
-| parameters::NamedTuple{Symbol, Parameter} | Named Tuple with name => Parameter. Parameter.name corresponds with key.|
+#         new(name, interactionAgents, parameter_namedtuple)
+#     end
+# end
 
-    Constructors
-    ------------
+# Base.length(x::Interaction) = 1
 
-Interaction(name::Symbol; parameters::Union{
-            OrderedDict{Symbol,DataType}, 
-            Dict{Symbol,DataType}, 
-            Vector{Parameter}, 
-            NamedTuple, 
-        }=Dict())
-
-    Examples
-    --------
-
-```julia
-    # Considering that you have defined some agents named :agent1 and :agent2, you can create an interaction as follows:
-    interaction = Interaction(:interaction, :agent1, parameters=(mass=Float64, alive=Bool)) # Using NamedTuple
-    interaction = Interaction(:interaction, (:agent1, :agent2), parameters=(mass=Float64, alive=Bool)) # Using NamedTuple
-    interaction = Interaction(:interaction, :agent1, parameters=OrderedDict(:mass => Float64, :alive => Bool)) # Using OrderedDict
-    interaction = Interaction(:interaction, (:agent1, :agent2), parameters=OrderedDict(:mass => Float64, :alive => Bool)) # Using OrderedDict
-    interaction = Interaction(:interaction, :agent1, parameters=Dict(:mass => Float64, :alive => Bool)) # Using Dict
-    interaction = Interaction(:interaction, (:agent1, :agent2), parameters=Dict(:mass => Float64, :alive => Bool)) # Using Dict
-    interaction = Interaction(:interaction, :agent1, 
-                    parameters=[
-                        Parameter(:mass, Float64, defaultValue=10.0),
-                        Parameter(:alive, Bool, defaultValue=true)
-                    ]) # Using Vector{Parameter}
-    interaction = Interaction(:interaction, (:agent1, :agent2), 
-                    parameters=[
-                        Parameter(:mass, Float64, defaultValue=10.0),
-                        Parameter(:alive, Bool, defaultValue=true)
-                    ]) # Using Vector{Parameter}
-```
-"""
-struct Interaction
-    name::Symbol
-    interactionAgents::Tuple{Symbol, Symbol}
-    parameters::NamedTuple
-
-    function Interaction(name::Symbol, interactionAgents::Union{Symbol, Tuple{Symbol, Symbol}};
-                parameters::Union{
-                    OrderedDict{Symbol,DataType}, 
-                    Dict{Symbol,DataType}, 
-                    Vector{Parameter}, 
-                    NamedTuple, 
-                }=Dict())
-
-        if interactionAgents isa Symbol
-            interactionAgents = (interactionAgents, interactionAgents)
-        end
-
-        parameter_namedtuple = parameter_convert(parameters)
-
-        new(name, interactionAgents, parameter_namedtuple)
-    end
-end
-
-Base.length(x::Interaction) = 1
-
-function Base.show(io::IO, x::Interaction)
-    println(io, "Interaction: ", x.name, " between agents ", x.interactionAgents[1], " and ", x.interactionAgents[2], "\n")
-    println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-s", "Name", "DataType", "Units", "Default_Value", "Description"))
-    println(io, "\t" * repeat("-", 85))
-    for (_, par) in pairs(x.parameters)
-        println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-s", 
-            par.name, 
-            string(par.dataType), 
-            par.units,
-            par.defaultValue, 
-            par.description))
-    end
-    println(io)
-end
+# function Base.show(io::IO, x::Interaction)
+#     println(io, "Interaction: ", x.name, " between agents ", x.interactionAgents[1], " and ", x.interactionAgents[2], "\n")
+#     println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-s", "Name", "DataType", "Units", "Default_Value", "Description"))
+#     println(io, "\t" * repeat("-", 85))
+#     for (_, par) in pairs(x.parameters)
+#         println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-s", 
+#             par.name, 
+#             string(par.dataType), 
+#             par.units,
+#             par.defaultValue, 
+#             par.description))
+#     end
+#     println(io)
+# end

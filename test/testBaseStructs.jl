@@ -51,10 +51,10 @@
 
     @testset "Agent" begin
         for agent in [
-            Agent(:cell, 3, parameters=(mass=Float64, alive=Bool)),
-            Agent(:cell, 3, parameters=OrderedDict(:mass => Float64, :alive => Bool)),
-            Agent(:cell, 3, parameters=Dict(:mass => Float64, :alive => Bool)),
-            Agent(:cell, 3, 
+            Agent(3, name=:cell, parameters=(mass=Float64, alive=Bool)),
+            Agent(3, name=:cell, parameters=OrderedDict(:mass => Float64, :alive => Bool)),
+            Agent(3, name=:cell, parameters=Dict(:mass => Float64, :alive => Bool)),
+            Agent(3, name=:cell, 
                             parameters=[
                                 Parameter(:mass, Float64),
                                 Parameter(:alive, Bool)
@@ -62,7 +62,7 @@
             ]
 
             @test agent.name == :cell        
-            @test agent.dimensions == 3
+            @test agent.dims == 3
             @test agent.parameters.x.dataType == Float64
             @test agent.parameters.x.defaultValue.value === nothing
             @test agent.parameters.x.defaultValue.units === nothing
@@ -77,41 +77,41 @@
         end
     end
 
-    @testset "GlobalEnvironment" begin
-        for globalEnvironment in [
-            GlobalEnvironment(parameters=(mass=Float64, alive=Bool)),
-            GlobalEnvironment(parameters=OrderedDict(:mass => Float64, :alive => Bool)),
-            GlobalEnvironment(parameters=Dict(:mass => Float64, :alive => Bool)),
-            GlobalEnvironment(parameters=[
+    @testset "Model" begin
+        for Model in [
+            Model(parameters=(mass=Float64, alive=Bool)),
+            Model(parameters=OrderedDict(:mass => Float64, :alive => Bool)),
+            Model(parameters=Dict(:mass => Float64, :alive => Bool)),
+            Model(parameters=[
                                 Parameter(:mass, Float64),
                                 Parameter(:alive, Bool)
                             ])
             ]
 
-            @test globalEnvironment.parameters.mass.dataType == Float64
-            @test globalEnvironment.parameters.mass.defaultValue.value === nothing
-            @test globalEnvironment.parameters.mass.defaultValue.units === nothing
-            @test globalEnvironment.parameters.mass.description == ""
-            @test globalEnvironment.parameters.alive.dataType == Bool
-            @test globalEnvironment.parameters.alive.defaultValue.value === nothing
-            @test globalEnvironment.parameters.alive.defaultValue.units === nothing
-            @test globalEnvironment.parameters.alive.description == ""
+            @test Model.parameters.mass.dataType == Float64
+            @test Model.parameters.mass.defaultValue.value === nothing
+            @test Model.parameters.mass.defaultValue.units === nothing
+            @test Model.parameters.mass.description == ""
+            @test Model.parameters.alive.dataType == Bool
+            @test Model.parameters.alive.defaultValue.value === nothing
+            @test Model.parameters.alive.defaultValue.units === nothing
+            @test Model.parameters.alive.description == ""
         end
     end
 
     @testset "Medium" begin
         for medium in [
-            Medium(:medium, parameters=(mass=Float64, alive=Bool)),
-            Medium(:medium, parameters=OrderedDict(:mass => Float64, :alive => Bool)),
-            Medium(:medium, parameters=Dict(:mass => Float64, :alive => Bool)),
-            Medium(:medium, 
+            Medium(3, name=:medium, parameters=(mass=Float64, alive=Bool)),
+            Medium(3, name=:medium, parameters=OrderedDict(:mass => Float64, :alive => Bool)),
+            Medium(3, name=:medium, parameters=Dict(:mass => Float64, :alive => Bool)),
+            Medium(3, name=:medium, 
                             parameters=[
                                 Parameter(:mass, Float64),
                                 Parameter(:alive, Bool)
                             ])
             ]
 
-            @test medium.name == :cell        
+            @test medium.name == :medium        
             @test medium.parameters.mass.dataType == Float64
             @test medium.parameters.mass.defaultValue.value === nothing
             @test medium.parameters.mass.defaultValue.units === nothing
@@ -125,18 +125,18 @@
 
     @testset "Interaction" begin
         for interaction in [
-                Interaction(:interaction, :agent1, parameters=(mass=Float64, alive=Bool)), # Using NamedTuple        
-                Interaction(:interaction, (:agent1, :agent1), parameters=(mass=Float64, alive=Bool)), # Using NamedTuple
-                Interaction(:interaction, :agent1, parameters=OrderedDict(:mass => Float64, :alive => Bool)), # Using OrderedDict
-                Interaction(:interaction, (:agent1, :agent1), parameters=OrderedDict(:mass => Float64, :alive => Bool)), # Using OrderedDict
-                Interaction(:interaction, :agent1, parameters=Dict(:mass => Float64, :alive => Bool)), # Using Dict
-                Interaction(:interaction, (:agent1, :agent1), parameters=Dict(:mass => Float64, :alive => Bool)), # Using Dict
-                Interaction(:interaction, :agent1, 
+                Interaction(:agent1, parameters=(mass=Float64, alive=Bool)), # Using NamedTuple        
+                Interaction((:agent1, :agent1), parameters=(mass=Float64, alive=Bool)), # Using NamedTuple
+                Interaction(:agent1, parameters=OrderedDict(:mass => Float64, :alive => Bool)), # Using OrderedDict
+                Interaction((:agent1, :agent1), parameters=OrderedDict(:mass => Float64, :alive => Bool)), # Using OrderedDict
+                Interaction(:agent1, parameters=Dict(:mass => Float64, :alive => Bool)), # Using Dict
+                Interaction((:agent1, :agent1), parameters=Dict(:mass => Float64, :alive => Bool)), # Using Dict
+                Interaction(:agent1, 
                             parameters=[
                                 Parameter(:mass, Float64, defaultValue=nothing),
                                 Parameter(:alive, Bool, defaultValue=nothing)
                             ]), # Using Vector{Parameter}
-                Interaction(:interaction, (:agent1, :agent1), 
+                Interaction((:agent1, :agent1), 
                             parameters=[
                                 Parameter(:mass, Float64, defaultValue=nothing),
                                 Parameter(:alive, Bool, defaultValue=nothing)

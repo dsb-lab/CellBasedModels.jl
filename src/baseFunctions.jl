@@ -178,4 +178,3 @@ function compareDimensionsUnits2dimensions(dimensionsUnits::Union{Symbol, Expr},
     return dimensions == dimensionUnits2dimensions(dimensionsUnits)
 
 end
-

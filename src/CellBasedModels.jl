@@ -23,15 +23,19 @@ module CellBasedModels
 
     export DifferentialEquations, OrderedDict
 
-
+    #AbstractTypes
+    include("./abstractTypes.jl")
 
     #Constants
     export UNITS
     include("./constants.jl")
 
     include("./baseStructs.jl")
-    export ValueUnits, Parameter, Agent, GlobalEnvironment, Medium, Interaction
+    export ValueUnits, Parameter, cartesian2DToMortonLinear, cartesian3DToMortonLinear, mortonLinearToCartesian2D, mortonLinearToCartesian3D, mortonLinear2DNeighbors, cartesian2DNeighbors, mortonLinear3DNeighbors
     include("./baseFunctions.jl")
+
+    include("./auxiliar/indexing.jl")
+    export mortonToLinear
 
     # #Custom integrators
     # export CBMIntegrators
@@ -62,16 +66,21 @@ module CellBasedModels
     # using .CBMNeighbors
 
     #Agent
-    export ABM#, compileABM!
+    export AgentPoint, setAgentDimensions!, addAgentProperty!, addAgentProperties!, removeAgentProperty!, removeAgentProperties!, CommunityPoint, preallocate!, freePreallocations!, addAgent!, removeAgent!, getParameter
+    include("./AgentStructure/AgentPoint.jl")
+    # export ABM#, compileABM!
     #     #Macros and custom code
     # export @addAgent, @removeAgent, @loopOverNeighbors, @mediumInside, @mediumBorder, @∂, @∂2, @distanceEuclidean, @distanceManhattan
     # include("./AgentStructure/macros.jl")   
-    #     #Structure
+        #Structure
     # include("./AgentStructure/agentStructure.jl")
     #     #Rule
     # include("./AgentStructure/functionRule.jl")
     #     #DE
     # include("./AgentStructure/functionDE.jl")
+
+    export CBMNeighbors
+    include("./neighbors/neighbors.jl")
 
     # #Community
     # export Community, loadToPlatform!, bringFromPlatform!, getParameter

@@ -91,9 +91,10 @@ mutable struct ABM
 
     dims::Int    
 
-    agents::Vector{Agent}
-
-    parameters::OrderedDict{Symbol,UserParameter}
+    agent::NamedTuple
+    model::Model
+    medium::NamedTuple
+    interaction::NamedTuple
     
     declaredUpdates::Dict{Symbol,Expr}
     declaredUpdatesCode::Dict{Symbol,Expr}
@@ -112,42 +113,47 @@ mutable struct ABM
     mediumAlg
     mediumSolveArgs
         
-    function ABM()
-        new(0,
-            OrderedDict{Symbol,DataType}(),
-            Dict{Symbol,Agent}(),
-            Dict{Symbol,Expr}(),
-            Dict{Symbol,Expr}(),
-            Dict{Symbol,Function}(),
-            false,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing
-            )
-    end
+    # function ABM()
+    #     new(0,
+    #         NamedTuple{Symbol,DataType}(),
+    #         Dict{Symbol,Agent}(),
+    #         Dict{Symbol,Expr}(),
+    #         Dict{Symbol,Expr}(),
+    #         Dict{Symbol,Function}(),
+    #         false,
+    #         nothing,
+    #         nothing,
+    #         nothing,
+    #         nothing,
+    #         nothing,
+    #         nothing,
+    #         nothing,
+    #         nothing
+    #         )
+    # end
 
     function ABM(
             dims;
 
             agent::Union{OrderedDict{Symbol,DataType},Dict{Symbol,DataType},Agent,Vector{Agent}}=Agent[],
-            agentRule::Expr=quote end,
-            agentODE::Expr=quote end,
-            agentSDE::Expr=quote end,
+            agentRule::Union{Expr, NamedTuple}=quote end,
+            agentODE::Union{Expr, NamedTuple}=quote end,
+            agentSDE::Union{Expr, NamedTuple}=quote end,
 
-            model=OrderedDict{Symbol,DataType}(),
-            modelRule::Expr=quote end,
-            modelODE::Expr=quote end,
-            modelSDE::Expr=quote end,
+            model::Union{OrderedDict{Symbol,DataType}, Dict{Symbol,DataType}, Model}=Model(),
+            modelRule::Union{Expr, NamedTuple}=quote end,
+            modelODE::Union{Expr, NamedTuple}=quote end,
+            modelSDE::Union{Expr, NamedTuple}=quote end,
 
-            medium=OrderedDict{Symbol,DataType}(),
-            mediumRule::Expr=quote end,
-            mediumODE::Expr=quote end,
-            mediumSDE::Expr=quote end,
+            medium::Union{OrderedDict{Symbol,DataType}, Dict{Symbol,DataType}, Medium, Vector{Medium}}=Medium[],
+            mediumRule::Union{Expr, NamedTuple}=quote end,
+            mediumODE::Union{Expr, NamedTuple}=quote end,
+            mediumSDE::Union{Expr, NamedTuple}=quote end,
+
+            interaction::Union{Interaction, Vector{Interaction}}=Interaction[],
+            interactionsRule::Union{Expr, NamedTuple}=quote end,
+            interactionsODE::Union{Expr, NamedTuple}=quote end,
+            interactionsSDE::Union{Expr, NamedTuple}=quote end,
 
             baseModelInit::Vector{ABM}=ABM[],
             baseModelEnd::Vector{ABM}=ABM[],
@@ -167,144 +173,39 @@ mutable struct ABM
             compile::Bool = true
         )
 
-        abm = ABM()
-
-        abm.dims = dims
-
-        #Add basic parameters
-        abm.parameters[:t] = UserParameter(:t,Float64,:modelBase,:Main)
-        abm.parameters[:dt] = UserParameter(:dt,Float64,:modelBase,:Main)
-        abm.parameters[:simBox] = UserParameter(:simBox,Float64,:SimBox,:Main)
-        if !iscodeempty(mediumODE)
-            abm.parameters[:NMedium_] = UserParameter(:NMedium_,Int,:Dims,:Main)
-            abm.parameters[:dx] = UserParameter(:dx,Float64,:modelBase,:Main)
-            abm.parameters[:dy] = UserParameter(:dy,Float64,:modelBase,:Main)
-            abm.parameters[:dz] = UserParameter(:dz,Float64,:modelBase,:Main)
-            # abm.parameters[:xₘ] = UserParameter(:xₘ,Float64,:modelBase,:Main)
-            # abm.parameters[:yₘ] = UserParameter(:xₘ,Float64,:modelBase,:Main)
-            # abm.parameters[:zₘ] = UserParameter(:xₘ,Float64,:modelBase,:Main)
+        #Check dimensions
+        if dims < 0 || dims > 3
+            throw(ArgumentError("ABM dims must be between 0 and 3."))
         end
-        
-        #Add basic agent symbols
+
+        #Prepare Agents
         if !(typeof(agent) <: Union{Agent,Vector{Agent}})
-            agent = Agent[Agent(:Main,pos=(x=Float64,y=Float64,z=Float64),id=:id,parameters=deepcopy(agent))]
-        elseif typeof(agent) <: Agent
-            agent = [agent]
+            agent = deepcopy(Agent(dims, parameters=deepcopy(agent)))
         end
-
-        #Go over parameter inputs and add them to list
-        for ag in agent #Agent
-            #Add position
-            for i in 1:1:dims
-                par = keys(ag.pos)[i]
-                dataType = ag.pos[i]
-                checkDeclared(par, abm)
-                abm.parameters[par] = UserParameter(par,dataType,:agent,ag.name)
+        if typeof(agent) <: Agent
+            agent = NamedTuple{Tuple([agent.name])}(Tuple([agent]))
+        elseif typeof(agent) <: Vector{Agent}
+            names = Tuple(a.name for a in agent)
+            if length(unique(names)) != length(names)
+                throw(ArgumentError("Agents in vector must have unique names. Provided agent names: $names"))
             end
-            #Add id
-            checkDeclared(ag.id, abm)
-            abm.parameters[ag.id] = UserParameter(ag.id,Int,:agentBase,ag.name,isId=true)
-            #Add parameters
-            for (par,dataType) in pairs(ag.parameters)
-                checkDeclared(par,abm)
-                abm.parameters[par] = UserParameter(par,dataType,:agent,ag.name)
-            end
-            #Add additional parameters
-            abm.parameters[make_symbol_unique(ag.name, :N)] = UserParameter(make_symbol_unique(:N,ag.name),Threads.Atomic,:modelBase,ag.name)
-            abm.parameters[make_symbol_unique(ag.name, :NMax)] = UserParameter(make_symbol_unique(:NMax,ag.name),Int,:modelBase,ag.name)
-            abm.parameters[make_symbol_unique(ag.name, :idMax)] = UserParameter(make_symbol_unique(ag.id,:Max),Threads.Atomic,:modelBase,ag.name)
+            agent = NamedTuple{names}(agent)
         end
-        for (arg,scope) in [
-                            (model,:model),
-                            (medium,:medium)            
-                        ]
-            #Add parameters
-            for (par,dataType) in pairs(arg)
-                checkDeclared(par,abm)
-                abm.parameters[par] = UserParameter(par,dataType,scope)
-            end
-        end
-
-        #Add symbols from base objects
-        for base in [baseModelInit; baseModelEnd]
-            for (i,j) in pairs(base.parameters)
-                if !(i in keys(BASEPARAMETERS)) && !(i in [:xₘ,:yₘ,:zₘ])
-                    checkDeclared(i, abm)
-                    abm.parameters[i] = j
-                end
-            end
-        end
-        
-        #Add Updates
-        for (update,code) in ( #Add @inagent if only one agent declared
-                (:agentRule, agentRule),
-                (:agentODE, agentODE),
-                (:agentSDE, agentSDE)
-            )
-
-            if !iscodeempty(code) && length(agent) == 1
-
-                if !occursin("@inagent", string(code))
-                    # codecheck = postwalk(x->@capture(x, @inagent a_ b_) && a == agent[1].name ? quote end : x, code)
-                    # codecheck = prettify(codecheck)
-                    if !iscodeempty(code)
-                        code = quote 
-                            @inagent $(agent[1].name) begin
-                                $code
-                            end
-                        end
-                        if update == :agentRule
-                            agentRule = code
-                        elseif update == :agentODE
-                            agentODE = code
-                        elseif update == :agentSDE
-                            agentSDE = code
-                        end
-                    end
-                end
-
-            elseif !iscodeempty(code) && length(agent) == 0
-
-                if !occursin("@inagent", string(code))
-                    # codecheck = postwalk(x->@capture(x, @inagent a_ b_) && a == agent[1].name ? quote end : x, code)
-                    # codecheck = prettify(codecheck)
-                    if !iscodeempty(code)
-                        code = quote 
-                            @inagent Main begin
-                                $code
-                            end
-                        end
-                        if update == :agentRule
-                            agentRule = code
-                        elseif update == :agentODE
-                            agentODE = code
-                        elseif update == :agentSDE
-                            agentSDE = code
-                        end
-                    end
-                end
-
-            end
-        end
-        for a in baseModelInit
-            for (update,code) in pairs(a.declaredUpdates)
-                if update in keys(abm.declaredUpdates)
-                    push!(abm.declaredUpdates[update].args, copy(code))
-                else
-                    abm.declaredUpdates[update] = copy(code)
-                end
+        for ag in values(agent)
+            if ag.dims != dims
+                throw(ArgumentError("Agent dimensions must be equal to ABM dimensions. Agent $(ag.name) has $(ag.dims) dimensions and ABM has $dims dimensions."))
             end
         end
         for (update,code) in (
                                 (:agentRule,agentRule), 
                                 (:agentODE,agentODE), 
                                 (:agentSDE,agentSDE), 
-                                (:modelRule,modelRule), 
-                                (:modelODE,modelODE), 
-                                (:modelSDE,modelSDE), 
                                 (:mediumRule,mediumRule), 
                                 (:mediumODE,mediumODE), 
                                 (:mediumSDE,mediumSDE), 
+                                (:interactiveRule,interactiveRule), 
+                                (:interactiveODE,interactiveODE), 
+                                (:interactiveSDE,interactiveSDE), 
                             )
             if update in keys(abm.declaredUpdates)
                 push!(abm.declaredUpdates[update].args, code)
@@ -312,86 +213,232 @@ mutable struct ABM
                 abm.declaredUpdates[update] = code
             end
         end
-        for a in baseModelEnd
-            for (update,code) in pairs(a.declaredUpdates)
-                if update in keys(abm.declaredUpdates)
-                    push!(abm.declaredUpdates[update].args, copy(code))
-                else
-                    abm.declaredUpdates[update] = copy(code)
-                end
+
+
+        #Prepare Model
+        if !(typeof(model) <: Model)
+            model = Model(parameters=deepcopy(model))
+        end
+
+        #Prepare Medium
+        if !(typeof(medium) <: Union{Medium,Vector{Medium}})
+            medium = deepcopy(Medium(dims, parameters=deepcopy(medium)))
+        end
+        if typeof(medium) <: Medium
+            medium = NamedTuple{Tuple([medium.name])}(Tuple([medium]))
+        elseif typeof(medium) <: Vector{Medium}
+            names = Tuple(m.name for m in medium)
+            if length(unique(names)) != length(names)
+                throw(ArgumentError("Mediums in vector must have unique names. Provided medium names: $names"))
+            end
+            medium = NamedTuple{names}(medium)
+        end
+        for m in values(medium)
+            if m.dims != dims
+                throw(ArgumentError("Medium dimensions must be equal to ABM dimensions. Medium $(m.name) has $(m.dims) dimensions and ABM has $dims dimensions."))
             end
         end
 
-        #Check in @inagent
-        checkInAgent(abm)
+        #Prepare Interaction
+        if typeof(interaction) <: Interaction
+            interaction = NamedTuple{Tuple([interaction.name])}(Tuple([interaction]))
+        elseif typeof(interaction) <: Vector{Interaction}
+            names = Tuple(i.name for i in interaction)
+            if length(unique(names)) != length(names)
+                throw(ArgumentError("Interactions in vector must have unique names. Provided interaction names: $names"))
+            end
+            interaction = NamedTuple{names}(interaction)
+        end 
 
-        #Group block from @inagent
-        groupInAgent(abm)
-
-        checkCustomCode(abm)
-        addUpdates!(abm)     
-
-        #Assign other key arguments
-        setfield!(abm,:neighbors,neighborsAlg)
-        setfield!(abm,:platform,platform)
-        if agentAlg === nothing
-            if isemptyupdaterule(abm,:agentSDE)
-                setfield!(abm,:agentAlg,CBMIntegrators.Euler())
+        #Add Updates
+        # for a in baseModelInit
+        #     for (update,code) in pairs(a.declaredUpdates)
+        #         if update in keys(abm.declaredUpdates)
+        #             push!(abm.declaredUpdates[update].args, copy(code))
+        #         else
+        #             abm.declaredUpdates[update] = copy(code)
+        #         end
+        #     end
+        # end
+        for (update,code) in (
+                                (:modelRule,modelRule), 
+                                (:modelODE,modelODE), 
+                                (:modelSDE,modelSDE), 
+                            )
+            if update in keys(abm.declaredUpdates)
+                push!(abm.declaredUpdates[update].args, code)
             else
-                setfield!(abm,:agentAlg,CBMIntegrators.EM())
+                abm.declaredUpdates[update] = code
             end
-        else
-            setfield!(abm,:agentAlg,agentAlg)
         end
-        setfield!(abm,:agentSolveArgs,agentSolveArgs)
-        if modelAlg === nothing
-            if isemptyupdaterule(abm,:modelSDE)
-                setfield!(abm,:modelAlg,DifferentialEquations.Euler())
+        for (update,code) in (
+                                (:agentRule,agentRule), 
+                                (:agentODE,agentODE), 
+                                (:agentSDE,agentSDE), 
+                                (:mediumRule,mediumRule), 
+                                (:mediumODE,mediumODE), 
+                                (:mediumSDE,mediumSDE), 
+                                (:interactiveRule,interactiveRule), 
+                                (:interactiveODE,interactiveODE), 
+                                (:interactiveSDE,interactiveSDE), 
+                            )
+            if update in keys(abm.declaredUpdates)
+                push!(abm.declaredUpdates[update].args, code)
             else
-                setfield!(abm,:modelAlg,DifferentialEquations.EM())
+                abm.declaredUpdates[update] = code
             end
-        else
-            setfield!(abm,:agentAlg,agentAlg)
         end
-        setfield!(abm,:modelSolveArgs,modelSolveArgs)
-        if mediumAlg === nothing
-            if isemptyupdaterule(abm,:mediumSDE)
-                setfield!(abm,:mediumAlg,DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()))
-            else
-                setfield!(abm,:mediumAlg,DifferentialEquations.EulerHeun())
-            end
-        else
-            setfield!(abm,:mediumAlg,mediumAlg)
-        end
-        setfield!(abm,:mediumSolveArgs,mediumSolveArgs)
+        # for a in baseModelEnd
+        #     for (update,code) in pairs(a.declaredUpdates)
+        #         if update in keys(abm.declaredUpdates)
+        #             push!(abm.declaredUpdates[update].args, copy(code))
+        #         else
+        #             abm.declaredUpdates[update] = copy(code)
+        #         end
+        #     end
+        # end
 
-        # global AGENT = deepcopy(abm)
-        for (update,code) in pairs(abm.declaredUpdates)
-            abm.declaredUpdates[update] = substitute_macros(copy(code),abm)
-        end
+        # #Check in @inagent
+        # checkInAgent(abm)
 
-        #Make compiled functions
-        if compile
-            compileABM!(abm)
-        end
+        # #Group block from @inagent
+        # groupInAgent(abm)
 
-        return abm
+        # checkCustomCode(abm)
+        # addUpdates!(abm)     
+
+        # #Assign other key arguments
+        # setfield!(abm,:neighbors,neighborsAlg)
+        # setfield!(abm,:platform,platform)
+        # if agentAlg === nothing
+        #     if isemptyupdaterule(abm,:agentSDE)
+        #         setfield!(abm,:agentAlg,CBMIntegrators.Euler())
+        #     else
+        #         setfield!(abm,:agentAlg,CBMIntegrators.EM())
+        #     end
+        # else
+        #     setfield!(abm,:agentAlg,agentAlg)
+        # end
+        # setfield!(abm,:agentSolveArgs,agentSolveArgs)
+        # if modelAlg === nothing
+        #     if isemptyupdaterule(abm,:modelSDE)
+        #         setfield!(abm,:modelAlg,DifferentialEquations.Euler())
+        #     else
+        #         setfield!(abm,:modelAlg,DifferentialEquations.EM())
+        #     end
+        # else
+        #     setfield!(abm,:agentAlg,agentAlg)
+        # end
+        # setfield!(abm,:modelSolveArgs,modelSolveArgs)
+        # if mediumAlg === nothing
+        #     if isemptyupdaterule(abm,:mediumSDE)
+        #         setfield!(abm,:mediumAlg,DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()))
+        #     else
+        #         setfield!(abm,:mediumAlg,DifferentialEquations.EulerHeun())
+        #     end
+        # else
+        #     setfield!(abm,:mediumAlg,mediumAlg)
+        # end
+        # setfield!(abm,:mediumSolveArgs,mediumSolveArgs)
+
+        # # global AGENT = deepcopy(abm)
+        # for (update,code) in pairs(abm.declaredUpdates)
+        #     abm.declaredUpdates[update] = substitute_macros(copy(code),abm)
+        # end
+
+        # #Make compiled functions
+        # if compile
+        #     compileABM!(abm)
+        # end
+
+        declaredUpdates=OrderedDict{Symbol,Expr}()
+        declaredUpdatesCode=OrderedDict{Symbol,Expr}()
+        declaredUpdatesFunction=OrderedDict{Symbol,Function}()
+
+        removalOfAgents_=false
+
+        # println("dims ", typeof(dims))
+        # println("agent ", typeof(agent))
+        # println("model ", typeof(model))
+        # println("medium ", typeof(medium))
+        # println("interaction ", typeof(interaction))
+        # println("parameters ", typeof(parameters))
+        # println("declaredUpdates ", typeof(declaredUpdates))
+        # println("declaredUpdatesCode ", typeof(declaredUpdatesCode))
+        # println("declaredUpdatesFunction ", typeof(declaredUpdatesFunction))
+        # println("removalOfAgents_ ", typeof(removalOfAgents_))
+        # println("neighborsAlg ", typeof(neighborsAlg))
+        # println("agentAlg ", typeof(agentAlg))
+        # println("agentSolveArgs ", typeof(agentSolveArgs))
+        # println("modelAlg ", typeof(modelAlg))
+        # println("modelSolveArgs ", typeof(modelSolveArgs))
+        # println("mediumAlg ", typeof(mediumAlg))
+        # println("mediumSolveArgs ", typeof(mediumSolveArgs))
+
+        new(
+            dims,
+
+            agent,
+            model,
+            medium,
+            interaction,
+
+            declaredUpdates,
+            declaredUpdatesCode,
+            declaredUpdatesFunction,
+
+            removalOfAgents_,
+
+            neighborsAlg,
+
+            agentAlg,
+            agentSolveArgs,
+            modelAlg,
+            modelSolveArgs,
+            mediumAlg,
+            mediumSolveArgs,
+        )
+
     end
 
 end
 
 function Base.show(io::IO,abm::ABM)
-    print("PARAMETERS USER\n")
-    for (i,j) in pairs(abm.parameters)
-        if string(i)[end] != '_' #Only print parameters used by the user 
-            println("\t",i," (",j.dtype," ",j.scope, ".", j.subscope, ")")
+    println("PARAMETERS: \n")
+    print("   MODEL: \n")
+    Base.show(io,abm.model)
+    print("\n")
+
+    print("   AGENTS: ")
+    if length(abm.agent) == 0
+        print("None\n")
+    else
+        print("\n")
+        for agent in values(abm.agent)
+            Base.show(io,agent)
+            print("\n")
         end
     end
 
-    print("\n\nAUTOMATICALLY GENERATED PARAMETERS\n")
-    for (i,j) in pairs(abm.parameters)
-        if string(i)[end] == '_' #Only print parameters used by the user 
-            println("\t",i," (",j.dtype," ",j.scope, ".", j.subscope, ")")
+    print("   MEDIUMS: ")
+    if length(abm.medium) == 0
+        print("None\n")
+    else
+        print("\n")
+        for medium in values(abm.medium)
+            Base.show(io,medium)
+            print("\n")
+        end
+    end
+
+    print("   INTERACTIONS: ")
+    if length(abm.interaction) == 0
+        print("None\n")
+    else
+        print("\n")
+        for interaction in values(abm.interaction)
+            Base.show(io,interaction)
+            print("\n")
         end
     end
 

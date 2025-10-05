@@ -9,7 +9,7 @@ CurrentModule = CellBasedModels
 ValueUnits
 Parameter
 Agent
-GlobalEnvironment
+Model
 Medium
 Interaction
 ABM
