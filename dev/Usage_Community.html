@@ -60,7 +60,62 @@ com.x = 0.5
 println(&quot;Current state of x: &quot;, com.x)</code></pre><pre><code class="language-none">Current state of x: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]</code></pre><p>You can check how many instances have been saved using the function <code>length</code> on the community.</p><pre><code class="language-julia">length(com)</code></pre><pre><code class="language-none">1</code></pre><p>And you can access any past community instance calling by index of the position.</p><pre><code class="language-julia">println(&quot;Past community x: &quot;, com[1].x)
 println(&quot;Current community x: &quot;, com.x)</code></pre><pre><code class="language-none">Past community x: [10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
 Current community x: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]</code></pre><h4 id="JLD2"><a class="docs-heading-anchor" href="#JLD2">JLD2</a><a id="JLD2-1"></a><a class="docs-heading-anchor-permalink" href="#JLD2" title="Permalink"></a></h4><p>We can also save the instances in JLD2 format, a format based in H5MD saving files system that is compatible and readable from many other programming languages and platforms.</p><pre><code class="language-julia">saveJLD2(&quot;test.jld2&quot;,com)</code></pre><p>And you can always call back the model from a JLD2 file.</p><pre><code class="language-julia">com  = loadJLD2(&quot;test.jld2&quot;)
-com.loaded</code></pre><pre><code class="language-none">false</code></pre><p>This file will have all Community instances from the file loaded in <code>Community.pastTimes</code> and a copy of the last saved time in the current community itself.</p><h1 id="Evolving-the-community"><a class="docs-heading-anchor" href="#Evolving-the-community">Evolving the community</a><a id="Evolving-the-community-1"></a><a class="docs-heading-anchor-permalink" href="#Evolving-the-community" title="Permalink"></a></h1><p>Once we have defined a model and constructed an initial community, we can evolve it by the rules of the model.</p><p>In the following schema we describe the basic collection of functions provided by the package to evolve the model, where some functions perform automatically all the step that are described on the right.</p><p>&lt;table&gt;     &lt;thead&gt;         &lt;th colspan=3&gt; Functions &lt;/th&gt;         &lt;th&gt; Description &lt;/th&gt;     &lt;/thead&gt;     &lt;tbody&gt;         &lt;tr&gt;             &lt;td rowspan=12&gt;evolve!&lt;/td&gt;             &lt;td colspan=2&gt;loadToPlatform!&lt;/td&gt;             &lt;td&gt;Function that loads the community information to the appropiate platform (CPU or GPU) for being able to evolve it. In CPU in fact nothing happens.&lt;/td&gt;         &lt;/tr&gt;         &lt;tr&gt;             &lt;td rowspan=9&gt;step!&lt;/td&gt;         &lt;/tr&gt;         &lt;tr&gt;             &lt;td&gt;agentStepDE!&lt;/td&gt;             &lt;td&gt;Performs the agent DE step.&lt;/td&gt;         &lt;/tr&gt;         &lt;tr&gt;             &lt;td&gt;agentStepRule!&lt;/td&gt;             &lt;td&gt;Performs the agent rule step.&lt;/td&gt;         &lt;/tr&gt;         &lt;tr&gt;             &lt;td&gt;mediumStepDE!&lt;/td&gt;             &lt;td&gt;Performs the medium DE step.&lt;/td&gt;         &lt;/tr&gt;         &lt;tr&gt;             &lt;td&gt;mediumStepRule!&lt;/td&gt;             &lt;td&gt;Performs the medium rule step.&lt;/td&gt;         &lt;/tr&gt;         &lt;tr&gt;             &lt;td&gt;modelStepDE!&lt;/td&gt;             &lt;td&gt;Performs the model DE step.&lt;/td&gt;         &lt;/tr&gt;         &lt;tr&gt;             &lt;td&gt;modelStepRule!&lt;/td&gt;             &lt;td&gt;Performs the model rule step.&lt;/td&gt;         &lt;/tr&gt;         &lt;tr&gt;             &lt;td&gt;update!&lt;/td&gt;             &lt;td&gt;Saves all the updated parameters of the community as the present time. Until this function is called all the steps are stored as the future time and the step has not taken place yet!&lt;/td&gt;         &lt;/tr&gt;         &lt;tr&gt;             &lt;td&gt;computeNeighbors!&lt;/td&gt;             &lt;td&gt;Uptdates de neighborhoods of the agents if necessary.&lt;/td&gt;         &lt;/tr&gt;         &lt;tr&gt;             &lt;td colspan=2&gt;saveRAM!/saveJLD2!&lt;/td&gt;             &lt;td&gt;Save the current instance of the community.&lt;/td&gt;         &lt;/tr&gt;         &lt;tr&gt;             &lt;td colspan=2&gt;bringFromPlatform!&lt;/td&gt;             &lt;td&gt;Brings back the community to RAM again.&lt;/td&gt;         &lt;/tr&gt;     &lt;/tbody&gt; &lt;/table&gt;</p><p>Depending on the control that the user wants to have on the call of the evolution functions, they can decide to use one of the three column schemas proposed above.</p><p>So simple evolutions in which we want only to evolve the model after initialization for certain time and save steps at fixed time points, the package already includes the function <code>evolve!</code>.</p><pre><code class="language-julia">evolve!(com,steps=100,saveEach=10)</code></pre><p>And we can see that our model has now ten more saved points.</p><pre><code class="language-julia">length(com)</code></pre><pre><code class="language-none">10</code></pre><h4 id="Customizing-your-evolution-function"><a class="docs-heading-anchor" href="#Customizing-your-evolution-function">Customizing your evolution function</a><a id="Customizing-your-evolution-function-1"></a><a class="docs-heading-anchor-permalink" href="#Customizing-your-evolution-function" title="Permalink"></a></h4><p>If you want a more fancy stepping function, you can use more atomic functions to have more control of the stepping process.</p><p><strong>Example</strong> Imagine that we want to save an instance only after some agent <code>x</code> has surpassed a a certain limit.</p><pre><code class="language-julia">function evolveCustom!(com,steps)
+com.loaded</code></pre><pre><code class="language-none">false</code></pre><p>This file will have all Community instances from the file loaded in <code>Community.pastTimes</code> and a copy of the last saved time in the current community itself.</p><h1 id="Evolving-the-community"><a class="docs-heading-anchor" href="#Evolving-the-community">Evolving the community</a><a id="Evolving-the-community-1"></a><a class="docs-heading-anchor-permalink" href="#Evolving-the-community" title="Permalink"></a></h1><p>Once we have defined a model and constructed an initial community, we can evolve it by the rules of the model.</p><p>In the following schema we describe the basic collection of functions provided by the package to evolve the model, where some functions perform automatically all the step that are described on the right.</p><table>
+    <thead>
+        <th colspan=3> Functions </th>
+        <th> Description </th>
+    </thead>
+    <tbody>
+        <tr>
+            <td rowspan=12>evolve!</td>
+            <td colspan=2>loadToPlatform!</td>
+            <td>Function that loads the community information to the appropiate platform (CPU or GPU) for being able to evolve it. In CPU in fact nothing happens.</td>
+        </tr>
+        <tr>
+            <td rowspan=9>step!</td>
+        </tr>
+        <tr>
+            <td>agentStepDE!</td>
+            <td>Performs the agent DE step.</td>
+        </tr>
+        <tr>
+            <td>agentStepRule!</td>
+            <td>Performs the agent rule step.</td>
+        </tr>
+        <tr>
+            <td>mediumStepDE!</td>
+            <td>Performs the medium DE step.</td>
+        </tr>
+        <tr>
+            <td>mediumStepRule!</td>
+            <td>Performs the medium rule step.</td>
+        </tr>
+        <tr>
+            <td>modelStepDE!</td>
+            <td>Performs the model DE step.</td>
+        </tr>
+        <tr>
+            <td>modelStepRule!</td>
+            <td>Performs the model rule step.</td>
+        </tr>
+        <tr>
+            <td>update!</td>
+            <td>Saves all the updated parameters of the community as the present time. Until this function is called all the steps are stored as the future time and the step has not taken place yet!</td>
+        </tr>
+        <tr>
+            <td>computeNeighbors!</td>
+            <td>Uptdates de neighborhoods of the agents if necessary.</td>
+        </tr>
+        <tr>
+            <td colspan=2>saveRAM!/saveJLD2!</td>
+            <td>Save the current instance of the community.</td>
+        </tr>
+        <tr>
+            <td colspan=2>bringFromPlatform!</td>
+            <td>Brings back the community to RAM again.</td>
+        </tr>
+    </tbody>
+</table><p>Depending on the control that the user wants to have on the call of the evolution functions, they can decide to use one of the three column schemas proposed above.</p><p>So simple evolutions in which we want only to evolve the model after initialization for certain time and save steps at fixed time points, the package already includes the function <code>evolve!</code>.</p><pre><code class="language-julia">evolve!(com,steps=100,saveEach=10)</code></pre><p>And we can see that our model has now ten more saved points.</p><pre><code class="language-julia">length(com)</code></pre><pre><code class="language-none">10</code></pre><h4 id="Customizing-your-evolution-function"><a class="docs-heading-anchor" href="#Customizing-your-evolution-function">Customizing your evolution function</a><a id="Customizing-your-evolution-function-1"></a><a class="docs-heading-anchor-permalink" href="#Customizing-your-evolution-function" title="Permalink"></a></h4><p>If you want a more fancy stepping function, you can use more atomic functions to have more control of the stepping process.</p><p><strong>Example</strong> Imagine that we want to save an instance only after some agent <code>x</code> has surpassed a a certain limit.</p><pre><code class="language-julia">function evolveCustom!(com,steps)
     loadToPlatform!(com) #Always necessary to load the parameters to the platform
     for i in 1:steps
         agentStepDE!(com) #This model only has an SDE that is updated with this function. 
@@ -72,4 +127,4 @@ com.loaded</code></pre><pre><code class="language-none">false</code></pre><p>Thi
     bringFromPlatform!(com) #Always necessary to bring the data back to RAM after evolution lo unlock the agent.
 end;</code></pre><pre><code class="language-julia">com = com[1] #Get initial instance of the agent above defined
 
-evolveCustom!(com,10)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="Usage_Agent.html">« Defining an ABM model</a><a class="docs-footer-nextpage" href="Usage_Fitting.html">Model Fitting »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 5 October 2025 08:56">Sunday 5 October 2025</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+evolveCustom!(com,10)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="Usage_Agent.html">« Defining an ABM model</a><a class="docs-footer-nextpage" href="Usage_Fitting.html">Model Fitting »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 5 October 2025 09:00">Sunday 5 October 2025</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
