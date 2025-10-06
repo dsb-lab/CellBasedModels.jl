@@ -8,7 +8,7 @@ Basic structure which contains the user defined parmeters of the model, the user
 | Field | Description |
 |:---|:---|
 | dims::Int | Dimensions of the model. |
-| parameters::OrderedDict{Symbol,UserParameter} | Dictionary of parameters of the model and its properties. |
+| parameters::Dict{Symbol,UserParameter} | Dictionary of parameters of the model and its properties. |
 | declaredUpdates::Dict{Symbol,Expr} |  Dictionary of updating rules and their user defined content (high level code). |
 | declaredUpdatesCode::Dict{Symbol,Expr} | Dictionary of updating rules after wrapping into code (low level code). |
 | declaredUpdatesFunction::Dict{Symbol,Function} | Dictionary of updting rules and the compiled functions (compiled code). |
@@ -34,17 +34,17 @@ Generates an empty instance of ABM to be filled.
     function ABM(
         dims;
 
-        agent=OrderedDict{Symbol,DataType}(),
+        agent=Dict{Symbol,DataType}(),
         agentRule::Expr=quote end,
         agentODE::Expr=quote end,
         agentSDE::Expr=quote end,
 
-        model=OrderedDict{Symbol,DataType}(),
+        model=Dict{Symbol,DataType}(),
         modelRule::Expr=quote end,
         modelODE::Expr=quote end,
         modelSDE::Expr=quote end,
 
-        medium=OrderedDict{Symbol,DataType}(),
+        medium=Dict{Symbol,DataType}(),
         mediumRule::Expr=quote end,
         mediumODE::Expr=quote end,
         mediumSDE::Expr=quote end,
@@ -70,15 +70,15 @@ Generates an agent based model with defined parameters and rules.
 || Argument | Description |
 |:---:|:---|:---|
 | Args | dims | Dimensions of the system. |
-| KwArgs | agent=OrderedDict{Symbol,DataType}() | Agent parameters |
+| KwArgs | agent=Dict{Symbol,DataType}() | Agent parameters |
 || agentRule::Expr=quote end | Agent rules |
 || agentODE::Expr=quote end | Agent Ordinary Differential Equations definition |
 || agentSDE::Expr=quote end | Agent Stochastic Differential Equations term definition  |
-|| model=OrderedDict{Symbol,DataType}() | Model parameters |
+|| model=Dict{Symbol,DataType}() | Model parameters |
 || modelRule::Expr=quote end | Model rules  |
 || modelODE::Expr=quote end | Model Ordinary Differential Equations definition  |
 || modelSDE::Expr=quote end | Model Ordinary Differential Equations definition  |
-|| medium=OrderedDict{Symbol,DataType}() | Medium parameters |
+|| medium=Dict{Symbol,DataType}() | Medium parameters |
 || mediumRule::Expr=quote end | Medium rules  |
 || mediumODE::Expr=quote end | Medium Ordinary Differential Equations definition  |
 || mediumSDE::Expr=quote end | Medium Ordinary Differential Equations definition  |
@@ -87,222 +87,132 @@ Generates an agent based model with defined parameters and rules.
 
 For a more extense explanation of how to define rules and parameters, read `Usage` in the documentation.
 """
-mutable struct ABM
+mutable struct ABM{D, N}
 
-    dims::Int    
-
-    parameters::OrderedDict{Symbol,UserParameter}
+    parameters::NamedTuple
     
-    declaredUpdates::Dict{Symbol,Expr}
-    declaredUpdatesCode::Dict{Symbol,Expr}
-    declaredUpdatesFunction::Dict{Symbol,Function}
+    declaredUpdates::NamedTuple
+    declaredUpdatesCode::NamedTuple
+    declaredUpdatesFunction::NamedTuple
 
-    removalOfAgents_::Bool
-
-    neighbors
-
-    platform
-
-    agentAlg
-    agentSolveArgs
-    modelAlg
-    modelSolveArgs
-    mediumAlg
-    mediumSolveArgs
+    neighbors::AbstractNeighbors
+    
+    agentAlg::NamedTuple
+    agentSolveArgs::NamedTuple
+    modelAlg::NamedTuple
+    modelSolveArgs::NamedTuple
+    mediumAlg::NamedTuple
+    mediumSolveArgs::NamedTuple
         
-    function ABM()
-        new(0,
-            OrderedDict{Symbol,DataType}(),
-            Dict{Symbol,Expr}(),
-            Dict{Symbol,Expr}(),
-            Dict{Symbol,Function}(),
-            false,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing,
-            nothing
-            )
+end
+
+function ABM(
+        
+        dims;
+
+        agent::Union{AbstractAgent, NamedTuple, Dict{Symbol, DataType}}=Dict{Symbol,DataType}(),
+        agentRule::Expr=quote end,
+        agentODE::Expr=quote end,
+        agentSDE::Expr=quote end,
+
+        model=Dict{Symbol,DataType}(),
+        modelRule::Expr=quote end,
+        modelODE::Expr=quote end,
+        modelSDE::Expr=quote end,
+
+        medium=Dict{Symbol,DataType}(),
+        mediumRule::Expr=quote end,
+        mediumODE::Expr=quote end,
+        mediumSDE::Expr=quote end,
+
+        baseModelInit::Vector{ABM}=ABM[],
+        baseModelEnd::Vector{ABM}=ABM[],
+
+        agentAlg::Union{AbstractIntegrator,Nothing} = nothing,
+        agentSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
+
+        modelAlg::Union{AbstractIntegrator,Nothing} = nothing,
+        modelSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
+
+        mediumAlg::Union{AbstractIntegrator,Nothing} = nothing,
+        mediumSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
+
+        neighborsAlg::AbstractNeighbors = CBMNeighbors.Full(),       
+        platform::Platform = CPU(),     
+        compile::Bool = true
+
+    )
+    
+    if typeof(agent) == AbstractAgent
+        agents = (main=agent,)
+    elseif typeof(agent) <: NamedTuple
+        for (n,a) in pairs(agent)
+            if typeof(a) != AbstractAgent
+                error("Agent $n is not of type AbstractAgent.")
+            end
+        end
+    elseif typeof(agent) <: Dict || typeof(agent) <: Dict
+        @warn "Using Dict or Dict for agent definition might be deprecated in the future. Provide an AbstractAgent or NamedTuple of AbstractAgents instead."
+        agents = (main=AgentPoint(dims, agent),)
     end
 
-    function ABM(
-            dims;
+    # TODO COMPATIBILITY WITH OLD VERSIONS
+    # for code in (agentRule,agentODE,agentSDE)
+    #     if :@loopOverAgents not in code
+    #         agentRule = :(@loopOverAgentPoint main i1 begin $(agentRule) end)
+    #     end
+    # end
 
-            agent=OrderedDict{Symbol,DataType}(),
-            agentRule::Expr=quote end,
-            agentODE::Expr=quote end,
-            agentSDE::Expr=quote end,
+    checkMacros!(agentRule)
 
-            model=OrderedDict{Symbol,DataType}(),
-            modelRule::Expr=quote end,
-            modelODE::Expr=quote end,
-            modelSDE::Expr=quote end,
+    # #Check if there are removed agents
+    # for update in keys(abm.declaredUpdates)
+    #     if occursin("@removeAgent",string(abm.declaredUpdates[update]))
+    #         abm.removalOfAgents_ = true
+    #     end
+    # end        
+    # checkCustomCode(abm)
+    # addUpdates!(abm)
+    # #Assign other key arguments
+    # setfield!(abm,:neighbors,neighborsAlg)
+    # setfield!(abm,:platform,platform)
+    # if agentAlg === nothing
+    #     if isemptyupdaterule(abm,:agentSDE)
+    #         setfield!(abm,:agentAlg,CBMIntegrators.Euler())
+    #     else
+    #         setfield!(abm,:agentAlg,CBMIntegrators.EM())
+    #     end
+    # else
+    #     setfield!(abm,:agentAlg,agentAlg)
+    # end
+    # setfield!(abm,:agentSolveArgs,agentSolveArgs)
+    # if modelAlg === nothing
+    #     if isemptyupdaterule(abm,:modelSDE)
+    #         setfield!(abm,:modelAlg,DifferentialEquations.Euler())
+    #     else
+    #         setfield!(abm,:modelAlg,DifferentialEquations.EM())
+    #     end
+    # else
+    #     setfield!(abm,:agentAlg,agentAlg)
+    # end
+    # setfield!(abm,:modelSolveArgs,modelSolveArgs)
+    # if mediumAlg === nothing
+    #     if isemptyupdaterule(abm,:mediumSDE)
+    #         setfield!(abm,:mediumAlg,DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()))
+    #     else
+    #         setfield!(abm,:mediumAlg,DifferentialEquations.EulerHeun())
+    #     end
+    # else
+    #     setfield!(abm,:mediumAlg,mediumAlg)
+    # end
+    # setfield!(abm,:mediumSolveArgs,mediumSolveArgs)
+    # global AGENT = deepcopy(abm)
+    # #Make compiled functions
+    # if compile
+    #     compileABM!(abm)
+    # end
 
-            medium=OrderedDict{Symbol,DataType}(),
-            mediumRule::Expr=quote end,
-            mediumODE::Expr=quote end,
-            mediumSDE::Expr=quote end,
-
-            baseModelInit::Vector{ABM}=ABM[],
-            baseModelEnd::Vector{ABM}=ABM[],
-
-            agentAlg::Union{CustomIntegrator,DEAlgorithm,Nothing} = nothing,
-            agentSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
-
-            modelAlg::Union{DEAlgorithm,Nothing} = nothing,
-            modelSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
-
-            mediumAlg::Union{CustomMediumIntegrator,DEAlgorithm,Nothing} = nothing,
-            mediumSolveArgs::Dict{Symbol,Any} = Dict{Symbol,Any}(),
-
-            neighborsAlg::Neighbors = CBMNeighbors.Full(),       
-            platform::Platform = CPU(),     
-
-            compile::Bool = true
-            )
-
-        abm = ABM()
-
-        abm.dims = dims
-
-        #Add basic agent symbols
-        for (i,sym) in enumerate(keys(positionParameters))
-            if i <= dims
-                abm.parameters[sym] = UserParameter(i,positionParameters[sym],:agent)
-            end
-        end
-
-        #Add basic medium symbols
-        for (i,sym) in enumerate(keys(positionMediumParameters))
-            if i <= dims && length(medium) > 0
-                abm.parameters[sym] = UserParameter(i,positionMediumParameters[sym],:medium)
-            end
-        end
-
-        #Go over parameter inputs and add them to list
-        for (arg,scope) = [
-                            (agent,:agent),
-                            (model,:model),
-                            (medium,:medium)            
-                            ]
-            #Promote input to ordered dictionary
-            params = 0
-            if typeof(arg) == DataType #Transform structures like Agent to dictionary
-                params = OrderedDict([i=>j for (i,j) in zip(fieldnames(arg),fieldtypes(arg))])
-            else
-                params = OrderedDict(arg)
-            end
-            #Add parameters
-            for (par,dataType) in pairs(params)
-                checkDeclared(par,abm)
-                abm.parameters[par] = UserParameter(par,dataType,scope)
-            end
-        end
-
-        #Add symbols from base objects
-        for base in [baseModelInit; baseModelEnd]
-            for (i,j) in pairs(base.parameters)
-                if !(i in keys(BASEPARAMETERS)) && !(i in [:x,:y,:z,:xₘ,:yₘ,:zₘ])
-                    checkDeclared(i,abm)
-                    abm.parameters[i] = j
-                end
-            end
-        end
-        
-        #Add Updates
-        for a in baseModelInit
-            for (update,code) in pairs(a.declaredUpdates)
-                if update in keys(abm.declaredUpdates)
-                    push!(abm.declaredUpdates[update].args, copy(code))
-                else
-                    abm.declaredUpdates[update] = copy(code)
-                end
-            end
-        end
-        for (update,code) in (
-                                (:agentRule,agentRule), 
-                                (:agentODE,agentODE), 
-                                (:agentSDE,agentSDE), 
-                                (:modelRule,modelRule), 
-                                (:modelODE,modelODE), 
-                                (:modelSDE,modelSDE), 
-                                (:mediumRule,mediumRule), 
-                                (:mediumODE,mediumODE), 
-                                (:mediumSDE,mediumSDE), 
-                            )
-            if update in keys(abm.declaredUpdates)
-                push!(abm.declaredUpdates[update].args, code)
-            else
-                abm.declaredUpdates[update] = code
-            end
-        end
-        for a in baseModelEnd
-            for (update,code) in pairs(a.declaredUpdates)
-                if update in keys(abm.declaredUpdates)
-                    push!(abm.declaredUpdates[update].args, copy(code))
-                else
-                    abm.declaredUpdates[update] = copy(code)
-                end
-            end
-        end
-
-        #Check if there are removed agents
-        for update in keys(abm.declaredUpdates)
-            if occursin("@removeAgent",string(abm.declaredUpdates[update]))
-                abm.removalOfAgents_ = true
-            end
-        end        
-
-        checkCustomCode(abm)
-        addUpdates!(abm)
-
-        #Assign other key arguments
-        setfield!(abm,:neighbors,neighborsAlg)
-        setfield!(abm,:platform,platform)
-        if agentAlg === nothing
-            if isemptyupdaterule(abm,:agentSDE)
-                setfield!(abm,:agentAlg,CBMIntegrators.Euler())
-            else
-                setfield!(abm,:agentAlg,CBMIntegrators.EM())
-            end
-        else
-            setfield!(abm,:agentAlg,agentAlg)
-        end
-        setfield!(abm,:agentSolveArgs,agentSolveArgs)
-        if modelAlg === nothing
-            if isemptyupdaterule(abm,:modelSDE)
-                setfield!(abm,:modelAlg,DifferentialEquations.Euler())
-            else
-                setfield!(abm,:modelAlg,DifferentialEquations.EM())
-            end
-        else
-            setfield!(abm,:agentAlg,agentAlg)
-        end
-        setfield!(abm,:modelSolveArgs,modelSolveArgs)
-        if mediumAlg === nothing
-            if isemptyupdaterule(abm,:mediumSDE)
-                setfield!(abm,:mediumAlg,DifferentialEquations.AutoTsit5(DifferentialEquations.Rosenbrock23()))
-            else
-                setfield!(abm,:mediumAlg,DifferentialEquations.EulerHeun())
-            end
-        else
-            setfield!(abm,:mediumAlg,mediumAlg)
-        end
-        setfield!(abm,:mediumSolveArgs,mediumSolveArgs)
-
-        global AGENT = deepcopy(abm)
-
-        #Make compiled functions
-        if compile
-            compileABM!(abm)
-        end
-
-        return abm        
-    end
-
+    return abm        
 end
 
 function Base.show(io::IO,abm::ABM)
@@ -320,6 +230,23 @@ function Base.show(io::IO,abm::ABM)
             print(" ",prettify(copy(abm.declaredUpdates[i])),"\n\n")
         end
     end
+end
+
+checkMacros!(code::Expr, abm::ABM)
+
+    function checkLoopOverAgentsPoint(a,b,c, abm)
+        a in 
+        if !(b in keys(abm.parameters) && abm.parameters[b].scope == :agent && abm.parameters[b].dataType <: AbstractAgent)
+            error("In @loopOverAgentPoint macro, the first argument must be an agent defined in the model.")
+        end
+        if !(typeof(c) == Symbol)
+            error("In @loopOverAgentPoint macro, the second argument must be a symbol to use as iterator.")
+        end
+        return
+    end
+    postwalk(x-> isexpr(x, @loopOverAgents a_ b_ begin c_ end) ? f() : x, code)
+
+    return
 end
 
 """

@@ -1,4 +1,4 @@
-module CBMNeighbors
+module CBMNeighborsCUDA
 
     export Neighbors, neighborsLoop, computeNeighbors!
 
