@@ -1,6 +1,6 @@
 
 """
-    struct Parameter
+    mutable struct Parameter{D <: DataType}
 
 Represents a **model or simulation parameter** with associated metadata:
 type, dimensions, default value, and description.
@@ -8,14 +8,15 @@ type, dimensions, default value, and description.
 ---
 
 ### **Fields**
-- `dataType::DataType` — The Julia data type of the parameter (e.g. `Float64`, `Int`, `Bool`).
 - `dimensions::Union{Nothing, Symbol, Expr}` — Dimensionality or units of the parameter.
   - `nothing`: dimensionless
   - `Symbol`: single unit or dimension (e.g. `:L`, `:T`)
   - `Expr`: compound unit expression (e.g. `:(L/T^2)`)
-- `defaultValue` — Default or initial value, automatically wrapped in a [`ValueUnits`](@ref) object.
+- `defaultValue` — Default or initial value.
 - `description::String` — Text description of the parameter’s purpose or meaning.
 - `_updated::Bool` — Internal flag used to track whether the parameter is modified.
+- `_DE::Bool` — Internal flag indicating if the parameter is a variable of a differential equation.
+- `_scope::Union{Symbol, Nothing}` — Internal field indicating the scope of the parameter (e.g. `:agent`, `:edges`). This parameter is just informative and set automatically.
 
 ---
 
@@ -23,12 +24,11 @@ type, dimensions, default value, and description.
 ```julia
 Parameter(dataType::DataType;
           dimensions::Union{Nothing, Symbol, Expr}=nothing,
-          defaultValue::Union{<:Real, Bool, Nothing}=nothing,
+          defaultValue=nothing,
           description::String="")
 ```
 
 Creates a new `Parameter` object.  
-If `defaultValue` is not already a `ValueUnits` object, it is automatically wrapped as `ValueUnits(defaultValue)`.
 
 ---
 
@@ -38,7 +38,7 @@ If `defaultValue` is not already a `ValueUnits` object, it is automatically wrap
 p1 = Parameter(Float64; defaultValue=1.0, description="Default scalar")
 
 # Parameter with dimensional information
-p2 = Parameter(Float64; dimensions=:L, defaultValue=ValueUnits(1.0, :m), description="Length parameter")
+p2 = Parameter(Float64; dimensions=:L, defaultValue=1.0, description="Length parameter")
 
 # Boolean flag
 p3 = Parameter(Bool; defaultValue=true, description="Toggle flag")
@@ -47,47 +47,35 @@ p3 = Parameter(Bool; defaultValue=true, description="Toggle flag")
 show(p1)
 ```
 """
-struct Parameter
-    dataType::DataType
+mutable struct Parameter{D}
     dimensions::Union{Nothing, Symbol, Expr}
-    defaultValue
+    defaultValue::Union{D, Nothing}
     description::String
     _updated::Bool
+    _DE::Bool
+    _scope::Union{Symbol, Nothing}
 
     function Parameter(dataType::DataType;
                        dimensions::Union{Nothing, Symbol, Expr}=nothing,
-                       defaultValue::Union{<:Real, Bool, Nothing}=nothing,
-                       description::String="")
-        new(dataType, dimensions, defaultValue, description, false)
+                       defaultValue=nothing,
+                       description::String="", _updated::Bool=false, _DE::Bool=false, _scope::Union{Symbol, Nothing}=nothing)
+
+        if !(dataType <: Real || dataType == Bool)
+            error("Parameter dataType must be a subtype of Real or Bool. Found: $dataType")
+        end
+        if !(defaultValue === nothing || defaultValue isa dataType)
+            error("Parameter defaultValue must be of type $dataType or nothing. Found: $(typeof(defaultValue))")
+        end
+
+        new{dataType}(dimensions, defaultValue, description, _updated, _DE, _scope)
+    
     end
 end
 
-"""
-    Base.show(io::IO, x::Parameter)
-
-Custom display for [`Parameter`](@ref) objects, printing all key fields
-in a readable format.
-
----
-
-### **Example**
-```julia
-p = Parameter(Float64; defaultValue=1.0, description="Example")
-show(p)
-```
-
-Output:
-```
-Parameter:
-    DataType: Float64
-    Dimensions: nothing
-    Default Value: ValueUnits(1.0)
-    Description: Example
-```
-"""
-function Base.show(io::IO, x::Parameter)
+function Base.show(io::IO, x::Parameter{D}) where D
     println("Parameter: ")
-    println("\t DataType: ", x.dataType)
+    println("\t DataType: ", D)
+    println("\n Scope: ", x._scope)
     println("\t Dimensions: ", x.dimensions)
     println("\t Default Value: ", x.defaultValue)
     println("\t Description: ", x.description)
@@ -128,14 +116,15 @@ param_tuple = parameterConvert(params)
 # NamedTuple with (:velocity, :temperature) => (Parameter(...), Parameter(...))
 ```
 """
-function parameterConvert(parameters)
+function parameterConvert(parameters; scope::Union{Symbol, Nothing}=nothing)
     keys_tuple = Tuple(keys(parameters))
     l = []
     for i in keys_tuple
         if parameters[i] isa Parameter
             push!(l, parameters[i])
+            l[end]._scope = scope
         elseif parameters[i] isa DataType
-            push!(l, Parameter(parameters[i]))
+            push!(l, Parameter(parameters[i], _scope=scope))
         else
             error("Parameters must be of type Parameter or DataType. Given: $(typeof(parameters[i])) for parameter $i")
         end

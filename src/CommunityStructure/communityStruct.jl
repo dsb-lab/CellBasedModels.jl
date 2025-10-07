@@ -68,7 +68,7 @@ Function to construct a Community that accepts to provide integration algorithms
 
 For a more specific indication of the usage see the UserGuide.
 """
-mutable struct Community
+mutable struct Community{P}
 
     abm
     uuid

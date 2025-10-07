@@ -1,7 +1,7 @@
 @testset "Parameter: constructor & fields" begin
     # 1) DefaultValue numeric gets wrapped into ValueUnits
     p = Parameter(Float64; defaultValue=1.5, description="alpha")
-    @test p.dataType === Float64
+    @test typeof(p) === Parameter{Float64}
     @test p.dimensions === nothing
     @test p.defaultValue == 1.5
     @test p.description === "alpha"
@@ -13,11 +13,11 @@
 
     # 3) Bool and nothing as defaults
     p3 = Parameter(Bool; defaultValue=true)
-    @test p3.dataType === Bool
+    @test typeof(p3) === Parameter{Bool}
     @test p3.defaultValue === true
 
     p4 = Parameter(Int; defaultValue=nothing)
-    @test p4.dataType === Int
+    @test typeof(p4) === Parameter{Int}
     @test p4.defaultValue === nothing
 end
 
@@ -39,7 +39,7 @@ end
     @test nt.flag isa Parameter
 
     # Auto-wrapped DataType
-    @test nt.temperature.dataType === Float64
+    @test typeof(nt.temperature) === Parameter{Float64}
 
     # 2) Error on wrong types
     bad = Dict(:x => 123)  # not Parameter, not DataType

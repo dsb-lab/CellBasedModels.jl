@@ -7,8 +7,15 @@ using OrderedCollections
 using Distributions
 using Random
 
-# include("testIndexing.jl")
-include("testParameter.jl")
+verbose = true
+
+@testset verbose=true "CellBasedModels.jl" begin
+    include("testIndexing.jl")
+    include("testParameter.jl")
+    include("testAgentGlobal.jl")
+    include("testABM.jl")
+end
+
 # include("testUnits.jl")
 # include("testAgent.jl")
 # include("testCommunity.jl")

@@ -2,24 +2,18 @@
 # COMMUNITY STRUCTURE
 ######################################################################################################
 
-mutable struct CommunityPoint{D} <: CommunityType
+mutable struct CommunityAgentPoint{D} <: CommunityType
 
     _agent::AgentPoint
-    _N::Int
-    _NMax::Int
-    _NNew::Int
-    _idMax::Int
-    _NFlag::Bool
-
-    agentProperties::NamedTuple    # Dictionary to hold agent properties
+    properties::NamedTuple    # Dictionary to hold agent properties
 
 end
 
-function CommunityPoint(
+function CommunityAgentPoint(
     agent::AgentPoint;
     N::Int,
     NMax::Union{Nothing, Int}=nothing,
-    agentProperties = Dict{Symbol,AbstractArray{<:Any, 1}}(),
+    agentProperties::NamedTuple = NamedTuple(),
 )
     N = max(N, 0)
     NNew = N
@@ -36,33 +30,51 @@ function CommunityPoint(
         end
     end
     for (prop, par) in pairs(agent.agentProperties)
-        if !haskey(agentProperties, prop)
+        if !haskey(agentProperties, prop) && par._scope == :agent
             agentProperties[prop] = zeros(par.dataType, NMax)
+        end
+    end
+    dNew = Dict{Symbol, Any}()
+    dDt = Dict{Symbol, Any}()
+    for (prop, arr) in pairs(agent.agentProperties)
+        if par._updated
+            dNew[prop] = copy(agentProperties[prop])
+        end
+        if par._DE
+            dDt[prop] = copy(agentProperties[prop])
         end
     end
     agentProperties = NamedTuple(agentProperties)
     idMax = maximum(agentProperties.id)
-    return CommunityPoint{D}(
+
+    properties = (
+        _N = UInt[N],
+        _NMax = UInt[NMax],
+        _NNew = UInt[NNew],
+        _idMax = UInt[idMax],
+        _NFlag = Bool[false],
+        agent = agentProperties,
+        _agentNew = dNew,
+        _agentDt = dDt,
+    )
+
+    return CommunityAgentPoint{D}(
         agent,
-        N,
-        NMax,
-        NNew,
-        idMax,
-        false,
-        agentProperties
+        properties
     )
 end
 
-Base.length(x::CommunityPoint) = x._N
-Base.lastindex(x::CommunityPoint) = length(x._N)
-Base.firstindex(x::CommunityPoint) = 1
-Base.show(io::IO, x::CommunityPoint) = print(io, "CommunityPoint: \n\n\t N=", x._N, " agents NMax=", x._NMax," preallocated agents.\n\n\t", x._agent)
+Base.length(x::CommunityAgentPoint) = x.properties._N
+Base.lastindex(x::CommunityAgentPoint) = length(x.properties._N)
+Base.firstindex(x::CommunityAgentPoint) = 1
+Base.show(io::IO, x::CommunityAgentPoint) = print(io, "CommunityAgentPoint: \n\n\t N=", x.properties._N, " agents NMax=", x.properties._NMax," preallocated agents.\n\n\t", x._agent)
+
+getPropertiesAsNamedTuple(comm::CommunityAgentPoint) = comm.properties
 
 ######################################################################################################
 # ACTIONS FUNCTION
 ######################################################################################################
-
-function preallocate!(model::CommunityPoint, NNewMax::Int)
+function preallocate!(model::CommunityAgentPoint, NNewMax::Int)
 
     if NNewMax < 0
         error("NNewMax must be non-negative. Found $NNewMax")
@@ -80,7 +92,7 @@ function preallocate!(model::CommunityPoint, NNewMax::Int)
 
 end
 
-function freePreallocations!(model::CommunityPoint)
+function freePreallocations!(model::CommunityAgentPoint)
 
     if model._NMax == model._N
         return nothing
@@ -97,7 +109,7 @@ function freePreallocations!(model::CommunityPoint)
 end
 
 function addAgent!(
-        model::CommunityPoint; 
+        model::CommunityAgentPoint; 
         agentProperties::NamedTuple = NamedTuple(;),
         preallocate::Union{Int, Float64}=1,
         verbose::Bool=false
@@ -133,7 +145,7 @@ function addAgent!(
 
 end
 
-function removeAgent!(model::CommunityPoint, agentPos::Int; removeAllocation::Bool=true, verbose::Bool=false)
+function removeAgent!(model::CommunityAgentPoint, agentPos::Int; removeAllocation::Bool=true, verbose::Bool=false)
 
     if model._N == 0
         if verbose
@@ -164,7 +176,7 @@ function removeAgent!(model::CommunityPoint, agentPos::Int; removeAllocation::Bo
 
 end
 
-function update!(model::CommunityPoint)
+function update!(model::CommunityAgentPoint)
 
     if model._NFlag
         @warn "Agent $(model.agent.name) exceeded NMax. Some agents were not added. Consider preallocating more space."

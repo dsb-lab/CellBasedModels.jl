@@ -1,1 +1,1 @@
-abstract type AbstractNeighbors end
+abstract type AbstractNeighbors{D, AN, AD} end

@@ -1,7 +1,7 @@
 randcoords(shape::Tuple{Int,Int}) = (rand(1:shape[1]), rand(1:shape[2]))
 randcoords(shape::Tuple{Int,Int,Int}) = (rand(1:shape[1]), rand(1:shape[2]), rand(1:shape[3]))
 
-@testset "Indexing" begin
+@testset verbose=verbose "Indexing" begin
 
     # ----------------------------
     # 2D basic identities (0-based)

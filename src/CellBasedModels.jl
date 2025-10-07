@@ -1,5 +1,7 @@
 module CellBasedModels
 
+    hasCuda() = false
+
     #Auxiliar
     # export Unit, UnitScalar, UnitArray
     # include("./auxiliar/units.jl")ç
@@ -28,31 +30,43 @@ module CellBasedModels
     export CPU, GPU
     include("./platforms.jl")
 
+    #Abstraact types
+    include("./neighbors/abstractTypes.jl")
+    include("./AgentStructure/abstractTypes.jl")
+    include("./CommunityStructure/abstractTypes.jl")
+
     #Auxiliar
     # export cellInMesh, new
     # include("./AgentStructure/auxiliar.jl")
 
-    #Neighbors
-    include("./neighbors/abstractTypes.jl")
-    # export CBMNeighbors, computeNeighbors!
-    # include("./neighbors.jl")
-    # using .CBMNeighbors
-
     #Agent
-    include("./AgentStructure/abstractTypes.jl")
-        #Point
-    # export AgentPoint
-    # include("./AgentStructure/agentPoint.jl")
+    export AgentGlobal
+    include("./AgentStructure/agentGlobal.jl")
+    export AgentPoint
+    include("./AgentStructure/agentPoint.jl")
         #Structure
-    # export ABM, compileABM!
-    # include("./AgentStructure/abm.jl")
+    export RuleTag, ABM, @new, @dt
+    include("./AgentStructure/abm.jl")
     #     #Rule
     # include("./AgentStructure/functionRule.jl")
     #     #DE
     # include("./AgentStructure/functionDE.jl")
 
-    # #Community
-    # export Community, loadToPlatform!, bringFromPlatform!, getParameter
+    #Neighbors
+    NEIGHBORS_ALGS = (:NeighborsFull, :NeighborsCellLinked)
+    export NeighborsFull
+    include("./neighbors/neighborsFull.jl")
+    export NeighborsCellLinked
+    include("./neighbors/neighborsCellLinked.jl")
+    # export CBMNeighbors, computeNeighbors!
+    # include("./neighbors.jl")
+    # using .CBMNeighbors
+
+    #Community
+    export CommunityGlobal
+    include("./CommunityStructure/communityGlobal.jl")
+    export CommunityABM
+    include("./CommunityStructure/communityABM.jl")
     # include("./CommunityStructure/communityStructure.jl")
     #     #IO
     # export saveJLD2, saveRAM!, loadJLD2
@@ -80,5 +94,11 @@ module CellBasedModels
     # #Visualization functions
     # export CBMPlots
     # include("./plotting/plotting.jl")
+
+    module CustomFunctions
+
+        using ..CellBasedModels
+        
+    end
 
 end

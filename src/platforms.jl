@@ -1,4 +1,4 @@
-abstract type Platform end
+abstract type AbstractPlatform end
 
 
 """"
@@ -6,7 +6,7 @@ abstract type Platform end
 
 CPU platform structure.
 """
-mutable struct CPU <: Platform
+mutable struct CPU <: AbstractPlatform
 
 end
 
@@ -49,7 +49,7 @@ CPU platform structure.
  - mediumBlocks
 
 """
-mutable struct GPU <: Platform
+mutable struct GPU <: AbstractPlatform
 
     agentThreads
     agentBlocks
