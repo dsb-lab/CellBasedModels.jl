@@ -48,6 +48,11 @@
         @test community.environment.temperature[1] == 0.0
         @test community._parametersNew.environment.temperature[1] == 0.2
 
+        update!(community)
+
+        @test community.environment.temperature[1] == 0.2
+        @test community._parametersNew.environment.temperature[1] == 0.2
+
     end
 
 end

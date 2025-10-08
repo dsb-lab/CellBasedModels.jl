@@ -63,6 +63,7 @@ module CellBasedModels
     # using .CBMNeighbors
 
     #Community
+    export update!
     export CommunityGlobal
     include("./CommunityStructure/communityGlobal.jl")
     export CommunityABM

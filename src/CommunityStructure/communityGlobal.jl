@@ -117,6 +117,8 @@ end
 
 Base.setproperty!(x::CommunityGlobal, f::Symbol, v) = throw(MethodError("Cannot set property $f directly. Modify the corresponding array element instead. For example, use x.$f[1] = value."))
 Base.getproperty(x::CommunityGlobal, f::Symbol) = haskey(getfield(x, :_properties), f) ? x._properties[f] : getfield(x, f)
+Base.setindex!(x::CommunityGlobal, f::Symbol, v) = throw(MethodError("Cannot set property $f directly. Modify the corresponding array element instead. For example, use x[$f][1] = value."))
+Base.getindex(x::CommunityGlobal, f::Symbol) = haskey(getfield(x, :_properties), f) ? x._properties[f] : getfield(x, f)
 
 """
     getPropertiesAsNamedTuple(comm::CommunityGlobal) -> NamedTuple
@@ -131,3 +133,13 @@ props = getPropertiesAsNamedTuple(comm)
 ```
 """
 getPropertiesAsNamedTuple(comm::CommunityGlobal) = comm._properties, comm._propertiesNew, comm._propertiesDt
+
+function update!(community::CommunityGlobal)
+
+    for (name, par) in pairs(community._propertiesNew)
+        community[name][1] = par[1]
+    end
+
+    return nothing
+
+end
