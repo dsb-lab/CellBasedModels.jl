@@ -41,12 +41,13 @@ function ABM(
     # checkUpdates!(pdesReaction, agents)
     # checkUpdates!(pdesReaction, agents)
 
-    makeFunctionDeclarations!(rules, (dims, names, types))
+    f = Dict{Symbol,Function}()
+    makeRulesFunction!(f, rules, (dims, names, types))
     # makeStepFunction!(abm, dims, tag)
 
     return ABM{dims, names, types}(
         agents,
-        (;), (;), (;)
+        (;), NamedTuple(f), (;)
     )
 
 end
@@ -78,42 +79,10 @@ end
 
 Base.getproperty(x::ABM, f::Symbol) = haskey(getfield(x, :_agents), f) ? x._agents[f] : getfield(x, f)
 
-function codeNew(x::Symbol)
-    newx = Symbol("_", x, "_new")
-    return newx
-end
-
-function codeNew(x::Expr)
-    s = split("$x", ".")[end]
-    scope = "$x"[1:end-1-length(s)]
-    newx = Symbol("_", s, "_new")
-    return Meta.parse("$scope.$newx")
-end
-
-macro new(x)
-    return codeNew(x)
-end
-
-function codeDt(x::Symbol)
-    dtx = Symbol("_", x, "_dt")
-    return dtx
-end
-
-function codeDt(x::Expr)
-    s = split("$x", ".")[end]
-    scope = "$x"[1:end-1-length(s)]
-    dtx = Symbol("_", s, "_dt")
-    return Meta.parse("$scope.$dtx")
-end
-
-macro dt(x)
-    return codeDt(x)
-end
-
 function checkUpdates!(params::NamedTuple, updates::Expr)
 
-    postwalk(x-> @capture(x, @new(a_.b_.c_)) ? addUpdate(a,b,c,params,x) : x , updates)
-    postwalk(x-> @capture(x, @dt(a_.b_.c_)) ? addDt(a,b,c,params) : x , updates)
+    postwalk(x-> @capture(x, a_[b_]) ? addUpdate(a,params, x) : x , updates)
+    postwalk(x-> @capture(x, @dt(b_.a__)) ? addDt(b,a,params, x) : x , updates)
 
 end
 
@@ -125,18 +94,26 @@ function checkUpdates!(params::NamedTuple, updates::NamedTuple)
 
 end
 
-function addUpdate(a,b,c,params)
+function addUpdate(expr, params, x)
 
-    if a != :community
-        error("Scope $a not recognized. Use :community.")
-    elseif !(b in names(params))
-        error("Scope $b not recognized. Use one of $(names(params)).")
-    elseif !(c in names(params[c]))
-        error("Parameter $c not recognized. Use one of $(names(params[c])).")
+    exprList = [Meta.parse(string(e)) for e in split("$expr", ".")]
+
+    if !(exprList[1] == :communityNew)
+        return x
     end
 
-    params[b][c]._updated = true
+    p = params
+    key = :community
+    try
+        for key in exprList[2:end]
+            p = getproperty(p, key)
+        end
+    catch
+        error("Key $key in expression @new($expr) not recognized. Is it an scope or parameter of an agent?")
+    end
 
+    p._updated = true
+    
     return x
 
 end
@@ -157,7 +134,7 @@ function addDt(a,b,c,params,x)
 
 end
 
-function makeFunctionDeclarations!(updates::NamedTuple, specialization)
+function makeRulesFunction!(f, updates::NamedTuple, specialization)
 
     d = Dict{Symbol,Expr}()
 
@@ -171,8 +148,11 @@ function makeFunctionDeclarations!(updates::NamedTuple, specialization)
             code_ = postwalk(x-> @capture(x, a_) && typeof(a) == Symbol ? (startswith(string(a), "@loopOverNeighbors") ? Symbol("$a$neighbors") : x) : x, code)
             code__ = quote
 
-                function $functionName(community::CommunityABM{ABM{$(specialization...)}, CPU, $neighbors}) 
-                    $code_
+                function $functionName(community::CommunityABM{ABM{$(specialization...)}, CPU, $neighbors{$(specialization...)}}) 
+                    function kernel!(communityNew, community) 
+                        $code_
+                    end
+                    kernel!(community._parametersNew, community._parameters)
                 end
                         
             end
@@ -181,17 +161,20 @@ function makeFunctionDeclarations!(updates::NamedTuple, specialization)
 
             if hasCuda()
                 code__ = quote
-                    function $functionName(community::CommunityABM{ABM{$(specialization...)}, GPU, $neighbors})
-                        function kernel!(community::CommunityParams) 
+                    function $functionName(community::CommunityABM{ABM{$(specialization...)}, GPU, $neighbors{$(specialization...)}})
+                        function kernel!(communityNew, community) 
                             $code_
                         end
-                        @cuda threads=256 blocks=ceil(Int,size(community.agents,1)/256) kernel!(community.params)
+                        @cuda threads=256 blocks=ceil(Int,size(community.agents,1)/256) kernel!(community._parametersNew, community._parameters)
                     end                        
                 end
                 d[Symbol("$(functionName)_GPU_$neighbors")] = code__
                 CellBasedModels.CustomFunctions.eval(code__)
             end
         end
+    
+        f[functionName] = eval(Meta.parse("CellBasedModels.CustomFunctions.$functionName"))     
+
     end
 
     return NamedTuple(d)

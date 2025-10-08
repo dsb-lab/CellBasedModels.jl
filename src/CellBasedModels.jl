@@ -45,7 +45,7 @@ module CellBasedModels
     export AgentPoint
     include("./AgentStructure/agentPoint.jl")
         #Structure
-    export RuleTag, ABM, @new, @dt
+    export ABM
     include("./AgentStructure/abm.jl")
     #     #Rule
     # include("./AgentStructure/functionRule.jl")

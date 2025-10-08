@@ -30,6 +30,8 @@ are shared across all agents and updated each simulation step.
 mutable struct CommunityGlobal{D} <: AbstractCommunity where D<:AgentGlobal
     _agent::D
     _properties::NamedTuple
+    _propertiesNew::NamedTuple
+    _propertiesDt::NamedTuple
 end
 
 """
@@ -77,6 +79,8 @@ function CommunityGlobal(
 
     # Validate user-provided environment properties
     props = Dict{Symbol, Any}()
+    propsNew = Dict{Symbol, Any}()
+    propsDt = Dict{Symbol, Any}()
     for (prop, arr) in pairs(properties)
         if length(arr) != 1
             error("Environment property $prop must be a scalar. Found $(length(arr))")
@@ -97,18 +101,18 @@ function CommunityGlobal(
 
     for (prop, par) in pairs(agent._properties)
         if par._updated
-            newProp = codeNew(prop)
-            props[newProp] = MVector{1, typeof(par).parameters[1]}(zeros(typeof(par).parameters[1], 1))
+            propsNew[prop] = MVector{1, typeof(par).parameters[1]}(zeros(typeof(par).parameters[1], 1))
         end
         if par._DE
-            dtProp = codeDt(prop)
-            props[dtProp] = MVector{1, typeof(par).parameters[1]}(zeros(typeof(par).parameters[1], 1))
+            propsDt[prop] = MVector{1, typeof(par).parameters[1]}(zeros(typeof(par).parameters[1], 1))
         end
     end
 
     properties = NamedTuple(props)
+    propertiesNew = NamedTuple(propsNew)
+    propertiesDt = NamedTuple(propsDt)
 
-    return CommunityGlobal(agent, properties)
+    return CommunityGlobal(agent, properties, propertiesNew, propertiesDt)
 end
 
 Base.setproperty!(x::CommunityGlobal, f::Symbol, v) = throw(MethodError("Cannot set property $f directly. Modify the corresponding array element instead. For example, use x.$f[1] = value."))
@@ -126,4 +130,4 @@ props = getPropertiesAsNamedTuple(comm)
 @show props.env.temperature
 ```
 """
-getPropertiesAsNamedTuple(comm::CommunityGlobal) = comm._properties
+getPropertiesAsNamedTuple(comm::CommunityGlobal) = comm._properties, comm._propertiesNew, comm._propertiesDt

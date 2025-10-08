@@ -1,16 +1,5 @@
 @testset verbose=verbose "ABM - CommunityABM" begin
 
-    # Test macros @new and @dt, and functions codeNew and codeDt
-    @test CellBasedModels.codeNew(:t) == :_t_new
-    @test CellBasedModels.codeNew(:(Scope1.t)) == :(Scope1._t_new)
-    @test CellBasedModels.codeNew(:(Scope1.scope2.t)) == :(Scope1.scope2._t_new)
-    @test CellBasedModels.codeNew(:(Scope1.scope2.scope3.t)) == :(Scope1.scope2.scope3._t_new)
-
-    @test CellBasedModels.codeDt(:t) == :_t_dt
-    @test CellBasedModels.codeDt(:(Scope1.t)) == :(Scope1._t_dt)
-    @test CellBasedModels.codeDt(:(Scope1.scope2.t)) == :(Scope1.scope2._t_dt)
-    @test CellBasedModels.codeDt(:(Scope1.scope2.scope3.t)) == :(Scope1.scope2.scope3._t_dt)
-
     @testset "struct - Global" begin
 
         # Build AgentGlobal WITHOUT invoking parameterConvert (positional constructor)
@@ -28,14 +17,24 @@
             
             agents = (
                 environment = environment,
-            )
+            ),
+
+            rules = (
+                rule_env = quote
+
+                    communityNew.environment.temperature[1] += 0.1
+                
+                end,
+            ),
         )
+
+        @test model.environment.temperature._updated == true
 
         @test typeof(model) === ABM{3, (:environment,), Tuple{AgentGlobal{(:temperature, :pressure, :note), Tuple{Float64, Float64, Bool}},}}
         @test haskey(model._agents, :environment)
         @test typeof(model._agents.environment) === AgentGlobal{(:temperature, :pressure, :note), Tuple{Float64, Float64, Bool}}
 
-        @test_nowarn community = CommunityABM(
+        community = CommunityABM(
             model;            
             environment = 
                 CommunityGlobal(
@@ -43,7 +42,11 @@
                 )
         )
 
-        
+        CellBasedModels.CustomFunctions.rule_env(community)
+        model._functions.rule_env(community)
+
+        @test community.environment.temperature[1] == 0.0
+        @test community._parametersNew.environment.temperature[1] == 0.2
 
     end
 

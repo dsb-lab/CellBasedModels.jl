@@ -69,16 +69,16 @@
         # Basic shape
         @test comm isa CommunityGlobal
         @test haskey(comm._properties, :temperature)
-        @test haskey(comm._properties, CellBasedModels.codeNew(:temperature))   
-        @test !haskey(comm._properties, CellBasedModels.codeDt(:temperature))      
+        @test haskey(comm._propertiesNew, :temperature)   
+        @test !haskey(comm._propertiesDt, :temperature)      
 
         @test haskey(comm._properties, :pressure)
-        @test !haskey(comm._properties, CellBasedModels.codeNew(:pressure))        
-        @test haskey(comm._properties, CellBasedModels.codeDt(:pressure))       
+        @test !haskey(comm._propertiesNew, :pressure)        
+        @test haskey(comm._propertiesDt, :pressure)       
 
         @test haskey(comm._properties, :note)                
-        @test !haskey(comm._properties, CellBasedModels.codeNew(:note))            
-        @test !haskey(comm._properties, CellBasedModels.codeDt(:note))             
+        @test !haskey(comm._propertiesNew, :note)            
+        @test !haskey(comm._propertiesDt, :note)             
 
         @test length(comm.temperature) == 1
         @test comm.temperature[1] == 37.0
@@ -95,8 +95,10 @@
         @test_throws MethodError comm.note .= "2" 
 
         # Check getPropertiesAsNamedTuple utility
-        props = CellBasedModels.getPropertiesAsNamedTuple(comm)
-        @test keys(props) == (:note, :temperature, :pressure, :_pressure_dt, :_temperature_new)
+        props, propsNew, propsDt = CellBasedModels.getPropertiesAsNamedTuple(comm)
+        @test keys(props) == (:note, :temperature, :pressure)
+        @test keys(propsNew) == (:temperature,)
+        @test keys(propsDt) == (:pressure,)
 
         # Error: non-scalar env property
         @test_throws ErrorException CommunityGlobal(agent; properties=(temperature = [37.0, 38.0],))
