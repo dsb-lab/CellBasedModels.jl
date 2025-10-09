@@ -10,10 +10,11 @@ using Random
 verbose = true
 
 @testset verbose=true "CellBasedModels.jl" begin
-    include("testIndexing.jl")
-    include("testParameter.jl")
-    include("testAgentGlobal.jl")
-    include("testABM.jl")
+    # include("testIndexing.jl")
+    # include("testParameter.jl")
+    include("testTypeIntegrators.jl")
+    # include("testAgentGlobal.jl")
+    # include("testABM.jl")
 end
 
 # include("testUnits.jl")

@@ -14,6 +14,7 @@ module CellBasedModels
 
     #Custom integrators
     # export CBMIntegrators
+    export Rule, ODE, DynamicalODE, SplitODE, SDE, RODE, ADIODE
     include("./integrators/abstractTypes.jl")
 
     # #Random

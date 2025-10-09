@@ -13,19 +13,12 @@ end
 
 function ABM(
         
-        dims;
+        dims,
 
-        agents::NamedTuple=(;),
+        agents::NamedTuple=(;);
         
-        rules::Union{Expr, NamedTuple}=quote end,
-        odes::Union{Expr, NamedTuple}=quote end,
-        sdes::Union{Expr, NamedTuple}=quote end,
-        pdesDifusion::Union{Expr, NamedTuple}=quote end,
-        pdesAdvection::Union{Expr, NamedTuple}=quote end,
-        pdesReaction::Union{Expr, NamedTuple}=quote end,
-
-        integrationStructure::NamedTuple=(;),
-
+        kwargs...
+        
     )
     
     agents = deepcopy(agents)
