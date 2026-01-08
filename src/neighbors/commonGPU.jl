@@ -1,11 +1,13 @@
 import CellBasedModels: compactArray!, compactUnstructuredMeshField!
 
 function compactUnstructuredMeshField!(prop::UnstructuredMeshField{P}, perm, aux::NamedTuple, NNew) where {P <: GPU}
-    N = lengthProperties(prop)
+    N = lengthPropertiesNew(prop)
     for (fieldname, field) in pairs(prop._p)
         aux_field = getfield(aux, fieldname)
         compactArrayGPU!(field, aux_field, perm, N, NNew)
     end
+    compactArrayGPU!(prop._id, prop._id, perm, N, NNew)
+    @inbounds @views prop._FlagsSurvived[1:NNew] .= true
     prop._N .= NNew
     return nothing
 end

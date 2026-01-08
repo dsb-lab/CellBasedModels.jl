@@ -133,6 +133,14 @@ function DifferentialEquations.step!(integrator::CBIntegrator)
             DifferentialEquations.step!(deintegrator)
         end 
     end
+    # while overflow(integrator.u)
+    #     preallocate!(integrator)
+    #     for (scope, deintegrator) in pairs(integrator.integrators)
+    #         if typeof(deintegrator) == Rule
+    #             DifferentialEquations.step!(deintegrator)
+    #         end 
+    #     end
+    # end
     # Update Us
     for (scope, deintegrator) in pairs(integrator.integrators)
         if typeof(deintegrator) == Rule
@@ -154,3 +162,16 @@ function DifferentialEquations.step!(integrator::CBIntegrator)
     return nothing
 
 end
+
+# function preallocate!(integrator::CBIntegrator)
+
+#     CellBasedModels.preallocate!(integrator.u)
+
+#     # Push results to deintegrators
+#     for (scope, deintegrator) in pairs(integrator.integrators)
+#         CellBasedModels.copyfrom!(deintegrator.u, integrator.u)
+#     end
+
+#     return nothing
+
+# end

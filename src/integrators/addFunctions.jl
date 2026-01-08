@@ -269,6 +269,7 @@ function extract_parameters_kernel_launch(ex)
 
     cpu_threads = Threads.nthreads()
     gpu_threads = 256
+    ndrange = nothing
     for arg in ex[1:end - 1]
         @capture(arg, kwarg_=value_)
         if kwarg == :cpu_threads
@@ -278,19 +279,61 @@ function extract_parameters_kernel_launch(ex)
             cpu_threads = min(value, cpu_threads)
         elseif kwarg == :gpu_threads
             gpu_threads = value
+        elseif kwarg == :ndrange
+            ndrange = value
         else
             error("Unknown keyword argument '$kwarg'")
         end
     end
 
-    return (cpu_threads=cpu_threads, gpu_threads=gpu_threads), functions
+    if ndrange === nothing
+        error("Expected 'ndrange' keyword argument indicating the size of the ndrange. e.g. ndrange=uNew.n")
+    end
 
+    return (cpu_threads=cpu_threads, gpu_threads=gpu_threads, ndrange=ndrange), functions
+    
+end
+
+function extract_calls(fdefs)
+    assigns = Tuple[]
+
+    for f in fdefs
+        fdef = f.fdef
+
+        # Expand macros in the function body
+        fdef_expanded = macroexpand(Main, fdef)
+
+        # tracked: first arg (du), second (u) is protected
+        tracked_syms   = f.args[1:2]
+        du_sym         = tracked_syms[1]
+        u_sym          = tracked_syms[2]
+        protected_syms = [u_sym]
+
+        postwalk(fdef_expanded) do ex
+            #For simple meshes
+            du = nothing
+            @capture(ex, du_.field_.variable_)
+            if du == du_sym || du == u_sym
+                push!(assigns, (field, variable))
+            end
+            #For multi meshes
+            du = nothing
+            @capture(ex, du_.mesh_.field_.variable_)
+            if du == du_sym || du == u_sym
+                push!(assigns, (mesh_, field, variable))
+            end
+        end
+    end
+
+    unique_assigns = unique(assigns)
+
+    return unique_assigns
 end
 
 macro kernel_launch(ex...)
 
     kwargs, functions = extract_parameters_kernel_launch(ex)
-    unique_assigns = extract_assigns(functions)
+    unique_assigns = extract_calls(functions)
 
     fname = functions[1].fname
     fargs = functions[1].args
@@ -307,9 +350,9 @@ macro kernel_launch(ex...)
         backend = KernelAbstractions.get_backend($(fargs[1]))
         threads = backend isa CellBasedModels.CPU ? $(kwargs.cpu_threads) : $(kwargs.gpu_threads)
 
-        ndrange_val = $ndrange_calc
-
-        $fname(backend, threads)($(fargs...), ndrange=(ndrange_val,))
+        # ndrange_val = $ndrange_calc
+        # println("Launching kernel with ndrange = ", ndrange_val, " and threads = ", threads)
+        $fname(backend, threads)($(fargs...), ndrange=$(kwargs.ndrange))
         CellBasedModels.synchronize(backend)
     end
 

@@ -229,11 +229,19 @@ end
 function addFunction!(mesh::UnstructuredMesh, type, scope, params, functions)
 
     for param in params
-        if length(param) != 2
-            error("Each parameter modification must be a tuple of (field, parameter_name). Found: $param. Most probably you assigned incorrectly a parameter in a function (e.g. mesh.$field_name.$parameter_name). Valid parameters are: \n $mesh")
+        if !(length(param) in (2,3))
+            error("Each parameter modification must be a tuple of (field, parameter_name). Found: $param. Most probably you assigned incorrectly a parameter in a function (e.g. mesh.field_name.parameter_name). Valid parameters are: \n $mesh")
+        elseif length(param) == 3 && param[2] != :_p
+            error("When specifying three elements in parameter modification tuple, the second element must be :_p to indicate accessing the properties. Found: $param. Most probably you assigned incorrectly a parameter in a function (e.g. mesh.field_name.parameter_name). Valid parameters are: \n $mesh")
         end
 
-        field_name, parameter_name = param
+        field_name = nothing
+        parameter_name = nothing
+        if length(param) == 2
+            field_name, parameter_name = param
+        else
+            field_name, _, parameter_name = param
+        end
 
         field = nothing
         if field_name in keys(mesh._p)
@@ -245,6 +253,8 @@ function addFunction!(mesh::UnstructuredMesh, type, scope, params, functions)
         if parameter_name in keys(field.p)
             par = field.p[parameter_name]
             CellBasedModels.setModifiedIn!(par, type, scope)
+        elseif startswith("$parameter_name", "_")
+            continue
         else
             error("Parameter $parameter_name does not exist in field $field_name. Most probably you assigned incorrectly a parameter in a function (e.g. mesh.$field_name.$parameter_name). Valid parameters are: \n $mesh")
         end
@@ -398,7 +408,7 @@ function UnstructuredMeshField(
     if id
         _id = Vector{Int}(zeros(Int, NCache))
         _id[1:N] = 1:N
-        _idMax = Threads.Atomic{Int}(N)
+        _idMax = SizedVector{1}(N)
     else
         _id = nothing
         _idMax = nothing
@@ -427,17 +437,17 @@ function UnstructuredMeshField(
         _nodes4 = zeros(Int, NCache)
     end
 
-    _N = Threads.Atomic{Int}(N)
-    _NCache = Threads.Atomic{Int}(NCache)
+    _N = SizedVector{1}(N)
+    _NCache = SizedVector{1}(NCache)
     _FlagsSurvived = ones(Bool, NCache)
-    _NRemoved = Threads.Atomic{Int}(0)
+    _NRemoved = SizedVector{1}(0)
     _NRemovedThread = SizedVector{Threads.nthreads(), Int}(zeros(Int, Threads.nthreads()))
-    _NAdded = Threads.Atomic{Int}(0)
+    _NAdded = SizedVector{1}(0)
     _NAddedThread = SizedVector{Threads.nthreads(), Int}(zeros(Int, Threads.nthreads()))
     P = keys(meshProperties.p)
     T = Tuple{(dtype(i, isbits=true) for i in values(meshProperties.p))...}
     _AddedAgents = [Vector{NamedTuple{P, T}}() for _ in 1:Threads.nthreads()]
-    _FlagOverflow = Threads.Atomic{Bool}(false)
+    _FlagOverflow = SizedVector{1}(false)
 
     _p = NamedTuple{keys(meshProperties.p)}(zeros(dtype(dt, isbits=true), NCache) for dt in values(meshProperties.p))
     _NP = length(meshProperties.p)
@@ -715,8 +725,10 @@ nRefProperties(field::UnstructuredMeshField) = count(identity, field._pReference
 
 lengthCache(field::UnstructuredMeshField) = field._NCache[]
 lengthProperties(field::UnstructuredMeshField) = field._N[]
+lengthPropertiesNew(field::UnstructuredMeshField) = field._N[] + field._NAdded[]
 Base.length(field::UnstructuredMeshField{P}) where {P<:CPU} = nCopyProperties(field) * field._N[]
 
+sizeProperties(field::UnstructuredMeshField) = (lengthProperties(field),)
 sizeFull(field::UnstructuredMeshField) = (field._NP, field._N[])
 sizeFullCache(field::UnstructuredMeshField) = (field._NP, field._NCache[])
 Base.size(field::UnstructuredMeshField) = (nCopyProperties(field), lengthProperties(field))
@@ -879,7 +891,7 @@ end
 @eval @inline function Base.copyto!(
     dest::UnstructuredMeshField{P, DT, PR, PRN, PRC},
     bc::UnstructuredMeshField{P, DT, PR, PRN, PRC}) where {P, DT, PR, PRN, PRC}
-    N = lengthProperties(dest)
+    N = lengthPropertiesNew(dest)
     @inbounds for i in 1:PRN
         if !bc._pReference[i]
             copyto!(dest._p[i], 1, bc._p[i], 1, N)
@@ -892,7 +904,7 @@ end
 @eval @inline function copyfrom!(
     dest::UnstructuredMeshField{P, DT, PR, PRN, PRC},
     bc::UnstructuredMeshField{P, DT, PR, PRN, PRC}) where {P, DT, PR, PRN, PRC}
-    N = lengthProperties(dest)
+    N = lengthPropertiesNew(dest)
     @inbounds for i in 1:PRN
         if !dest._pReference[i]
             copyto!(dest._p[i], 1, bc._p[i], 1, N)

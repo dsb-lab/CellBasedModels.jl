@@ -24,7 +24,7 @@ function DifferentialEquations.init(problem::RuleProblem; dt::Real)
     return Rule(
         problem,
         copy(problem.u0),
-        zero(problem.u0),
+        copy(problem.u0),
         dt,
         problem.tspan[1],
     )

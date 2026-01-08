@@ -5,6 +5,7 @@ module CellBasedModels
     using Printf
     export CPU, GPU
     using KernelAbstractions
+    import Atomix: @atomic
 
     hasCuda() = false
 
@@ -67,7 +68,7 @@ module CellBasedModels
     export createObject
     export AgentGlobal
     include("./AgentSpecializations/agentGlobal.jl")
-    export AgentPoint, addAgent!, removeAgent!
+    export AgentPoint, @addAgentPoint!, @removeAgentPoint!
     include("./AgentSpecializations/agentPoint.jl")
 
     include("./neighbors/common.jl")

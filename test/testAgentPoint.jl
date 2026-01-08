@@ -1,4 +1,5 @@
 using KernelAbstractions
+using Atomix 
 
 @testset verbose=verbose "specializations - AgentPoint" begin
 
@@ -89,16 +90,18 @@ using KernelAbstractions
     )
 
     @addRule model=model function addRemoveRule!(uNew, u, p, t)
-        @kernel_launch function add_remove_kernel!(uNew, u, p, t)
+        # CellBasedModels.sizeProperties(u.n)
+        @kernel_launch ndrange=CellBasedModels.sizeProperties(u.n) function add_remove_kernel!(uNew, u, p, t)
             i = @index(Global)
-            t = u.n.w[i] % 3 + 1
+            t = (u.n.w[i]-1) % 3 + 1
             if t == 1
-                addAgent!(uNew, (x=u.n.x[i], y=u.n.y[i], w=4,))
+                @addAgentPoint!(uNew, x=u.n.x[i], y=u.n.y[i], w=4)
             elseif t == 2
-                removeAgent!(uNew, i)
+                @removeAgentPoint!(uNew, i)
             end
         end
-        println(uNew.n._p.w)
+        # println("W: ", uNew.n._p.w)
+        # println("F: ", Int.(uNew.n._FlagsSurvived))
     end
 
     #Initialize the object
@@ -114,17 +117,51 @@ using KernelAbstractions
     )
     integrator = init(problem, dt=0.1)
     initial_count = length(integrator.u.n.w)
-    initial_count_1 = sum(integrator.u.n.w .== 0)
-    initial_count_2 = sum(integrator.u.n.w .== 1)
-    initial_count_3 = sum(integrator.u.n.w .== 2)
+    initial_count_1 = sum(integrator.u.n.w .== 1)
+    initial_count_2 = sum(integrator.u.n.w .== 2)
+    initial_count_3 = sum(integrator.u.n.w .== 3)
+    ids = collect(1:initial_count)[integrator.u.n.w .!= 2]
+    ids = [ids..., (initial_count+1):(initial_count+initial_count_1)...]
 
-    println(obj.n._p.w)
+    # println("W: ", obj.n._p.w)
     step!(integrator)
-    println(integrator.u.n._p.w)
+    # println("W: ", integrator.u.n._p.w)
 
     @test sum(integrator.u.n.w .== 4) == initial_count_1
-    @test sum(integrator.u.n.w .== 1) == 0
-    @test sum(integrator.u.n.w .== 2) == initial_count_3
+    @test sum(integrator.u.n.w .== 2) == 0
+    @test sum(integrator.u.n.w .== 3) == initial_count_3
     @test length(integrator.u.n.w) == initial_count_1*2 + initial_count_3
+    @test all(integrator.u.n._id[1:(initial_count_1*2 + initial_count_3)] .== ids)
+
+    if CUDA.has_cuda()
+
+        #Initialize the object
+        obj = createObject(model, n=(10,20))
+        obj.n.x .= rand(size(obj.n.x))
+        obj.n.y .= rand(size(obj.n.y))
+        obj.n.w .= rand(1:3, length(obj.n.w))
+
+        obj_gpu = toDevice(obj, CUDA.CUDABackend)
+        problem = CBProblem(
+            model,
+            obj_gpu
+        )
+        integrator_gpu = init(problem, dt=0.1)
+        initial_count = length(integrator_gpu.u.n.w)
+        initial_count_1 = sum(integrator_gpu.u.n.w .== 1)
+        initial_count_2 = sum(integrator_gpu.u.n.w .== 2)
+        initial_count_3 = sum(integrator_gpu.u.n.w .== 3)
+        ids = collect(1:initial_count)[Array(integrator_gpu.u.n.w) .!= 2]
+        ids = [ids..., (initial_count+1):(initial_count+initial_count_1)...]
+
+        step!(integrator_gpu)
+
+        @test sum(integrator_gpu.u.n.w .== 4) == initial_count_1
+        @test sum(integrator_gpu.u.n.w .== 2) == 0
+        @test sum(integrator_gpu.u.n.w .== 3) == initial_count_3
+        @test length(integrator_gpu.u.n.w) == initial_count_1*2 + initial_count_3
+        @test all(Array(integrator_gpu.u.n._id[1:(initial_count_1*2 + initial_count_3)]) .== ids)
+
+    end
 
 end

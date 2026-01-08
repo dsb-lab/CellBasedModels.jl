@@ -64,18 +64,16 @@ function initNeighbors(
 
 end
 
-function update!(mesh::UnstructuredMeshObject{P, 0, S, DT, NN, PAR}) where {P, S, DT, NN<:NeighborsFull, PAR}
-    return nothing
-end
-
 function update!(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR}) where {P, D, S, DT, NN<:NeighborsFull, PAR}
 
     # Compaction
     for (name, prop) in pairs(mesh._p)
-        N = lengthProperties(prop)
-        NNew = fillPermTable!(mesh._neighbors.permTable[name], prop._FlagsSurvived, N)
+        NAddedNew = lengthPropertiesNew(prop)
+        NNew = fillPermTable!(mesh._neighbors.permTable[name], prop._FlagsSurvived, NAddedNew)
         compactUnstructuredMeshField!(mesh._p[name], mesh._neighbors.permTable[name], mesh._neighbors.auxBuffers[name], NNew)
     end
+
+    # println("P: ", mesh._neighbors.permTable[:n])
 
     renameElements!(mesh)
 
