@@ -104,63 +104,35 @@ using Atomix
         # println("F: ", Int.(uNew.n._FlagsSurvived))
     end
 
-    #Initialize the object
-    obj = createObject(model, n=(10,20))
-    obj.n.x .= rand(size(obj.n.x))
-    obj.n.y .= rand(size(obj.n.y))
-    obj.n.w .= rand(1:3, length(obj.n.w))
+    for cache in [20, 10] 
+        for device in devices
+            #Initialize the object
+            obj = createObject(model, n=(10,cache))
+            obj.n.x .= rand(size(obj.n.x))
+            obj.n.y .= rand(size(obj.n.y))
+            obj.n.w .= rand(1:3, length(obj.n.w))
 
-    #Define the problem
-    problem = CBProblem(
-        model,
-        obj
-    )
-    integrator = init(problem, dt=0.1)
-    initial_count = length(integrator.u.n.w)
-    initial_count_1 = sum(integrator.u.n.w .== 1)
-    initial_count_2 = sum(integrator.u.n.w .== 2)
-    initial_count_3 = sum(integrator.u.n.w .== 3)
-    ids = collect(1:initial_count)[integrator.u.n.w .!= 2]
-    ids = [ids..., (initial_count+1):(initial_count+initial_count_1)...]
+            obj_gpu = toDevice(obj, device)
+            problem = CBProblem(
+                model,
+                obj_gpu
+            )
+            integrator_gpu = init(problem, dt=0.1)
+            initial_count = length(integrator_gpu.u.n.w)
+            initial_count_1 = sum(integrator_gpu.u.n.w .== 1)
+            initial_count_2 = sum(integrator_gpu.u.n.w .== 2)
+            initial_count_3 = sum(integrator_gpu.u.n.w .== 3)
+            ids = collect(1:initial_count)[Array(integrator_gpu.u.n.w) .!= 2]
+            ids = [ids..., (initial_count+1):(initial_count+initial_count_1)...]
 
-    # println("W: ", obj.n._p.w)
-    step!(integrator)
-    # println("W: ", integrator.u.n._p.w)
+            step!(integrator_gpu)
 
-    @test sum(integrator.u.n.w .== 4) == initial_count_1
-    @test sum(integrator.u.n.w .== 2) == 0
-    @test sum(integrator.u.n.w .== 3) == initial_count_3
-    @test length(integrator.u.n.w) == initial_count_1*2 + initial_count_3
-    @test all(integrator.u.n._id[1:(initial_count_1*2 + initial_count_3)] .== ids)
-
-    if CUDA.has_cuda()
-
-        #Initialize the object
-        obj = createObject(model, n=(10,20))
-        obj.n.x .= rand(size(obj.n.x))
-        obj.n.y .= rand(size(obj.n.y))
-        obj.n.w .= rand(1:3, length(obj.n.w))
-
-        obj_gpu = toDevice(obj, CUDA.CUDABackend)
-        problem = CBProblem(
-            model,
-            obj_gpu
-        )
-        integrator_gpu = init(problem, dt=0.1)
-        initial_count = length(integrator_gpu.u.n.w)
-        initial_count_1 = sum(integrator_gpu.u.n.w .== 1)
-        initial_count_2 = sum(integrator_gpu.u.n.w .== 2)
-        initial_count_3 = sum(integrator_gpu.u.n.w .== 3)
-        ids = collect(1:initial_count)[Array(integrator_gpu.u.n.w) .!= 2]
-        ids = [ids..., (initial_count+1):(initial_count+initial_count_1)...]
-
-        step!(integrator_gpu)
-
-        @test sum(integrator_gpu.u.n.w .== 4) == initial_count_1
-        @test sum(integrator_gpu.u.n.w .== 2) == 0
-        @test sum(integrator_gpu.u.n.w .== 3) == initial_count_3
-        @test length(integrator_gpu.u.n.w) == initial_count_1*2 + initial_count_3
-        @test all(Array(integrator_gpu.u.n._id[1:(initial_count_1*2 + initial_count_3)]) .== ids)
+            @test sum(integrator_gpu.u.n.w .== 4) == initial_count_1
+            @test sum(integrator_gpu.u.n.w .== 2) == 0
+            @test sum(integrator_gpu.u.n.w .== 3) == initial_count_3
+            @test length(integrator_gpu.u.n.w) == initial_count_1*2 + initial_count_3
+            @test all(Array(integrator_gpu.u.n._id[1:(initial_count_1*2 + initial_count_3)]) .== ids)
+        end
 
     end
 

@@ -8,8 +8,9 @@ using Printf
 verbose = true
 benchmark = true #just for internal optimizations
 
+devices = CUDA.has_cuda() ? [CPU, CUDA.CUDABackend] : [CPU]
+
 @testset verbose=true "CellBasedModels.jl" begin
-    using CUDA
     # include("testIndexing.jl")
     # include("testParameter.jl")
     # include("testDiffSym.jl")

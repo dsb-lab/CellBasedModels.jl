@@ -50,13 +50,13 @@ function toDevice(field::UnstructuredMeshField{P}, ::Type{CUDA.CUDABackend}) whe
         field._NAdded         === nothing ? nothing : CUDA.CuArray([0]),
         field._NAddedThread   === nothing ? nothing : CUDA.zeros(0),
         field._AddedAgents    === nothing ? nothing : CUDA.zeros(0),
-        field._FlagOverflow   === nothing ? nothing : CUDA.CuArray([false]),
+        field._NOverflow   === nothing ? nothing : CUDA.CuArray([0]),
     )
 end
 
 toDevice(mesh::UnstructuredMeshObject{D, P}, ::CUDA.CUDABackend) where {D, P<:GPUCuda} = mesh
 
-function toDevice(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR}, ::Type{CUDA.CUDABackend}) where {P<:CPU, D, S, DT, NN, PAR}
+function toDevice(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}, ::Type{CUDA.CUDABackend}) where {P<:CPU, D, S, DT, NN, PAR, AB}
 
     PNew = GPUCuda
     DTNew = DT <: AbstractFloat ? Float32 : DT
@@ -65,13 +65,16 @@ function toDevice(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR}, ::Type{CU
         toDevice(p, CUDA.CUDABackend) for p in values(field._p)
     )
     n = initNeighborsGPU(D, field._neighbors, p)
+    _FlagOverflow = CUDA.CuArray([false])
 
     PARNew = typeof(p)
     NNNew = typeof(n)
+    ABNew = typeof(_FlagOverflow)
 
-    UnstructuredMeshObject{PNew, D, S, DTNew, NNNew, PARNew}(
+    UnstructuredMeshObject{PNew, D, S, DTNew, NNNew, PARNew, ABNew}(
         p,
-        n
+        n,
+        _FlagOverflow
     )
 end
 

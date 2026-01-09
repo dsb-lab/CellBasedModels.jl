@@ -46,10 +46,11 @@ mutable struct CBIntegrator{M, I}
     integrators::I
     dt::Real
     t::Real
+    overflowFactor::Real
 
 end
 
-function DifferentialEquations.init(problem::CBProblem; dt::Real, kwargs...)
+function DifferentialEquations.init(problem::CBProblem; dt::Real, overflowFactor::Real=1.0, kwargs...)
 
     kwargs_ = deepcopy(kwargs)
 
@@ -96,7 +97,7 @@ function DifferentialEquations.init(problem::CBProblem; dt::Real, kwargs...)
 
     integrators = (;integratorsDict...)
 
-    integrator = CBIntegrator{typeof(problem.u), typeof(integrators)}(problem.u, integrators, dt, problem.tspan[1])
+    integrator = CBIntegrator{typeof(problem.u), typeof(integrators)}(problem.u, integrators, dt, problem.tspan[1], overflowFactor)
 
     CellBasedModels.update!(integrator.u)
 
@@ -133,15 +134,23 @@ function DifferentialEquations.step!(integrator::CBIntegrator)
             DifferentialEquations.step!(deintegrator)
         end 
     end
-    # while overflow(integrator.u)
-    #     preallocate!(integrator)
-    #     for (scope, deintegrator) in pairs(integrator.integrators)
-    #         if typeof(deintegrator) == Rule
-    #             DifferentialEquations.step!(deintegrator)
-    #         end 
-    #     end
-    # end
-    # Update Us
+    while isOverflowed(integrator.u)
+        @warn "Overflow detected in CBIntegrator. Preallocating additional cache. If this happens frequently, consider increasing overflowFactor or preallocate cache sizes before running the simulation."
+        # Get overflow information from all fields
+        overflows = getOverflow(integrator.u, integrator.overflowFactor)
+        resetOverflow!(integrator.u)
+        
+        # Preallocate based on actual overflow amounts
+        preallocate!(integrator, overflows)
+        
+        # Rerun Rules after preallocation to ensure all pending operations complete
+        for (scope, deintegrator) in pairs(integrator.integrators)
+            if typeof(deintegrator) == Rule
+                DifferentialEquations.step!(deintegrator)
+            end 
+        end
+    end        
+    # Now safely update Us after handling any overflows
     for (scope, deintegrator) in pairs(integrator.integrators)
         if typeof(deintegrator) == Rule
             copyto!(integrator.u, deintegrator.u)
@@ -159,6 +168,29 @@ function DifferentialEquations.step!(integrator::CBIntegrator)
     # Increment time
     integrator.t += integrator.dt
 
+    return nothing
+
+end
+
+function preallocate!(integrator::CBIntegrator, additionalCache::NamedTuple = (;))
+    """
+    Allocate additional cache memory for specific fields in the integrator.
+    additionalCache should be a NamedTuple with field names as keys and additional cache sizes as values.
+    Fields not specified in the NamedTuple will not be preallocated.
+    Reinitializes all sub-integrators with the new mesh state.
+    
+    Example:
+        preallocate!(integrator, (n=100, e=50))  # Preallocate 100 for field n, 50 for field e
+    """
+    
+    # Preallocate the main mesh object with per-field allocation
+    CellBasedModels.preallocate!(integrator.u, additionalCache)
+    
+    # Update all sub-integrators with the new mesh state
+    for (scope, deintegrator) in pairs(integrator.integrators)
+        DifferentialEquations.reinit!(deintegrator, integrator.u)
+    end
+    
     return nothing
 
 end

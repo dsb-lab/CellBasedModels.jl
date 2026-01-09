@@ -87,7 +87,7 @@ module CellBasedModels
     include("./integrators/addFunctions.jl")
     export RuleProblem, Rule
     include("./integrators/ruleProblem.jl")
-    export CBProblem, CBIntegrator, init, step!
+    export CBProblem, CBIntegrator, init, step!, preallocate!
     include("./integrators/cellBasedProblem.jl")
 
     #Neighbors

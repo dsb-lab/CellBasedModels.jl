@@ -1,7 +1,7 @@
 import CellBasedModels: DATATYPE
 import CellBasedModels: lengthCache, lengthProperties, sizeFull, sizeFullCache, nCopyProperties
 import CellBasedModels: UnstructuredMeshField, UnstructuredMeshFieldStyle, UnstructuredMeshObject, UnstructuredMeshObjectStyle, unpack_voa
-import CellBasedModels: toDevice, CPU, GPU
+import CellBasedModels: CPU, GPU
 import CellBasedModels: initNeighbors
 import KernelAbstractions
 
@@ -86,13 +86,13 @@ function toDevice(field::UnstructuredMeshField{P}, ::Type{CPU}) where {P<:GPU}
         field._NAdded         === nothing ? nothing : SizedVector{1}(0),
         field._NAddedThread   === nothing ? nothing : SizedVector{Threads.nthreads(), Int}(zeros(Int, Threads.nthreads())),
         field._AddedAgents    === nothing ? nothing : [Vector{NamedTuple{keys(field._p), Tuple{[CellBasedModels.standardDataType(eltype(i)) for i in values(field._p)]...}}}() for _ in 1:Threads.nthreads()],
-        field._FlagOverflow   === nothing ? nothing : SizedVector{1}(false),
+        field._NOverflow   === nothing ? nothing : SizedVector{1}(0),
     )
 end
 
-toDevice(mesh::UnstructuredMeshObject{D, P}, ::Type{CPU}) where {D, P<:CPU} = mesh
+toDevice(mesh::UnstructuredMeshObject{P}, ::Type{CPU}) where {P<:CPU} = mesh
 
-function toDevice(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR}, ::Type{CPU}) where {P<:GPU, D, S, DT, NN, PAR}
+function toDevice(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}, ::Type{CPU}) where {P<:GPU, D, S, DT, NN, PAR, AB}
 
     PNew = platform()
     DTNew = DT <: AbstractFloat ? DATATYPE[AbstractFloat] : DT
@@ -101,12 +101,15 @@ function toDevice(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR}, ::Type{CP
         toDevice(p, CPU) for p in values(field._p)
     )
     n = initNeighbors(D, field._neighbors, p)
+    _FlagOverflow = SizedVector{1}(false)
 
     PARNew = typeof(p)
     NNNew = typeof(n)
+    ABNew = typeof(_FlagOverflow)
 
-    UnstructuredMeshObject{PNew, D, S, DTNew, NNNew, PARNew}(
+    UnstructuredMeshObject{PNew, D, S, DTNew, NNNew, PARNew, ABNew}(
         p,
-        n
+        n,
+        _FlagOverflow
     )
 end

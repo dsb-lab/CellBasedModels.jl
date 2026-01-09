@@ -43,26 +43,6 @@ function extract_unstructuredmeshparameters(
 
 end
 
-# function addAgentPoint_!(
-#     meshObject::AgentPointObject{P, D, DT, NN, PAR},
-# ) where {P, D, DT, NN, PAR}
-
-#     # Get new position and ID atomically
-#     nPos = @atomic meshObject.n._NAdded[1] += 1     
-#     nPos += meshObject.n._N[1]
-#     nId = @atomic meshObject.n._idMax[1] = meshObject.n._idMax[1] + 1
-#     if nPos > meshObject.n._NCache[1]
-#         @print "Not enough space to add new AgentPoint. Please increase cache size."
-#         @atomic meshObject.m._FlagOverflow[1] = meshObject.m._FlagOverflow[1] + 1
-#     else
-#         meshObject.n._FlagsSurvived[nPos] = true
-#         meshObject.n._id[nPos] = nId
-#     end
-
-#     return nPos
-
-# end
-
 macro addAgentPoint!(
     ex...
 )
@@ -85,17 +65,17 @@ macro addAgentPoint!(
         # Inline the logic from addAgentPoint_! for GPU compatibility
         _nPos_ = CellBasedModels.@atomic $var.n._NAdded[1] += 1     
         _nPos_ += $var.n._N[1]
-        _nid_ = CellBasedModels.@atomic $var.n._idMax[1] += 1
-        # if _nPos_ > $var.n._NCache[1]
-        #     CellBasedModels.@print "Not enough space to add new AgentPoint. Please increase cache size."
-        #     _ = CellBasedModels.@atomic $var.n._FlagOverflow[1] += 1
-        #     _nid_ = 0
-        # else
+        if _nPos_ > $var.n._NCache[1]
+            _ = CellBasedModels.@atomic $var.n._NOverflow[1] += 1
+            $var._FlagOverflow[1] = true
+            _nPos_ = 0
+        else
+            _nid_ = CellBasedModels.@atomic $var.n._idMax[1] += 1
             $var.n._FlagsSurvived[_nPos_] = true
             $var.n._id[_nPos_] = _nid_
-        # end
+        end
         
-        if _nid_ != 0
+        if _nPos_ != 0
             $(updates...)
         end
     end
@@ -104,22 +84,12 @@ macro addAgentPoint!(
 
 end
 
-# function removeAgentPoint!(
-#     meshObject::AgentPointObject{P, D, DT, NN, PAR},
-#     agentIndex::I,
-# ) where {P, D, DT, NN, PAR, I}
-
-#     meshObject.n._FlagsSurvived[agentIndex] = false
-
-# end
-
 macro removeAgentPoint!(
     meshObject,
     agentIndex,
 )
 
     # Inline the logic for GPU compatibility
-    # return esc(:(CellBasedModels.removeAgentPoint!($meshObject, $agentIndex)))
     return esc(:($meshObject.n._FlagsSurvived[$agentIndex] = false))
 
 end

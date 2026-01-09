@@ -253,8 +253,6 @@ function addFunction!(mesh::UnstructuredMesh, type, scope, params, functions)
         if parameter_name in keys(field.p)
             par = field.p[parameter_name]
             CellBasedModels.setModifiedIn!(par, type, scope)
-        elseif startswith("$parameter_name", "_")
-            continue
         else
             error("Parameter $parameter_name does not exist in field $field_name. Most probably you assigned incorrectly a parameter in a function (e.g. mesh.$field_name.$parameter_name). Valid parameters are: \n $mesh")
         end
@@ -335,7 +333,7 @@ struct UnstructuredMeshField{
     _NAdded::AI
     _NAddedThread::SI    
     _AddedAgents::VVNT
-    _FlagOverflow::AB
+    _NOverflow::AB
 end
 Adapt.@adapt_structure UnstructuredMeshField
 
@@ -447,7 +445,7 @@ function UnstructuredMeshField(
     P = keys(meshProperties.p)
     T = Tuple{(dtype(i, isbits=true) for i in values(meshProperties.p))...}
     _AddedAgents = [Vector{NamedTuple{P, T}}() for _ in 1:Threads.nthreads()]
-    _FlagOverflow = SizedVector{1}(false)
+    _NOverflow = SizedVector{1}(0)
 
     _p = NamedTuple{keys(meshProperties.p)}(zeros(dtype(dt, isbits=true), NCache) for dt in values(meshProperties.p))
     _NP = length(meshProperties.p)
@@ -471,7 +469,7 @@ function UnstructuredMeshField(
     VI4 = typeof(_nodes4)
 
     AI = typeof(_N)
-    AB = typeof(_FlagOverflow)
+    AB = typeof(_NOverflow)
     VB = typeof(_FlagsSurvived)
     SI = typeof(_NRemovedThread)
     VVNT = typeof(_AddedAgents)
@@ -507,7 +505,7 @@ function UnstructuredMeshField(
             _NAdded,
             _NAddedThread,
             _AddedAgents,
-            _FlagOverflow,
+            _NOverflow,
         )
 end
 
@@ -532,7 +530,7 @@ function UnstructuredMeshField(
             _NAdded,
             _NAddedThread,
             _AddedAgents,
-            _FlagOverflow,
+            _NOverflow,
     )
 
     P = platform(_N)
@@ -557,7 +555,7 @@ function UnstructuredMeshField(
     VI4 = typeof(_nodes4)
 
     AI = typeof(_N)
-    AB = typeof(_FlagOverflow)
+    AB = typeof(_NOverflow)
     VB = typeof(_FlagsSurvived)
     SI = typeof(_NRemovedThread)
     VVNT = typeof(_AddedAgents)
@@ -589,7 +587,7 @@ function UnstructuredMeshField(
             _NAdded,
             _NAddedThread,
             _AddedAgents,
-            _FlagOverflow,
+            _NOverflow,
         )
 end
 
@@ -632,7 +630,7 @@ function Base.show(io::IO, x::UnstructuredMeshField{
     println(io, @sprintf("\t%-25s %-15s", "_NAdded", AI))
     println(io, @sprintf("\t%-25s %-15s", "_NAddedThread", SI))
     println(io, @sprintf("\t%-25s %-15s", "_AddedAgents", VVNT))
-    println(io, @sprintf("\t%-25s %-15s", "_FlagOverflow", AB))
+    println(io, @sprintf("\t%-25s %-15s", "_NOverflow", AB))
 
     for ((n, t), c) in zip(pairs(x._p), x._pReference)
         if c
@@ -688,7 +686,7 @@ function show(io::IO, ::Type{UnstructuredMeshField{
     print(io, "_NAdded::", AI, ", ")
     print(io, "_NAddedThread::", SI, ", ")
     print(io, "_AddedAgents::", VVNT, ", ")
-    print(io, "_FlagOverflow::", AB, ", ")
+    print(io, "_NOverflow::", AB, ", ")
 end
 
 @generated function Base.getproperty(field::UnstructuredMeshField{
@@ -789,7 +787,7 @@ function Base.copy(field::UnstructuredMeshField)
         field._NAdded,
         field._NAddedThread,
         field._AddedAgents,
-        field._FlagOverflow,
+        field._NOverflow,
     )
 
 end
@@ -821,7 +819,7 @@ function partialCopy(field::UnstructuredMeshField, args)
         field._NAdded,
         field._NAddedThread,
         field._AddedAgents,
-        field._FlagOverflow,
+        field._NOverflow,
     )
 
 end
@@ -853,7 +851,7 @@ function Base.similar(field::UnstructuredMeshField)
         field._NAdded,
         field._NAddedThread,
         field._AddedAgents,
-        field._FlagOverflow,
+        field._NOverflow,
     )
 end
 
@@ -883,7 +881,7 @@ function Base.zero(field::UnstructuredMeshField)
         field._NAdded,
         field._NAddedThread,
         field._AddedAgents,
-        field._FlagOverflow,
+        field._NOverflow,
     )
 end
 
@@ -1058,15 +1056,54 @@ end
 
 iterateOver(mesh::UnstructuredMeshField) = 1:lengthProperties(mesh)
 
+## Preallocate
+function preallocate!(field::UnstructuredMeshField, additionalCache::Int=field._NCache[])
+    """
+    Allocate additional cache memory for a UnstructuredMeshField.
+    Resizes all property arrays and supporting data structures.
+    """
+    newNCache = Array(field._NCache)[1] + additionalCache
+    
+    # Resize property arrays
+    for i in 1:field._NP
+        resize!(field._p[i], newNCache)
+    end
+    
+    # Resize supporting arrays
+    resize!(field._id, newNCache)
+    field._nodes1 !== nothing && resize!(field._nodes1, newNCache)
+    field._nodes2 !== nothing && resize!(field._nodes2, newNCache)
+    field._nodes3 !== nothing && resize!(field._nodes3, newNCache)
+    field._nodes4 !== nothing && resize!(field._nodes4, newNCache)
+    resize!(field._FlagsSurvived, newNCache)
+    
+    # Update cache size
+    field._NCache .= newNCache
+    
+    return nothing
+end
+
+## getOverflow
+function getOverflow(field::UnstructuredMeshField, factor=1)
+    """
+    Extract overflow count from a field.
+    Returns the overflow counter value (0 if no overflow).
+    Does not reset the counter - that's handled by mesh-level getOverflow.
+    """
+    overflow_val = Array(field._NOverflow)[1]
+    return round(Int, overflow_val * factor)
+end
+
 ######################################################################################################
 # UnstructuredMeshObject
 ######################################################################################################
 struct UnstructuredMeshObject{
             P, D, S, DT, NN,
-            PAR
+            PAR, AB
     } <: AbstractMeshObject
     _p::PAR
     _neighbors::NN
+    _FlagOverflow::AB
 end
 Adapt.@adapt_structure UnstructuredMeshObject
 
@@ -1125,19 +1162,20 @@ function UnstructuredMeshObject(
 
     params = NamedTuple{tuple(keys(mesh._p)...)}(fields)
     neighbors_ = initNeighbors(D, neighbors, params)
+    _FlagOverflow = SizedVector{1}(false)
 
     mesh = UnstructuredMeshObject{
             P, D, S, DT, typeof(neighbors_),
-            typeof(params)
+            typeof(params), typeof(_FlagOverflow)
         }(
-            params, neighbors_
+            params, neighbors_, _FlagOverflow
         )
 
     return mesh
 end
 
 function UnstructuredMeshObject(
-            p, neighbors
+            p, neighbors, _FlagOverflow
     )
 
     D = 0
@@ -1159,9 +1197,9 @@ function UnstructuredMeshObject(
 
     return UnstructuredMeshObject{
             P, D, S, DT, typeof(neighbors),
-            typeof(p)
+            typeof(p), typeof(_FlagOverflow)
         }(
-            p, neighbors
+            p, neighbors, _FlagOverflow
         )
 end
 
@@ -1202,7 +1240,7 @@ function Base.show(io::IO, x::Type{UnstructuredMeshObject{P, D, S}}) where {P, D
     println(io, "}")
 end
 
-function show(io::IO, ::Type{UnstructuredMeshObject{P, D, S, DT, NN, PAR}}) where {P, D, S, DT, NN, PAR}
+function show(io::IO, ::Type{UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}}) where {P, D, S, DT, NN, PAR, AB}
     for (props, propsnames) in zip((PAR), ("a", "PropertiesNode", "PropertiesEdge", "PropertiesFace", "PropertiesVolume"))
         if props !== Nothing
             print(io, "\t", string(propsnames), "Meta", "=(")
@@ -1212,10 +1250,10 @@ function show(io::IO, ::Type{UnstructuredMeshObject{P, D, S, DT, NN, PAR}}) wher
     end
 end
 
-function lengthProperties(::UnstructuredMeshObject{P, D, S, DT, NN, PAR}) where {P, D, S, DT, NN, PAR}
+function lengthProperties(::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}) where {P, D, S, DT, NN, PAR, AB}
     return length(PAR.parameters[1])
 end    
-function Base.length(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR}) where {P, D, S, DT, NN, PAR}
+function Base.length(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}) where {P, D, S, DT, NN, PAR, AB}
     c = 0
     for i in values(mesh._p)
         c += length(i)
@@ -1243,7 +1281,7 @@ spatialDims(::Type{<:UnstructuredMeshObject{P, D}}) where {P, D} = D
 specialization(mesh::UnstructuredMeshObject{P, D, S}) where {P, D, S} = S
 
 #Getindex
-@generated function Base.getproperty(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR}, s::Symbol) where {P, D, S, DT, NN, PAR}
+@generated function Base.getproperty(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}, s::Symbol) where {P, D, S, DT, NN, PAR, AB}
     # build a clause for each fieldname in T
     general = [
         :(if s === $(QuoteNode(name)); return getfield(field, $(QuoteNode(name))); end)
@@ -1278,24 +1316,26 @@ function LinearAlgebra.norm(u::UnstructuredMeshObject, t::Real)
 end
 
 ## Copy
-function Base.copy(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR}) where {P, D, S, DT, NN, PAR}
+function Base.copy(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}) where {P, D, S, DT, NN, PAR, AB}
 
-    UnstructuredMeshObject{P, D, S, DT, NN, PAR}(
+    UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}(
         NamedTuple{keys(field._p)}(
             copy(getfield(field._p, name)) for name in keys(field._p)
         ),
-        field._neighbors
+        field._neighbors,
+        field._FlagOverflow
     )
 
 end
 
-function partialCopy(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR}, copyArgs) where {P, D, S, DT, NN, PAR}
+function partialCopy(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}, copyArgs) where {P, D, S, DT, NN, PAR, AB}
 
-    UnstructuredMeshObject{P, D, S, DT, NN, PAR}(
+    UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}(
         NamedTuple{keys(field._p)}(
             partialCopy(getfield(field._p, name), [i[2] for i in copyArgs if i[1] == name]) for name in keys(field._p)
         ),
-        field._neighbors
+        field._neighbors,
+        field._FlagOverflow
     )
 
 end
@@ -1307,7 +1347,8 @@ function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR}) where
         NamedTuple{keys(field._p)}(
             similar(getfield(field._p, name)) for name in keys(field._p)
         ),
-        field._neighbors
+        field._neighbors,
+        field._FlagOverflow
     )
 
 end
@@ -1318,7 +1359,8 @@ function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR}, _) wh
         NamedTuple{keys(field._p)}(
             similar(getfield(field._p, name)) for name in keys(field._p)
         ),
-        field._neighbors
+        field._neighbors,
+        field._FlagOverflow
     )
 
 end
@@ -1330,7 +1372,8 @@ function Base.zero(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR}) where {P
         NamedTuple{keys(field._p)}(
             zero(getfield(field._p, name)) for name in keys(field._p)
         ),
-        field._neighbors
+        field._neighbors,
+        field._FlagOverflow
     )
 
 end
@@ -1380,6 +1423,77 @@ function Base.fill!(
     # Instead, delegate to recursivefill! which handles the proper filling per field
     RecursiveArrayTools.recursivefill!(dest, value)
     dest
+end
+
+## Preallocate
+function preallocate!(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}, additionalCache::NamedTuple = (;)) where {P, D, S, DT, NN, PAR, AB}
+    """
+    Allocate additional cache memory for specific fields in an UnstructuredMeshObject.
+    additionalCache should be a NamedTuple with field names as keys and additional cache sizes as values.
+    Fields not specified in the NamedTuple will not be preallocated.
+    
+    Example:
+        preallocate!(mesh, (n=100, e=50))  # Preallocate 100 for field n, 50 for field e
+    """
+    for (field_name, additional) in pairs(additionalCache)
+        if field_name in keys(mesh._p)
+            field = getfield(mesh._p, field_name)
+            preallocate!(field, additional)
+        else
+            @warn "Field $field_name not found in mesh. Skipping preallocation."
+        end
+    end
+
+    preallocate!(mesh._neighbors, additionalCache)
+    
+    return nothing
+end
+
+## getOverflow
+function getOverflow(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}, factor=1) where {P, D, S, DT, NN, PAR, AB}
+    """
+    Extract overflow information from all fields in an UnstructuredMeshObject.
+    Returns a NamedTuple with field names as keys and overflow counts as values.
+    Only includes fields that have overflowed (overflow count > 0).
+    
+    Example:
+        overflows = getOverflow(mesh)  # Returns (n=5, a=2) if those fields overflowed
+    """
+    overflows = Dict{Symbol, Int}()
+    
+    # Iterate through all fields in the mesh and collect overflow values
+    for field_name in keys(mesh._p)
+        field = getfield(mesh._p, field_name)
+        if field !== nothing
+            # Extract overflow value without resetting yet
+            overflow_val = Array(field._NOverflow)[1]
+            if overflow_val > 0
+                overflows[field_name] = round(Int, overflow_val * factor)
+            end
+        end
+    end
+        
+    # Convert dict to NamedTuple
+    return (;overflows...)
+end
+
+function resetOverflow!(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}) where {P, D, S, DT, NN, PAR, AB}
+    """
+    Reset overflow counters for all fields in an UnstructuredMeshObject.
+    """
+    for field_name in keys(mesh._p)
+        field = getfield(mesh._p, field_name)
+        if field !== nothing
+            field._NOverflow .= 0
+            field._NAdded .= 0
+        end
+    end
+    mesh._FlagOverflow .= false
+    return nothing
+end
+
+function isOverflowed(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}) where {P, D, S, DT, NN, PAR, AB}
+    return Array(mesh._FlagOverflow)[1]
 end
 
 ## Vec  
@@ -1537,6 +1651,15 @@ end
 
 #     mesh
 # end
+
+## Update function (placeholder for future extensions)
+function update!(mesh::UnstructuredMeshObject)
+    """
+    Update mesh after rule applications (e.g., add/remove agents).
+    Currently a placeholder for future extensions.
+    """
+    return nothing
+end
 
 # ######################################################################################################
 # # ForwardDiff Support

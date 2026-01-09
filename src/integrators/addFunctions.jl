@@ -166,6 +166,8 @@ function extract_assigns(fdefs)
     end
 
     unique_assigns = unique(assigns)
+    isPrivate(x) = length(x) > 0 && any(startswith(string(x[i]), '_') for i in 1:length(x))
+    unique_assigns = [i for i in unique_assigns if !isPrivate(i)]
 
     return unique_assigns
 end

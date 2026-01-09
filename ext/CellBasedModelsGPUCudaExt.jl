@@ -13,6 +13,4 @@ module CellBasedModelsGPUCudaExt
     # include("../src/AgentStructure/structuredMeshGPUCuda.jl")
     # include("../src/AgentStructure/multiMeshGPUCuda.jl")
 
-    include("../src/AgentSpecializations/agentGlobalGPUCuda.jl")
-
 end

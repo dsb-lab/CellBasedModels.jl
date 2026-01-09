@@ -64,6 +64,33 @@ function initNeighbors(
 
 end
 
+## Preallocate
+function preallocate!(neighbors::NeighborsFull, additionalCache::NamedTuple = (;))
+    """
+    Preallocate auxiliary buffers for NeighborsFull neighbors.
+    Resizes permutation tables and auxiliary buffers when fields are expanded.
+    """
+    for (field_name, additional) in pairs(additionalCache)
+        if field_name in keys(neighbors.permTable)
+            # Resize permutation table
+            newSize = length(neighbors.permTable[field_name]) + additional
+            resize!(neighbors.permTable[field_name], newSize)
+            
+            # Resize auxiliary buffers for this field
+            if field_name in keys(neighbors.auxBuffers)
+                fieldBuffers = neighbors.auxBuffers[field_name]
+                for buffer in fieldBuffers
+                    if buffer !== nothing
+                        resize!(buffer, newSize)
+                    end
+                end
+            end
+        end
+    end
+    
+    return nothing
+end
+
 function update!(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR}) where {P, D, S, DT, NN<:NeighborsFull, PAR}
 
     # Compaction
@@ -125,5 +152,4 @@ function getNeighbors(mesh::UnstructuredMeshObject{P, D, S, DT, NN}, symbol::Sym
     return collect(iterateOverNeighbors(mesh, symbol, index))
 
 end
-
 
