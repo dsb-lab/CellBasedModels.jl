@@ -68,25 +68,19 @@ end
 toDevice(field::UnstructuredMeshField{P}, ::Type{CPU}) where {P<:CPU} = field
 
 function toDevice(field::UnstructuredMeshField{P}, ::Type{CPU}) where {P<:GPU}
+    
     UnstructuredMeshField(
         field._p              === nothing ? nothing : Adapt.adapt(Array, field._p),
         field._NP             === nothing ? nothing : field._NP,
         field._pReference     === nothing ? nothing : SizedVector{field._NP, Bool}([field._pReference...]),
         field._id             === nothing ? nothing : Vector{Int}(field._id),
         field._idMax          === nothing ? nothing : SizedVector{1}(Array(field._idMax)[1]),
-        field._nodes1         === nothing ? nothing : Vector{Int}(field._nodes1),
-        field._nodes2         === nothing ? nothing : Vector{Int}(field._nodes2),
-        field._nodes3         === nothing ? nothing : Vector{Int}(field._nodes3),
-        field._nodes4         === nothing ? nothing : Vector{Int}(field._nodes4),
+        field._nodes          === nothing ? nothing : Vector{Int}(field._nodes),
         field._N              === nothing ? nothing : SizedVector{1}(Array(field._N)[1]),
         field._NCache         === nothing ? nothing : SizedVector{1}(Array(field._NCache)[1]),
         field._FlagsSurvived  === nothing ? nothing : Vector{Bool}(field._FlagsSurvived),
-        field._NRemoved       === nothing ? nothing : SizedVector{1}(0),
-        field._NRemovedThread === nothing ? nothing : SizedVector{Threads.nthreads(), Int}(zeros(Int, Threads.nthreads())),
         field._NAdded         === nothing ? nothing : SizedVector{1}(0),
-        field._NAddedThread   === nothing ? nothing : SizedVector{Threads.nthreads(), Int}(zeros(Int, Threads.nthreads())),
-        field._AddedAgents    === nothing ? nothing : [Vector{NamedTuple{keys(field._p), Tuple{[CellBasedModels.standardDataType(eltype(i)) for i in values(field._p)]...}}}() for _ in 1:Threads.nthreads()],
-        field._NOverflow   === nothing ? nothing : SizedVector{1}(0),
+        field._NOverflow      === nothing ? nothing : SizedVector{1}(0),
     )
 end
 

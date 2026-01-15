@@ -61,7 +61,7 @@ function extract_assigns(body_expr, tracked_syms)
                 
                 if lhs in keys(aliases)
                     if rhs_root in tracked_syms
-                        aliases[lhs] = chain
+                        aliases[lhs] = chain``
                     else
                         delete!(aliases, lhs)
                     end

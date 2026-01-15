@@ -118,7 +118,7 @@ function extract_assigns(fdefs)
                     # elseif lhs_root in tracked_syms && !index_lhs && !kwargs.broadcasting
                     #     error("Assignment to vector-like field without indexing: $(join(chain_lhs, '.')). Use indexing (e.g. $(du_sym).scope.param[i] = ...).")
                     elseif lhs_root in tracked_syms && index_lhs
-                        push!(assigns, tuple(tail...))
+                        Base.push!(assigns, tuple(tail...))
                     # else
                     #     println("Cases 0.6: ", ex)
                     end
@@ -147,7 +147,7 @@ function extract_assigns(fdefs)
                 #     error("Broadcast assignment to tracked symbol $(join(chain, '.')) is forbidden without `broadcasting=true`.")
 
                 elseif root in tracked_syms && (ex.head in broadcast_heads)
-                    push!(assigns, tuple(tail...))
+                    Base.push!(assigns, tuple(tail...))
 
                 # elseif root in tracked_syms && (ex.head in normal_heads) && kwargs.broadcasting && !indexed
                 #     error("Assignment to tracked symbol $(join(chain, '.')) when `broadcasting=true` without a broadcasting operator is disallowed.")
@@ -157,7 +157,7 @@ function extract_assigns(fdefs)
 
                 elseif root in tracked_syms && (ex.head in normal_heads) && indexed
 
-                    push!(assigns, tuple(tail...))
+                    Base.push!(assigns, tuple(tail...))
 
                 end
             end
@@ -172,9 +172,46 @@ function extract_assigns(fdefs)
     return unique_assigns
 end
 
+function extract_topology_loops(fdefs)
+    topology_pairs = Tuple[]
+
+    for f in fdefs
+        fdef = f.fdef
+
+        # Use the body directly to search for loopOverTopology calls
+        postwalk(fdef) do ex
+            # Match loopOverTopology with any number of arguments
+            # Common patterns: loopOverTopology(mesh, :origin, :target, index)
+            #                  loopOverTopology(mesh, :origin, :target)
+            if ex isa Expr && ex.head == :call && length(ex.args) >= 1
+                func = ex.args[1]
+                if func == :loopOverTopology || (func isa GlobalRef && func.name == :loopOverTopology)
+                    # Extract origin and target (args 3 and 4 in 0-indexed, or 2 and 3 in 1-indexed after function name)
+                    if length(ex.args) >= 4
+                        origin_arg = ex.args[3]
+                        target_arg = ex.args[4]
+                        
+                        # Handle QuoteNode
+                        origin_sym = origin_arg isa QuoteNode ? origin_arg.value : origin_arg
+                        target_sym = target_arg isa QuoteNode ? target_arg.value : target_arg
+                        
+                        if origin_sym isa Symbol && target_sym isa Symbol
+                            Base.push!(topology_pairs, (origin_sym, target_sym))
+                        end
+                    end
+                end
+            end
+            ex
+        end
+    end
+
+    return unique(topology_pairs)
+end
+
 function analyze_rule_code(kwargs, fdefs; type)
 
     unique_assigns = extract_assigns(fdefs)
+    topology_pairs = extract_topology_loops(fdefs)
 
     # build emitted code (unchanged structure)
     fs = [f.fname for f in fdefs]
@@ -183,6 +220,12 @@ function analyze_rule_code(kwargs, fdefs; type)
                                                  $(QuoteNode(kwargs.scope_name)),
                                                  $unique_assigns,
                                                  ($(fs...),)))
+
+    topology_code = if !isempty(topology_pairs)
+        :(CellBasedModels.addTopologicalRelations!($(kwargs.mesh_name), $(tuple(topology_pairs...))))
+    else
+        nothing
+    end
 
     functions_code = [quote
         function $(f.fname)($(f.args...))
@@ -194,6 +237,7 @@ function analyze_rule_code(kwargs, fdefs; type)
     quote
         $(functions_code...)
         $assigns_code
+        $topology_code
     end
 end
 
@@ -209,7 +253,7 @@ function extract_parameters(n, ex)
         nargs = length(arg_syms)
         nargs == 4 || error("Function must have four arguments (uNew, u, p, t).")
 
-        push!(functions, (fname=fname, args=arg_syms, fdef=fdef, body=body))
+        Base.push!(functions, (fname=fname, args=arg_syms, fdef=fdef, body=body))
     end
 
     mesh_name = nothing
@@ -267,7 +311,7 @@ function extract_parameters_kernel_launch(ex)
         nargs = length(arg_syms)
         nargs == 4 || error("Function must have four arguments. e.g (uNew, u, p, t) or (du, u, p, t).")
 
-    push!(functions, (fname=fname, args=arg_syms, fdef=fdef, body=body))
+    Base.push!(functions, (fname=fname, args=arg_syms, fdef=fdef, body=body))
 
     cpu_threads = Threads.nthreads()
     gpu_threads = 256
@@ -316,13 +360,13 @@ function extract_calls(fdefs)
             du = nothing
             @capture(ex, du_.field_.variable_)
             if du == du_sym || du == u_sym
-                push!(assigns, (field, variable))
+                Base.push!(assigns, (field, variable))
             end
             #For multi meshes
             du = nothing
             @capture(ex, du_.mesh_.field_.variable_)
             if du == du_sym || du == u_sym
-                push!(assigns, (mesh_, field, variable))
+                Base.push!(assigns, (mesh_, field, variable))
             end
         end
     end

@@ -95,13 +95,11 @@ using Atomix
             i = @index(Global)
             t = (u.n.w[i]-1) % 3 + 1
             if t == 1
-                @addAgentPoint!(uNew, x=u.n.x[i], y=u.n.y[i], w=4)
+                @AgentPoint_Add!(uNew, x=u.n.x[i], y=u.n.y[i], w=4)
             elseif t == 2
-                @removeAgentPoint!(uNew, i)
+                @AgentPoint_remove!(uNew, i)
             end
         end
-        # println("W: ", uNew.n._p.w)
-        # println("F: ", Int.(uNew.n._FlagsSurvived))
     end
 
     for cache in [20, 10] 

@@ -16,6 +16,7 @@ devices = CUDA.has_cuda() ? [CPU, CUDA.CUDABackend] : [CPU]
     # include("testDiffSym.jl")
     # include("testDiffAuto.jl")
     # include("testDebugAutodif.jl")
+    include("testTopologyAuxiliar.jl")
 
     # include("testUnstructuredMesh.jl")
     # include("testUnstructuredMeshSCE.jl")
@@ -24,7 +25,7 @@ devices = CUDA.has_cuda() ? [CPU, CUDA.CUDABackend] : [CPU]
     # include("testAddFunctions.jl")
 
     # include("testAgentGlobal.jl")
-    include("testAgentPoint.jl")
+    # include("testAgentPoint.jl")
 end
 
 if benchmark

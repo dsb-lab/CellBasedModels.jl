@@ -38,19 +38,12 @@ function toDevice(field::UnstructuredMeshField{P}, ::Type{CUDA.CUDABackend}) whe
         field._pReference     === nothing ? nothing : tuple(field._pReference...),
         field._id             === nothing ? nothing : CUDA.CuArray(field._id),
         field._idMax          === nothing ? nothing : CUDA.CuArray(field._idMax),
-        field._nodes1         === nothing ? nothing : CUDA.CuArray(field._nodes1),
-        field._nodes2         === nothing ? nothing : CUDA.CuArray(field._nodes2),
-        field._nodes3         === nothing ? nothing : CUDA.CuArray(field._nodes3),
-        field._nodes4         === nothing ? nothing : CUDA.CuArray(field._nodes4),
+        field._nodes          === nothing ? nothing : CUDA.CuArray(field._nodes),
         field._N              === nothing ? nothing : CUDA.CuArray(field._N),
         field._NCache         === nothing ? nothing : CUDA.CuArray(field._NCache),
         field._FlagsSurvived  === nothing ? nothing : CUDA.CuArray(field._FlagsSurvived),
-        field._NRemoved       === nothing ? nothing : CUDA.CuArray([0]),
-        field._NRemovedThread === nothing ? nothing : CUDA.zeros(0),
         field._NAdded         === nothing ? nothing : CUDA.CuArray([0]),
-        field._NAddedThread   === nothing ? nothing : CUDA.zeros(0),
-        field._AddedAgents    === nothing ? nothing : CUDA.zeros(0),
-        field._NOverflow   === nothing ? nothing : CUDA.CuArray([0]),
+        field._NOverflow      === nothing ? nothing : CUDA.CuArray([0]),
     )
 end
 

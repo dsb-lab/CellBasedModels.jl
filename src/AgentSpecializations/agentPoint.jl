@@ -33,17 +33,7 @@ end
 
 iterateOverNeighbors(mesh::AgentPointObject, agentIndex::Integer) = iterateOverNeighbors(mesh, :n, agentIndex)
 
-function extract_unstructuredmeshparameters(
-    PN
-)
-    l = []
-    for i in 1:length(PN.parameters[1])
-        push!(l, PN.parameters[2].parameters[i].parameters[3].parameters[1])
-    end
-
-end
-
-macro addAgentPoint!(
+macro AgentPoint_Add!(
     ex...
 )
 
@@ -59,7 +49,7 @@ macro addAgentPoint!(
        end
     end
 
-    updates = [:($var.n._p.$n[_nid_] = $v) for (n, v) in fields]
+    updates = [:($var.n._p.$n[_nPos_] = $v) for (n, v) in fields]
 
     code = quote
         # Inline the logic from addAgentPoint_! for GPU compatibility
@@ -78,9 +68,24 @@ macro addAgentPoint!(
         if _nPos_ != 0
             $(updates...)
         end
+
+        _nPos_
     end
 
     return esc(code)
+
+end
+
+function AgentPoint_remove!(
+    meshObject::AgentPointObject{P, D, DT, NN, PAR},
+    agentIndex::T,
+) where {P, D, DT, NN, PAR, T<:Integer}
+
+    # Inline the logic for GPU compatibility
+    meshObject.n._FlagsSurvived[agentIndex] = false
+
+    return nothing
+    # return esc(:($meshObject.n._FlagsSurvived[$agentIndex] = false))
 
 end
 
