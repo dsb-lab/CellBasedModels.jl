@@ -259,123 +259,167 @@ end
 
     end
     
-    # @testset "CSRTuple" begin
-    #     csr = CSRTuple(N=3,NBlock=2,NCache=10)
-    #     csr._map .= 1:20
-    #     @test csr._N[] == 3
-    #     @test csr._NBlock[] == 2
-    #     @test csr._NCache[] == 10
-    #     @test length(csr._map) == 20
-    #     @test csr._ActiveSection === nothing
-    #     @test all(csr._FlagsSurvived .== false)
+    @testset "CSRTuple" begin
+        csr = CSRTuple(N=3,NBlock=2,NCache=10)
+        csr._map .= 1:20
+        @test csr._N[] == 3
+        @test csr._NBlock[] == 2
+        @test csr._NCache[] == 10
+        @test length(csr._map) == 20
+        @test all(csr._FlagsSurvived .== false)
         
-    #     # Test iterator returns all elements (no active section filtering)
-    #     results = [i for i in csr]
-    #     @test length(results) == 20  # 3 blocks * 2 elements each
+        # Test iterator returns all elements (no active section filtering)
+        results = [i for i in csr]
+        @test length(results) == 20  # 3 blocks * 2 elements each
         
-    #     # Check all blocks iterate through all elements
-    #     @test results[1] == (1, 1)
-    #     @test results[2] == (1, 2)
-    #     @test results[3] == (2, 3)
-    #     @test results[4] == (2, 4)
-    #     @test results[5] == (3, 5)
-    #     @test results[6] == (3, 6)
+        # Check all blocks iterate through all elements
+        @test results[1] == (1, 1)
+        @test results[2] == (1, 2)
+        @test results[3] == (2, 3)
+        @test results[4] == (2, 4)
+        @test results[5] == (3, 5)
+        @test results[6] == (3, 6)
         
-    #     # Test with larger block size
-    #     csr2 = CSRTuple(N=2,NBlock=5,NCache=10)
-    #     csr2._map[1:10] .= 1:10
+        # Test with larger block size
+        csr2 = CSRTuple(N=2,NBlock=5,NCache=10)
+        csr2._map[1:10] .= 1:10
         
-    #     results2 = [f for f in csr2]
-    #     @test length(results2) == 50  # 2 blocks * 5 elements each
-    #     @test results2[1] == (1, 1)
-    #     @test results2[5] == (1, 5)
-    #     @test results2[6] == (2, 6)
-    #     @test results2[10] == (2, 10)
-    # end
+        results2 = [f for f in csr2]
+        @test length(results2) == 50  # 2 blocks * 5 elements each
+        @test results2[1] == (1, 1)
+        @test results2[5] == (1, 5)
+        @test results2[6] == (2, 6)
+        @test results2[10] == (2, 10)
+
+        # Test operators
+        for device in devices
+            # addElement! 1
+            csr = CSRTuple(N=2, NBlock=3, NCache=3)
+            csr_device = CellBasedModels.toDevice(csr, device)
+            kernel_addElement1!(csr_device)
+            @test Array(csr_device._NAdded)[1] == 1
+            kernel_addElement1!(csr_device)
+            @test Array(csr_device._NAdded)[1] == 2
+            @test Array(csr_device._NOverflow)[1] == 1
+            CellBasedModels.preallocateOverflow!(csr_device)
+            @test Array(csr_device._NCache)[1] == 4
+            @test Array(csr_device._NOverflow)[1] == 0
+            @test Array(csr_device._NOverflowBlock)[1] == 0
+
+            # addElement! N
+            csr = CSRTuple(N=2, NBlock=3, NCache=5)
+            csr_device = CellBasedModels.toDevice(csr, device)
+            kernel_addElementN!(csr_device, 2)
+            @test Array(csr_device._NAdded)[1] == 2
+            kernel_addElementN!(csr_device, 5)
+            @test Array(csr_device._NAdded)[1] == 7
+            @test Array(csr_device._NOverflow)[1] == 4
+            CellBasedModels.preallocateOverflow!(csr_device)
+            @test Array(csr_device._NCache)[1] == 9
+            @test Array(csr_device._NOverflow)[1] == 0
+            @test Array(csr_device._NOverflowBlock)[1] == 0
+
+            # addElement! tuple
+            csr = CSRTuple(N=2, NBlock=3, NCache=5)
+            csr_device = CellBasedModels.toDevice(csr, device)
+            kernel_addElementTuple!(csr_device, (1,2))
+            @test Array(csr_device._NAdded)[1] == 1
+            @test Array(csr_device._map)[7] == 1
+            @test Array(csr_device._map)[8] == 2
+        
+            # replaceIndexFromElement!
+            csr = CSRTuple(N=2, NBlock=3, NCache=5)
+            csr_device = CellBasedModels.toDevice(csr, device)
+            kernel_replaceIndexFromElement!(csr_device, 1, 1, 10)
+            @test Array(csr_device._map)[1] == 10
+
+        end
+
+    end
     
-    # @testset "CSRSlack" begin
-    #     # Test with variable-sized blocks
-    #     csr = CSRSlack(dtype=Int, N=3, sizes=[5, 10, 7])
-    #     csr._map .= 1:22
-    #     csr._ActiveSection[1] = 3
-    #     csr._ActiveSection[2] = 8
-    #     csr._ActiveSection[3] = 5
+    @testset "CSRSlack" begin
+        # Test with variable-sized blocks
+        csr = CSRSlack(dtype=Int, N=3, sizes=[5, 10, 7])
+        csr._map .= 1:22
+        csr._ActiveSection[1] = 3
+        csr._ActiveSection[2] = 8
+        csr._ActiveSection[3] = 5
         
-    #     @test csr._N[] == 3
-    #     @test length(csr._map) == 22
+        @test csr._N[] == 3
+        @test length(csr._map) == 22
         
-    #     # Test iterator returns (blockId, map_value) for active elements
-    #     results = [i for i in csr]
-    #     @test length(results) == 22
+        # Test iterator returns (blockId, map_value) for active elements
+        results = [i for i in csr]
+        @test length(results) == 22
         
-    #     # Check first block (starts at position 1, has 3 active)
-    #     @test results[1] == (1, 1)
-    #     @test results[2] == (1, 2)
-    #     @test results[3] == (1, 3)
+        # Check first block (starts at position 1, has 3 active)
+        @test results[1] == (1, 1)
+        @test results[2] == (1, 2)
+        @test results[3] == (1, 3)
         
-    #     # Check second block (starts at position 6, has 8 active)
-    #     @test results[4] == (2, 6)
-    #     @test results[5] == (2, 7)
-    #     @test results[11] == (2, 13)
+        # Check second block (starts at position 6, has 8 active)
+        @test results[4] == (2, 6)
+        @test results[5] == (2, 7)
+        @test results[11] == (2, 13)
         
-    #     # Check third block (starts at position 16, has 5 active)
-    #     @test results[12] == (3, 16)
-    #     @test results[13] == (3, 17)
-    #     @test results[16] == (3, 20)
+        # Check third block (starts at position 16, has 5 active)
+        @test results[12] == (3, 16)
+        @test results[13] == (3, 17)
+        @test results[16] == (3, 20)
         
-    #     # Test with different active sections
-    #     csr2 = CSRSlack(dtype=Int, N=4, sizes=[3, 2, 6, 4])
-    #     csr2._map .= 1:15
-    #     csr2._ActiveSection[1] = 2
-    #     csr2._ActiveSection[2] = 2
-    #     csr2._ActiveSection[3] = 4
-    #     csr2._ActiveSection[4] = 3
+        # Test with different active sections
+        csr2 = CSRSlack(dtype=Int, N=4, sizes=[3, 2, 6, 4])
+        csr2._map .= 1:15
+        csr2._ActiveSection[1] = 2
+        csr2._ActiveSection[2] = 2
+        csr2._ActiveSection[3] = 4
+        csr2._ActiveSection[4] = 3
         
-    #     results2 = [i for i in csr2]
-    #     @test length(results2) == 15
-    #     @test results2[1] == (1, 1)   # block 1, position 1
-    #     @test results2[2] == (1, 2)   # block 1, position 2
-    #     @test results2[3] == (2, 4)   # block 2, position 1 (starts at 4)
-    #     @test results2[4] == (2, 5)   # block 2, position 2
-    #     @test results2[5] == (3, 6)   # block 3, position 1 (starts at 6)
-    #     @test results2[8] == (3, 9)   # block 3, position 4
-    #     @test results2[9] == (4, 12)  # block 4, position 1 (starts at 12)
-    #     @test results2[11] == (4, 14) # block 4, position 3
+        results2 = [i for i in csr2]
+        @test length(results2) == 15
+        @test results2[1] == (1, 1)   # block 1, position 1
+        @test results2[2] == (1, 2)   # block 1, position 2
+        @test results2[3] == (2, 4)   # block 2, position 1 (starts at 4)
+        @test results2[4] == (2, 5)   # block 2, position 2
+        @test results2[5] == (3, 6)   # block 3, position 1 (starts at 6)
+        @test results2[8] == (3, 9)   # block 3, position 4
+        @test results2[9] == (4, 12)  # block 4, position 1 (starts at 12)
+        @test results2[11] == (4, 14) # block 4, position 3
                 
-    #     # Test with empty blocks (0 active)
-    #     csr3 = CSRSlack(dtype=Int, N=3, sizes=[4, 4, 4])
-    #     csr3._map .= 1:12
-    #     csr3._ActiveSection[1] = 2
-    #     csr3._ActiveSection[2] = 0  # Empty block
-    #     csr3._ActiveSection[3] = 3
+        # Test with empty blocks (0 active)
+        csr3 = CSRSlack(dtype=Int, N=3, sizes=[4, 4, 4])
+        csr3._map .= 1:12
+        csr3._ActiveSection[1] = 2
+        csr3._ActiveSection[2] = 0  # Empty block
+        csr3._ActiveSection[3] = 3
         
-    #     results3 = [i for i in csr3]
-    #     @test length(results3) == 12
-    #     @test results3[1] == (1, 1)
-    #     @test results3[2] == (1, 2)
-    #     @test results3[3] == (3, 9)   # skips block 2, starts at block 3 position 9
-    #     @test results3[4] == (3, 10)
-    #     @test results3[5] == (3, 11)
+        results3 = [i for i in csr3]
+        @test length(results3) == 12
+        @test results3[1] == (1, 1)
+        @test results3[2] == (1, 2)
+        @test results3[3] == (3, 9)   # skips block 2, starts at block 3 position 9
+        @test results3[4] == (3, 10)
+        @test results3[5] == (3, 11)
         
-    #     # Test with NCache at the end
-    #     csr4 = CSRSlack(dtype=Int, N=3, sizes=[5, 10, 7], NCache=3)
-    #     @test length(csr4._map) == 25  # 5 + 10 + 7 + 3
+        # Test with NCache at the end
+        csr4 = CSRSlack(dtype=Int, N=3, sizes=[5, 10, 7], NCache=3)
+        @test length(csr4._map) == 25  # 5 + 10 + 7 + 3
         
-    #     csr4._map .= 1:25
-    #     csr4._ActiveSection[1] = 5
-    #     csr4._ActiveSection[2] = 10
-    #     csr4._ActiveSection[3] = 7
+        csr4._map .= 1:25
+        csr4._ActiveSection[1] = 5
+        csr4._ActiveSection[2] = 10
+        csr4._ActiveSection[3] = 7
         
-    #     results4 = [i for i in csr4]
-    #     @test length(results4) == 25  # Only active elements, not the cache
-    #     @test results4[1] == (1, 1)
-    #     @test results4[5] == (1, 5)
-    #     @test results4[6] == (2, 6)
-    #     @test results4[15] == (2, 15)
-    #     @test results4[16] == (3, 16)
-    #     @test results4[22] == (3, 22)
-    #     # Elements 23-25 are cache and not iterated over
-    # end
+        results4 = [i for i in csr4]
+        @test length(results4) == 25  # Only active elements, not the cache
+        @test results4[1] == (1, 1)
+        @test results4[5] == (1, 5)
+        @test results4[6] == (2, 6)
+        @test results4[15] == (2, 15)
+        @test results4[16] == (3, 16)
+        @test results4[22] == (3, 22)
+        # Elements 23-25 are cache and not iterated over
+    end
     
     # @testset "CSRCache" begin
     #     # Test with variable-sized blocks, no active section tracking

@@ -270,7 +270,9 @@ function preallocate!(field::CSRBlock, NAddBlock::Int=0, NAddCache::Int=0)
     _kernel_remap!(backend, threads)(oldMap, field._map, oldNBlock, newNBlock, ndrange=N)
     KernelAbstractions.synchronize(backend)
 
-    resize!(field._ActiveSection, newNCache)
+    if field._ActiveSection !== nothing
+        resize!(field._ActiveSection, newNCache)
+    end
     resize!(field._FlagsSurvived, newNCache * newNBlock)
 
     field._NBlock .= newNBlock
@@ -389,9 +391,24 @@ function removeIndexFromElement!(field::CSRBlock, ePos::Int, bPos::Int)
 end
 
 ######################################################################################################
-# CSRTuple - Specialized version without active section tracking
+# CSRTuple - Fixed-size tuples (block size is a type parameter)
 ######################################################################################################
-const CSRTuple{P, PR, AI, VB} = CSRBlock{P, PR, AI, Nothing, VB}
+struct CSRTuple{
+            P, NBlock, PR, AI, VB
+        } <: AbstractCSR
+    _map::PR
+
+    _N::AI
+    _NBlock::Int
+    _NCache::AI
+
+    _FlagsSurvived::VB
+
+    _NAdded::AI
+    _NOverflow::AI
+    _NOverflowBlock::AI
+end
+Adapt.@adapt_structure CSRTuple
 
 function CSRTuple(;
     dtype::DataType=Int,
@@ -403,10 +420,8 @@ function CSRTuple(;
     _map = zeros(dtype, NCache*NBlock)
 
     _N = SizedVector{1}(N)
-    _NBlock = SizedVector{1}(NBlock)
     _NCache = SizedVector{1}(NCache)
 
-    _ActiveSection = nothing
     _FlagsSurvived = zeros(Bool, NCache*NBlock)
 
     _NAdded = SizedVector{1}(0)
@@ -416,17 +431,45 @@ function CSRTuple(;
     P = platform()
     PR = typeof(_map)
     AI = typeof(_N)
-    VI = Nothing
     VB = typeof(_FlagsSurvived)
 
-    CSRBlock{
-            P, PR, AI, VI, VB
+    CSRTuple{
+            P, NBlock, PR, AI, VB
+        }(
+            _map,
+            _N,
+            NBlock,
+            _NCache,
+            _FlagsSurvived,
+            _NAdded,
+            _NOverflow,
+            _NOverflowBlock,
+        )
+end
+
+function CSRTuple(
+            _map,
+            _N,
+            _NBlock,
+            _NCache,
+            _FlagsSurvived,
+            _NAdded,
+            _NOverflow,
+            _NOverflowBlock,
+        )
+    
+    P = platform()
+    PR = typeof(_map)
+    AI = typeof(_N)
+    VB = typeof(_FlagsSurvived)
+
+    CSRTuple{
+            P, _NBlock, PR, AI, VB
         }(
             _map,
             _N,
             _NBlock,
             _NCache,
-            _ActiveSection,
             _FlagsSurvived,
             _NAdded,
             _NOverflow,
@@ -494,12 +537,12 @@ function CSRTuple(data::AbstractVector{<:AbstractVector}; NAddCache::Int=0)
 end
 
 function Base.show(io::IO, x::CSRTuple{
-            P, PR, AI, VB
+            P, NBlock, PR, AI, VB
         }) where {
-            P, PR, AI, VB
+            P, NBlock, PR, AI, VB
         } 
     
-    println(io, "CSRTuple{lengthElements=$(lengthElements(x)), lengthElementsCache=$(lengthElementsCache(x)), block=$(Array(x._NBlock)[1])}")
+    println(io, "CSRTuple{lengthElements=$(lengthElements(x)), lengthElementsCache=$(lengthElementsCache(x)), block=$NBlock}")
     
 end
 
@@ -509,12 +552,22 @@ function Base.show(io::IO, x::Type{CSRTuple})
     println(io, "}")
 end
 
+Base.length(field::CSRTuple{P, NBlock}) where {P<:CPU, NBlock} = fullLength(field)
+fullLength(field::CSRTuple{P, NBlock}) where {P<:CPU, NBlock} = length(field._map)
+lengthElements(field::CSRTuple{P, NBlock}) where {P<:CPU, NBlock} = field._N[1]
+lengthElementsCache(field::CSRTuple{P, NBlock}) where {P<:CPU, NBlock} = field._NCache[1]
+lengthBlock(field::CSRTuple{P, NBlock}) where {P<:CPU, NBlock} = NBlock
+
+Base.size(field::CSRTuple) = size(field._map)
+
+Base.eltype(::CSRTuple{P, NBlock, DT}) where {P, NBlock, DT} = DT
+Base.eltype(::Type{<:CSRTuple{P, NBlock, DT}}) where {P, NBlock, DT} = DT
+
+Base.getindex(field::CSRTuple, i::Int) = field._map[i]
+
 # Specialized iterator for CSRTuple - no active section checking
-function Base.iterate(field::CSRTuple, state=(1, 1))
+function Base.iterate(field::CSRTuple{P, NBlock}, state=(1, 1)) where {P, NBlock}
     blockId, elementId = state
-    
-    nBlock = field._NBlock[1]
-    nCache = field._NCache[1]
     
     # Check if we've exhausted all blocks
     if blockId > lengthElements(field)
@@ -522,11 +575,11 @@ function Base.iterate(field::CSRTuple, state=(1, 1))
     end
     
     # Calculate linear index in _map
-    linear_idx = (blockId - 1) * nBlock + elementId
+    linear_idx = (blockId - 1) * NBlock + elementId
     map_value = field._map[linear_idx]
     
     # Calculate next state
-    next_state = if elementId < nBlock
+    next_state = if elementId < NBlock
         (blockId, elementId + 1)
     else
         (blockId + 1, 1)
@@ -535,28 +588,134 @@ function Base.iterate(field::CSRTuple, state=(1, 1))
     return ((blockId, map_value), next_state)
 end
 
-function insertIndexAtElement!(field::CSRTuple, ePos::Int, bPos::Int, value::Int)
-    @print "Cannot insert into CSRTuple: no active section tracking."
+iterateOverElements(mesh::CSRTuple) = 1:lengthElements(mesh)
+function iterateOverBlocks(mesh::CSRTuple{P, NBlock}, block::Int) where {P, NBlock}
+    pos = block - 1
+    return pos*NBlock:(pos*NBlock+NBlock)
 end
 
-function removeIndexFromElement!(field::CSRTuple, ePos::Int, bPos::Int)
-    @print "Cannot remove from CSRTuple: no active section tracking."
+# Helper function to calculate linear index in CSRTuple
+function getIndex(field::CSRTuple{P, NBlock}, ePos::Int, bPos::Int) where {P, NBlock}
+    return (ePos - 1) * NBlock + bPos
+end
+
+function preallocate!(field::CSRTuple{P, NBlock}, NAddCache::Int=0) where {P, NBlock}
+    """
+    Preallocate additional cache space in the CSRTuple.
+    Note: NBlock is fixed as a type parameter and cannot be changed.
+    
+    Args:
+        field: CSRTuple to modify
+        NAddCache: Number of additional cache blocks to allocate
+    """
+    if NAddCache <= 0
+        error("NAddCache must be > 0")
+    end
+
+    N = Array(field._N)[1]
+    oldNCache = Array(field._NCache)[1]
+    newNCache = oldNCache + NAddCache
+
+    resize!(field._map, newNCache * NBlock)
+    resize!(field._FlagsSurvived, newNCache * NBlock)
+
+    field._NCache .= newNCache
+end
+
+function preallocateOverflow!(field::CSRTuple{P, NBlock}; NAdditionalCache::Int=0) where {P, NBlock}
+    NAddCache = Array(field._NOverflow)[1] + NAdditionalCache
+
+    if NAddCache > 0
+        preallocate!(field, NAddCache)
+    end
+
+    field._NOverflow .= 0
+    field._NOverflowBlock .= 0
+end
+
+function checkBounds(field::CSRTuple{P, NBlock}, pos::Int, nPos::Int, nCache::Int) where {P, NBlock}
+    newPos = pos
+    if pos + nPos - 1 > field._NCache[1]
+        @atomic field._NOverflow[1] += max(field._NOverflow[1], pos + nPos - 1 - field._NCache[1]) - field._NOverflow[1]
+        newPos = 0
+    end
+    if nCache > NBlock
+        @atomic field._NOverflowBlock[1] += 1
+        newPos = 0
+    end
+
+    return newPos
+end
+
+function addElement!(field::CSRTuple{P, NBlock}; nCache::Int=0) where {P, NBlock}
+    nAdd = @atomic field._NAdded[1] += 1
+    pos = field._N[1] + nAdd
+    pos = checkBounds(field, pos, 1, nCache)
+
+    return pos
+end
+
+function addElement!(field::CSRTuple{P, NBlock}, N::Int; nCache::Int=0) where {P, NBlock}
+    nAdd = @atomic field._NAdded[1] += N
+    pos = field._N[1] + nAdd - N + 1
+    pos = checkBounds(field, pos, field._NCache[1], nCache)
+
+    return pos
+end
+
+@generated function addElement!(field::CSRTuple{P, NBlock}, value::NTuple{N, T}; nCache::Int=0) where {P, NBlock, N, T}
+    quote
+        pos = addElement!(field; nCache=nCache)
+        if pos != 0
+            for i in 1:$N
+                linear_idx = (pos - 1) * $NBlock + i
+                field._map[linear_idx] = value[i]
+            end
+        end
+
+        return pos
+    end
+end
+
+function pushToElement!(field::CSRTuple{P, NBlock}, ePos::Int, value::Int) where {P, NBlock}
+    @print "Cannot push to CSRTuple at element $ePos: fixed block size ($NBlock)."
+end
+
+function replaceIndexFromElement!(field::CSRTuple{P, NBlock}, ePos::Int, bPos::Int, value::Int) where {P, NBlock}
+    if bPos > NBlock
+        @print "Cannot replace at index $bPos in element $ePos: only $NBlock elements present."
+    else
+        pos = getIndex(field, ePos, bPos)
+        field._map[pos] = value
+    end
+end
+
+function insertIndexAtElement!(field::CSRTuple{P, NBlock}, ePos::Int, bPos::Int, value::Int) where {P, NBlock}
+    @print "Cannot insert into CSRTuple at element $ePos, index $bPos: fixed block size ($NBlock)."
+end
+
+function removeIndexFromElement!(field::CSRTuple{P, NBlock}, ePos::Int, bPos::Int) where {P, NBlock}
+    @print "Cannot remove from CSRTuple at element $ePos, index $bPos: fixed block size ($NBlock)."
 end
 
 ######################################################################################################
 # CSRSlack - Variable-sized blocks with flexible starts/ends
 ######################################################################################################
 struct CSRSlack{
-            P, PR, AI, VI, VI2, VB
+            P, PR, AI, AF, VI, VI2, VB
         } <: AbstractCSR
     _map::PR
 
     _N::AI
-    _offsets::VI
+    _NCache::AI
 
-    _ActiveSection::VI2
+    _offsets::VI                # Array of length NCache+1 defining block boundaries
+    _ActiveSection::VI2         # Array of length NCache tracking active elements per block
 
     _FlagsSurvived::VB
+
+    _incProd::AF           # Coefficient for reallocation: ceil(Int, ActiveSection*incProd + incSum)
+    _incSum::AF            # Coefficient for reallocation
 
     _NAdded::AI
     _NOverflow::AI
@@ -569,31 +728,46 @@ function CSRSlack(;
     N::Int=0,
     sizes::Vector{Int}=Int[],
     NCache::Int=0,
-    totalCache::Int=sum(sizes) + NCache
+    incProd::AbstractFloat=1.1,
+    incSum::AbstractFloat=0.0
 )
-    # If sizes not provided, create empty structure
+    """
+    Create a CSRSlack structure with variable-sized blocks.
+    
+    Args:
+        dtype: Data type for _map elements
+        N: Initial number of blocks
+        sizes: Array of initial sizes for each block
+        NCache: Additional cache per block
+        incProd: Production coefficient for reallocation
+        incSum: Sum coefficient for reallocation
+    """
     if isempty(sizes) && N > 0
         sizes = zeros(Int, N)
     end
     
     @assert length(sizes) == N "Number of sizes must match N"
     
+    # Calculate total cache needed
+    totalCache = sum(sizes) + N * NCache
     _map = zeros(dtype, totalCache)
 
     _N = SizedVector{1}(N)
-    
-    # Calculate offsets for each block (size N+1)
-    # Each block gets its specified size, plus NCache at the end
-    _offsets = zeros(Int, N+1)
+    _NCache = SizedVector{1}(NCache)
+
+    # Offsets array: length NCache+1, defines block boundaries
+    # Each block i goes from _offsets[i] to _offsets[i+1]-1
+    _offsets = zeros(Int, N + 1)
     _offsets[1] = 1
     for i in 1:N
-        _offsets[i+1] = _offsets[i] + sizes[i]
+        _offsets[i+1] = _offsets[i] + sizes[i] + NCache
     end
-    # Add NCache space at the very end
-    _offsets[N+1] += NCache
 
     _ActiveSection = zeros(Int, N)
     _FlagsSurvived = zeros(Bool, totalCache)
+
+    _incProd = SizedVector{1}(incProd)
+    _incSum = SizedVector{1}(incSum)
 
     _NAdded = SizedVector{1}(0)
     _NOverflow = SizedVector{1}(0)
@@ -602,6 +776,7 @@ function CSRSlack(;
     P = platform()
     PR = typeof(_map)
     AI = typeof(_N)
+    AF = typeof(_incProd)
     VI = typeof(_offsets)
     VI2 = typeof(_ActiveSection)
     VB = typeof(_FlagsSurvived)
@@ -611,9 +786,12 @@ function CSRSlack(;
         }(
             _map,
             _N,
+            _NCache,
             _offsets,
             _ActiveSection,
             _FlagsSurvived,
+            _incProd,
+            _incSum,
             _NAdded,
             _NOverflow,
             _NOverflowBlock,
@@ -623,9 +801,12 @@ end
 function CSRSlack(
             _map,
             _N,
+            _NCache,
             _offsets,
             _ActiveSection,
             _FlagsSurvived,
+            _incProd,
+            _incSum,
             _NAdded,
             _NOverflow,
             _NOverflowBlock,
@@ -634,32 +815,38 @@ function CSRSlack(
     P = platform()
     PR = typeof(_map)
     AI = typeof(_N)
+    AF = typeof(_incProd)
     VI = typeof(_offsets)
     VI2 = typeof(_ActiveSection)
     VB = typeof(_FlagsSurvived)
 
     CSRSlack{
-            P, PR, AI, VI, VI2, VB
+            P, PR, AI, AF, VI, VI2, VB
         }(
             _map,
             _N,
+            _NCache,
             _offsets,
             _ActiveSection,
             _FlagsSurvived,
+            _incProd,
+            _incSum,
             _NAdded,
             _NOverflow,
             _NOverflowBlock,
         )
 end
 
-function CSRSlack(data::AbstractVector{<:AbstractVector}; NAddCache::Int=0)
+function CSRSlack(data::AbstractVector{<:AbstractVector}; NCache::Int=0, incProd::AbstractFloat=1.1, incSum::AbstractFloat=0.0)
     """
     Create a CSRSlack from an array of arrays.
     Each subarray can have a different length.
     
     Args:
         data: Vector of vectors containing the data (variable lengths allowed)
-        NAddCache: Additional total cache space to allocate
+        NCache: Additional cache per block to allocate
+        incProd: Production coefficient for reallocation
+        incSum: Sum coefficient for reallocation
     
     Returns:
         CSRSlack containing all the data
@@ -670,9 +857,8 @@ function CSRSlack(data::AbstractVector{<:AbstractVector}; NAddCache::Int=0)
         error("Cannot create CSRSlack from empty data")
     end
 
-    # Check cache
-    if NAddCache < 0
-        error("NAddCache must be >= 0")
+    if NCache < 0
+        error("NCache must be >= 0")
     end
     
     # Get sizes of each subarray
@@ -691,9 +877,8 @@ function CSRSlack(data::AbstractVector{<:AbstractVector}; NAddCache::Int=0)
         dtype = Int
     end
     
-    # Create CSRSlack with appropriate sizes
-    totalCache = sum(sizes) + NAddCache
-    csr = CSRSlack(dtype=dtype, N=N, sizes=sizes, NCache=NAddCache, totalCache=totalCache)
+    # Create CSRSlack with appropriate sizes and cache per block
+    csr = CSRSlack(dtype=dtype, N=N, sizes=sizes, NCache=NCache, incProd=incProd, incSum=incSum)
     
     # Fill the data
     for (blockId, arr) in enumerate(data)
@@ -708,9 +893,9 @@ function CSRSlack(data::AbstractVector{<:AbstractVector}; NAddCache::Int=0)
 end
 
 function Base.show(io::IO, x::CSRSlack{
-            P, PR, AI, VI, VI2, VB
+            P, PR, AI, AF, VI, VI2, VB
         }) where {
-            P, PR, AI, VI, VI2, VB
+            P, PR, AI, AF, VI, VI2, VB
         } 
     
     println(io, "CSRSlack{N=$(lengthElements(x)), totalCache=$(length(x._map))}")
@@ -722,9 +907,9 @@ function Base.show(io::IO, x::Type{CSRSlack})
     println(io, "}")
 end
 
-Base.length(field::CSRSlack{P, PR, AI, VI, VI2, VB}) where {P<:CPU, PR, AI, VI<:AbstractVector, VI2<:AbstractVector, VB} = length(field._map)
+Base.length(field::CSRSlack{P, PR, AI, AF, VI, VI2, VB}) where {P<:CPU, PR, AI, AF, VI<:AbstractVector, VI2<:AbstractVector, VB} = length(field._map)
 lengthElements(field::CSRSlack{P}) where {P<:CPU} = field._N[1]
-lengthElementsCache(field::CSRSlack{P}) where {P<:CPU} = field._N[1]
+lengthElementsCache(field::CSRSlack{P}) where {P<:CPU} = field._NCache[1]
 
 Base.size(field::CSRSlack) = size(field._map)
 
@@ -732,6 +917,96 @@ Base.eltype(::CSRSlack{P, DT}) where {P, DT} = DT
 Base.eltype(::Type{<:CSRSlack{P, DT}}) where {P, DT} = DT
 
 Base.getindex(field::CSRSlack, i::Int) = field._map[i]
+
+function preallocate!(field::CSRSlack{P}, NAddBlocks::Int=1) where {P}
+    """
+    Reallocate CSRSlack to add more block capacity and additional cache per block.
+    For each block, the additional space is: ceil(Int, activeSection*incProd + incSum)
+    
+    Args:
+        field: CSRSlack to reallocate
+        NAddBlocks: Number of additional blocks to allocate
+    """
+    if NAddBlocks <= 0
+        error("NAddBlocks must be > 0")
+    end
+
+    N = field._N[1]
+    oldNCache = field._NCache[1]
+    oldTotalLength = length(field._map)
+
+    # Calculate new cache per block based on overflow blocks
+    newCachePerBlock = ceil(Int, field._ActiveSection[1] * field._incProd + field._incSum)
+    newNCache = oldNCache + newCachePerBlock
+
+    # Copy old map
+    oldMap = copy(field._map)
+
+    # Calculate new offsets with additional blocks and cache
+    newOffsets = zeros(Int, N + NAddBlocks + 1)
+    newOffsets[1] = 1
+    for i in 1:N
+        blockSize = field._offsets[i+1] - field._offsets[i]
+        newOffsets[i+1] = newOffsets[i] + blockSize + newCachePerBlock - oldNCache
+    end
+    
+    # Add new blocks
+    for i in N+1:N+NAddBlocks
+        blockSize = newNCache
+        newOffsets[i+1] = newOffsets[i] + blockSize
+    end
+
+    newTotalLength = newOffsets[N + NAddBlocks + 1] - 1
+    
+    # Resize and copy map
+    resize!(field._map, newTotalLength)
+    
+    # Copy old data with new spacing
+    for i in 1:N
+        oldBlockStart = field._offsets[i]
+        oldBlockEnd = field._offsets[i+1] - 1
+        newBlockStart = newOffsets[i]
+        
+        # Copy active elements
+        nActive = field._ActiveSection[i]
+        for j in 1:nActive
+            field._map[newBlockStart + j - 1] = oldMap[oldBlockStart + j - 1]
+        end
+    end
+
+    # Resize other structures
+    resize!(field._offsets, N + NAddBlocks + 1)
+    copyto!(field._offsets, newOffsets)
+
+    newActiveSection = zeros(Int, N + NAddBlocks)
+    copyto!(newActiveSection, field._ActiveSection)
+    resize!(field._ActiveSection, N + NAddBlocks)
+    copyto!(field._ActiveSection, newActiveSection)
+
+    resize!(field._FlagsSurvived, newTotalLength)
+
+    # Update sizes
+    field._N .= N + NAddBlocks
+    field._NCache .= newNCache
+end
+
+function preallocateOverflow!(field::CSRSlack; NAdditionalBlocks::Int=0)
+    """
+    Preallocate blocks based on overflow tracking.
+    
+    Args:
+        field: CSRSlack to reallocate
+        NAdditionalBlocks: Additional blocks beyond those marked as overflow
+    """
+    NAddBlocks = Array(field._NOverflowBlock)[1] + NAdditionalBlocks
+
+    if NAddBlocks > 0
+        preallocate!(field, NAddBlocks)
+    end
+
+    field._NOverflow .= 0
+    field._NOverflowBlock .= 0
+end
 
 function Base.iterate(field::CSRSlack, state=(1, 1))
     blockId, elementId = state
@@ -862,7 +1137,7 @@ function CSRCache(;
     VB = typeof(_FlagsSurvived)
 
     CSRSlack{
-            P, PR, AI, VI, VI2, VB
+            P, PR, AI, AF, VI, VI2, VB
         }(
             _map,
             _N,
@@ -876,9 +1151,9 @@ function CSRCache(;
 end
 
 function Base.show(io::IO, x::CSRCache{
-            P, PR, AI, VI, VB
+            P, PR, AI, AF, VI, VB
         }) where {
-            P, PR, AI, VI, VB
+            P, PR, AI, AF, VI, VB
         } 
     
     println(io, "CSRCache{N=$(lengthElements(x)), totalCache=$(length(x._map))}")
