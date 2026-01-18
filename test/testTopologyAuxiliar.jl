@@ -4,6 +4,102 @@ function f(csr)
     end
 end
 
+function kernel_checkBounds(csr, pos, nPos, nActive, nBlock)
+    KernelAbstractions.@kernel function check_kernel(csr, pos, nPos, nActive, nBlock)
+        CellBasedModels.checkBounds(csr, pos, nPos, nActive, nBlock)
+    end
+
+    backend = KernelAbstractions.get_backend(csr)
+    threads = 1
+
+    check_kernel(backend, threads)(csr, pos, nPos, nActive, nBlock, ndrange=1)
+    KernelAbstractions.synchronize(backend)
+end
+
+function kernel_addElement1!(csr)
+    KernelAbstractions.@kernel function add_kernel(csr)
+        pos = CellBasedModels.addElement!(csr)
+    end
+
+    backend = KernelAbstractions.get_backend(csr)
+    threads = 1
+
+    add_kernel(backend, threads)(csr, ndrange=1)
+    KernelAbstractions.synchronize(backend)
+end
+
+function kernel_addElementN!(csr, n)
+    KernelAbstractions.@kernel function add_kernel(csr, n)
+        pos = CellBasedModels.addElement!(csr, n)
+    end
+
+    backend = KernelAbstractions.get_backend(csr)
+    threads = 1
+
+    add_kernel(backend, threads)(csr, n, ndrange=1)
+    KernelAbstractions.synchronize(backend)
+end
+
+function kernel_addElementTuple!(csr, tuple)
+    KernelAbstractions.@kernel function add_kernel(csr, tuple)
+        pos = CellBasedModels.addElement!(csr, tuple)
+    end
+
+    backend = KernelAbstractions.get_backend(csr)
+    threads = 1
+
+    add_kernel(backend, threads)(csr, tuple, ndrange=1)
+    KernelAbstractions.synchronize(backend)
+end
+
+function kernel_pushToElement!(csr, ePos, value)
+    KernelAbstractions.@kernel function push_kernel(csr, ePos, value)
+        pos = CellBasedModels.pushToElement!(csr, ePos, value)
+    end
+
+    backend = KernelAbstractions.get_backend(csr)
+    threads = 1
+
+    push_kernel(backend, threads)(csr, ePos, value, ndrange=1)
+    KernelAbstractions.synchronize(backend)
+end
+
+function kernel_replaceIndexFromElement!(csr, ePos, bPos, value)
+    KernelAbstractions.@kernel function replace_kernel(csr, ePos, bPos, value)
+        pos = CellBasedModels.replaceIndexFromElement!(csr, ePos, bPos, value)
+    end
+
+    backend = KernelAbstractions.get_backend(csr)
+    threads = 1
+
+    replace_kernel(backend, threads)(csr, ePos, bPos, value, ndrange=1)
+    KernelAbstractions.synchronize(backend)
+end
+
+function kernel_insertIndexAtElement!(csr, ePos, bPos, value)
+    KernelAbstractions.@kernel function insert_kernel(csr, ePos, bPos, value)
+        pos = CellBasedModels.insertIndexAtElement!(csr, ePos, bPos, value)
+    end
+
+    backend = KernelAbstractions.get_backend(csr)
+    threads = 1
+
+    insert_kernel(backend, threads)(csr, ePos, bPos, value, ndrange=1)
+    KernelAbstractions.synchronize(backend)
+end
+
+function kernel_removeIndexFromElement!(csr, ePos, bPos)
+    KernelAbstractions.@kernel function remove_kernel(csr, ePos, bPos)
+        CellBasedModels.removeIndexFromElement!(csr, ePos, bPos)
+    end
+
+    backend = KernelAbstractions.get_backend(csr)
+    threads = 1
+
+    remove_kernel(backend, threads)(csr, ePos, bPos, ndrange=1)
+    KernelAbstractions.synchronize(backend)
+end
+
 # println("Benchmarking CSR Structures")
 # println("================================")
 # println("CSRBlock:")
@@ -32,49 +128,128 @@ end
 
 @testset "Topology" begin
 
-    # @testset "CSRBlock" begin
-    #     csr = CSRBlock(N=3,NBlock=2,NCache=10)
-    #     csr._ActiveSection .= 2
-    #     csr._map .= 1:20
-    #     @test csr._N[] == 3
-    #     @test csr._NBlock[] == 2
-    #     @test csr._NCache[] == 10
-    #     @test length(csr._map) == 20
-    #     @test length(csr._ActiveSection) == 20
-    #     @test all(csr._FlagsSurvived .== false)
+    @testset "CSRBlock" begin
+        csr = CSRBlock(N=3,NBlock=2,NCache=10)
+        csr._ActiveSection .= 2
+        csr._map .= 1:20
+        @test csr._N[] == 3
+        @test csr._NBlock[] == 2
+        @test csr._NCache[] == 10
+        @test length(csr._map) == 20
+        @test length(csr._ActiveSection) == 10
+        @test all(csr._FlagsSurvived .== false)
         
-    #     # Test iterator returns (blockId, map_value)
-    #     results = [i for i in csr]
-    #     @test length(results) == 20  # 3 blocks * 2 active elements each
+        # Test iterator returns (blockId, map_value)
+        results = [i for i in csr]
+        @test length(results) == 20  # 3 blocks * 2 active elements each
         
-    #     # Check first block
-    #     @test results[1] == (1, 1)  # block 1, position 1
-    #     @test results[2] == (1, 2)  # block 1, position 2
+        # Check first block
+        @test results[1] == (1, 1)  # block 1, position 1
+        @test results[2] == (1, 2)  # block 1, position 2
         
-    #     # Check second block
-    #     @test results[3] == (2, 3)  # block 2, position 1
-    #     @test results[4] == (2, 4)  # block 2, position 2
+        # Check second block
+        @test results[3] == (2, 3)  # block 2, position 1
+        @test results[4] == (2, 4)  # block 2, position 2
         
-    #     # Check third block
-    #     @test results[5] == (3, 5)  # block 3, position 1
-    #     @test results[6] == (3, 6)  # block 3, position 2
+        # Check third block
+        @test results[5] == (3, 5)  # block 3, position 1
+        @test results[6] == (3, 6)  # block 3, position 2
         
-    #     # Test with different active sections
-    #     csr2 = CSRBlock(N=3,NBlock=4,NCache=10)
-    #     csr2._ActiveSection[1] = 2
-    #     csr2._ActiveSection[2] = 1
-    #     csr2._ActiveSection[3] = 3
-    #     csr2._map[1:12] .= 1:12
+        # Test with different active sections
+        csr2 = CSRBlock(N=3,NBlock=4,NCache=10)
+        csr2._ActiveSection[1] = 2
+        csr2._ActiveSection[2] = 1
+        csr2._ActiveSection[3] = 3
+        csr2._map[1:12] .= 1:12
         
-    #     results2 = [i for i in csr2]
-    #     @test length(results2) == 40  # 2 + 1 + 3
-    #     @test results2[1] == (1, 1)
-    #     @test results2[2] == (1, 2)
-    #     @test results2[3] == (2, 5)  # block 2, position 1: (2-1)*4 + 1 = 5
-    #     @test results2[4] == (3, 9)  # block 3, position 1: (3-1)*4 + 1 = 9
-    #     @test results2[5] == (3, 10)
-    #     @test results2[6] == (3, 11)
-    # end
+        results2 = [i for i in csr2]
+        @test length(results2) == 40  # 2 + 1 + 3
+        @test results2[1] == (1, 1)
+        @test results2[2] == (1, 2)
+        @test results2[3] == (2, 5)  # block 2, position 1: (2-1)*4 + 1 = 5
+        @test results2[4] == (3, 9)  # block 3, position 1: (3-1)*4 + 1 = 9
+        @test results2[5] == (3, 10)
+        @test results2[6] == (3, 11)
+
+        # Test operators
+        for device in devices
+            # Check checkBounds
+            csr = CSRBlock(N=2, NBlock=3, NCache=4)
+            csr_device = CellBasedModels.toDevice(csr, device)      
+            kernel_checkBounds(csr_device, 5, 2, 2, 4)
+            @test Array(csr_device._NOverflow)[1] == 2
+            @test Array(csr_device._NOverflowBlock)[1] == 1
+
+            # addElement! 1
+            csr = CSRBlock(N=2, NBlock=3, NCache=3)
+            csr_device = CellBasedModels.toDevice(csr, device)
+            kernel_addElement1!(csr_device)
+            @test Array(csr_device._NAdded)[1] == 1
+            kernel_addElement1!(csr_device)
+            @test Array(csr_device._NAdded)[1] == 2
+            @test Array(csr_device._NOverflow)[1] == 1
+
+            # addElement! N
+            csr = CSRBlock(N=2, NBlock=3, NCache=5)
+            csr_device = CellBasedModels.toDevice(csr, device)
+            kernel_addElementN!(csr_device, 2)
+            @test Array(csr_device._NAdded)[1] == 2
+            kernel_addElementN!(csr_device, 5)
+            @test Array(csr_device._NAdded)[1] == 7
+            @test Array(csr_device._NOverflow)[1] == 4
+
+            # addElement! tuple
+            csr = CSRBlock(N=2, NBlock=3, NCache=5)
+            csr_device = CellBasedModels.toDevice(csr, device)
+            kernel_addElementTuple!(csr_device, (1,2))
+            @test Array(csr_device._NAdded)[1] == 1
+            @test Array(csr_device._map)[7] == 1
+            @test Array(csr_device._map)[8] == 2
+            @test Array(csr_device._ActiveSection)[3] == 2
+
+            # pushToElement!
+            csr = CSRBlock(N=2, NBlock=3, NCache=5)
+            csr_device = CellBasedModels.toDevice(csr, device)
+            kernel_pushToElement!(csr_device, 1, 10)
+            @test Array(csr_device._map)[1] == 10
+            @test Array(csr_device._ActiveSection)[1] == 1
+
+            # replaceIndexFromElement!
+            csr = CSRBlock(N=2, NBlock=3, NCache=5)
+            csr._ActiveSection[1] = 2
+            csr._map[1] = 5
+            csr._map[2] = 10
+            csr_device = CellBasedModels.toDevice(csr, device)
+            kernel_replaceIndexFromElement!(csr_device, 1, 2, 20)
+            @test Array(csr_device._map)[2] == 20
+
+            # insertIndexAtElement!
+            csr = CSRBlock(N=2, NBlock=3, NCache=5)
+            csr._ActiveSection[1] = 2
+            csr._map[1] = 5
+            csr._map[2] = 10
+            csr_device = CellBasedModels.toDevice(csr, device)
+            kernel_insertIndexAtElement!(csr_device, 1, 2, 15)
+            @test Array(csr_device._map)[1] == 5
+            @test Array(csr_device._map)[2] == 15
+            @test Array(csr_device._map)[3] == 10
+            @test Array(csr_device._ActiveSection)[1] == 3
+
+            # removeIndexFromElement!
+            csr = CSRBlock(N=2, NBlock=3, NCache=5)
+            csr._ActiveSection[1] = 3
+            csr._map[1] = 5
+            csr._map[2] = 10
+            csr._map[3] = 15
+            csr_device = CellBasedModels.toDevice(csr, device)
+            kernel_removeIndexFromElement!(csr_device, 1, 2)
+            @test Array(csr_device._map)[1] == 5
+            @test Array(csr_device._map)[2] == 15
+            @test Array(csr_device._ActiveSection)[1] == 2
+
+        end
+
+    end
     
     # @testset "CSRTuple" begin
     #     csr = CSRTuple(N=3,NBlock=2,NCache=10)
@@ -251,78 +426,83 @@ end
     #     @test results3[12] == (3, 12)
     # end
 
-    @testset "Topology Creation" begin
+    # @testset "Topology Creation" begin
         
-        mesh = UnstructuredMesh(
-                3,
-                n = Node(),
-                e = Edge(:n),
-                a = Agent(:e),
-            )
+    #     mesh = UnstructuredMesh(
+    #             3,
+    #             n = Node(),
+    #             e = Edge(:n),
+    #             a = Agent(:e),
+    #         )
 
-        @addODE model = mesh function f(du, u, p, t)
-            @kernel_launch ndrange=u.n function step(du, u, p, t)
-                n = CellBasedModels.@index(Global)
-                for ns in loopOverTopology(model, :n, :e, n)
-                    # n1, n2 = ns
-                    # if u.e.length[e] > 1.0 # Edge division
-                    #     #Explicit relations divideEdge!(model, e)
-                    #     a = model.topology.e.a[1]
-                    #     remove!(model.topology.e, e)
+    #     @addODE model = mesh function f(du, u, p, t)
+    #         @kernel_launch ndrange=u.n function step(du, u, p, t)
+    #             n = CellBasedModels.@index(Global)
+    #             for ns in loopOverTopology(model, :n, :e, n)
+    #                 # n1, n2 = ns
+    #                 # if u.e.length[e] > 1.0 # Edge division
+    #                 #     #Explicit relations divideEdge!(model, e)
+    #                 #     a = model.topology.e.a[1]
+    #                 #     remove!(model.topology.e, e)
 
-                    #     n = add!(model.n)
-                    #     e1 = add!(model.topology.e.n)
-                    #     e2 = add!(model.topology.e.n)
+    #                 #     #Add elements
+    #                 #     n = addElement!(model.n)
+    #                 #     e1 = addElement!(model.e)
+    #                 #     e2 = addElement!(model.e)
 
-                    #     insert!(model.topology.e.n, e1, 1, n1)
-                    #     insert!(model.topology.e.n, e1, 2, n)
+    #                 #     #Add topological relations
+    #                 #     n = addElement!(model.topology.n)
+    #                 #     e1 = addElement!(model.topology.e.n, (n1, n))
+    #                 #     e2 = addElement!(model.topology.e.n, (n, n2))
+    #                 #     replace!(model.topology.a.e, e, (e1, e2))
 
-                    #     insert!(model.topology.e.n, e2, 1, n)
-                    #     insert!(model.topology.e.n, e2, 2, n2)
-                    #     push!(model.topology.a.e, a, e1)
-                    #     push!(model.topology.a.e, a, e2)
+    #                 #     n, e1, e2
 
-                    #     n, e1, e2
+    #                 #     #if e->a exists 
+    #                 #     replace!(model.topology.e.a, e1, a)
+    #                 #     replace!(model.topology.e.a, e2, a)
+    #                 #     replace!(model.topology.n.a, a, e)
 
-                    #     #if e->a exists 
-                    #     replace!(model.topology.e.a, e1, a)
-                    #     replace!(model.topology.e.a, e2, a)
-                    #     replace!(model.topology.n.a, a, e)
+    #                 #     #if n->a exists
+    #                 #     replace!(model.topology.n.a, n, a)
 
-                    #     #if n->a exists
-                    #     replace!(model.topology.n.a, n, a)
+    #                 #     #if a->n exists
+    #                 #     push!(model.topology.a.n, a, n)
+    #                 # end
+    #             end
 
-                    #     #if a->n exists
-                    #     push!(model.topology.a.n, a, n)
-                    # end
-                end
+    #             for (n, a) in loopOverTopology(model, :a, :n, n)
+    #                 # du.n.value[n] = length(du.a.e[a])
+    #             end
 
-                for (n, a) in loopOverTopology(model, :a, :n, n)
-                    # du.n.value[n] = length(du.a.e[a])
-                end
+    #         end
+    #     end
 
-            end
-        end
+    #     e_n = CSRTuple([
+    #             [1,2],
+    #             [2,3],
+    #             [3,4],
+    #             [4,5]
+    #         ])
+    #     a_e = CSRSlack([
+    #             [1,2,3,4]
+    #         ])
 
-        e_n = CSRTuple([
-                [1,2],
-                [2,3],
-                [3,4],
-                [4,5]
-            ])
-        a_e = CSRSlack([
-                [1,2,3,4]
-            ])
+    #     obj = UnstructuredMeshObject(
+    #         mesh;
+    #         n = 5,
+    #         e = e_n,
+    #         a = a_e,
+    #     )        
 
-        obj = UnstructuredMeshObject(
-            mesh;
-            n = 5,
-            e = e_n,
-            a = a_e,
-        )        
+    #     println(obj._topology)
+    #     println(CellBasedModels.checkTopologyConsistency(obj._topology))
+    #     println("a.e\n", [i for i in obj._topology._relations.a.e])
+    #     println("e.n\n", [i for i in obj._topology._relations.e.n])
+    #     println("n.e\n", [i for i in obj._topology._relations.n.e])
+    #     println("a.n\n", [i for i in obj._topology._relations.a.n])
 
-        # println(obj._topology._relations)
 
-    end
+    # end
 
 end

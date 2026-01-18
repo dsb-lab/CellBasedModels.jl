@@ -5,7 +5,7 @@ module CellBasedModels
     using Printf
     export CPU, GPU
     using KernelAbstractions
-    import Atomix: @atomic, @print
+    import Atomix: @atomic, @atomicswap, @print
     import Base: push!
 
     hasCuda() = false
@@ -57,6 +57,9 @@ module CellBasedModels
     include("./neighbors/abstractTypes.jl")
 
     #Topology
+    export CSRBlock, CSRTuple, CSRSlack, CSRCache
+    include("./topology/auxiliarStructs.jl")
+    include("./topology/auxiliarStructsGPU.jl")
     export Topology
     include("./topology/topology.jl")
 
@@ -82,8 +85,6 @@ module CellBasedModels
     include("./neighbors/neighborsFull.jl")
     export NeighborsCellLinked
     include("./neighbors/neighborsCellLinked.jl")
-    export CSRBlock, CSRTuple, CSRSlack, CSRCache
-    include("./topology/auxiliarStructs.jl")
     # export StructuredMesh, StructuredMeshObject
     # include("./AgentStructure/structuredMesh.jl")
     # export MultiMesh, MultiMeshObject

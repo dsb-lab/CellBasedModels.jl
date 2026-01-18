@@ -3,6 +3,7 @@ using CellBasedModels
 using Test
 using CUDA   
 using BenchmarkTools
+using KernelAbstractions
 using Printf
 
 verbose = true

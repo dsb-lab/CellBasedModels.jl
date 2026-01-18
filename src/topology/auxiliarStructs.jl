@@ -68,6 +68,7 @@ function CSRBlock(
             _N,
             _NBlock,
             _NCache,
+            _ActiveSection,
             _FlagsSurvived,
             _NAdded,
             _NOverflow,
@@ -87,6 +88,7 @@ function CSRBlock(
             _N,
             _NBlock,
             _NCache,
+            _ActiveSection,
             _FlagsSurvived,
             _NAdded,
             _NOverflow,
@@ -172,8 +174,8 @@ function Base.show(io::IO, x::CSRBlock{
             P, PR, AI, VI, VB
         } 
     
-    println(io, "CSRBlock{length=$(length(x)), lengthCache=$(lengthCache(x)), block=$(Array(x._ActiveSection)[1])}\n")
-
+    println(io, "CSRBlock{lengthElements=$(lengthElements(x)), lengthElementsCache=$(lengthElementsCache(x)), block=$(Array(x._NBlock)[1])}")
+    
 end
 
 function Base.show(io::IO, x::Type{CSRBlock})
@@ -228,63 +230,108 @@ function iterateOverBlocks(mesh::CSRBlock, block::Int)
     return pos*_NBlock:(pos*_NBlock+active_section)
 end
 
-function add!(field::CSRBlock)
+# Helper function to calculate linear index in CSRBlock
+function getIndex(field::CSRBlock, ePos::Int, bPos::Int)
+    return (ePos - 1) * field._NBlock[1] + bPos
+end
+
+# Helper function to check bounds and update overflow counters
+function checkBounds(field::CSRBlock, pos::Int, nPos::Int, nActive::Int, nBlock::Int)
+    newPos = pos
+    if pos + nPos - 1 > field._NCache[1]
+        @atomic field._NOverflow[1] += max(field._NOverflow[1], pos + nPos - 1 - field._NCache[1]) - field._NOverflow[1]
+        newPos = 0
+    end
+    if nActive > field._NOverflowBlock[1]
+        @atomic field._NOverflowBlock[1] += max(field._NOverflowBlock[1], nActive - field._NBlock[1]) - field._NOverflowBlock[1]
+        newPos = 0
+    end
+    if nBlock > field._NBlock[1]
+        @atomic field._NOverflowBlock[1] += max(field._NOverflowBlock[1], nBlock - field._NBlock[1]) - field._NOverflowBlock[1]
+        newPos = 0
+    end
+
+    return newPos
+end
+
+function addElement!(field::CSRBlock; nActive::Int=0, nCache::Int=0)
     nAdd = @atomic field._NAdded[1] += 1
     pos = field._N[1] + nAdd
-    if pos > field._NCache[1]
-        @atomic field._NOverflow[1] += 1
-        return 0
-    end
+    pos = checkBounds(field, pos, 1, nActive, nCache)
 
     return pos
 end
 
-function push!(field::CSRBlock, blockId::Int, value::Int)
-    nAdd = @atomic field._ActiveSection[blockId] += 1
+function addElement!(field::CSRBlock, N::Int; nActive::Int=0, nCache::Int=0)
+    nAdd = @atomic field._NAdded[1] += N
+    pos = field._N[1] + nAdd - N + 1
+    pos = checkBounds(field, pos, field._NCache[1], nActive, nCache)
+
+    return pos
+end
+
+@generated function addElement!(field::CSRBlock, value::NTuple{N, T}; nCache::Int=0) where {N, T}
+    quote
+        pos = addElement!(field; nCache=nCache)
+        if pos != 0
+            field._ActiveSection[pos] = $N
+            for i in 1:$N
+                linear_idx = (pos - 1) * field._NBlock[1] + i
+                field._map[linear_idx] = value[i]
+            end
+        end
+
+        return pos
+    end
+end
+
+function pushToElement!(field::CSRBlock, ePos::Int, value::Int)
+    nAdd = @atomic field._ActiveSection[ePos] += 1
     if nAdd > field._NBlock[1]
         @atomic field._NOverflowBlock[1] += 1
     else
-        pos = (blockId - 1) * field._NBlock[1] + nAdd
+        pos = getIndex(field, ePos, nAdd)
         field._map[pos] = value
     end
 end
 
-function replace!(field::CSRBlock, blockId::Int, index::Int, value::Int)
-    nAdd = field._ActiveSection[blockId]
-    if index > nAdd
-        @print "Cannot replace at index $index in block $blockId: only $nAdd elements present."
+function replaceIndexFromElement!(field::CSRBlock, ePos::Int, bPos::Int, value::Int)
+    nActive = field._ActiveSection[ePos]
+    if bPos > nActive
+        @print "Cannot replace at index $bPos in element $ePos: only $nActive elements present."
     else
-        pos = (blockId - 1) * field._NBlock[1] + index
+        pos = getIndex(field, ePos, bPos)
         field._map[pos] = value
     end
 end
 
-function insert!(field::CSRBlock, blockId::Int, index::Int, value::Int)
-    nAdd = @atomic field._ActiveSection[blockId] += 1
+function insertIndexAtElement!(field::CSRBlock, ePos::Int, bPos::Int, value::Int)
+    nAdd = @atomic field._ActiveSection[ePos] += 1
     if nAdd > field._NBlock[1]
         @atomic field._NOverflowBlock[1] += 1
     else
-        pos = (blockId - 1) * field._NBlock[1] + nAdd
-        posInsert = (blockId - 1) * field._NBlock[1] + index
-        # Shift elements to make space
-        for i in pos:-1:pos-index+2
+        posNew = getIndex(field, ePos, nAdd)
+        posInsert = getIndex(field, ePos, bPos)
+        # Shift elements backward to make space
+        for i in posNew:-1:posInsert+1
             field._map[i] = field._map[i - 1]
         end
         field._map[posInsert] = value
     end
 end
 
-function remove!(field::CSRBlock, blockId::Int, index::Int)
-    nAdd = field._ActiveSection[blockId]
-    if index > nAdd
-        @print "Cannot remove at index $index in block $blockId: only $nAdd elements present."
+function removeIndexFromElement!(field::CSRBlock, ePos::Int, bPos::Int)
+    nCurrent = field._ActiveSection[ePos]
+    if bPos > nCurrent
+        @print "Cannot remove at index $bPos in element $ePos: only $nCurrent elements present."
     else
-        posRemove = (blockId - 1) * field._NBlock[1] + index
-        # Shift elements to fill the gap
-        for i in posRemove:nAdd-1 + (blockId - 1) * field._NBlock[1]
+        posRemove = getIndex(field, ePos, bPos)
+        posLast = getIndex(field, ePos, nCurrent)
+        # Shift elements forward to fill the gap
+        for i in posRemove:posLast-1
             field._map[i] = field._map[i + 1]
         end
-        @atomic field._ActiveSection[blockId] -= 1
+        @atomic field._ActiveSection[ePos] -= 1
     end
 end
 
@@ -393,6 +440,22 @@ function CSRTuple(data::AbstractVector{<:AbstractVector}; NAddCache::Int=0)
     return csr
 end
 
+function Base.show(io::IO, x::CSRTuple{
+            P, PR, AI, VB
+        }) where {
+            P, PR, AI, VB
+        } 
+    
+    println(io, "CSRTuple{lengthElements=$(lengthElements(x)), lengthElementsCache=$(lengthElementsCache(x)), block=$(Array(x._NBlock)[1])}")
+    
+end
+
+function Base.show(io::IO, x::Type{CSRTuple})
+    println(io, "CSRTuple{")
+    # CellBasedModels.show(io, x)
+    println(io, "}")
+end
+
 # Specialized iterator for CSRTuple - no active section checking
 function Base.iterate(field::CSRTuple, state=(1, 1))
     blockId, elementId = state
@@ -419,11 +482,11 @@ function Base.iterate(field::CSRTuple, state=(1, 1))
     return ((blockId, map_value), next_state)
 end
 
-function insert!(field::CSRTuple, blockId::Int, index::Int, value::Int)
+function insertIndexAtElement!(field::CSRTuple, ePos::Int, bPos::Int, value::Int)
     @print "Cannot insert into CSRTuple: no active section tracking."
 end
 
-function remove!(field::CSRTuple, blockId::Int, index::Int)
+function removeIndexFromElement!(field::CSRTuple, ePos::Int, bPos::Int)
     @print "Cannot remove from CSRTuple: no active section tracking."
 end
 
@@ -597,7 +660,7 @@ function Base.show(io::IO, x::CSRSlack{
             P, PR, AI, VI, VI2, VB
         } 
     
-    println(io, "CSRSlack{N=$(lengthElements(x)), totalCache=$(length(x._map))}\n")
+    println(io, "CSRSlack{N=$(lengthElements(x)), totalCache=$(length(x._map))}")
 
 end
 
@@ -649,56 +712,56 @@ function iterateOverBlock(field::CSRSlack, blockId::Int)
     return start_pos:(start_pos + active - 1)
 end
 
-function push!(field::CSRSlack, blockId::Int, value::Int)
-    nAdd = @atomic field._ActiveSection[blockId] += 1
-    nBlock = field._offsets[blockId+1] - field._offsets[blockId]
+function pushToElement!(field::CSRSlack, ePos::Int, value::Int)
+    nAdd = @atomic field._ActiveSection[ePos] += 1
+    nBlock = field._offsets[ePos+1] - field._offsets[ePos]
     if nAdd > nBlock
         @atomic field._NOverflowBlock[1] += 1
     else
-        pos = field._offsets[blockId] + nAdd - 1
+        pos = field._offsets[ePos] + nAdd - 1
         field._map[pos] = value
     end
 end
 
-function replace!(field::CSRSlack, blockId::Int, index::Int, value::Int)
-    nAdd = field._ActiveSection[blockId]
-    nBlock = field._offsets[blockId+1] - field._offsets[blockId]
-    if index > nBlock
-        @print "Cannot replace at index $index in block $blockId: only $nAdd elements present."
+function replaceIndexFromElement!(field::CSRSlack, ePos::Int, bPos::Int, value::Int)
+    nActive = field._ActiveSection[ePos]
+    nBlock = field._offsets[ePos+1] - field._offsets[ePos]
+    if bPos > nActive
+        @print "Cannot replace at index $bPos in element $ePos: only $nActive elements present."
     else
-        pos = field._offsets[blockId] + index - 1
+        pos = field._offsets[ePos] + bPos - 1
         field._map[pos] = value
     end
 end
 
-function insert!(field::CSRSlack, blockId::Int, index::Int, value::Int)
-    nAdd = @atomic field._ActiveSection[blockId] += 1
-    nBlock = field._offsets[blockId+1] - field._offsets[blockId]
+function insertIndexAtElement!(field::CSRSlack, ePos::Int, bPos::Int, value::Int)
+    nAdd = @atomic field._ActiveSection[ePos] += 1
+    nBlock = field._offsets[ePos+1] - field._offsets[ePos]
     if nAdd > nBlock
         @atomic field._NOverflowBlock[1] += 1
     else
-        pos = field._offsets[blockId] + nAdd - 1
-        posInsert = field._offsets[blockId] + index - 1
-        # Shift elements to make space
-        for i in pos:-1:pos-index+2
+        posNew = field._offsets[ePos] + nAdd - 1
+        posInsert = field._offsets[ePos] + bPos - 1
+        # Shift elements backward to make space
+        for i in posNew:-1:posInsert+1
             field._map[i] = field._map[i - 1]
         end
         field._map[posInsert] = value
     end
 end
 
-function remove!(field::CSRSlack, blockId::Int, index::Int)
-    nAdd = field._ActiveSection[blockId]
-    nBlock = field._offsets[blockId+1] - field._offsets[blockId]
-    if index > nAdd
-        @print "Cannot remove at index $index in block $blockId: only $nAdd elements present."
+function removeIndexFromElement!(field::CSRSlack, ePos::Int, bPos::Int)
+    nCurrent = field._ActiveSection[ePos]
+    if bPos > nCurrent
+        @print "Cannot remove at index $bPos in element $ePos: only $nCurrent elements present."
     else
-        posRemove = field._offsets[blockId] + index - 1
-        # Shift elements to fill the gap
-        for i in posRemove:nAdd-1 + (blockId - 1) * field._NBlock[1]
+        posRemove = field._offsets[ePos] + bPos - 1
+        posLast = field._offsets[ePos] + nCurrent - 1
+        # Shift elements forward to fill the gap
+        for i in posRemove:posLast-1
             field._map[i] = field._map[i + 1]
         end
-        @atomic field._ActiveSection[blockId] -= 1
+        @atomic field._ActiveSection[ePos] -= 1
     end
 end
 
@@ -759,6 +822,21 @@ function CSRCache(;
         )
 end
 
+function Base.show(io::IO, x::CSRCache{
+            P, PR, AI, VI, VB
+        }) where {
+            P, PR, AI, VI, VB
+        } 
+    
+    println(io, "CSRCache{N=$(lengthElements(x)), totalCache=$(length(x._map))}")
+
+end
+
+function Base.show(io::IO, x::Type{CSRCache})
+    println(io, "CSRCache{")
+    println(io, "}")
+end
+
 # Iterator protocol for CSRCache - returns total number of elements (all elements in all blocks)
 Base.length(field::CSRCache) = length(field._map)
 
@@ -793,11 +871,11 @@ function iterateOverBlock(field::CSRCache, blockId::Int)
     return start_pos:end_pos
 end
 
-function insert!(field::CSRCache, blockId::Int, index::Int, value::Int)
+function insertIndexAtElement!(field::CSRCache, ePos::Int, bPos::Int, value::Int)
     @print "Cannot insert into CSRCache: no active section tracking."
 end
 
-function remove!(field::CSRCache, blockId::Int, index::Int)
+function removeIndexFromElement!(field::CSRCache, ePos::Int, bPos::Int)
     @print "Cannot remove from CSRCache: no active section tracking."
 end
 
@@ -882,7 +960,7 @@ function invertMap(csr::AbstractCSR; returnType=CSRSlack, NAddCache::Int=0)
     # Fill the inverted mapping
     for (blockId, value) in csr
         if value > 0  # Skip zeros if present
-            push!(inv_csr, value, blockId)
+            pushToElement!(inv_csr, value, blockId)
         end
     end
     
