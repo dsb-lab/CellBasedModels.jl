@@ -188,6 +188,10 @@ end
             kernel_addElement1!(csr_device)
             @test Array(csr_device._NAdded)[1] == 2
             @test Array(csr_device._NOverflow)[1] == 1
+            CellBasedModels.preallocateOverflow!(csr_device)
+            @test Array(csr_device._NCache)[1] == 4
+            @test Array(csr_device._NOverflow)[1] == 0
+            @test Array(csr_device._NOverflowBlock)[1] == 0
 
             # addElement! N
             csr = CSRBlock(N=2, NBlock=3, NCache=5)
@@ -197,6 +201,10 @@ end
             kernel_addElementN!(csr_device, 5)
             @test Array(csr_device._NAdded)[1] == 7
             @test Array(csr_device._NOverflow)[1] == 4
+            CellBasedModels.preallocateOverflow!(csr_device)
+            @test Array(csr_device._NCache)[1] == 9
+            @test Array(csr_device._NOverflow)[1] == 0
+            @test Array(csr_device._NOverflowBlock)[1] == 0
 
             # addElement! tuple
             csr = CSRBlock(N=2, NBlock=3, NCache=5)

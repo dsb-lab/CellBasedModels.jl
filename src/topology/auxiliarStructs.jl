@@ -235,7 +235,60 @@ function getIndex(field::CSRBlock, ePos::Int, bPos::Int)
     return (ePos - 1) * field._NBlock[1] + bPos
 end
 
-# Helper function to check bounds and update overflow counters
+function preallocate!(field::CSRBlock, NAddBlock::Int=0, NAddCache::Int=0)
+    """
+    Preallocate additional cache space in the CSRBlock.
+    
+    Args:
+        field: CSRBlock to modify
+        NAddCache: Number of additional cache blocks to allocate
+    """
+    if NAddCache <= 0
+        error("NAddCache must be > 0")
+    end
+
+    oldNBlock = Array(field._NBlock)[1]
+    newNBlock = oldNBlock + NAddBlock
+
+    N = Array(field._N)[1]
+    oldNCache = Array(field._NCache)[1]
+    newNCache = oldNCache + NAddCache
+
+    oldMap = copy(field._map)
+    resize!(field._map, newNCache * newNBlock)
+
+    KernelAbstractions.@kernel function _kernel_remap!(oldMap, newMap, oldNBlock, newNBlock)
+        index = @index(Global)
+        for j in 1:oldNBlock
+            old_idx = (index - 1) * oldNBlock + j
+            new_idx = (index - 1) * newNBlock + j
+            newMap[new_idx] = oldMap[old_idx]
+        end
+    end
+    backend = KernelAbstractions.get_backend(oldMap)
+    threads = backend isa KernelAbstractions.CPU ? Base.Threads.nthreads() : 256
+    _kernel_remap!(backend, threads)(oldMap, field._map, oldNBlock, newNBlock, ndrange=N)
+    KernelAbstractions.synchronize(backend)
+
+    resize!(field._ActiveSection, newNCache)
+    resize!(field._FlagsSurvived, newNCache * newNBlock)
+
+    field._NBlock .= newNBlock
+    field._NCache .= newNCache
+
+end
+
+function preallocateOverflow!(field::CSRBlock; NAdditionalCache::Int=0)
+
+    NAddBlock = Array(field._NOverflowBlock)[1]
+    NAddCache = Array(field._NOverflow)[1] + NAdditionalCache
+
+    preallocate!(field, NAddBlock, NAddCache)
+
+    field._NOverflow .= 0
+    field._NOverflowBlock .= 0
+end
+
 function checkBounds(field::CSRBlock, pos::Int, nPos::Int, nActive::Int, nBlock::Int)
     newPos = pos
     if pos + nPos - 1 > field._NCache[1]
