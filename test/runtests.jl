@@ -5,6 +5,7 @@ using CUDA
 using BenchmarkTools
 using KernelAbstractions
 using Printf
+using Adapt
 
 verbose = true
 benchmark = true #just for internal optimizations

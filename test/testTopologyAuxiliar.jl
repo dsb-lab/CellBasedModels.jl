@@ -4,101 +4,169 @@ function f(csr)
     end
 end
 
-function kernel_checkBounds(csr, pos, nPos, nActive, nBlock)
-    KernelAbstractions.@kernel function check_kernel(csr, pos, nPos, nActive, nBlock)
-        CellBasedModels.checkBounds(csr, pos, nPos, nActive, nBlock)
+# addElement!
+function kernel_csrtuple_memclaim_addElement(csr, n)
+    @kernel function memclaim_addElement_kernel!(csr, n)
+        i = @index(Global)
+        CellBasedModels.memclaim_addElement!(csr, N=n)
     end
 
     backend = KernelAbstractions.get_backend(csr)
-    threads = 1
-
-    check_kernel(backend, threads)(csr, pos, nPos, nActive, nBlock, ndrange=1)
+    kernel = memclaim_addElement_kernel!(backend, 1)
+    kernel(csr, n, ndrange=1)
     KernelAbstractions.synchronize(backend)
 end
 
-function kernel_addElement1!(csr)
-    KernelAbstractions.@kernel function add_kernel(csr)
-        pos = CellBasedModels.addElement!(csr)
+function kernel_csrtuple_allocate_addElement(csr, n)
+    @kernel function allocate_addElement_kernel!(csr, n)
+        i = @index(Global)
+        CellBasedModels.allocate_addElement!(csr, N=n)
     end
 
     backend = KernelAbstractions.get_backend(csr)
-    threads = 1
-
-    add_kernel(backend, threads)(csr, ndrange=1)
+    kernel = allocate_addElement_kernel!(backend, 1)
+    kernel(csr, n, ndrange=1)
     KernelAbstractions.synchronize(backend)
 end
 
-function kernel_addElementN!(csr, n)
-    KernelAbstractions.@kernel function add_kernel(csr, n)
-        pos = CellBasedModels.addElement!(csr, n)
+function kernel_csrtuple_execute_addElement(csr, n)
+    @kernel function execute_addElement_kernel!(csr, n)
+        i = @index(Global)
+        pos = CellBasedModels.execute_addElement!(csr) 
+        setElement!(csr, pos, pos)
     end
 
     backend = KernelAbstractions.get_backend(csr)
-    threads = 1
-
-    add_kernel(backend, threads)(csr, n, ndrange=1)
+    kernel = execute_addElement_kernel!(backend, 1)
+    kernel(csr, n, ndrange=1)
     KernelAbstractions.synchronize(backend)
+    return
 end
 
-function kernel_addElementTuple!(csr, tuple)
-    KernelAbstractions.@kernel function add_kernel(csr, tuple)
-        pos = CellBasedModels.addElement!(csr, tuple)
+# addElement_i! kernels
+function kernel_csrtuple_memclaim_addElement_i(csr, n)
+    @kernel function memclaim_addElement_kernel!(csr, n)
+        i = @index(Global)
+        CellBasedModels.memclaim_addElement!(csr, i, N=n)
     end
 
     backend = KernelAbstractions.get_backend(csr)
-    threads = 1
-
-    add_kernel(backend, threads)(csr, tuple, ndrange=1)
+    kernel = memclaim_addElement_kernel!(backend, CellBasedModels.lengthElements(csr))
+    kernel(csr, n, ndrange=CellBasedModels.lengthElements(csr))
     KernelAbstractions.synchronize(backend)
 end
 
-function kernel_pushToElement!(csr, ePos, value)
-    KernelAbstractions.@kernel function push_kernel(csr, ePos, value)
-        pos = CellBasedModels.pushToElement!(csr, ePos, value)
+function kernel_csrtuple_allocate_addElement_i(csr, n)
+    @kernel function allocate_addElement_kernel!(csr, n)
+        i = @index(Global)
+        CellBasedModels.allocate_addElement!(csr, i, N=n)
     end
 
     backend = KernelAbstractions.get_backend(csr)
-    threads = 1
-
-    push_kernel(backend, threads)(csr, ePos, value, ndrange=1)
+    kernel = allocate_addElement_kernel!(backend, CellBasedModels.lengthElements(csr))
+    kernel(csr, n, ndrange=CellBasedModels.lengthElements(csr))
     KernelAbstractions.synchronize(backend)
 end
 
-function kernel_replaceIndexFromElement!(csr, ePos, bPos, value)
-    KernelAbstractions.@kernel function replace_kernel(csr, ePos, bPos, value)
-        pos = CellBasedModels.replaceIndexFromElement!(csr, ePos, bPos, value)
+function kernel_csrtuple_execute_addElement_i(csr, n)
+    @kernel function execute_addElement_kernel!(csr, n)
+        i = @index(Global)
+        pos = CellBasedModels.execute_addElement!(csr, i) 
+        setElement!(csr, pos, (pos,pos,pos))
     end
 
     backend = KernelAbstractions.get_backend(csr)
-    threads = 1
-
-    replace_kernel(backend, threads)(csr, ePos, bPos, value, ndrange=1)
+    kernel = execute_addElement_kernel!(backend, CellBasedModels.lengthElements(csr))
+    kernel(csr, n, ndrange=CellBasedModels.lengthElements(csr))
     KernelAbstractions.synchronize(backend)
+    return
 end
 
-function kernel_insertIndexAtElement!(csr, ePos, bPos, value)
-    KernelAbstractions.@kernel function insert_kernel(csr, ePos, bPos, value)
-        pos = CellBasedModels.insertIndexAtElement!(csr, ePos, bPos, value)
+# removeElement kernels
+function kernel_csrtuple_memclaim_removeElement(csr, n)
+    @kernel function memclaim_removeElement_kernel!(csr, n)
+        i = @index(Global)
+        if i % 2 == 1
+            CellBasedModels.memclaim_removeElement!(csr, i)
+        end
     end
 
     backend = KernelAbstractions.get_backend(csr)
-    threads = 1
-
-    insert_kernel(backend, threads)(csr, ePos, bPos, value, ndrange=1)
+    kernel = memclaim_removeElement_kernel!(backend, CellBasedModels.lengthElements(csr))
+    kernel(csr, n, ndrange=CellBasedModels.lengthElements(csr))
     KernelAbstractions.synchronize(backend)
 end
 
-function kernel_removeIndexFromElement!(csr, ePos, bPos)
-    KernelAbstractions.@kernel function remove_kernel(csr, ePos, bPos)
-        CellBasedModels.removeIndexFromElement!(csr, ePos, bPos)
+function kernel_csrtuple_allocate_removeElement(csr, n)
+    @kernel function allocate_removeElement_kernel!(csr, n)
+        i = @index(Global)
+        if i % 2 == 1
+            CellBasedModels.allocate_removeElement!(csr, i)
+        end
     end
 
     backend = KernelAbstractions.get_backend(csr)
-    threads = 1
-
-    remove_kernel(backend, threads)(csr, ePos, bPos, ndrange=1)
+    kernel = allocate_removeElement_kernel!(backend, CellBasedModels.lengthElements(csr))
+    kernel(csr, n, ndrange=CellBasedModels.lengthElements(csr))
     KernelAbstractions.synchronize(backend)
 end
+
+function kernel_csrtuple_execute_removeElement(csr, n)
+    @kernel function execute_removeElement_kernel!(csr, n)
+        i = @index(Global)
+        if i % 2 == 1
+            pos = CellBasedModels.execute_removeElement!(csr, i) 
+        end
+    end
+
+    backend = KernelAbstractions.get_backend(csr)
+    kernel = execute_removeElement_kernel!(backend, CellBasedModels.lengthElements(csr))
+    kernel(csr, n, ndrange=CellBasedModels.lengthElements(csr))
+    KernelAbstractions.synchronize(backend)
+    return
+end
+
+# CSRCache
+
+# addElement!
+function kernel_cachetuple_memclaim_addElement(csr, l)
+    @kernel function memclaim_addElement_kernel!(csr, l)
+        i = @index(Global)
+        CellBasedModels.memclaim_addElement!(csr, l=l)
+    end
+
+    backend = KernelAbstractions.get_backend(csr)
+    kernel = memclaim_addElement_kernel!(backend, l)
+    kernel(csr, l, ndrange=1)
+    KernelAbstractions.synchronize(backend)
+end
+
+function kernel_csrtuple_allocate_addElement(csr, l)
+    @kernel function allocate_addElement_kernel!(csr, l)
+        i = @index(Global)
+        CellBasedModels.allocate_addElement!(csr, l=l)
+    end
+
+    backend = KernelAbstractions.get_backend(csr)
+    kernel = allocate_addElement_kernel!(backend, 1)
+    kernel(csr, l, ndrange=1)
+    KernelAbstractions.synchronize(backend)
+end
+
+function kernel_csrtuple_execute_addElement(csr, l)
+    @kernel function execute_addElement_kernel!(csr, l)
+        i = @index(Global)
+        pos = CellBasedModels.execute_addElement!(csr, l=l) 
+        setElement!(csr, pos, pos)
+    end
+
+    backend = KernelAbstractions.get_backend(csr)
+    kernel = execute_addElement_kernel!(backend, 1)
+    kernel(csr, l, ndrange=1)
+    KernelAbstractions.synchronize(backend)
+    return
+end
+
 
 # println("Benchmarking CSR Structures")
 # println("================================")
@@ -128,149 +196,26 @@ end
 
 @testset "Topology" begin
 
-    @testset "CSRBlock" begin
-        csr = CSRBlock(N=3,NBlock=2,NCache=10)
-        csr._ActiveSection .= 2
-        csr._map .= 1:20
-        @test csr._N[] == 3
-        @test csr._NBlock[] == 2
-        @test csr._NCache[] == 10
-        @test length(csr._map) == 20
-        @test length(csr._ActiveSection) == 10
-        @test all(csr._FlagsSurvived .== false)
-        
-        # Test iterator returns (blockId, map_value)
-        results = [i for i in csr]
-        @test length(results) == 20  # 3 blocks * 2 active elements each
-        
-        # Check first block
-        @test results[1] == (1, 1)  # block 1, position 1
-        @test results[2] == (1, 2)  # block 1, position 2
-        
-        # Check second block
-        @test results[3] == (2, 3)  # block 2, position 1
-        @test results[4] == (2, 4)  # block 2, position 2
-        
-        # Check third block
-        @test results[5] == (3, 5)  # block 3, position 1
-        @test results[6] == (3, 6)  # block 3, position 2
-        
-        # Test with different active sections
-        csr2 = CSRBlock(N=3,NBlock=4,NCache=10)
-        csr2._ActiveSection[1] = 2
-        csr2._ActiveSection[2] = 1
-        csr2._ActiveSection[3] = 3
-        csr2._map[1:12] .= 1:12
-        
-        results2 = [i for i in csr2]
-        @test length(results2) == 40  # 2 + 1 + 3
-        @test results2[1] == (1, 1)
-        @test results2[2] == (1, 2)
-        @test results2[3] == (2, 5)  # block 2, position 1: (2-1)*4 + 1 = 5
-        @test results2[4] == (3, 9)  # block 3, position 1: (3-1)*4 + 1 = 9
-        @test results2[5] == (3, 10)
-        @test results2[6] == (3, 11)
-
-        # Test operators
-        for device in devices
-            # Check checkBounds
-            csr = CSRBlock(N=2, NBlock=3, NCache=4)
-            csr_device = CellBasedModels.toDevice(csr, device)      
-            kernel_checkBounds(csr_device, 5, 2, 2, 4)
-            @test Array(csr_device._NOverflow)[1] == 2
-            @test Array(csr_device._NOverflowBlock)[1] == 1
-
-            # addElement! 1
-            csr = CSRBlock(N=2, NBlock=3, NCache=3)
-            csr_device = CellBasedModels.toDevice(csr, device)
-            kernel_addElement1!(csr_device)
-            @test Array(csr_device._NAdded)[1] == 1
-            kernel_addElement1!(csr_device)
-            @test Array(csr_device._NAdded)[1] == 2
-            @test Array(csr_device._NOverflow)[1] == 1
-            CellBasedModels.preallocateOverflow!(csr_device)
-            @test Array(csr_device._NCache)[1] == 4
-            @test Array(csr_device._NOverflow)[1] == 0
-            @test Array(csr_device._NOverflowBlock)[1] == 0
-
-            # addElement! N
-            csr = CSRBlock(N=2, NBlock=3, NCache=5)
-            csr_device = CellBasedModels.toDevice(csr, device)
-            kernel_addElementN!(csr_device, 2)
-            @test Array(csr_device._NAdded)[1] == 2
-            kernel_addElementN!(csr_device, 5)
-            @test Array(csr_device._NAdded)[1] == 7
-            @test Array(csr_device._NOverflow)[1] == 4
-            CellBasedModels.preallocateOverflow!(csr_device)
-            @test Array(csr_device._NCache)[1] == 9
-            @test Array(csr_device._NOverflow)[1] == 0
-            @test Array(csr_device._NOverflowBlock)[1] == 0
-
-            # addElement! tuple
-            csr = CSRBlock(N=2, NBlock=3, NCache=5)
-            csr_device = CellBasedModels.toDevice(csr, device)
-            kernel_addElementTuple!(csr_device, (1,2))
-            @test Array(csr_device._NAdded)[1] == 1
-            @test Array(csr_device._map)[7] == 1
-            @test Array(csr_device._map)[8] == 2
-            @test Array(csr_device._ActiveSection)[3] == 2
-
-            # pushToElement!
-            csr = CSRBlock(N=2, NBlock=3, NCache=5)
-            csr_device = CellBasedModels.toDevice(csr, device)
-            kernel_pushToElement!(csr_device, 1, 10)
-            @test Array(csr_device._map)[1] == 10
-            @test Array(csr_device._ActiveSection)[1] == 1
-
-            # replaceIndexFromElement!
-            csr = CSRBlock(N=2, NBlock=3, NCache=5)
-            csr._ActiveSection[1] = 2
-            csr._map[1] = 5
-            csr._map[2] = 10
-            csr_device = CellBasedModels.toDevice(csr, device)
-            kernel_replaceIndexFromElement!(csr_device, 1, 2, 20)
-            @test Array(csr_device._map)[2] == 20
-
-            # insertIndexAtElement!
-            csr = CSRBlock(N=2, NBlock=3, NCache=5)
-            csr._ActiveSection[1] = 2
-            csr._map[1] = 5
-            csr._map[2] = 10
-            csr_device = CellBasedModels.toDevice(csr, device)
-            kernel_insertIndexAtElement!(csr_device, 1, 2, 15)
-            @test Array(csr_device._map)[1] == 5
-            @test Array(csr_device._map)[2] == 15
-            @test Array(csr_device._map)[3] == 10
-            @test Array(csr_device._ActiveSection)[1] == 3
-
-            # removeIndexFromElement!
-            csr = CSRBlock(N=2, NBlock=3, NCache=5)
-            csr._ActiveSection[1] = 3
-            csr._map[1] = 5
-            csr._map[2] = 10
-            csr._map[3] = 15
-            csr_device = CellBasedModels.toDevice(csr, device)
-            kernel_removeIndexFromElement!(csr_device, 1, 2)
-            @test Array(csr_device._map)[1] == 5
-            @test Array(csr_device._map)[2] == 15
-            @test Array(csr_device._ActiveSection)[1] == 2
-
-        end
-
-    end
-    
     @testset "CSRTuple" begin
-        csr = CSRTuple(N=3,NBlock=2,NCache=10)
+
+        #Start
+        csr = CSRTuple(2, 3, 10)
         csr._map .= 1:20
         @test csr._N[] == 3
         @test csr._NBlock[] == 2
         @test csr._NCache[] == 10
-        @test length(csr._map) == 20
-        @test all(csr._FlagsSurvived .== false)
+        @test csr._NAdded[] == 0
+        @test csr._addElementOffsets == zeros(Int, 11)
+        @test csr._childs == zeros(Int, 11)
+        @test CellBasedModels.length(csr._map) == 20
+        @test CellBasedModels.CellBasedModels.lengthElements(csr) == 3
+        @test CellBasedModels.CellBasedModels.lengthElementsCache(csr) == 10
+        @test CellBasedModels.CellBasedModels.lengthElementsAdded(csr) == 0
+        @test CellBasedModels.lengthAdded(csr) == 0
         
         # Test iterator returns all elements (no active section filtering)
         results = [i for i in csr]
-        @test length(results) == 20  # 3 blocks * 2 elements each
+        @test length(results) == 6  # 3 blocks * 2 elements each
         
         # Check all blocks iterate through all elements
         @test results[1] == (1, 1)
@@ -281,280 +226,183 @@ end
         @test results[6] == (3, 6)
         
         # Test with larger block size
-        csr2 = CSRTuple(N=2,NBlock=5,NCache=10)
+        csr2 = CSRTuple(5, 2, 10)
         csr2._map[1:10] .= 1:10
         
         results2 = [f for f in csr2]
-        @test length(results2) == 50  # 2 blocks * 5 elements each
+        @test length(results2) == 10  # 2 blocks * 5 elements each
         @test results2[1] == (1, 1)
         @test results2[5] == (1, 5)
         @test results2[6] == (2, 6)
         @test results2[10] == (2, 10)
 
+        # Test matrix constructor
+        mat = reshape(1:12, 4, 3)
+        csrMat = CSRTuple(mat, additionalCache=5)
+        @test csrMat._N[] == 4
+        @test csrMat._NBlock[] == 3
+        @test csrMat._NCache[] == 9
+        @test csrMat._map[1:12] == collect(1:12)
+
+        # Test nested vectors constructor
+        nestedVec = [[1,2], [3,4], [5,6]]
+        csrNested = CSRTuple(nestedVec, additionalCache=4)
+        @test csrNested._N[] == 3
+        @test csrNested._NBlock[] == 2
+        @test csrNested._NCache[] == 7
+        @test csrNested._map[1:6] == collect(1:6)
+        
+        nestedVec2 = [[10,20,30], [40,50], [60,70,80,90]]
+        @test_throws AssertionError CSRTuple(nestedVec2, additionalCache=5)
+
         # Test operators
         for device in devices
-            # addElement! 1
-            csr = CSRTuple(N=2, NBlock=3, NCache=3)
-            csr_device = CellBasedModels.toDevice(csr, device)
-            kernel_addElement1!(csr_device)
-            @test Array(csr_device._NAdded)[1] == 1
-            kernel_addElement1!(csr_device)
-            @test Array(csr_device._NAdded)[1] == 2
-            @test Array(csr_device._NOverflow)[1] == 1
-            CellBasedModels.preallocateOverflow!(csr_device)
-            @test Array(csr_device._NCache)[1] == 4
-            @test Array(csr_device._NOverflow)[1] == 0
-            @test Array(csr_device._NOverflowBlock)[1] == 0
 
-            # addElement! N
-            csr = CSRTuple(N=2, NBlock=3, NCache=5)
+            # addElement!
+            csr = CSRTuple(3, 2, 5)
             csr_device = CellBasedModels.toDevice(csr, device)
-            kernel_addElementN!(csr_device, 2)
-            @test Array(csr_device._NAdded)[1] == 2
-            kernel_addElementN!(csr_device, 5)
-            @test Array(csr_device._NAdded)[1] == 7
-            @test Array(csr_device._NOverflow)[1] == 4
-            CellBasedModels.preallocateOverflow!(csr_device)
-            @test Array(csr_device._NCache)[1] == 9
-            @test Array(csr_device._NOverflow)[1] == 0
-            @test Array(csr_device._NOverflowBlock)[1] == 0
 
-            # addElement! tuple
-            csr = CSRTuple(N=2, NBlock=3, NCache=5)
+            kernel_csrtuple_memclaim_addElement(csr_device, 4)
+            @test Array(csr_device._NAdded)[1] == 4
+            @test Array(csr_device._childs)[1] == 0
+
+            preallocate!(csr_device)
+
+            kernel_csrtuple_allocate_addElement(csr_device, 4)
+            @test Array(csr_device._NCache)[1] == 6
+            @test Array(csr_device._NAdded)[1] == 4
+            @test Array(csr_device._childs)[1] == 4
+            @test Array(csr_device._addElementOffsets)[1] == 0
+
+            remap!(csr_device)
+
+            kernel_csrtuple_execute_addElement(csr_device, 4)
+            @test Array(csr_device._NAdded)[1] == 4
+            @test Array(csr_device._map)[7:9] == [3,0,0]
+
+            reset!(csr_device)
+
+            @test Array(csr_device._NAdded)[1] == 0
+            @test Array(csr_device._childs)[1] == 0
+            @test Array(csr_device._addElementOffsets)[1] == 0
+
+            # addElement!
+            csr = CSRTuple(3, 2, 5)
             csr_device = CellBasedModels.toDevice(csr, device)
-            kernel_addElementTuple!(csr_device, (1,2))
-            @test Array(csr_device._NAdded)[1] == 1
-            @test Array(csr_device._map)[7] == 1
-            @test Array(csr_device._map)[8] == 2
-        
-            # replaceIndexFromElement!
-            csr = CSRTuple(N=2, NBlock=3, NCache=5)
+
+            kernel_csrtuple_memclaim_addElement_i(csr_device, 4)
+            @test Array(csr_device._NAdded)[1] == 8
+            @test Array(csr_device._childs)[1] == 0
+
+            preallocate!(csr_device)
+
+            kernel_csrtuple_allocate_addElement_i(csr_device, 4)
+            @test Array(csr_device._NCache)[1] == 10
+            @test Array(csr_device._NAdded)[1] == 8
+            @test Array(csr_device._childs)[1:3] == [0,4,4]
+            @test Array(csr_device._addElementOffsets)[1:3] == [0,0,0]
+
+            remap!(csr_device)
+
+            kernel_csrtuple_execute_addElement_i(csr_device, 4)
+            @test Array(csr_device._NAdded)[1] == 8
+            @test Array(csr_device._childs)[1:3] == [0,4,8]
+            @test Array(csr_device._map)[7:9] == [3,3,3]
+            @test Array(csr_device._map)[19:21] == [7,7,7]
+            
+            reset!(csr_device)
+
+            @test Array(csr_device._NAdded)[1] == 0
+            @test Array(csr_device._childs)[1:3] == [0,0,0]
+            @test Array(csr_device._addElementOffsets)[1:3] == [0,0,0]
+
+            # removeElement!
+            csr = CSRTuple(4, 2, 10)
+            csr._map .= 1:40
             csr_device = CellBasedModels.toDevice(csr, device)
-            kernel_replaceIndexFromElement!(csr_device, 1, 1, 10)
-            @test Array(csr_device._map)[1] == 10
+
+            kernel_csrtuple_memclaim_removeElement(csr_device, 4)
+            @test Array(csr_device._NAdded)[1] == 0
+            @test Array(csr_device._addElementOffsets)[1:3] == [0,0,0] 
+
+            preallocate!(csr_device)
+
+            kernel_csrtuple_allocate_removeElement(csr_device, 4)
+            @test Array(csr_device._NAdded)[1] == -1
+            @test Array(csr_device._addElementOffsets)[1:3] == [0,-1,0] 
+
+            remap!(csr_device)
+
+            kernel_csrtuple_execute_removeElement(csr_device, 4)
+            @test Array(csr_device._NAdded)[1] == -1
+            @test Array(csr_device._map)[1:4] == [5,6,7,8]
 
         end
 
     end
-    
-    @testset "CSRSlack" begin
-        # Test with variable-sized blocks
-        csr = CSRSlack(dtype=Int, N=3, sizes=[5, 10, 7])
-        csr._map .= 1:22
-        csr._ActiveSection[1] = 3
-        csr._ActiveSection[2] = 8
-        csr._ActiveSection[3] = 5
-        
-        @test csr._N[] == 3
-        @test length(csr._map) == 22
-        
-        # Test iterator returns (blockId, map_value) for active elements
+
+    @testset "CSRCache" begin
+
+        #Constructor
+        csr = CSRCache(30, 3; dtype=Int)
+        @test CellBasedModels.lengthElements(csr) == 0
+        @test CellBasedModels.lengthElementsCache(csr) == 3
+        @test CellBasedModels.fullLength(csr) == 30
+
+        csr = CSRCache([1,4,3]; additionalNCache=2, additionalL=5, dtype=Int)
+        @test CellBasedModels.lengthElements(csr) == 3
+        @test CellBasedModels.lengthElementsCache(csr) == 5
+        @test CellBasedModels.fullLength(csr) == 13
+        @test csr._elementOffsets == [1,2,6,9,0,0]
+
+        csr = CSRCache([[1,2,3], [4,5], [6]]; additionalNCache=2, additionalL=3)
+        @test CellBasedModels.lengthElements(csr) == 3
+        @test CellBasedModels.lengthElementsCache(csr) == 5
+        @test CellBasedModels.fullLength(csr) == 9
+        @test csr._elementOffsets == [1,4,6,7,0,0]
+
+        #Iterators
+        csr = CSRCache([[1,2,3], [4,5], [6]]; additionalNCache=2, additionalL=3)
+        csr._map[1:6] .= 1:6
+
         results = [i for i in csr]
-        @test length(results) == 22
-        
-        # Check first block (starts at position 1, has 3 active)
-        @test results[1] == (1, 1)
-        @test results[2] == (1, 2)
-        @test results[3] == (1, 3)
-        
-        # Check second block (starts at position 6, has 8 active)
-        @test results[4] == (2, 6)
-        @test results[5] == (2, 7)
-        @test results[11] == (2, 13)
-        
-        # Check third block (starts at position 16, has 5 active)
-        @test results[12] == (3, 16)
-        @test results[13] == (3, 17)
-        @test results[16] == (3, 20)
-        
-        # Test with different active sections
-        csr2 = CSRSlack(dtype=Int, N=4, sizes=[3, 2, 6, 4])
-        csr2._map .= 1:15
-        csr2._ActiveSection[1] = 2
-        csr2._ActiveSection[2] = 2
-        csr2._ActiveSection[3] = 4
-        csr2._ActiveSection[4] = 3
-        
-        results2 = [i for i in csr2]
-        @test length(results2) == 15
-        @test results2[1] == (1, 1)   # block 1, position 1
-        @test results2[2] == (1, 2)   # block 1, position 2
-        @test results2[3] == (2, 4)   # block 2, position 1 (starts at 4)
-        @test results2[4] == (2, 5)   # block 2, position 2
-        @test results2[5] == (3, 6)   # block 3, position 1 (starts at 6)
-        @test results2[8] == (3, 9)   # block 3, position 4
-        @test results2[9] == (4, 12)  # block 4, position 1 (starts at 12)
-        @test results2[11] == (4, 14) # block 4, position 3
-                
-        # Test with empty blocks (0 active)
-        csr3 = CSRSlack(dtype=Int, N=3, sizes=[4, 4, 4])
-        csr3._map .= 1:12
-        csr3._ActiveSection[1] = 2
-        csr3._ActiveSection[2] = 0  # Empty block
-        csr3._ActiveSection[3] = 3
-        
-        results3 = [i for i in csr3]
-        @test length(results3) == 12
-        @test results3[1] == (1, 1)
-        @test results3[2] == (1, 2)
-        @test results3[3] == (3, 9)   # skips block 2, starts at block 3 position 9
-        @test results3[4] == (3, 10)
-        @test results3[5] == (3, 11)
-        
-        # Test with NCache at the end
-        csr4 = CSRSlack(dtype=Int, N=3, sizes=[5, 10, 7], NCache=3)
-        @test length(csr4._map) == 25  # 5 + 10 + 7 + 3
-        
-        csr4._map .= 1:25
-        csr4._ActiveSection[1] = 5
-        csr4._ActiveSection[2] = 10
-        csr4._ActiveSection[3] = 7
-        
-        results4 = [i for i in csr4]
-        @test length(results4) == 25  # Only active elements, not the cache
-        @test results4[1] == (1, 1)
-        @test results4[5] == (1, 5)
-        @test results4[6] == (2, 6)
-        @test results4[15] == (2, 15)
-        @test results4[16] == (3, 16)
-        @test results4[22] == (3, 22)
-        # Elements 23-25 are cache and not iterated over
+        @test length(results) == 6
+        @test results == [(1, 1), (1, 2), (1, 3), (2, 4), (2, 5), (3, 6)]
+
+        # Test operators
+        for device in devices
+
+            # addElement!
+            csr = CSRCache([2, 3]; additionalNCache=5, additionalL=10, dtype=Int)
+            csr_device = CellBasedModels.toDevice(csr, device)
+
+            kernel_csrtuple_memclaim_addElement(csr_device, 4)
+            @test Array(csr_device._NAdded)[1] == 1
+            @test Array(csr_device._lAdded)[1] == 4
+            @test Array(csr_device._addElementOffsets)[1] == 0
+            @test Array(csr_device._childs)[1] == 0
+
+            # preallocate!(csr_device)
+
+            # kernel_csrtuple_allocate_addElement(csr_device, 4)
+            # @test Array(csr_device._NCache)[1] == 8
+            # @test Array(csr_device._NAdded)[1] == 4
+            # @test Array(csr_device._childs)[1] == 4
+            # @test Array(csr_device._addElementOffsets)[1] == 0
+
+            # remap!(csr_device)
+
+            # kernel_csrtuple_execute_addElement(csr_device, 4)
+            # @test Array(csr_device._NAdded)[1] == 4
+            # @test Array(csr_device._map)[7:10] == [0,0,0,0]
+
+            # reset!(csr_device)
+
+            # @test Array(csr_device._NAdded)[1] == 0
+            # @test Array(csr_device._childs)[1] == 0
+            # @test Array(csr_device._addElementOffsets)[1] == 0
+
+        end
     end
-    
-    # @testset "CSRCache" begin
-    #     # Test with variable-sized blocks, no active section tracking
-    #     csr = CSRCache(dtype=Int, N=3, sizes=[5, 10, 7])
-    #     csr._map .= 1:22
-        
-    #     @test csr._N[] == 3
-    #     @test length(csr._map) == 22
-    #     @test csr._ActiveSection === nothing
-        
-    #     # Test iterator returns all elements (no active section filtering)
-    #     results = [i for i in csr]
-    #     @test length(results) == 22  # All elements
-        
-    #     # Check first block (all 5 elements)
-    #     @test results[1] == (1, 1)
-    #     @test results[2] == (1, 2)
-    #     @test results[5] == (1, 5)
-        
-    #     # Check second block (all 10 elements)
-    #     @test results[6] == (2, 6)
-    #     @test results[7] == (2, 7)
-    #     @test results[15] == (2, 15)
-        
-    #     # Check third block (all 7 elements)
-    #     @test results[16] == (3, 16)
-    #     @test results[17] == (3, 17)
-    #     @test results[22] == (3, 22)
-        
-    #     # Test with different sizes
-    #     csr2 = CSRCache(dtype=Int, N=4, sizes=[3, 2, 6, 4])
-    #     csr2._map .= 1:15
-        
-    #     results2 = [i for i in csr2]
-    #     @test length(results2) == 15  # All elements
-    #     @test results2[1] == (1, 1)
-    #     @test results2[3] == (1, 3)
-    #     @test results2[4] == (2, 4)   # block 2, position 1 (starts at 4)
-    #     @test results2[5] == (2, 5)   # block 2, position 2
-    #     @test results2[6] == (3, 6)   # block 3, position 1 (starts at 6)
-    #     @test results2[11] == (3, 11) # block 3, position 6
-    #     @test results2[12] == (4, 12) # block 4, position 1 (starts at 12)
-    #     @test results2[15] == (4, 15) # block 4, position 4
-                        
-    #     # Test with uniform sizes
-    #     csr3 = CSRCache(dtype=Int, N=3, sizes=[4, 4, 4])
-    #     csr3._map .= 1:12
-        
-    #     results3 = [i for i in csr3]
-    #     @test length(results3) == 12
-    #     @test results3[1] == (1, 1)
-    #     @test results3[4] == (1, 4)
-    #     @test results3[5] == (2, 5)
-    #     @test results3[8] == (2, 8)
-    #     @test results3[9] == (3, 9)
-    #     @test results3[12] == (3, 12)
-    # end
-
-    # @testset "Topology Creation" begin
-        
-    #     mesh = UnstructuredMesh(
-    #             3,
-    #             n = Node(),
-    #             e = Edge(:n),
-    #             a = Agent(:e),
-    #         )
-
-    #     @addODE model = mesh function f(du, u, p, t)
-    #         @kernel_launch ndrange=u.n function step(du, u, p, t)
-    #             n = CellBasedModels.@index(Global)
-    #             for ns in loopOverTopology(model, :n, :e, n)
-    #                 # n1, n2 = ns
-    #                 # if u.e.length[e] > 1.0 # Edge division
-    #                 #     #Explicit relations divideEdge!(model, e)
-    #                 #     a = model.topology.e.a[1]
-    #                 #     remove!(model.topology.e, e)
-
-    #                 #     #Add elements
-    #                 #     n = addElement!(model.n)
-    #                 #     e1 = addElement!(model.e)
-    #                 #     e2 = addElement!(model.e)
-
-    #                 #     #Add topological relations
-    #                 #     n = addElement!(model.topology.n)
-    #                 #     e1 = addElement!(model.topology.e.n, (n1, n))
-    #                 #     e2 = addElement!(model.topology.e.n, (n, n2))
-    #                 #     replace!(model.topology.a.e, e, (e1, e2))
-
-    #                 #     n, e1, e2
-
-    #                 #     #if e->a exists 
-    #                 #     replace!(model.topology.e.a, e1, a)
-    #                 #     replace!(model.topology.e.a, e2, a)
-    #                 #     replace!(model.topology.n.a, a, e)
-
-    #                 #     #if n->a exists
-    #                 #     replace!(model.topology.n.a, n, a)
-
-    #                 #     #if a->n exists
-    #                 #     push!(model.topology.a.n, a, n)
-    #                 # end
-    #             end
-
-    #             for (n, a) in loopOverTopology(model, :a, :n, n)
-    #                 # du.n.value[n] = length(du.a.e[a])
-    #             end
-
-    #         end
-    #     end
-
-    #     e_n = CSRTuple([
-    #             [1,2],
-    #             [2,3],
-    #             [3,4],
-    #             [4,5]
-    #         ])
-    #     a_e = CSRSlack([
-    #             [1,2,3,4]
-    #         ])
-
-    #     obj = UnstructuredMeshObject(
-    #         mesh;
-    #         n = 5,
-    #         e = e_n,
-    #         a = a_e,
-    #     )        
-
-    #     println(obj._topology)
-    #     println(CellBasedModels.checkTopologyConsistency(obj._topology))
-    #     println("a.e\n", [i for i in obj._topology._relations.a.e])
-    #     println("e.n\n", [i for i in obj._topology._relations.e.n])
-    #     println("n.e\n", [i for i in obj._topology._relations.n.e])
-    #     println("a.n\n", [i for i in obj._topology._relations.a.n])
-
-
-    # end
 
 end

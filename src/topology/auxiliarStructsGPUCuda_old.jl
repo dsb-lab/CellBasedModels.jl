@@ -42,7 +42,7 @@ end
 toDevice(field::CSRTuple{P, NBlock}, ::Type{CUDA.CUDABackend}) where {P<:GPUCuda, NBlock} = field
 
 # CSRSlack to CUDA
-function toDevice(field::CSRSlack{P, PR, AI, VI, VI2, VB}, ::Type{CUDA.CUDABackend}) where {P<:CPU, PR, AI, VI, VI2, VB}
+function toDevice(field::CSRSlack{P, PR, AI, AF, VI, VI2, VB}, ::Type{CUDA.CUDABackend}) where {P<:CPU, PR, AI, AF, VI, VI2, VB}
     CSRSlack(
         CUDA.CuArray(field._map),
         CUDA.CuArray(field._N),

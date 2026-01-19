@@ -309,25 +309,24 @@ function checkBounds(field::CSRBlock, pos::Int, nPos::Int, nActive::Int, nBlock:
     return newPos
 end
 
-function addElement!(field::CSRBlock; nActive::Int=0, nCache::Int=0)
+function addElement!(field::CSRBlock; elementSize::Int=1)
     nAdd = @atomic field._NAdded[1] += 1
     pos = field._N[1] + nAdd
-    pos = checkBounds(field, pos, 1, nActive, nCache)
+    pos = checkBounds(field, pos, 1, 0, elementSize)
 
     return pos
 end
 
-function addElement!(field::CSRBlock, N::Int; nActive::Int=0, nCache::Int=0)
+function addElement!(field::CSRBlock, N::Int; elementSize::Int=1)
     nAdd = @atomic field._NAdded[1] += N
     pos = field._N[1] + nAdd - N + 1
-    pos = checkBounds(field, pos, field._NCache[1], nActive, nCache)
-
+    pos = checkBounds(field, pos, field._NCache[1], 0, elementSize)
     return pos
 end
 
-@generated function addElement!(field::CSRBlock, value::NTuple{N, T}; nCache::Int=0) where {N, T}
+@generated function addElement!(field::CSRBlock, value::NTuple{N, T}) where {N, T}
     quote
-        pos = addElement!(field; nCache=nCache)
+        pos = addElement!(field; elementSize=$N)
         if pos != 0
             field._ActiveSection[pos] = $N
             for i in 1:$N
@@ -633,52 +632,44 @@ function preallocateOverflow!(field::CSRTuple{P, NBlock}; NAdditionalCache::Int=
     field._NOverflowBlock .= 0
 end
 
-function checkBounds(field::CSRTuple{P, NBlock}, pos::Int, nPos::Int, nCache::Int) where {P, NBlock}
+function checkBounds(field::CSRTuple{P, NBlock}, pos::Int, nPos::Int) where {P, NBlock}
     newPos = pos
     if pos + nPos - 1 > field._NCache[1]
         @atomic field._NOverflow[1] += max(field._NOverflow[1], pos + nPos - 1 - field._NCache[1]) - field._NOverflow[1]
-        newPos = 0
-    end
-    if nCache > NBlock
-        @atomic field._NOverflowBlock[1] += 1
         newPos = 0
     end
 
     return newPos
 end
 
-function addElement!(field::CSRTuple{P, NBlock}; nCache::Int=0) where {P, NBlock}
+function addElement!(field::CSRTuple{P, NBlock}) where {P, NBlock}
     nAdd = @atomic field._NAdded[1] += 1
     pos = field._N[1] + nAdd
-    pos = checkBounds(field, pos, 1, nCache)
+    pos = checkBounds(field, pos, 1)
 
     return pos
 end
 
-function addElement!(field::CSRTuple{P, NBlock}, N::Int; nCache::Int=0) where {P, NBlock}
+function addElement!(field::CSRTuple{P, NBlock}, N::Int) where {P, NBlock}
     nAdd = @atomic field._NAdded[1] += N
     pos = field._N[1] + nAdd - N + 1
-    pos = checkBounds(field, pos, field._NCache[1], nCache)
+    pos = checkBounds(field, pos, field._NCache[1])
 
     return pos
 end
 
-@generated function addElement!(field::CSRTuple{P, NBlock}, value::NTuple{N, T}; nCache::Int=0) where {P, NBlock, N, T}
+@generated function addElement!(field::CSRTuple{P, N}, value::NTuple{N, T}) where {P, N, T}
     quote
-        pos = addElement!(field; nCache=nCache)
+        pos = addElement!(field)
         if pos != 0
             for i in 1:$N
-                linear_idx = (pos - 1) * $NBlock + i
+                linear_idx = (pos - 1) * $N + i
                 field._map[linear_idx] = value[i]
             end
         end
 
         return pos
     end
-end
-
-function pushToElement!(field::CSRTuple{P, NBlock}, ePos::Int, value::Int) where {P, NBlock}
-    @print "Cannot push to CSRTuple at element $ePos: fixed block size ($NBlock)."
 end
 
 function replaceIndexFromElement!(field::CSRTuple{P, NBlock}, ePos::Int, bPos::Int, value::Int) where {P, NBlock}
@@ -688,14 +679,6 @@ function replaceIndexFromElement!(field::CSRTuple{P, NBlock}, ePos::Int, bPos::I
         pos = getIndex(field, ePos, bPos)
         field._map[pos] = value
     end
-end
-
-function insertIndexAtElement!(field::CSRTuple{P, NBlock}, ePos::Int, bPos::Int, value::Int) where {P, NBlock}
-    @print "Cannot insert into CSRTuple at element $ePos, index $bPos: fixed block size ($NBlock)."
-end
-
-function removeIndexFromElement!(field::CSRTuple{P, NBlock}, ePos::Int, bPos::Int) where {P, NBlock}
-    @print "Cannot remove from CSRTuple at element $ePos, index $bPos: fixed block size ($NBlock)."
 end
 
 ######################################################################################################
@@ -723,11 +706,14 @@ struct CSRSlack{
 end
 Adapt.@adapt_structure CSRSlack
 
+function estimateCache(N, incProd, incSum)
+    return ceil(Int, N * incProd + incSum)
+end
+
 function CSRSlack(;
     dtype::DataType=Int,
-    N::Int=0,
     sizes::Vector{Int}=Int[],
-    NCache::Int=0,
+    NAddCache::Int=0,
     incProd::AbstractFloat=1.1,
     incSum::AbstractFloat=0.0
 )
@@ -742,29 +728,31 @@ function CSRSlack(;
         incProd: Production coefficient for reallocation
         incSum: Sum coefficient for reallocation
     """
-    if isempty(sizes) && N > 0
-        sizes = zeros(Int, N)
-    end
-    
-    @assert length(sizes) == N "Number of sizes must match N"
+
+    @assert NAddCache >= 0 "NAddCache must be >= 0"
+    @assert incProd >= 1.0 "incProd must be >= 1.0"
+    @assert incSum >= 0.0 "incSum must be >= 0.0"
     
     # Calculate total cache needed
-    totalCache = sum(sizes) + N * NCache
-    _map = zeros(dtype, totalCache)
+    N = length(sizes)
+    NCache = N + NAddCache
 
     _N = SizedVector{1}(N)
     _NCache = SizedVector{1}(NCache)
 
     # Offsets array: length NCache+1, defines block boundaries
     # Each block i goes from _offsets[i] to _offsets[i+1]-1
-    _offsets = zeros(Int, N + 1)
+    _offsets = zeros(Int, NCache + 1)
     _offsets[1] = 1
     for i in 1:N
-        _offsets[i+1] = _offsets[i] + sizes[i] + NCache
+        _offsets[i+1] = _offsets[i] + estimateCache(sizes[i], incProd, incSum)
     end
 
-    _ActiveSection = zeros(Int, N)
-    _FlagsSurvived = zeros(Bool, totalCache)
+    _map = zeros(dtype, _offsets[end] - 1)
+
+    _ActiveSection = zeros(Int, NCache)
+    _ActiveSection[1:N] .= sizes
+    _FlagsSurvived = zeros(Bool, NCache)
 
     _incProd = SizedVector{1}(incProd)
     _incSum = SizedVector{1}(incSum)
@@ -782,7 +770,7 @@ function CSRSlack(;
     VB = typeof(_FlagsSurvived)
 
     CSRSlack{
-            P, PR, AI, VI, VI2, VB
+            P, PR, AI, AF, VI, VI2, VB
         }(
             _map,
             _N,
@@ -837,7 +825,7 @@ function CSRSlack(
         )
 end
 
-function CSRSlack(data::AbstractVector{<:AbstractVector}; NCache::Int=0, incProd::AbstractFloat=1.1, incSum::AbstractFloat=0.0)
+function CSRSlack(data::AbstractVector{<:AbstractVector}; NAddCache::Int=0, incProd::AbstractFloat=1.1, incSum::AbstractFloat=0.0)
     """
     Create a CSRSlack from an array of arrays.
     Each subarray can have a different length.
@@ -852,14 +840,8 @@ function CSRSlack(data::AbstractVector{<:AbstractVector}; NCache::Int=0, incProd
         CSRSlack containing all the data
     """
     N = length(data)
-    
-    if N == 0
-        error("Cannot create CSRSlack from empty data")
-    end
 
-    if NCache < 0
-        error("NCache must be >= 0")
-    end
+    @assert NAddCache >= 0 "NAddCache must be >= 0"
     
     # Get sizes of each subarray
     sizes = [length(arr) for arr in data]
@@ -878,15 +860,11 @@ function CSRSlack(data::AbstractVector{<:AbstractVector}; NCache::Int=0, incProd
     end
     
     # Create CSRSlack with appropriate sizes and cache per block
-    csr = CSRSlack(dtype=dtype, N=N, sizes=sizes, NCache=NCache, incProd=incProd, incSum=incSum)
+    csr = CSRSlack(dtype=dtype, sizes=sizes, NAddCache=NAddCache, incProd=incProd, incSum=incSum)
     
     # Fill the data
-    for (blockId, arr) in enumerate(data)
-        start_idx = csr._offsets[blockId]
-        csr._ActiveSection[blockId] = length(arr)
-        for (elementId, value) in enumerate(arr)
-            csr._map[start_idx + elementId - 1] = value
-        end
+    for (i, j) in csr
+        setIndex!(csr, i, j, data[i][j])
     end
     
     return csr
@@ -916,7 +894,11 @@ Base.size(field::CSRSlack) = size(field._map)
 Base.eltype(::CSRSlack{P, DT}) where {P, DT} = DT
 Base.eltype(::Type{<:CSRSlack{P, DT}}) where {P, DT} = DT
 
-Base.getindex(field::CSRSlack, i::Int) = field._map[i]
+getIndex(field::CSRSlack, i::Int, j::Int) = field._offsets[i] + j - 1
+function setIndex!(field::CSRSlack, i::Int, j::Int, value)
+    pos = getIndex(field, i, j)
+    field._map[pos] = value
+end
 
 function preallocate!(field::CSRSlack{P}, NAddBlocks::Int=1) where {P}
     """
@@ -1040,36 +1022,71 @@ function iterateOverBlock(field::CSRSlack, blockId::Int)
     return start_pos:(start_pos + active - 1)
 end
 
-function pushToElement!(field::CSRSlack, ePos::Int, value::Int)
+# Bounds check for CSRSlack
+function checkBounds(field::CSRSlack, pos::Int, nActive::Int=0)
+    newPos = pos
+
+    # Check block capacity
+    if pos > field._NCache[1]
+        @atomic field._NOverflowBlock[1] += max(field._NOverflowBlock[1], pos - field._NCache[1]) - field._NOverflowBlock[1]
+        newPos = 0
+    elseif pos <= length(field._offsets)-1
+        blockSize = field._offsets[pos+1] - field._offsets[pos]
+        if nActive > blockSize
+            @atomic field._NOverflowBlock[1] += max(field._NOverflowBlock[1], nActive - blockSize) - field._NOverflowBlock[1]
+            newPos = 0
+        end
+    end
+
+    return newPos
+end
+
+function addElement!(field::CSRSlack; elementSize::Int=1)
+    nAdd = @atomic field._NAdded[1] += 1
+
+    pos = field._N[1] + nAdd
+    pos = checkBounds(field, pos, elementSize)
+
+    return pos
+end
+
+function addElement!(field::CSRSlack, n::Int; elementSize::Int=1)
+    nAdd = @atomic field._NAdded[1] += n
+    pos = field._N[1] + nAdd - n + 1
+    pos = checkBounds(field, pos, elementSize)
+
+    return pos
+end
+
+function pushToElement!(field::CSRSlack, ePos::Int, value)
     nAdd = @atomic field._ActiveSection[ePos] += 1
-    nBlock = field._offsets[ePos+1] - field._offsets[ePos]
-    if nAdd > nBlock
+    blockSize = field._offsets[ePos+1] - field._offsets[ePos]
+    if nAdd > blockSize
         @atomic field._NOverflowBlock[1] += 1
     else
-        pos = field._offsets[ePos] + nAdd - 1
+        pos = getIndex(field, ePos, nAdd)
         field._map[pos] = value
     end
 end
 
-function replaceIndexFromElement!(field::CSRSlack, ePos::Int, bPos::Int, value::Int)
+function replaceIndexFromElement!(field::CSRSlack, ePos::Int, bPos::Int, value)
     nActive = field._ActiveSection[ePos]
-    nBlock = field._offsets[ePos+1] - field._offsets[ePos]
     if bPos > nActive
         @print "Cannot replace at index $bPos in element $ePos: only $nActive elements present."
     else
-        pos = field._offsets[ePos] + bPos - 1
+        pos = getIndex(field, ePos, bPos)
         field._map[pos] = value
     end
 end
 
-function insertIndexAtElement!(field::CSRSlack, ePos::Int, bPos::Int, value::Int)
+function insertIndexAtElement!(field::CSRSlack, ePos::Int, bPos::Int, value)
     nAdd = @atomic field._ActiveSection[ePos] += 1
-    nBlock = field._offsets[ePos+1] - field._offsets[ePos]
-    if nAdd > nBlock
+    blockSize = field._offsets[ePos+1] - field._offsets[ePos]
+    if nAdd > blockSize
         @atomic field._NOverflowBlock[1] += 1
     else
-        posNew = field._offsets[ePos] + nAdd - 1
-        posInsert = field._offsets[ePos] + bPos - 1
+        posInsert = getIndex(field, ePos, bPos)
+        posNew = getIndex(field, ePos, nAdd)
         # Shift elements backward to make space
         for i in posNew:-1:posInsert+1
             field._map[i] = field._map[i - 1]
@@ -1083,8 +1100,8 @@ function removeIndexFromElement!(field::CSRSlack, ePos::Int, bPos::Int)
     if bPos > nCurrent
         @print "Cannot remove at index $bPos in element $ePos: only $nCurrent elements present."
     else
-        posRemove = field._offsets[ePos] + bPos - 1
-        posLast = field._offsets[ePos] + nCurrent - 1
+        posRemove = getIndex(field, ePos, bPos)
+        posLast = getIndex(field, ePos, nCurrent)
         # Shift elements forward to fill the gap
         for i in posRemove:posLast-1
             field._map[i] = field._map[i + 1]

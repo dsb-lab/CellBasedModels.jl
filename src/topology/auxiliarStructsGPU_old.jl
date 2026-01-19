@@ -48,7 +48,7 @@ end
 toDevice(field::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:CPU, NBlock} = field
 
 # CSRSlack to CPU
-function toDevice(field::CSRSlack{P, PR, AI, VI, VI2, VB}, ::Type{CPU}) where {P<:GPU, PR, AI, VI, VI2, VB}
+function toDevice(field::CSRSlack{P, PR, AI, AF, VI, VI2, VB}, ::Type{CPU}) where {P<:GPU, PR, AI, AF, VI, VI2, VB}
     CSRSlack(
         Adapt.adapt(Array, field._map),
         SizedVector{1}(Array(field._N)[1]),

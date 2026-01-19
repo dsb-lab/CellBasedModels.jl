@@ -57,9 +57,12 @@ module CellBasedModels
     include("./neighbors/abstractTypes.jl")
 
     #Topology
-    export CSRBlock, CSRTuple, CSRSlack, CSRCache
-    include("./topology/auxiliarStructs.jl")
-    include("./topology/auxiliarStructsGPU.jl")
+    export preallocate!, remap!, reset!, setElement!
+    include("./topology/abstractCSR.jl")
+    export CSRTuple
+    include("./topology/CSRTuple.jl")
+    export CSRCache
+    include("./topology/CSRCache.jl")
     export Topology
     include("./topology/topology.jl")
 
