@@ -285,7 +285,7 @@ function reset!(field::CSRCache{P, NBlock}) where {P, NBlock}
     return
 end
 
-Base.@propagate_inbounds function memclaim_addElement!(field::CSRCache{P}; l::Int) where {P}
+Base.@propagate_inbounds function memclaim_addElement!(field::CSRCache{P}, l::Int) where {P}
 
     @atomic field._lAdded[1] += l
     @atomic field._NAdded[1] += 1
@@ -293,33 +293,33 @@ Base.@propagate_inbounds function memclaim_addElement!(field::CSRCache{P}; l::In
     return
 end
 
-Base.@propagate_inbounds function memclaim_addElement!(field::CSRCache{P}, i::Int; l::Int) where {P}
+# Base.@propagate_inbounds function memclaim_addElement!(field::CSRCache{P}, i::Int; l::Int) where {P}
 
-    @atomic field._lAdded[1] += l
-    @atomic field._NAdded[1] += 1
+#     @atomic field._lAdded[1] += l
+#     @atomic field._NAdded[1] += 1
 
-    return
-end
+#     return
+# end
 
-Base.@propagate_inbounds function memclaim_addElement!(field::CSRCache{P}; l::NTuple{N,Int}) where {P, N}
+# Base.@propagate_inbounds function memclaim_addElement!(field::CSRCache{P}; l::NTuple{N,Int}) where {P, N}
 
-    s = sum(l)
-    @atomic field._lAdded[1] += s
-    @atomic field._NAdded[1] += N
+#     s = sum(l)
+#     @atomic field._lAdded[1] += s
+#     @atomic field._NAdded[1] += N
 
-    return
-end
+#     return
+# end
 
-Base.@propagate_inbounds function memclaim_addElement!(field::CSRCache{P}, i::Int; l::NTuple{N,Int}) where {P, N}
+# Base.@propagate_inbounds function memclaim_addElement!(field::CSRCache{P}, i::Int; l::NTuple{N,Int}) where {P, N}
 
-    s = sum(l)
-    @atomic field._lAdded[1] += s
-    @atomic field._NAdded[1] += N
+#     s = sum(l)
+#     @atomic field._lAdded[1] += s
+#     @atomic field._NAdded[1] += N
 
-    return
-end
+#     return
+# end
 
-Base.@propagate_inbounds function allocate_addElement!(field::CSRCache{P}; l::Int) where {P}
+Base.@propagate_inbounds function allocate_addElement!(field::CSRCache{P}, l::Int) where {P}
 
     @atomic field._childs[1] += 1
     @atomic field._addOffsets[1] += l
@@ -327,85 +327,85 @@ Base.@propagate_inbounds function allocate_addElement!(field::CSRCache{P}; l::In
     return
 end
 
-Base.@propagate_inbounds function allocate_addElement!(field::CSRCache{P}, i::Int; l::Int) where {P}
+# Base.@propagate_inbounds function allocate_addElement!(field::CSRCache{P}, i::Int; l::Int) where {P}
 
-    @atomic field._childs[i+1] += 1
-    @atomic field._addOffsets[i+1] += l
+#     @atomic field._childs[i+1] += 1
+#     @atomic field._addOffsets[i+1] += l
 
-    return
-end
+#     return
+# end
 
-Base.@propagate_inbounds function allocate_addElement!(field::CSRCache{P}; l::NTuple{N,Int}) where {P, N}
+# Base.@propagate_inbounds function allocate_addElement!(field::CSRCache{P}; l::NTuple{N,Int}) where {P, N}
 
-    s = sum(l)
-    @atomic field._childs[1] += N
-    @atomic field._addOffsets[1] += s
+#     s = sum(l)
+#     @atomic field._childs[1] += N
+#     @atomic field._addOffsets[1] += s
 
-    return
-end
+#     return
+# end
 
-Base.@propagate_inbounds function allocate_addElement!(field::CSRCache{P}, i::Int; l::NTuple{N,Int}) where {P, N}
+# Base.@propagate_inbounds function allocate_addElement!(field::CSRCache{P}, i::Int; l::NTuple{N,Int}) where {P, N}
 
-    s = sum(l)
-    @atomic field._childs[i+1] += N
-    @atomic field._addOffsets[i+1] += s
+#     s = sum(l)
+#     @atomic field._childs[i+1] += N
+#     @atomic field._addOffsets[i+1] += s
 
-    return
-end
+#     return
+# end
 
-Base.@propagate_inbounds function execute_addElement!(field::CSRCache{P}; l::Int) where {P}
+# Base.@propagate_inbounds function execute_addElement!(field::CSRCache{P}; l::Int) where {P}
 
-    if field._childs[1] > 0
-        field._elementOffsets[lengthElements(field)+2] += l
-        return field._N[1] + 1
-    else
-        return 0
-    end
+#     if field._childs[1] > 0
+#         field._elementOffsets[lengthElements(field)+2] += l
+#         return field._N[1] + 1
+#     else
+#         return 0
+#     end
 
-end
+# end
 
-Base.@propagate_inbounds function execute_addElement!(field::CSRCache{P}; l::NTuple{N,Int}) where {P, N}
+# Base.@propagate_inbounds function execute_addElement!(field::CSRCache{P}; l::NTuple{N,Int}) where {P, N}
 
-    if field._childs[1] > 0
-        for i in 1:N
-            field._elementOffsets[lengthElements(field)+2+i] += l[i]
-        end
-        return field._N[1] + 1
-    else
-        return 0
-    end
+#     if field._childs[1] > 0
+#         for i in 1:N
+#             field._elementOffsets[lengthElements(field)+2+i] += l[i]
+#         end
+#         return field._N[1] + 1
+#     else
+#         return 0
+#     end
 
-end
+# end
 
-Base.@propagate_inbounds function execute_addElement!(field::CSRCache{P}, i::Int; l::Int) where {P}
+# Base.@propagate_inbounds function execute_addElement!(field::CSRCache{P}, i::Int; l::Int) where {P}
 
-    if field._childs[i+1] > field._childs[i]
-        c = field._childs[i]
-        field._elementOffsets[lengthElements(field)+2+c] += l
-        return field._N[1] + field._childs[i] + 1
-    else
-        return 0
-    end
+#     if field._childs[i+1] > field._childs[i]
+#         c = field._childs[i]
+#         field._elementOffsets[lengthElements(field)+2+c] += l
+#         return field._N[1] + field._childs[i] + 1
+#     else
+#         return 0
+#     end
 
-end
+# end
 
-Base.@propagate_inbounds function memclaim_removeElement!(field::CSRCache{P, NBlock}, i::Int) where {P, NBlock}
+# Base.@propagate_inbounds function memclaim_removeElement!(field::CSRCache{P, NBlock}, i::Int) where {P, NBlock}
 
-    return
-end
+#     return
+# end
 
-Base.@propagate_inbounds function allocate_removeElement!(field::CSRCache{P, NBlock}, i::Int) where {P, NBlock}
+# Base.@propagate_inbounds function allocate_removeElement!(field::CSRCache{P, NBlock}, i::Int) where {P, NBlock}
 
-    @atomic field._NAdded[1] -= 1
-    @atomic field._addOffsets[i+1] -= 1
+#     @atomic field._NAdded[1] -= 1
+#     @atomic field._addOffsets[i+1] -= 1
 
-    return
-end
+#     return
+# end
 
-Base.@propagate_inbounds function execute_removeElement!(field::CSRCache{P, NBlock}, i::Int) where {P, NBlock}
+# Base.@propagate_inbounds function execute_removeElement!(field::CSRCache{P, NBlock}, i::Int) where {P, NBlock}
 
-    return
-end
+#     return
+# end
 
 function KernelAbstractions.get_backend(field::CSRCache)
     KernelAbstractions.get_backend(field._map)
@@ -416,39 +416,43 @@ end
 ######################################################################################################
 
 # CSRCache to CPU
-function toDevice(field::CSRCache{P, NBlock}, ::Type{CPU}) where {P<:GPU, NBlock}
+function toDevice(field::CSRCache{P}, ::Type{CPU}) where {P<:GPU}
     CSRCache(
-        _NBlock,
         Adapt.adapt(Array, field._map),
+        Adapt.adapt(Array, field._elementOffsets),
         SizedVector{1}(Array(field._N)[1]),
         SizedVector{1}(Array(field._NCache)[1]),
         SizedVector{1}(Array(field._NAdded)[1]),
-        Adapt.adapt(field._addOffsets),
-        Adapt.adapt(field._childs),
+        SizedVector{1}(Array(field._lAdded)[1]),
+        Adapt.adapt(Array, field._addOffsets),
+        Adapt.adapt(Array, field._addElementOffsets),
+        Adapt.adapt(Array, field._childs),
     )
 end
-function toDevice(field::CSRCache{P, NBlock}, device::CPU) where {P<:CPU, NBlock}
+function toDevice(field::CSRCache{P}, device::CPU) where {P<:CPU}
     toDevice(field, typeof(device))
 end
 
-toDevice(field::CSRCache{P, NBlock}, ::Type{CPU}) where {P<:CPU, NBlock} = field
-toDevice(field::CSRCache{P, NBlock}, ::CPU) where {P<:GPU, NBlock} = toDevice(field, CPU)
+toDevice(field::CSRCache{P}, ::Type{CPU}) where {P<:CPU} = field
+toDevice(field::CSRCache{P}, ::CPU) where {P<:GPU} = toDevice(field, CPU)
 
-function toDevice(field::CSRCache{P,NBlock}, backend::Type{<:KernelAbstractions.GPU}) where {P<:CPU, NBlock}
+function toDevice(field::CSRCache{P}, backend::Type{<:KernelAbstractions.GPU}) where {P<:CPU}
     CSRCache(
-        field._NBlock,
         Adapt.adapt(backend, field._map),
+        Adapt.adapt(backend, field._elementOffsets),
         Adapt.adapt(backend, field._N),
         Adapt.adapt(backend, field._NCache),
         Adapt.adapt(backend, field._NAdded),
+        Adapt.adapt(backend, field._lAdded),
         Adapt.adapt(backend, field._addOffsets),
+        Adapt.adapt(backend, field._addElementOffsets),
         Adapt.adapt(backend, field._childs),
     )
 end
 
-function toDevice(field::CSRCache{P,NBlock}, backend::KernelAbstractions.GPU) where {P<:CPU, NBlock}
+function toDevice(field::CSRCache{P}, backend::KernelAbstractions.GPU) where {P<:CPU}
     toDevice(field, typeof(backend))
 end
 
-toDevice(field::CSRCache{P,NBlock}, ::KernelAbstractions.GPU) where {P<:GPU,NBlock} = field
-toDevice(field::CSRCache{P,NBlock}, ::Type{<:KernelAbstractions.GPU}) where {P<:GPU,NBlock} = field
+toDevice(field::CSRCache{P}, ::KernelAbstractions.GPU) where {P<:GPU} = field
+toDevice(field::CSRCache{P}, ::Type{<:KernelAbstractions.GPU}) where {P<:GPU} = field

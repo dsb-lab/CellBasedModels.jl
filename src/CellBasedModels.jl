@@ -57,7 +57,17 @@ module CellBasedModels
     include("./neighbors/abstractTypes.jl")
 
     #Topology
-    export preallocate!, remap!, reset!, setElement!
+    export numberOfEntries, numberOfEntriesCache
+    export numberOfRows, numberOfRowsCache
+    export numberOfEntriesPerRow, numberOfEntriesPerRowCache
+    
+    export getEntryAtRowPos, getColumnAtRowPos, getColumnAtEntry
+
+    export preallocate!, remap!, reset!
+
+    export substituteColAtRow!, substituteColAtRowPos!
+    export removeColAtRow!, removeColAtRowPos!
+    
     include("./topology/abstractCSR.jl")
     export CSRTuple
     include("./topology/CSRTuple.jl")

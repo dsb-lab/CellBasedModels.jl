@@ -1,24 +1,26 @@
 ######################################################################################################
-# CSRTuple - Fixed-size tuples (block size is a type parameter)
+# CSRBlock - Fixed-size tuples (block size is a type parameter)
 ######################################################################################################
-struct CSRTuple{
-            P, NBlock, PR, AI, VI
+struct CSRBlock{
+            P, PR, AI
         } <: AbstractCSR
 
-    _NBlock::Int
+    _NBlock::AI
+    _NBlockOverflow::AI
 
     _map::PR
+    _mapOffsets::PR
 
     _NRows::AI
     _NRowsCache::AI
 
     _NEntries::AI
-    _NEntriesRow::VI
+    _NEntriesRow::PR
 
 end
-Adapt.@adapt_structure CSRTuple
+Adapt.@adapt_structure CSRBlock
 
-function CSRTuple(
+function CSRBlock(
     NBlock::Int,
     N::Int,
     NCache::Int=N
@@ -41,7 +43,7 @@ function CSRTuple(
     PR = typeof(_map)
     AI = typeof(_NRows)
 
-    CSRTuple{
+    CSRBlock{
             P, NBlock, PR, AI
         }(
             _NBlock,
@@ -53,7 +55,7 @@ function CSRTuple(
         )
 end
 
-function CSRTuple(
+function CSRBlock(
             _NBlock,
             _map,
             _NRows,
@@ -66,7 +68,7 @@ function CSRTuple(
     PR = typeof(_map)
     AI = typeof(_NRows)
 
-    CSRTuple{
+    CSRBlock{
             P, _NBlock, PR, AI
         }(
             _NBlock,
@@ -78,7 +80,7 @@ function CSRTuple(
         )
 end
 
-function CSRTuple(data::AbstractMatrix{<:Int}; additionalCache::Int=0) 
+function CSRBlock(data::AbstractMatrix{<:Int}; additionalCache::Int=0) 
 
     @assert additionalCache >= 0 "additionalCache must be >= 0"
 
@@ -86,8 +88,8 @@ function CSRTuple(data::AbstractMatrix{<:Int}; additionalCache::Int=0)
     _NRows = size(data, 1)
     _NRowsCache = _NRows + additionalCache
     
-    # Create CSRTuple with appropriate size
-    csr = CSRTuple(
+    # Create CSRBlock with appropriate size
+    csr = CSRBlock(
         _NBlock,
         _NRows,
         _NRowsCache;
@@ -113,7 +115,7 @@ function CSRTuple(data::AbstractMatrix{<:Int}; additionalCache::Int=0)
     return csr
 end
 
-function CSRTuple(data::AbstractVector{<:AbstractVector{<:Int}}; additionalCache::Int=0)
+function CSRBlock(data::AbstractVector{<:AbstractVector{<:Int}}; additionalCache::Int=0)
     
     maxl = maximum(length.(data))
     minl = minimum(length.(data))
@@ -124,8 +126,8 @@ function CSRTuple(data::AbstractVector{<:AbstractVector{<:Int}}; additionalCache
     NBlock = maximum(maxl)
     NCache = N + additionalCache
 
-    # Create CSRTuple with appropriate size
-    csr = CSRTuple(
+    # Create CSRBlock with appropriate size
+    csr = CSRBlock(
         NBlock,
         N,
         NCache
@@ -151,48 +153,48 @@ function CSRTuple(data::AbstractVector{<:AbstractVector{<:Int}}; additionalCache
     return csr
 end
 
-function Base.show(io::IO, x::CSRTuple{
+function Base.show(io::IO, x::CSRBlock{
             P, NBlock, PR, AI
         }) where {
             P, NBlock, PR, AI
         } 
     
-    println(io, "CSRTuple{NBlock=$NBlock, NRows=$(numberOfRows(x)), NRowsCache=$(lengthRowCache(x))}")    
+    println(io, "CSRBlock{NBlock=$NBlock, NRows=$(numberOfRows(x)), NRowsCache=$(lengthRowCache(x))}")    
 end
 
-function Base.show(io::IO, x::Type{CSRTuple{P, NBlock, PR, AI}}) where {P, NBlock, PR, AI}
-    println(io, "CSRTuple{$P, NBlock=$NBlock, $PR, $AI}")
+function Base.show(io::IO, x::Type{CSRBlock{P, NBlock, PR, AI}}) where {P, NBlock, PR, AI}
+    println(io, "CSRBlock{$P, NBlock=$NBlock, $PR, $AI}")
 end
 
-Base.length(csr::CSRTuple{P, NBlock}) where {P, NBlock} = numberOfEntries(csr)
+Base.length(csr::CSRBlock{P, NBlock}) where {P, NBlock} = numberOfEntries(csr)
 
-numberOfEntries(csr::CSRTuple{P, NBlock}) where {P<:CPU, NBlock} = csr._NEntries[1]
-numberOfEntries(csr::CSRTuple{P, NBlock}) where {P<:GPU, NBlock} = Array(csr._NEntries)[1]
-numberOfEntriesCache(csr::CSRTuple{P, NBlock}) where {P, NBlock} = length(csr._map)
-numberOfRows(csr::CSRTuple{P, NBlock}) where {P<:CPU, NBlock} = csr._NRows[1]
-numberOfRows(csr::CSRTuple{P, NBlock}) where {P<:GPU, NBlock} = Array(csr._NRows)[1]
-numberOfRowsCache(csr::CSRTuple{P, NBlock}) where {P<:CPU, NBlock} = csr._NRowsCache[1]
-numberOfRowsCache(csr::CSRTuple{P, NBlock}) where {P<:GPU, NBlock} = Array(csr._NRowsCache)[1]
-numberOfEntriesPerRow(csr::CSRTuple{P, NBlock}, row::Int) where {P<:CPU, NBlock} = csr._NEntriesRow[row]
-numberOfEntriesPerRow(csr::CSRTuple{P, NBlock}, row::Int) where {P<:GPU, NBlock} = Array(csr._NEntriesRow)[row]
-numberOfEntriesPerRowCache(csr::CSRTuple{P, NBlock}, row::Int) where {P, NBlock} = NBlock
+numberOfEntries(csr::CSRBlock{P, NBlock}) where {P<:CPU, NBlock} = csr._NEntries[1]
+numberOfEntries(csr::CSRBlock{P, NBlock}) where {P<:GPU, NBlock} = Array(csr._NEntries)[1]
+numberOfEntriesCache(csr::CSRBlock{P, NBlock}) where {P, NBlock} = length(csr._map)
+numberOfRows(csr::CSRBlock{P, NBlock}) where {P<:CPU, NBlock} = csr._NRows[1]
+numberOfRows(csr::CSRBlock{P, NBlock}) where {P<:GPU, NBlock} = Array(csr._NRows)[1]
+numberOfRowsCache(csr::CSRBlock{P, NBlock}) where {P<:CPU, NBlock} = csr._NRowsCache[1]
+numberOfRowsCache(csr::CSRBlock{P, NBlock}) where {P<:GPU, NBlock} = Array(csr._NRowsCache)[1]
+numberOfEntriesPerRow(csr::CSRBlock{P, NBlock}, row::Int) where {P<:CPU, NBlock} = csr._NEntriesRow[row]
+numberOfEntriesPerRow(csr::CSRBlock{P, NBlock}, row::Int) where {P<:GPU, NBlock} = Array(csr._NEntriesRow)[row]
+numberOfEntriesPerRowCache(csr::CSRBlock{P, NBlock}, row::Int) where {P, NBlock} = NBlock
 
-Base.size(csr::CSRTuple) = size(csr._map)
+Base.size(csr::CSRBlock) = size(csr._map)
 
-Base.eltype(::CSRTuple{P, NBlock}) where {P, NBlock} = Base.eltype(csr._map)
+Base.eltype(::CSRBlock{P, NBlock}) where {P, NBlock} = Base.eltype(csr._map)
 
 ######################################################################################################
 # Entry accessing
 ######################################################################################################
 
-Base.getindex(csr::CSRTuple, i::Int) = csr._map[i]
-Base.getindex(csr::CSRTuple, row::Int, col::Int) = getEntryAtRowCol(csr, row, col)
+Base.getindex(csr::CSRBlock, i::Int) = csr._map[i]
+Base.getindex(csr::CSRBlock, row::Int, col::Int) = getEntryAtRowCol(csr, row, col)
 
-function getEntryAtRowPos(::CSRTuple{P, NBlock}, row::Int, pos::Int=1) where {P, NBlock}
+function getEntryAtRowPos(::CSRBlock{P, NBlock}, row::Int, pos::Int=1) where {P, NBlock}
     return (row - 1) * NBlock + pos
 end
 
-function getEntryAtRowCol(::CSRTuple{P, NBlock}, row::Int, col::Int) where {P, NBlock}
+function getEntryAtRowCol(::CSRBlock{P, NBlock}, row::Int, col::Int) where {P, NBlock}
     i = getEntryAtRowPos(csr, row)
     for j in i:i+NBlock-1
         if csr._map[j] == col
@@ -202,12 +204,12 @@ function getEntryAtRowCol(::CSRTuple{P, NBlock}, row::Int, col::Int) where {P, N
     return 0
 end
 
-function getColumnAtRowPos(csr::CSRTuple{P, NBlock}, row::Int, pos::Int) where {P, NBlock}
+function getColumnAtRowPos(csr::CSRBlock{P, NBlock}, row::Int, pos::Int) where {P, NBlock}
     i = getEntryAtRowPos(csr, row, pos)
     return csr._map[i]
 end
 
-function getColumnAtEntry(csr::CSRTuple{P, NBlock}, index::Int) where {P, NBlock}
+function getColumnAtEntry(csr::CSRBlock{P, NBlock}, index::Int) where {P, NBlock}
     return csr._map[index]
 end
 
@@ -215,8 +217,8 @@ end
 # Iterators
 ######################################################################################################
 
-# Specialized iterator for CSRTuple - no active section checking
-function Base.iterate(csr::CSRTuple{P, NBlock}, state=(1, 1)) where {P, NBlock}
+# Specialized iterator for CSRBlock - no active section checking
+function Base.iterate(csr::CSRBlock{P, NBlock}, state=(1, 1)) where {P, NBlock}
     blockId, elementId = state
     
     # Check if we've exhausted all blocks
@@ -248,9 +250,9 @@ function Base.iterate(csr::CSRTuple{P, NBlock}, state=(1, 1)) where {P, NBlock}
     return nothing
 end
 
-iterateRows(mesh::CSRTuple) = 1:numberOfRows(mesh)
+iterateRows(mesh::CSRBlock) = 1:numberOfRows(mesh)
 
-function iterateEntriesOverRow(mesh::CSRTuple{P, NBlock}, row::Int) where {P, NBlock}
+function iterateEntriesOverRow(mesh::CSRBlock{P, NBlock}, row::Int) where {P, NBlock}
     i = getEntryAtRowPos(mesh, row)
     return i:i+NBlock-1
 end
@@ -259,7 +261,7 @@ end
 # Reshape
 ######################################################################################################
 
-function preallocate!(csr::CSRTuple{P, NBlock}, NAddCache::Int=0) where {P, NBlock}
+function preallocate!(csr::CSRBlock{P, NBlock}, NAddCache::Int=0) where {P, NBlock}
     
     @assert NAddCache >= 0 "NAddCache must be >= 0"
 
@@ -283,9 +285,9 @@ function preallocate!(csr::CSRTuple{P, NBlock}, NAddCache::Int=0) where {P, NBlo
 
 end
 
-function map!(csrTarget::CSRTuple{P, NBlock}, csrOrigin::CSRTuple{P, NBlock}, map::AbstractVector) where {P, NBlock}
+function map!(csrTarget::CSRBlock{P, NBlock}, csrOrigin::CSRBlock{P, NBlock}, map::AbstractVector) where {P, NBlock}
 
-    @assert numberOfRows(csrTarget) == numberOfRows(csrOrigin) "Both CSRTuples must have the same number of rows"
+    @assert numberOfRows(csrTarget) == numberOfRows(csrOrigin) "Both CSRBlocks must have the same number of rows"
 
     KernelAbstractions.@kernel function _kernel_remap!(csrTarget, csrOrigin, map)
         i = @index(Global)
@@ -307,7 +309,7 @@ function map!(csrTarget::CSRTuple{P, NBlock}, csrOrigin::CSRTuple{P, NBlock}, ma
     return
 end
 
-function reset!(csr::CSRTuple{P, NBlock}) where {P, NBlock}
+function reset!(csr::CSRBlock{P, NBlock}) where {P, NBlock}
     return
 end
 
@@ -315,7 +317,7 @@ end
 # Row Operations
 ######################################################################################################
 
-function hasElement(csr::CSRTuple{P, NBlock}, row::Int, col::Int) where {P, NBlock}
+function hasElement(csr::CSRBlock{P, NBlock}, row::Int, col::Int) where {P, NBlock}
 
     i = getEntryAtRowPos(csr, row)
     for j in i:i+NBlock-1
@@ -327,11 +329,11 @@ function hasElement(csr::CSRTuple{P, NBlock}, row::Int, col::Int) where {P, NBlo
     return false 
 end
 
-function lengthRowCache(csr::CSRTuple{P, NBlock}, row::Int) where {P, NBlock}
+function lengthRowCache(csr::CSRBlock{P, NBlock}, row::Int) where {P, NBlock}
     return NBlock
 end
 
-function lengthRowActive(csr::CSRTuple{P, NBlock}, row::Int) where {P, NBlock}
+function lengthRowActive(csr::CSRBlock{P, NBlock}, row::Int) where {P, NBlock}
     count = 0
     i = getEntryAtRowPos(csr, row)
     for j in i:i+NBlock-1
@@ -346,7 +348,7 @@ end
 # Row Operations
 ######################################################################################################
 
-function substituteColAtRow!(csr::CSRTuple{P, NBlock}, row::Int, colOld::Int, colNew::Int) where {P, NBlock}
+function substituteColAtRow!(csr::CSRBlock{P, NBlock}, row::Int, colOld::Int, colNew::Int) where {P, NBlock}
 
     i = getEntryAtRowCol(csr, row, colOld)
     if i != 0
@@ -357,7 +359,7 @@ function substituteColAtRow!(csr::CSRTuple{P, NBlock}, row::Int, colOld::Int, co
             @atomic csr._NEntries[1] += 1
             @atomic csr._NEntriesRow[row] += 1
         end
-
+        
         csr._map[i] = colNew
         return
     end
@@ -365,7 +367,7 @@ function substituteColAtRow!(csr::CSRTuple{P, NBlock}, row::Int, colOld::Int, co
     @print "Error: Column $colOld not found in row $row\n"
 end
 
-function substitutePosAtRow!(csr::CSRTuple{P, NBlock}, row::Int, pos::Int, colNew::Int) where {P, NBlock}
+function substitutePosAtRow!(csr::CSRBlock{P, NBlock}, row::Int, pos::Int, colNew::Int) where {P, NBlock}
 
     i = getEntryAtRowPos(csr, row, pos)
     if i != 0
@@ -382,7 +384,7 @@ function substitutePosAtRow!(csr::CSRTuple{P, NBlock}, row::Int, pos::Int, colNe
 
 end
 
-function removeColAtRow!(csr::CSRTuple{P, NBlock}, row::Int, col::Int) where {P, NBlock}
+function removeColAtRow!(csr::CSRBlock{P, NBlock}, row::Int, col::Int) where {P, NBlock}
 
     i = getEntryAtRowCol(csr, row, col)
     if i != 0
@@ -394,7 +396,7 @@ function removeColAtRow!(csr::CSRTuple{P, NBlock}, row::Int, col::Int) where {P,
 
 end
 
-function removePosAtRow!(csr::CSRTuple{P, NBlock}, row::Int, pos::Int) where {P, NBlock}
+function removePosAtRow!(csr::CSRBlock{P, NBlock}, row::Int, pos::Int) where {P, NBlock}
 
     i = getEntryAtRowPos(csr, row, pos)
     if i != 0
@@ -412,13 +414,13 @@ end
 # toDevice - Device transfer functions for CSR structures
 ######################################################################################################
 
-function KernelAbstractions.get_backend(csr::CSRTuple)
+function KernelAbstractions.get_backend(csr::CSRBlock)
     KernelAbstractions.get_backend(csr._map)
 end
 
-# CSRTuple to CPU
-function toDevice(csr::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:GPU, NBlock}
-    CSRTuple(
+# CSRBlock to CPU
+function toDevice(csr::CSRBlock{P, NBlock}, ::Type{CPU}) where {P<:GPU, NBlock}
+    CSRBlock(
         csr._NBlock,
         Adapt.adapt(Array, csr._map),
         SizedVector{1}(Array(csr._NRows)[1]),
@@ -427,15 +429,15 @@ function toDevice(csr::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:GPU, NBlock}
         Adapt.adapt(Array, csr._NEntriesRow),
     )
 end
-function toDevice(csr::CSRTuple{P, NBlock}, device::CPU) where {P<:CPU, NBlock}
+function toDevice(csr::CSRBlock{P, NBlock}, device::CPU) where {P<:CPU, NBlock}
     toDevice(csr, typeof(device))
 end
 
-toDevice(csr::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:CPU, NBlock} = csr
-toDevice(csr::CSRTuple{P, NBlock}, ::CPU) where {P<:GPU, NBlock} = toDevice(csr, CPU)
+toDevice(csr::CSRBlock{P, NBlock}, ::Type{CPU}) where {P<:CPU, NBlock} = csr
+toDevice(csr::CSRBlock{P, NBlock}, ::CPU) where {P<:GPU, NBlock} = toDevice(csr, CPU)
 
-function toDevice(csr::CSRTuple{P,NBlock}, backend::Type{<:KernelAbstractions.GPU}) where {P<:CPU, NBlock}
-    CSRTuple(
+function toDevice(csr::CSRBlock{P,NBlock}, backend::Type{<:KernelAbstractions.GPU}) where {P<:CPU, NBlock}
+    CSRBlock(
         csr._NBlock,
         Adapt.adapt(backend, csr._map),
         Adapt.adapt(backend, csr._NRows),
@@ -445,9 +447,9 @@ function toDevice(csr::CSRTuple{P,NBlock}, backend::Type{<:KernelAbstractions.GP
     )
 end
 
-function toDevice(csr::CSRTuple{P,NBlock}, backend::KernelAbstractions.GPU) where {P<:CPU, NBlock}
+function toDevice(csr::CSRBlock{P,NBlock}, backend::KernelAbstractions.GPU) where {P<:CPU, NBlock}
     toDevice(csr, typeof(backend))
 end
 
-toDevice(csr::CSRTuple{P,NBlock}, ::KernelAbstractions.GPU) where {P<:GPU,NBlock} = csr
-toDevice(csr::CSRTuple{P,NBlock}, ::Type{<:KernelAbstractions.GPU}) where {P<:GPU,NBlock} = csr
+toDevice(csr::CSRBlock{P,NBlock}, ::KernelAbstractions.GPU) where {P<:GPU,NBlock} = csr
+toDevice(csr::CSRBlock{P,NBlock}, ::Type{<:KernelAbstractions.GPU}) where {P<:GPU,NBlock} = csr
