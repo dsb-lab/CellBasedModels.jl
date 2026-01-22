@@ -2,7 +2,7 @@
 # CSRTuple - Fixed-size tuples (block size is a type parameter)
 ######################################################################################################
 struct CSRTuple{
-            P, NBlock, PR, AI, VI
+            P, NBlock, PR, AI
         } <: AbstractCSR
 
     _NBlock::Int
