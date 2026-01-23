@@ -30,24 +30,65 @@ function test_iterators_in_kernel(csr)
     return sum(v1), sum(v2), sum(v3)
 end
 
-# addElement!
-function operations_csrtuple_test(csr)
-    @kernel function _kernel!(csr, v)
-        v[1] = hasElement(csr, 1, 1)
-        v[2] = lengthRowCache(csr, 2)
-        v[3] = lengthRowActive(csr, 3)
-        substitute!(csr, 4, 7, 5)
-        substitutePos!(csr, 5, 1, 11)
-        remove!(csr, 6, 11)
-        removePos!(csr, 7, 2)
+# operators
+function operations_csrblock_claim(csr)
+    
+    @kernel function _kernel!(csr)
+        claim_pushRow!(csr, 1)
+        claim_removeRow!(csr, 4)
+
+        claim_insertRowCol!(csr, 1, 10)
+        claim_insertRowCol!(csr, 2, 10)
+        claim_removeRowCol!(csr, 3, 7)
     end
 
     backend = KernelAbstractions.get_backend(csr)
-    v = Adapt.adapt(backend, zeros(Int, 3))
-    _kernel!(backend, 1)(csr, v, ndrange=1)
+    _kernel!(backend, 1)(csr, ndrange=1)
     KernelAbstractions.synchronize(backend)
 
-    return v
+end
+
+function operations_csrblock_execute(csr)
+
+    @kernel function _kernel!(csr)
+        pushRow!(csr, 1)
+        removeRow!(csr, 4)
+
+        insertRowCol!(csr, 1, 10)
+        insertRowCol!(csr, 2, 10)
+        removeRowCol!(csr, 3, 7)
+    end
+
+    backend = KernelAbstractions.get_backend(csr)
+    _kernel!(backend, 1)(csr, ndrange=1)
+    KernelAbstractions.synchronize(backend)
+
+end
+
+function operations_csrblock_claim2(csr)
+    
+    @kernel function _kernel!(csr)
+        claim_insertRowCol!(csr, 1, 11)
+        claim_removeRowCol!(csr, 1, 3)
+    end
+
+    backend = KernelAbstractions.get_backend(csr)
+    _kernel!(backend, 1)(csr, ndrange=1)
+    KernelAbstractions.synchronize(backend)
+
+end
+
+function operations_csrblock_execute2(csr)
+    
+    @kernel function _kernel!(csr)
+        insertRowCol!(csr, 1, 11)
+        removeRowCol!(csr, 1, 10)
+    end
+
+    backend = KernelAbstractions.get_backend(csr)
+    _kernel!(backend, 1)(csr, ndrange=1)
+    KernelAbstractions.synchronize(backend)
+
 end
 
 # println("Benchmarking CSR Structures")
@@ -165,33 +206,51 @@ end
         @test numberOfEntriesInRow(csr, 1) == 0
         @test numberOfEntriesInRow(csr, 2) == 0
         @test numberOfEntriesInRowCache(csr, 1) == 2
+        @test csr._map == zeros(Int, 20)
+        @test csr._NRowsAdd[] == 3
+        @test csr._NRowsCompacted[] == 3
+        @test csr._NEntriesRow == zeros(Int, 10)
+        @test csr._NEntriesRowAdd == zeros(Int, 10)
+        @test csr._NEntriesRowCompacted == zeros(Int, 10)
 
         # Test matrix constructor
         mat = reshape([i for i in 1:12], 4, 3)
         mat[2, 3] = 0  # Introduce a zero to test sparsity
-        csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4)
+        csrMat = CSRBlock(mat, NRowsCache=5, NBlock=4)
         @test numberOfEntries(csrMat) == 11
-        @test numberOfEntriesCache(csrMat) == 40
+        @test numberOfEntriesCache(csrMat) == 20
         @test numberOfRows(csrMat) == 4
-        @test numberOfRowsCache(csrMat) == 10
+        @test numberOfRowsCache(csrMat) == 5
         @test numberOfEntriesInRow(csrMat, 1) == 3
         @test numberOfEntriesInRow(csrMat, 2) == 2
         @test numberOfEntriesInRow(csrMat, 3) == 3
         @test numberOfEntriesInRow(csrMat, 4) == 3
         @test numberOfEntriesInRowCache(csrMat, 1) == 4
+        @test csrMat._map == [1,5,9,0,2,6,0,0,3,7,11,0,4,8,12,0,0,0,0,0]
+        @test csrMat._NRowsAdd[] == 4
+        @test csrMat._NRowsCompacted[] == 4
+        @test csrMat._NEntriesRow == [3,2,3,3,0]
+        @test csrMat._NEntriesRowAdd == [3,2,3,3,0]
+        @test csrMat._NEntriesRowCompacted == [3,2,3,3,0]        
 
         # Test nested vector constructor
         mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
-        csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4)
+        csrMat = CSRBlock(mat, NRowsCache=5, NBlock=4)
         @test numberOfEntries(csrMat) == 11
-        @test numberOfEntriesCache(csrMat) == 40
+        @test numberOfEntriesCache(csrMat) == 20
         @test numberOfRows(csrMat) == 4
-        @test numberOfRowsCache(csrMat) == 10
+        @test numberOfRowsCache(csrMat) == 5
         @test numberOfEntriesInRow(csrMat, 1) == 3
         @test numberOfEntriesInRow(csrMat, 2) == 2
         @test numberOfEntriesInRow(csrMat, 3) == 3
         @test numberOfEntriesInRow(csrMat, 4) == 3
         @test numberOfEntriesInRowCache(csrMat, 1) == 4
+        @test csrMat._map == [1,2,3,0,4,5,0,0,6,7,8,0,9,10,11,0,0,0,0,0]
+        @test csrMat._NRowsAdd[] == 4
+        @test csrMat._NRowsCompacted[] == 4
+        @test csrMat._NEntriesRow == [3,2,3,3,0]
+        @test csrMat._NEntriesRowAdd == [3,2,3,3,0]
+        @test csrMat._NEntriesRowCompacted == [3,2,3,3,0]        
         
         # Test accessors
         mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
@@ -244,18 +303,84 @@ end
             end
         end
 
-        # Test operators
+        # Test operators and compactions
         for device in devices
 
             mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
-            csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4)
+            csrMat = CSRBlock(mat, NRowsCache=5, NBlock=4)
             csr_device = CellBasedModels.toDevice(csrMat, device)
-            v = operations_csrblock(csr_device)
+            
+            @test Array(csr_device._map) == [1,2,3,0,4,5,0,0,6,7,8,0,9,10,11,0,0,0,0,0]
+            @test Array(csr_device._NEntries) == [11]
+            @test Array(csr_device._NRows) == [4]
+            @test Array(csr_device._NRowsAdd) == [4]
+            @test Array(csr_device._NRowsCompacted) == [4]
+            @test Array(csr_device._NEntriesRow) == [3,2,3,3,0]
+            @test Array(csr_device._NEntriesRowAdd) == [3,2,3,3,0]
+            @test Array(csr_device._NEntriesRowCompacted) == [3,2,3,3,0]
+
+            operations_csrblock_claim(csr_device)
+            @test Array(csr_device._map) == [1,2,3,0,4,5,0,0,6,0,8,0,0,0,0,0,0,0,0,0]
+            @test Array(csr_device._NEntries) == [7]
+            @test Array(csr_device._NRows) == [4]
+            @test Array(csr_device._NRowsAdd) == [5]
+            @test Array(csr_device._NRowsCompacted) == [4]
+            @test Array(csr_device._NEntriesRow) == [3,2,3,-1,0]
+            @test Array(csr_device._NEntriesRowAdd) == [4,3,3,-1,0]
+            @test Array(csr_device._NEntriesRowCompacted) == [4,3,2,-1,0]
+
+            preallocate!(csr_device)
+            @test Array(csr_device._map) == [1,2,3,0,4,5,0,0,6,0,8,0,0,0,0,0,0,0,0,0]
+            @test Array(csr_device._NEntries) == [7]
+            @test Array(csr_device._NRows) == [4]
+            @test Array(csr_device._NRowsAdd) == [5]
+            @test Array(csr_device._NRowsCompacted) == [4]
+            @test Array(csr_device._NEntriesRow) == [3,2,3,-1,0]
+            @test Array(csr_device._NEntriesRowAdd) == [4,3,3,-1,0]
+            @test Array(csr_device._NEntriesRowCompacted) == [4,3,2,-1,0]
+
+            operations_csrblock_execute(csr_device)
+            @test Array(csr_device._map) == [1,2,3,10,4,5,10,0,6,0,8,0,0,0,0,0,1,0,0,0]
+            @test Array(csr_device._NEntries) == [10]
+            @test Array(csr_device._NRows) == [5]
+            @test Array(csr_device._NRowsAdd) == [5]
+            @test Array(csr_device._NRowsCompacted) == [4]
+            @test Array(csr_device._NEntriesRow) == [4,3,3,-1,1]
+            @test Array(csr_device._NEntriesRowAdd) == [4,3,3,-1,1]
+            @test Array(csr_device._NEntriesRowCompacted) == [4,3,2,-1,1]
+
+            operations_csrblock_claim2(csr_device)
+            @test Array(csr_device._map) == [1,2,0,10,4,5,10,0,6,0,8,0,0,0,0,0,1,0,0,0]
+            @test Array(csr_device._NEntries) == [9]
+            @test Array(csr_device._NRows) == [5]
+            @test Array(csr_device._NRowsAdd) == [5]
+            @test Array(csr_device._NRowsCompacted) == [4]
+            @test Array(csr_device._NEntriesRow) == [4,3,3,-1,1]
+            @test Array(csr_device._NEntriesRowAdd) == [5,3,3,-1,1]
+            @test Array(csr_device._NEntriesRowCompacted) == [4,3,2,-1,1]
+
+            preallocate!(csr_device)
+            @test Array(csr_device._map) == [1,2,0,10,4,5,10,0,6,0,8,0,0,0,0,0,1,0,0,0]
+            @test Array(csr_device._NEntries) == [9]
+            @test Array(csr_device._NRows) == [5]
+            @test Array(csr_device._NRowsAdd) == [5]
+            @test Array(csr_device._NRowsCompacted) == [4]
+            @test Array(csr_device._NEntriesRow) == [4,3,3,-1,1]
+            @test Array(csr_device._NEntriesRowAdd) == [5,3,3,-1,1]
+            @test Array(csr_device._NEntriesRowCompacted) == [4,3,2,-1,1]
+
+            # operations_csrblock_execute2(csr_device)
+            # @test Array(csr_device._map) == [1,2,3,11,4,5,10,0,6,8,0,0,0,0,0,0,1,0,0,0]
+            # @test Array(csr_device._NRows) == [4]
+            # @test Array(csr_device._NRowsAdd) == [5]
+            # @test Array(csr_device._NRowsCompacted) == [4]
+            # @test Array(csr_device._NEntriesRow) == [4,3,2,-1,1]
+            # @test Array(csr_device._NEntriesRowAdd) == [4,3,2,-1,1]
+            # @test Array(csr_device._NEntriesRowCompacted) == [4,3,2,-1,1]
 
         end
 
     end
-
 
     # @testset "CSRCache" begin
 

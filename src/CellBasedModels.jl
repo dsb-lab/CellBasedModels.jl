@@ -67,9 +67,13 @@ module CellBasedModels
 
     export preallocate!, remap!, reset!
 
-    export substituteColAtRow!, substituteColAtRowPos!
-    export removeColAtRow!, removeColAtRowPos!
-    
+    export claim_pushRow!, claim_removeRow!
+    export claim_pushRowCol!, claim_removeRowCol!, claim_insertRowCol!
+
+    export pushRow!, removeRow!
+    export pushRowCol!, removeRowCol!, insertRowCol!
+
+
     include("./topology/abstractCSR.jl")
     # export CSRTuple
     # include("./topology/CSRTuple.jl")
