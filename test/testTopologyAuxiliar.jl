@@ -4,6 +4,32 @@ function f(csr)
     end
 end
 
+function test_iterators_in_kernel(csr)
+    @kernel function _kernel!(csr, v1, v2, v3)
+        idx = @index(Global)
+        c = 1
+        for (i,j) in csr
+            v1[c] = 1
+            c += 1
+        end
+        for i in iterateRowEntries(csr, 1)
+            v2[i] = 1
+        end
+        for i in iterateRows(csr)
+            v3[i] = 1
+        end
+    end
+
+    backend = KernelAbstractions.get_backend(csr)
+    v1 = Adapt.adapt(backend, zeros(Int, 20))
+    v2 = Adapt.adapt(backend, zeros(Int, 20))
+    v3 = Adapt.adapt(backend, zeros(Int, 20))
+    _kernel!(backend, 1)(csr, v1, v2, v3, ndrange=1)
+    KernelAbstractions.synchronize(backend)
+
+    return sum(v1), sum(v2), sum(v3)
+end
+
 # addElement!
 function operations_csrtuple_test(csr)
     @kernel function _kernel!(csr, v)
@@ -52,81 +78,184 @@ end
 
 @testset "Topology" begin
 
-    @testset "CSRTuple" begin
+    # @testset "CSRTuple" begin
+
+    #     #Start
+    #     csr = CSRTuple(2, 3, 10)
+    #     csr._map .= 0:19
+    #     csr._NEntries[] = 5
+    #     @test csr._NRows[] == 3
+    #     @test csr._NBlock == 2
+    #     @test csr._NRowsCache[] == 10
+    #     @test length(csr._map) == 20
+    #     @test numberOfRows(csr) == 3
+    #     @test numberOfRowsCache(csr) == 10
+        
+    #     # Test iterator returns all elements (no active section filtering)
+    #     results = [i for i in csr]
+    #     @test length(results) == 5  # 3 blocks * 2 elements each
+        
+    #     # Check all blocks iterate through all elements
+    #     @test results[1] == (1, 1)
+    #     @test results[2] == (2, 2)
+    #     @test results[3] == (2, 3)
+    #     @test results[4] == (3, 4)
+    #     @test results[5] == (3, 5)
+        
+    #     # Test with larger block size
+    #     csr2 = CSRTuple(5, 2, 10)
+    #     csr2._map[1:10] .= 1:10
+    #     csr2._NEntries[] = 10
+        
+    #     results2 = [f for f in csr2]
+    #     @test length(results2) == 10  # 2 blocks * 5 elements each
+    #     @test results2[1] == (1, 1)
+    #     @test results2[5] == (1, 5)
+    #     @test results2[6] == (2, 6)
+    #     @test results2[10] == (2, 10)
+
+    #     # Test matrix constructor
+    #     mat = reshape(1:12, 4, 3)
+    #     csrMat = CSRTuple(mat, additionalCache=5)
+    #     @test csrMat._NRows[] == 4
+    #     @test csrMat._NBlock == 3
+    #     @test csrMat._NRowsCache[] == 9
+    #     @test csrMat._map[1:12] == collect(1:12)
+
+    #     # Test nested vectors constructor
+    #     nestedVec = [[1,2], [3,4], [5,6]]
+    #     csrNested = CSRTuple(nestedVec, additionalCache=4)
+    #     @test csrNested._NRows[] == 3
+    #     @test csrNested._NBlock == 2
+    #     @test csrNested._NRowsCache[] == 7
+    #     @test csrNested._map[1:6] == collect(1:6)
+        
+    #     nestedVec2 = [[10,20,30], [40,50], [60,70,80,90]]
+    #     @test_throws AssertionError CSRTuple(nestedVec2, additionalCache=5)
+
+    #     # Test operators
+    #     for device in devices
+
+    #         nestedVec = [[1,2], [3,4], [0,6], [7,8], [9,10], [11,12], [13,14]]
+    #         csr = CSRTuple(nestedVec, additionalCache=4)
+    #         csr_device = CellBasedModels.toDevice(csr, device)
+    #         v = operations_csrtuple_test(csr_device)
+    #         v_host = Array(v)
+    #         csr_host = toDevice(csr_device, CPU())
+    #         @test v_host[1] == true        # isInRow
+    #         @test v_host[2] == 2           # lengthRowCache
+    #         @test v_host[3] == 1           # lengthRowActive
+    #         @test getColumnAtRowPos(csr_host, 4, 1) == 5  # substitute!
+    #         @test getColumnAtRowPos(csr_host, 5, 1) == 11 # substitutePos!
+    #         @test getColumnAtRowPos(csr_host, 6, 1) == 0  # remove!
+    #         @test getColumnAtRowPos(csr_host, 7, 2) == 0  # removePos!
+
+    #     end
+
+    # end
+
+    @testset "CSRBlock" begin
 
         #Start
-        csr = CSRTuple(2, 3, 10)
-        csr._map .= 0:19
-        csr._NEntries[] = 5
-        @test csr._NRows[] == 3
-        @test csr._NBlock == 2
-        @test csr._NRowsCache[] == 10
-        @test length(csr._map) == 20
+        csr = CSRBlock(2, 3, 10)
+        @test numberOfEntries(csr) == 0
+        @test numberOfEntriesCache(csr) == 20
         @test numberOfRows(csr) == 3
         @test numberOfRowsCache(csr) == 10
-        
-        # Test iterator returns all elements (no active section filtering)
-        results = [i for i in csr]
-        @test length(results) == 5  # 3 blocks * 2 elements each
-        
-        # Check all blocks iterate through all elements
-        @test results[1] == (1, 1)
-        @test results[2] == (2, 2)
-        @test results[3] == (2, 3)
-        @test results[4] == (3, 4)
-        @test results[5] == (3, 5)
-        
-        # Test with larger block size
-        csr2 = CSRTuple(5, 2, 10)
-        csr2._map[1:10] .= 1:10
-        csr2._NEntries[] = 10
-        
-        results2 = [f for f in csr2]
-        @test length(results2) == 10  # 2 blocks * 5 elements each
-        @test results2[1] == (1, 1)
-        @test results2[5] == (1, 5)
-        @test results2[6] == (2, 6)
-        @test results2[10] == (2, 10)
+        @test numberOfEntriesInRow(csr, 1) == 0
+        @test numberOfEntriesInRow(csr, 2) == 0
+        @test numberOfEntriesInRowCache(csr, 1) == 2
 
         # Test matrix constructor
-        mat = reshape(1:12, 4, 3)
-        csrMat = CSRTuple(mat, additionalCache=5)
-        @test csrMat._NRows[] == 4
-        @test csrMat._NBlock == 3
-        @test csrMat._NRowsCache[] == 9
-        @test csrMat._map[1:12] == collect(1:12)
+        mat = reshape([i for i in 1:12], 4, 3)
+        mat[2, 3] = 0  # Introduce a zero to test sparsity
+        csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4)
+        @test numberOfEntries(csrMat) == 11
+        @test numberOfEntriesCache(csrMat) == 40
+        @test numberOfRows(csrMat) == 4
+        @test numberOfRowsCache(csrMat) == 10
+        @test numberOfEntriesInRow(csrMat, 1) == 3
+        @test numberOfEntriesInRow(csrMat, 2) == 2
+        @test numberOfEntriesInRow(csrMat, 3) == 3
+        @test numberOfEntriesInRow(csrMat, 4) == 3
+        @test numberOfEntriesInRowCache(csrMat, 1) == 4
 
-        # Test nested vectors constructor
-        nestedVec = [[1,2], [3,4], [5,6]]
-        csrNested = CSRTuple(nestedVec, additionalCache=4)
-        @test csrNested._NRows[] == 3
-        @test csrNested._NBlock == 2
-        @test csrNested._NRowsCache[] == 7
-        @test csrNested._map[1:6] == collect(1:6)
+        # Test nested vector constructor
+        mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
+        csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4)
+        @test numberOfEntries(csrMat) == 11
+        @test numberOfEntriesCache(csrMat) == 40
+        @test numberOfRows(csrMat) == 4
+        @test numberOfRowsCache(csrMat) == 10
+        @test numberOfEntriesInRow(csrMat, 1) == 3
+        @test numberOfEntriesInRow(csrMat, 2) == 2
+        @test numberOfEntriesInRow(csrMat, 3) == 3
+        @test numberOfEntriesInRow(csrMat, 4) == 3
+        @test numberOfEntriesInRowCache(csrMat, 1) == 4
         
-        nestedVec2 = [[10,20,30], [40,50], [60,70,80,90]]
-        @test_throws AssertionError CSRTuple(nestedVec2, additionalCache=5)
+        # Test accessors
+        mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
+        csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4)
+        @test getEntryAtRowPos(csrMat, 1, 2) == 2
+        @test getEntryAtRowCol(csrMat, 2, 5) == 6
+        @test getColumnAtRowPos(csrMat, 3, 3) == 8
+        @test getColumnAtEntry(csrMat, 10) == 7
+
+        # Test iterator returns all elements (no active section filtering)
+        mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
+        csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4)
+        results = [i for i in csrMat]
+        @test length(results) == 11  # 4 blocks with a total of 11 elements
+        # Check all blocks iterate through all elements
+        @test results == [(1, 1), (1, 2), (1, 3), (2, 4), (2, 5), (3, 6), (3, 7), (3, 8), (4, 9), (4, 10), (4, 11)]
+        
+        #Test row iterator "Unassigned"
+        mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
+        csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4)
+        row_results = [i for i in iterateRowEntries(csrMat, 2)]
+        @test length(row_results) == 2
+        @test row_results == [4, 5]
+
+        #Test rows iterator "Sorted"
+        mat = [[2,3,1], [5,4], [8,6,7], [11,10,9]]
+        csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4, sortingFlavor="Sorted")
+        rows_results = [i for i in csrMat]
+        @test length(rows_results) == 11
+        @test rows_results == [(1, 1), (1, 2), (1, 3), (2, 4), (2, 5), (3, 6), (3, 7), (3, 8), (4, 9), (4, 10), (4, 11)]
+
+        #Test rows iterator "CustomSorted"
+        mat = [[2,3,1], [5,4], [8,6,7], [11,10,9]]
+        csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4, sortingFlavor="CustomSorted")
+        rows_results = [i for i in csrMat]
+        @test length(rows_results) == 11
+        @test rows_results == [(1, 2), (1, 3), (1, 1), (2, 5), (2, 4), (3, 8), (3, 6), (3, 7), (4, 11), (4, 10), (4, 9)]
+
+        # Test iterators in kernel
+        mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
+        csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4)
+        for flavors in ["Unsorted", "Sorted", "CustomSorted"]
+            csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4, sortingFlavor=flavors)
+            for device in devices
+                csr_device = CellBasedModels.toDevice(csrMat, device)
+                v1, v2, v3 = test_iterators_in_kernel(csr_device)
+                @test v1 == 11
+                @test v2 == 3
+                @test v3 == 4
+            end
+        end
 
         # Test operators
         for device in devices
 
-            nestedVec = [[1,2], [3,4], [0,6], [7,8], [9,10], [11,12], [13,14]]
-            csr = CSRTuple(nestedVec, additionalCache=4)
-            csr_device = CellBasedModels.toDevice(csr, device)
-            v = operations_csrtuple_test(csr_device)
-            v_host = Array(v)
-            csr_host = toDevice(csr_device, CPU())
-            @test v_host[1] == true        # isInRow
-            @test v_host[2] == 2           # lengthRowCache
-            @test v_host[3] == 1           # lengthRowActive
-            @test getColumnAtRowPos(csr_host, 4, 1) == 5  # substitute!
-            @test getColumnAtRowPos(csr_host, 5, 1) == 11 # substitutePos!
-            @test getColumnAtRowPos(csr_host, 6, 1) == 0  # remove!
-            @test getColumnAtRowPos(csr_host, 7, 2) == 0  # removePos!
+            mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
+            csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4)
+            csr_device = CellBasedModels.toDevice(csrMat, device)
+            v = operations_csrblock(csr_device)
 
         end
 
     end
+
 
     # @testset "CSRCache" begin
 

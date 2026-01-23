@@ -173,9 +173,9 @@ numberOfRows(csr::CSRTuple{P, NBlock}) where {P<:CPU, NBlock} = csr._NRows[1]
 numberOfRows(csr::CSRTuple{P, NBlock}) where {P<:GPU, NBlock} = Array(csr._NRows)[1]
 numberOfRowsCache(csr::CSRTuple{P, NBlock}) where {P<:CPU, NBlock} = csr._NRowsCache[1]
 numberOfRowsCache(csr::CSRTuple{P, NBlock}) where {P<:GPU, NBlock} = Array(csr._NRowsCache)[1]
-numberOfEntriesPerRow(csr::CSRTuple{P, NBlock}, row::Int) where {P<:CPU, NBlock} = csr._NEntriesRow[row]
-numberOfEntriesPerRow(csr::CSRTuple{P, NBlock}, row::Int) where {P<:GPU, NBlock} = Array(csr._NEntriesRow)[row]
-numberOfEntriesPerRowCache(csr::CSRTuple{P, NBlock}, row::Int) where {P, NBlock} = NBlock
+numberOfEntriesInRow(csr::CSRTuple{P, NBlock}, row::Int) where {P<:CPU, NBlock} = csr._NEntriesRow[row]
+numberOfEntriesInRow(csr::CSRTuple{P, NBlock}, row::Int) where {P<:GPU, NBlock} = Array(csr._NEntriesRow)[row]
+numberOfEntriesInRowCache(csr::CSRTuple{P, NBlock}, row::Int) where {P, NBlock} = NBlock
 
 Base.size(csr::CSRTuple) = size(csr._map)
 
@@ -273,8 +273,6 @@ function preallocate!(csr::CSRTuple{P, NBlock}, NAddCache::Int=0) where {P, NBlo
         newSize = newNCache * NBlock
 
         resize!(csr._map, newSize)
-        resize!(csr._addElementOffsets, newNCache + 1)
-        resize!(csr._childs, newNCache + 1)
 
         csr._NRowsCache .= newNCache
 

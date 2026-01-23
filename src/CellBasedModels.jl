@@ -59,9 +59,11 @@ module CellBasedModels
     #Topology
     export numberOfEntries, numberOfEntriesCache
     export numberOfRows, numberOfRowsCache
-    export numberOfEntriesPerRow, numberOfEntriesPerRowCache
+    export numberOfEntriesInRow, numberOfEntriesInRowCache
     
-    export getEntryAtRowPos, getColumnAtRowPos, getColumnAtEntry
+    export iterateRows, iterateRowEntries
+
+    export getEntryAtRowPos, getEntryAtRowCol, getColumnAtRowPos, getColumnAtEntry
 
     export preallocate!, remap!, reset!
 
@@ -69,10 +71,12 @@ module CellBasedModels
     export removeColAtRow!, removeColAtRowPos!
     
     include("./topology/abstractCSR.jl")
-    export CSRTuple
-    include("./topology/CSRTuple.jl")
-    export CSRCache
-    include("./topology/CSRCache.jl")
+    # export CSRTuple
+    # include("./topology/CSRTuple.jl")
+    # export CSRCache
+    # include("./topology/CSRCache.jl")
+    export CSRBlock
+    include("./topology/CSRBlock.jl")
     export Topology
     include("./topology/topology.jl")
 
