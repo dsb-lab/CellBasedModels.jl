@@ -57,6 +57,9 @@ module CellBasedModels
     include("./neighbors/abstractTypes.jl")
 
     #Topology
+    export AuxiliarFields
+    include("./topology/auxiliar.jl")
+
     export numberOfEntries, numberOfEntriesCache
     export numberOfRows, numberOfRowsCache
     export numberOfEntriesInRow, numberOfEntriesInRowCache
@@ -72,7 +75,6 @@ module CellBasedModels
 
     export pushRow!, removeRow!
     export pushRowCol!, removeRowCol!, insertRowCol!
-
 
     include("./topology/abstractCSR.jl")
     # export CSRTuple
