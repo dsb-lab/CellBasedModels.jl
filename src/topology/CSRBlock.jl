@@ -6,7 +6,7 @@ struct CSRBlock{
         } <: AbstractCSR
 
     _NBlock::AI
-    _sortingFlavor::Int
+    _sorted::Bool
 
     _map::PR
     _rowEntryNext::PR2
@@ -16,7 +16,6 @@ struct CSRBlock{
 
     _NRows::AI
     _NRowsCache::AI
-    _NRowsAdd::AI
     _NRowsCompacted::AI
 
     _NEntries::AI
@@ -34,22 +33,21 @@ function CSRBlock(
     NBlock::Int,
     N::Int,
     NCache::Int=N;
-    sortingFlavor::String="Unsorted",
+    sorted::Bool=false,
     auxiliar::Union{Nothing, AuxiliarFields}=nothing
 )
 
     @assert NBlock > 0 "NBlock must be > 0"
     @assert N >= 0 "N must be >= 0"
     @assert NCache >= N "NCache must be >= N"
-    @assert sortingFlavor in ["Unsorted", "Sorted", "CustomSorted"] "sortingFlavor must be 'Unsorted', 'Sorted', or 'CustomSorted'"
 
     _NBlock = SizedVector{1}(NBlock)
-    _sortingFlavor = sortingFlavor == "Unsorted" ? 0 : sortingFlavor == "Sorted" ? 1 : 2
+    _sorted = sorted
 
     _map = zeros(Int, NCache*NBlock)
     
-    # Initialize custom sorting arrays if sortingFlavor is 1 or 2
-    if _sortingFlavor in [1, 2]
+    # Initialize sorting arrays if sorted is true
+    if _sorted
         _rowEntryNext = zeros(Int, NCache*NBlock)
         _rowEntryPrevious = zeros(Int, NCache*NBlock)
         _rowFirstEntry = zeros(Int, NCache)
@@ -63,7 +61,6 @@ function CSRBlock(
 
     _NRows = SizedVector{1}(N)
     _NRowsCache = SizedVector{1}(NCache)
-    _NRowsAdd = SizedVector{1}(N)
     _NRowsCompacted = SizedVector{1}(N)
 
     _NEntries = SizedVector{1}(0)
@@ -79,7 +76,7 @@ function CSRBlock(
     end
 
     P = platform()
-    F = _sortingFlavor
+    F = _sorted
     PR = typeof(_map)
     AI = typeof(_NRows)
     PR2 = typeof(_rowEntryNext)
@@ -89,7 +86,7 @@ function CSRBlock(
             P, F, PR, AI, PR2, AF
         }(
             _NBlock,
-            _sortingFlavor,
+            _sorted,
             _map,
             _rowEntryNext,
             _rowEntryPrevious,
@@ -97,7 +94,6 @@ function CSRBlock(
             _rowLastEntry,
             _NRows,
             _NRowsCache,
-            _NRowsAdd,
             _NRowsCompacted,
             _NEntries,
             _NEntriesRow,
@@ -110,7 +106,7 @@ end
 
 function CSRBlock(
             _NBlock,
-            _sortingFlavor,
+            _sorted,
             _map,
             _rowEntryNext,
             _rowEntryPrevious,
@@ -118,7 +114,6 @@ function CSRBlock(
             _rowLastEntry,
             _NRows,
             _NRowsCache,
-            _NRowsAdd,
             _NRowsCompacted,
             _NEntries,
             _NEntriesRow,
@@ -129,7 +124,7 @@ function CSRBlock(
         )
     
     P = platform()
-    F = _sortingFlavor
+    F = _sorted
     PR = typeof(_map)
     AI = typeof(_NRows)
     PR2 = typeof(_rowEntryNext)
@@ -139,7 +134,7 @@ function CSRBlock(
             P, F, PR, AI, PR2, AF
         }(
             _NBlock,
-            _sortingFlavor,
+            _sorted,
             _map,
             _rowEntryNext,
             _rowEntryPrevious,
@@ -147,7 +142,6 @@ function CSRBlock(
             _rowLastEntry,
             _NRows,
             _NRowsCache,
-            _NRowsAdd,
             _NRowsCompacted,
             _NEntries,
             _NEntriesRow,
@@ -158,7 +152,13 @@ function CSRBlock(
         )
 end
 
-function CSRBlock(data::AbstractMatrix{<:Int}; NRowsCache::Int=size(data, 1),  NBlock::Int=size(data, 2), sortingFlavor::String="Unsorted", auxiliar::Union{Nothing, AuxiliarFields}=nothing) 
+function CSRBlock(
+        data::AbstractMatrix{<:Int}; 
+        NRowsCache::Int=size(data, 1),  
+        NBlock::Int=size(data, 2), 
+        sorted::Bool=false, 
+        auxiliar::Union{Nothing, AuxiliarFields}=nothing
+    )
 
     @assert NRowsCache >= size(data, 1) "NRowsCache must be >= number of rows in data"
     @assert NBlock >= size(data, 2) "NBlock must be >= number of columns in data"
@@ -171,7 +171,7 @@ function CSRBlock(data::AbstractMatrix{<:Int}; NRowsCache::Int=size(data, 1),  N
         NBlock,
         NSize,
         NRowsCache;
-        sortingFlavor=sortingFlavor,
+        sorted=sorted,
         auxiliar=auxiliar
     )
     
@@ -185,9 +185,17 @@ function CSRBlock(data::AbstractMatrix{<:Int}; NRowsCache::Int=size(data, 1),  N
                 row_count += 1
                 i = getEntryAtRowPos(csr, row, col)
                 csr._map[i] = data[row,col]
+                if sorted
+                    csr._rowEntryPrevious[i] = col > 1 ? col - 1 : 0
+                    csr._rowEntryNext[i] = col < NBlockMatrix ? col + 1 : 0
+                end
             end
         end
         csr._NEntriesRow[row] = row_count
+        if sorted && row_count > 0
+            csr._rowFirstEntry[row] = 1
+            csr._rowLastEntry[row] = row_count
+        end
     end
 
     csr._NEntries[1] = active_count
@@ -199,7 +207,7 @@ function CSRBlock(data::AbstractMatrix{<:Int}; NRowsCache::Int=size(data, 1),  N
     return csr
 end
 
-function CSRBlock(data::AbstractVector{<:AbstractVector{<:Int}};  NRowsCache::Int=length(data), NBlock=maximum(length.(data)), sortingFlavor::String="Unsorted", auxiliar::Union{Nothing, AuxiliarFields}=nothing)
+function CSRBlock(data::AbstractVector{<:AbstractVector{<:Int}};  NRowsCache::Int=length(data), NBlock=maximum(length.(data)), sorted::Bool=false, auxiliar::Union{Nothing, AuxiliarFields}=nothing)
     
     @assert NRowsCache >= length(data) "NRowsCache must be >= number of rows in data"
     @assert NBlock >= maximum(length.(data)) "NBlock must be >= maximum number of columns in data"
@@ -212,7 +220,7 @@ function CSRBlock(data::AbstractVector{<:AbstractVector{<:Int}};  NRowsCache::In
         NBlock,
         N,
         NCache;
-        sortingFlavor=sortingFlavor,
+        sorted=sorted,
         auxiliar=auxiliar
     )
 
@@ -226,9 +234,17 @@ function CSRBlock(data::AbstractVector{<:AbstractVector{<:Int}};  NRowsCache::In
                 row_count += 1
                 idx = getEntryAtRowPos(csr, i, j)
                 csr._map[idx] = data[i][j]
+                if sorted
+                    csr._rowEntryPrevious[idx] = j > 1 ? j - 1 : 0
+                    csr._rowEntryNext[idx] = j < length(data[i]) ? j + 1 : 0
+                end
             end
         end
         csr._NEntriesRow[i] = row_count
+        if sorted && row_count > 0
+            csr._rowFirstEntry[i] = 1
+            csr._rowLastEntry[i] = row_count
+        end
     end
     
     csr._NEntries[1] = active_count
@@ -246,15 +262,15 @@ function Base.show(io::IO, x::CSRBlock{
             P, PR, AI
         } 
     
-    sortingFlavor = sortingFlavor(x)
+    sorted = isSorted(x)
 
-    println(io, "CSRBlock{NRows=$(numberOfRows(x)), NRowsCache=$(numberOfRowsCache(x)), SortingFlavor=$sortingFlavor, NBlock=$(x._NBlock[1])}")    
+    println(io, "CSRBlock{NRows=$(numberOfRows(x)), NRowsCache=$(numberOfRowsCache(x)), Sorted=$sorted, NBlock=$(x._NBlock[1])}")    
 end
 
 function Base.show(io::IO, x::Type{CSRBlock{P, F, PR, AI}}) where {P, F, PR, AI}
 
-    sortingFlavor = sortingFlavorValue(x)
-    println(io, "CSRBlock{$P, $PR, $AI, SortingFlavor=$sortingFlavor}")
+    sorted = isSorted(x)
+    println(io, "CSRBlock{$P, $PR, $AI, Sorted=$sorted}")
 end
 
 Base.length(csr::CSRBlock{P}) where {P} = numberOfEntries(csr)
@@ -270,12 +286,12 @@ numberOfEntriesInRow(csr::CSRBlock{P}, row::Int) where {P<:CPU} = csr._NEntriesR
 numberOfEntriesInRow(csr::CSRBlock{P}, row::Int) where {P<:GPU} = Array(csr._NEntriesRow)[row]
 numberOfEntriesInRowCache(csr::CSRBlock{P}, row::Int) where {P} = csr._NBlock[1]
 
-sortingFlavor(csr::CSRBlock{P, 0}) where {P} = "Unsorted"
-sortingFlavor(csr::CSRBlock{P, 1}) where {P} = "Sorted"
-sortingFlavor(csr::CSRBlock{P, 2}) where {P} = "CustomSorted"
-sortingFlavor(csr::Type{CSRBlock{P, 0}}) where {P} = "Unsorted"
-sortingFlavor(csr::Type{CSRBlock{P, 1}}) where {P} = "Sorted"
-sortingFlavor(csr::Type{CSRBlock{P, 2}}) where {P} = "CustomSorted"
+blockLength(csr::CSRBlock{P}) where {P} = csr._NBlock[1]
+
+isSorted(csr::CSRBlock{P, false}) where {P} = false
+isSorted(csr::CSRBlock{P, true}) where {P} = true
+isSorted(csr::Type{CSRBlock{P, false}}) where {P} = false
+isSorted(csr::Type{CSRBlock{P, true}}) where {P} = true
 
 sortingFlavorValue(csr::CSRBlock{P, F}) where {P, F} = F
 sortingFlavorValue(csr::Type{CSRBlock{P, F}}) where {P, F} = F
@@ -307,6 +323,18 @@ function getEntryAtRowCol(csr::CSRBlock{P}, row::Int, col::Int) where {P}
     return 0
 end
 
+function getPosAtRowCol(csr::CSRBlock{P}, row::Int, col::Int) where {P}
+    i = getEntryAtRowPos(csr, row)
+    n = numberOfEntriesInRow(csr, row)
+    for pos in 1:n
+        j = i + pos - 1
+        if csr._map[j] == col
+            return pos
+        end
+    end
+    return 0
+end
+
 function getColumnAtRowPos(csr::CSRBlock{P}, row::Int, pos::Int) where {P}
     i = getEntryAtRowPos(csr, row, pos)
     return csr._map[i]
@@ -314,6 +342,120 @@ end
 
 function getColumnAtEntry(csr::CSRBlock{P}, index::Int) where {P}
     return csr._map[index]
+end
+
+function getNextEntryAtRowPos(csr::CSRBlock{P, false}, row::Int, pos::Int) where {P}
+
+    if pos >= numberOfEntriesInRow(csr, row)
+        return 0
+    else
+        return getEntryAtRowPos(csr, row, pos) + 1
+    end
+
+end
+
+function getNextEntryInRowPos(csr::CSRBlock{P, true}, row::Int, pos::Int) where {P}
+
+    i = getEntryAtRowPos(csr, row, pos)
+    pNext = csr._rowEntryNext[i]
+    if pNext == 0
+        return 0
+    else
+        return getEntryAtRowPos(csr, row, pNext)
+    end
+
+end
+
+function getNextPosAtRowPos(csr::CSRBlock{P, false}, row::Int, pos::Int) where {P}
+
+    if pos >= numberOfEntriesInRow(csr, row)
+        return 0
+    else
+        return pos + 1
+    end
+
+end
+
+function getNextPosAtRowCol(csr::CSRBlock{P, false}, row::Int, col::Int) where {P}
+
+    pos = getPosAtRowCol(csr, row, col)
+    if pos == 0 || pos >= numberOfEntriesInRow(csr, row)
+        return 0
+    else
+        return pos + 1
+    end
+
+end
+
+function getNextPosAtRowCol(csr::CSRBlock{P, true}, row::Int, col::Int) where {P}
+
+    pos = getPosAtRowCol(csr, row, col)
+    if pos == 0
+        return 0
+    else
+        i = getEntryAtRowPos(csr, row, pos)
+        pNext = csr._rowEntryNext[i]
+        return pNext
+    end
+
+end
+
+function getPreviousEntryAtRowPos(csr::CSRBlock{P, true}, row::Int, pos::Int) where {P}
+
+    for i in 1:blockLength(csr)
+        if csr._rowEntryNext[getEntryAtRowPos(csr, row, i)] == pos
+            return i
+        end
+    end
+
+    return 0
+
+end
+
+function getPreviousEntryAtRowCol(csr::CSRBlock{P, false}, row::Int, col::Int) where {P}
+
+    pos = getPosAtRowCol(csr, row, col)
+    if pos == 0 || pos <= 1
+        return 0
+    else
+        return getEntryAtRowPos(csr, row, pos - 1)
+    end
+
+end
+
+function getPreviousEntryAtRowCol(csr::CSRBlock{P, true}, row::Int, col::Int) where {P}
+
+    for i in 1:blockLength(csr)
+        if csr._rowEntryNext[getEntryAtRowPos(csr, row, i)] == getPosAtRowCol(csr, row, col)
+            return getEntryAtRowPos(csr, row, i)
+        end
+    end
+
+    return 0
+
+end
+
+function getPreviousPosAtRowCol(csr::CSRBlock{P, false}, row::Int, col::Int) where {P}
+
+    pos = getPosAtRowCol(csr, row, col)
+    if pos == 0 || pos <= 1
+        return 0
+    else
+        return pos - 1
+    end
+
+end
+
+function getPreviousPosAtRowCol(csr::CSRBlock{P, true}, row::Int, col::Int) where {P}
+
+    for i in 1:blockLength(csr)
+        if csr._rowEntryNext[getEntryAtRowPos(csr, row, i)] == getPosAtRowCol(csr, row, col)
+            return i
+        end
+    end
+
+    return 0
+
 end
 
 ######################################################################################################
@@ -358,7 +500,7 @@ end
 
 iterateRows(mesh::CSRBlock) = Iterators.filter(row -> mesh._NEntriesRow[row] > 0, 1:numberOfRows(mesh))
 
-function iterateRowEntries(mesh::CSRBlock{P,0}, row::Int) where {P}
+function iterateRowEntries(mesh::CSRBlock{P,false}, row::Int) where {P}
     nblock = mesh._NBlock[1]
     start = getEntryAtRowPos(mesh, row)
     idxs = Iterators.filter(idx -> mesh._map[idx] > 0, start:(start + nblock - 1))
@@ -421,14 +563,8 @@ Base.IteratorSize(::Type{<:CSRBlockRowEntriesIterator}) = Base.HasLength()
 Base.eltype(::Type{<:CSRBlockRowEntriesIterator}) = Int
 Base.length(iter::CSRBlockRowEntriesIterator) = numberOfEntriesInRow(iter.mesh, iter.row)
 
-# Both flavor 1 and 2 use linked list traversal (differ only in how entries are added)
-function iterateRowEntries(mesh::CSRBlock{P,1}, row::Int) where {P}
-    first_offset = mesh._rowFirstEntry[row]
-    base = getEntryAtRowPos(mesh, row) - 1
-    return CSRBlockRowEntriesIterator(mesh, first_offset, row, base)
-end
-
-function iterateRowEntries(mesh::CSRBlock{P,2}, row::Int) where {P}
+# Sorted flavor uses linked list traversal
+function iterateRowEntries(mesh::CSRBlock{P,true}, row::Int) where {P}
     first_offset = mesh._rowFirstEntry[row]
     base = getEntryAtRowPos(mesh, row) - 1
     return CSRBlockRowEntriesIterator(mesh, first_offset, row, base)
@@ -439,12 +575,12 @@ end
 ######################################################################################################
 
 # Unsorted flavor: nothing to initialize
-function _initializeSorting!(csr::CSRBlock{P,0}) where {P}
+function _initializeSorting!(csr::CSRBlock{P,false}) where {P}
     return csr
 end
 
 # Sorted flavor: sort row values and rebuild first/next pointers
-function _initializeSorting!(csr::CSRBlock{P,1}) where {P}
+function _initializeSorting!(csr::CSRBlock{P,true}) where {P}
     nblock = csr._NBlock[1]
     nrows = numberOfRows(csr)
     for row in 1:nrows
@@ -482,41 +618,7 @@ function _initializeSorting!(csr::CSRBlock{P,1}) where {P}
     return csr
 end
 
-# Custom flavor: keep current order, just rebuild first/next pointers
-function _initializeSorting!(csr::CSRBlock{P,2}) where {P}
-    nblock = csr._NBlock[1]
-    nrows = numberOfRows(csr)
-    for row in 1:nrows
-        n = csr._NEntriesRow[row]
-        if n <= 0
-            csr._rowFirstEntry[row] = 0
-            csr._rowLastEntry[row] = 0
-            if !isnothing(csr._rowEntryNext)
-                start = getEntryAtRowPos(csr, row)
-                @inbounds @views begin
-                    csr._rowEntryNext[start:start + nblock - 1] .= 0
-                    csr._rowEntryPrevious[start:start + nblock - 1] .= 0
-                end
-            end
-            continue
-        end
 
-        start = getEntryAtRowPos(csr, row)
-        csr._rowFirstEntry[row] = 1
-        csr._rowLastEntry[row] = n
-        @inbounds begin
-            for i in 1:n
-                csr._rowEntryNext[start + i - 1] = (i < n) ? (i + 1) : 0
-                csr._rowEntryPrevious[start + i - 1] = (i > 1) ? (i - 1) : 0
-            end
-            if n < nblock
-                csr._rowEntryNext[start + n:start + nblock - 1] .= 0
-                csr._rowEntryPrevious[start + n:start + nblock - 1] .= 0
-            end
-        end
-    end
-    return csr
-end
 
 ######################################################################################################
 # Basic Functions
@@ -528,7 +630,7 @@ function Base.copy(csr::CSRBlock{P}) where {P}
         Array(csr._NBlock)[1],
         numberOfRows(csr),
         numberOfRowsCache(csr);
-        sortingFlavor=sortingFlavor(csr),
+        sorted=isSorted(csr),
         auxiliar=csr._auxiliar
     )
 
@@ -539,7 +641,6 @@ function Base.copy(csr::CSRBlock{P}) where {P}
     copy!(csrCopy._rowLastEntry, csr._rowLastEntry)
     copy!(csrCopy._NRows, csr._NRows)
     copy!(csrCopy._NRowsCache, csr._NRowsCache)
-    copy!(csrCopy._NRowsAdd, csr._NRowsAdd)
     copy!(csrCopy._NRowsCompacted, csr._NRowsCompacted)
     copy!(csrCopy._NEntries, csr._NEntries)
     copy!(csrCopy._NEntriesRow, csr._NEntriesRow)
@@ -550,20 +651,19 @@ function Base.copy(csr::CSRBlock{P}) where {P}
     return csrCopy
 end
 
-function Base.copy(csr::CSRBlock{P,0}) where {P}
+function Base.copy(csr::CSRBlock{P,false}) where {P}
 
     csrCopy = CSRBlock(
         Array(csr._NBlock)[1],
         numberOfRows(csr),
         numberOfRowsCache(csr);
-        sortingFlavor=sortingFlavor(csr),
+        sorted=isSorted(csr),
         auxiliar=csr._auxiliar
     )
 
     copy!(csrCopy._map, csr._map)
     copy!(csrCopy._NRows, csr._NRows)
     copy!(csrCopy._NRowsCache, csr._NRowsCache)
-    copy!(csrCopy._NRowsAdd, csr._NRowsAdd)
     copy!(csrCopy._NRowsCompacted, csr._NRowsCompacted)
     copy!(csrCopy._NEntries, csr._NEntries)
     copy!(csrCopy._NEntriesRow, csr._NEntriesRow)
@@ -583,7 +683,6 @@ function Base.copyto!(dest::CSRBlock{P}, src::CSRBlock{P}) where {P}
     copy!(dest._rowLastEntry, src._rowLastEntry)
     copy!(dest._NRows, src._NRows)
     copy!(dest._NRowsCache, src._NRowsCache)
-    copy!(dest._NRowsAdd, src._NRowsAdd)
     copy!(dest._NRowsCompacted, src._NRowsCompacted)
     copy!(dest._NEntries, src._NEntries)
     copy!(dest._NEntriesRow, src._NEntriesRow)
@@ -594,12 +693,11 @@ function Base.copyto!(dest::CSRBlock{P}, src::CSRBlock{P}) where {P}
     return dest
 end
 
-function Base.copyto!(dest::CSRBlock{P,0}, src::CSRBlock{P,0}) where {P}
+function Base.copyto!(dest::CSRBlock{P,false}, src::CSRBlock{P,false}) where {P}
 
     copy!(dest._map, src._map)
     copy!(dest._NRows, src._NRows)
     copy!(dest._NRowsCache, src._NRowsCache)
-    copy!(dest._NRowsAdd, src._NRowsAdd)
     copy!(dest._NRowsCompacted, src._NRowsCompacted)
     copy!(dest._NEntries, src._NEntries)
     copy!(dest._NEntriesRow, src._NEntriesRow)
@@ -617,11 +715,10 @@ end
 function overflow(csr::CSRBlock{P}) where {P}
 
     NRowsCache = numberOfRowsCache(csr)
-    NRows = numberOfRows(csr)
-    NRowsNew = Array(csr._NRowsAdd)[1]
+    NRowsNew = numberOfRows(csr)
 
     NBlock = Array(csr._NBlock)[1]
-    NBlockNew = maximum(@view csr._NEntriesRowAdd[1:min(NRows, NRowsCache)])
+    NBlockNew = maximum(csr._NEntriesRowAdd)
 
     if NBlockNew <= NBlock && NRowsNew <= NRowsCache
         return false
@@ -689,7 +786,7 @@ function compactRowEntries!(csr::CSRBlock{P, F}) where {P, F}
     return csr
 end
 
-function compactRowEntries!(csr::CSRBlock{P, 0}) where {P}
+function compactRowEntries!(csr::CSRBlock{P, false}) where {P}
 
     KernelAbstractions.@kernel function _kernel_compact!(csr)
         row = @index(Global)
@@ -732,8 +829,8 @@ end
 function rebuildCSR!(csr::CSRBlock{P}, NRows, NBlock) where {P}
 
     # Kernel to make _map
-    function _build_map!(csr::CSRBlock{P, 0}, NBlockOld, NBlockNew) where {P}
-        KernelAbstractions.@kernel function _kernel_build_map!(csr::CSRBlock{P, 0}, NBlockOld, NBlockNew)
+    function _build_map!(csr::CSRBlock{P, false}, NBlockOld, NBlockNew) where {P}
+        KernelAbstractions.@kernel function _kernel_build_map!(csr::CSRBlock{P, false}, NBlockOld, NBlockNew)
             row = @index(Global)
             rowNew = csr._auxiliar._mapRow[row]
             rowAlive = csr._rowSurvived[row]
@@ -763,7 +860,7 @@ function rebuildCSR!(csr::CSRBlock{P}, NRows, NBlock) where {P}
 
     # Kernel to map _map
     function _map!(csr::CSRBlock{P}, map::AbstractVector) where {P}
-        KernelAbstractions.@kernel function _kernel_map!(csr::CSRBlock{P, 0}, map)
+        KernelAbstractions.@kernel function _kernel_map!(csr::CSRBlock{P, false}, map)
             index = @index(Global)
 
             if csr._auxiliar._map[index] != 0
@@ -785,7 +882,7 @@ function rebuildCSR!(csr::CSRBlock{P}, NRows, NBlock) where {P}
 
     # Kernel to map _mapRow
     function _mapRow!(csr::CSRBlock{P}, map::AbstractVector, oldNRows::Int, compactedNRows::Int) where {P}
-        KernelAbstractions.@kernel function _kernel_mapRow!(csr::CSRBlock{P, 0}, map)
+        KernelAbstractions.@kernel function _kernel_mapRow!(csr::CSRBlock{P, false}, map)
             index = @index(Global)
             
             if csr._rowSurvived[index] != 0
@@ -823,27 +920,25 @@ function rebuildCSR!(csr::CSRBlock{P}, NRows, NBlock) where {P}
     # _map
     _map!(csr, csr._map)
     # _rowEntryNext
-    if csr._sortingFlavor == 1
+    if csr._sorted
         _map!(csr, csr._rowEntryNext)
     end
     # _rowEntryPrevious
-    if csr._sortingFlavor == 1
+    if csr._sorted
         _map!(csr, csr._rowEntryPrevious)
     end
     # _rowFirstEntry
-    if csr._sortingFlavor == 1
+    if csr._sorted
         _map!(csr, csr._rowFirstEntry)
     end
     # _rowLastEntry
-    if csr._sortingFlavor == 1
+    if csr._sorted
         _map!(csr, csr._rowLastEntry)
     end
     # _NRows
     csr._NRows .= Array(csr._auxiliar._mapRow)[oldNRows]
     # _NRowsCache
     csr._NRowsCache .= NRows
-    # _NRowsAdd
-    csr._NRowsAdd .= csr._NRowsCompacted
     # _NRowsCompacted
     csr._NRowsCompacted .= csr._NRowsCompacted
     # _NEntries
@@ -868,14 +963,13 @@ function preallocate!(csr::CSRBlock{P}, csrOld::CSRBlock{P}) where {P}
 
     NRowsCache = numberOfRowsCache(csr)
     NRows = numberOfRows(csr)
-    NRowsNew = Array(csr._NRowsAdd)[1]
     NRowsNewCompacted = Array(csr._NRowsCompacted)[1]
 
     NBlock = Array(csr._NBlock)[1]
     NBlockNew = maximum(@view csr._NEntriesRowAdd[1:min(NRows, NRowsCache)])
     NBlockCompacted = maximum(@view csr._NEntriesRowCompacted[1:min(NRows, NRowsCache)])
 
-    if NBlockNew <= NBlock && NRowsNew <= NRowsCache
+    if NBlockNew <= NBlock && NRows <= NRowsCache
         nothing
     elseif NBlockCompacted <= NBlock && NRowsNewCompacted <= NRowsCache
         compactRowEntries!(csrOld)
@@ -921,10 +1015,9 @@ end
 # Row Operations
 ######################################################################################################
 
-function pushRow!(csr::CSRBlock{P}, col::Int) where {P}
+function pushRow!(csr::CSRBlock{P, false}, col::Int) where {P}
 
     row = @atomic csr._NRows[1] += 1
-    @atomic csr._NRowsAdd[1] += 1
     @atomic csr._NRowsCompacted[1] += 1
 
     if row <= numberOfRowsCache(csr)
@@ -939,10 +1032,30 @@ function pushRow!(csr::CSRBlock{P}, col::Int) where {P}
 
 end
 
-function pushRow!(csr::CSRBlock{P}, cols::NTuple{N,Int}) where {P,N}
+function pushRow!(csr::CSRBlock{P, true}, col::Int) where {P}
 
     row = @atomic csr._NRows[1] += 1
-    @atomic csr._NRowsAdd[1] += 1
+    @atomic csr._NRowsCompacted[1] += 1
+
+    if row <= numberOfRowsCache(csr)
+        i = getEntryAtRowPos(csr, row)
+        csr._map[i] = col
+        @atomic csr._NEntries[1] += 1
+        @atomic csr._NEntriesRow[row] += 1
+        @atomic csr._NEntriesRowAdd[row] += 1
+        @atomic csr._NEntriesRowCompacted[row] += 1
+        csr._rowSurvived[row] = 1
+
+        # Update linked list pointers
+        csr._rowFirstEntry[row] = 1
+        csr._rowEntryNext[i] = 0
+    end
+
+end
+
+function pushRow!(csr::CSRBlock{P, false}, cols::NTuple{N,Int}) where {P,N}
+
+    row = @atomic csr._NRows[1] += 1
     @atomic csr._NRowsCompacted[1] += 1
 
     if row <= numberOfRowsCache(csr)
@@ -961,7 +1074,35 @@ function pushRow!(csr::CSRBlock{P}, cols::NTuple{N,Int}) where {P,N}
 
 end
 
-function removeRow!(csr::CSRBlock{P}, row::Int) where {P}
+function pushRow!(csr::CSRBlock{P, true}, cols::NTuple{N,Int}) where {P,N}
+
+    row = @atomic csr._NRows[1] += 1
+    @atomic csr._NRowsCompacted[1] += 1
+
+    if row <= numberOfRowsCache(csr)
+        @atomic csr._NEntries[1] += N
+        @atomic csr._NEntriesRow[row] += N
+        @atomic csr._NEntriesRowAdd[row] += N
+        @atomic csr._NEntriesRowCompacted[row] += N
+        csr._rowSurvived[row] = 1
+        if N < csr._NBlock[1]
+            i = getEntryAtRowPos(csr, row)
+            for j in 1:N
+                csr._map[i + j - 1] = cols[j]
+            end
+
+            # Update linked list pointers
+            csr._rowFirstEntry[row] = 1
+            for j in 1:N-1
+                csr._rowEntryNext[i + j - 1] = j + 1
+            end
+            csr._rowEntryNext[i + N - 1] = 0
+        end
+    end
+
+end
+
+function removeRow!(csr::CSRBlock{P, false}, row::Int) where {P}
 
     if row > numberOfRows(csr) || row < 1
 
@@ -985,34 +1126,32 @@ function removeRow!(csr::CSRBlock{P}, row::Int) where {P}
 
 end
 
-function insertRowCol!(csr::CSRBlock{P}, row::Int, col::Int, colNew::Int) where {P}
+function removeRow!(csr::CSRBlock{P, true}, row::Int) where {P}
 
-    if !isRowAlive(csr, row)
+    if row > numberOfRows(csr) || row < 1
 
-        @print("Warning: insertRowCol - Trying to insert in a row that is not alive.\n")
+        @print("Warning: Trying to remove a row that is out of bounds.\n")
 
-    elseif row > numberOfRows(csr)
+    elseif !isRowAlive(csr, row)
 
-        @print("Warning: insertRowCol - Trying to insert in a row that does not exist.\n")
+        @print("Warning: Trying to remove a row that is already removed.\n")
 
     else
-        pNew = @atomic csr._NEntriesRow[row] += 1
-        @atomic csr._NEntriesRowAdd[row] += 1
-        @atomic csr._NEntriesRowCompacted[row] += 1 
-
-        if pNew <= csr._NBlock[1]
-            iNew = getEntryAtRowPos(csr, row, pNew)
-            iPrev = getEntryAtRowCol(csr, row, col)
-            pNext = csr._rowEntryNext[iPrev]
-            csr._map[iNew] = colNew
-            csr._rowEntryNext[iPrev] = pNew
-            csr._rowEntryNext[iNew] = pNext
+        @atomic csr._NRowsCompacted[1] -= 1
+        @atomic csr._NEntries[1] -= numberOfEntriesInRow(csr, row)
+        @atomic csr._NEntriesRow[row] = 0
+        @atomic csr._NEntriesRowAdd[row] = 0
+        @atomic csr._NEntriesRowCompacted[row] = 0    
+        csr._rowSurvived[row] = 0
+        for j in getEntryAtRowPos(csr, row):getEntryAtRowPos(csr, row)+numberOfEntriesInRowCache(csr, row)-1
+            csr._map[j] = 0
+            csr._rowEntryNext[j] = 0
         end
     end
 
 end
 
-function insertRowCol!(csr::CSRBlock{P,0}, row::Int, colNew::Int) where {P}
+function insertRowCol!(csr::CSRBlock{P, false}, row::Int, colNew::Int) where {P}
 
 
     if !isRowAlive(csr, row)
@@ -1037,7 +1176,36 @@ function insertRowCol!(csr::CSRBlock{P,0}, row::Int, colNew::Int) where {P}
 
 end
 
-function removeRowCol!(csr::CSRBlock{P}, row::Int, col::Int) where {P}
+function insertRowCol!(csr::CSRBlock{P, true}, row::Int, col::Int, colNew::Int) where {P}
+
+    if !isRowAlive(csr, row)
+
+        @print("Warning: insertRowCol - Trying to insert in a row that is not alive.\n")
+
+    elseif row > numberOfRows(csr)
+
+        @print("Warning: insertRowCol - Trying to insert in a row that does not exist.\n")
+
+    else
+        @atomic csr._NEntries[1] += 1
+        pNew = @atomic csr._NEntriesRow[row] += 1
+        @atomic csr._NEntriesRowAdd[row] += 1
+        @atomic csr._NEntriesRowCompacted[row] += 1 
+
+        if pNew <= csr._NBlock[1]
+            iNew = getEntryAtRowPos(csr, row, pNew)
+            csr._map[iNew] = colNew
+
+            iPrev = getEntryAtRowCol(csr, row, col)
+            pPrevNext = csr._rowEntryNext[iPrev]
+            csr._rowEntryNext[iPrev] = pNew
+            csr._rowEntryNext[iNew] = pPrevNext
+        end
+    end
+
+end
+
+function removeRowCol!(csr::CSRBlock{P, false}, row::Int, col::Int) where {P}
 
     if !isRowAlive(csr, row)
 
@@ -1051,50 +1219,51 @@ function removeRowCol!(csr::CSRBlock{P}, row::Int, col::Int) where {P}
 
         i = getEntryAtRowCol(csr, row, col)
         if i != 0            
+            csr._map[i] = 0
+
+            @atomic csr._NEntries[1] -= 1
+            @atomic csr._NEntriesRowCompacted[row] -= 1
+        end
+
+    end
+
+end
+
+function removeRowCol!(csr::CSRBlock{P, true}, row::Int, col::Int) where {P}
+
+    if !isRowAlive(csr, row)
+
+        @print("Warning: Trying to remove from a row that is not alive. Ignoring.\n")
+
+    elseif !hasRowCol(csr, row, col)
+
+        @print("Warning: Trying to remove a column that does not exist in the row. Ignoring.\n")
+
+    else
+
+        i = getEntryAtRowCol(csr, row, col)
+        if i != 0            
+            csr._map[i] = 0
+
+            @atomic csr._NEntries[1] -= 1
+            @atomic csr._NEntriesRowCompacted[row] -= 1
+
+            iPrevious = getPreviousEntryAtRowCol(csr, row, col)
             pNext = csr._rowEntryNext[i]
-            pRevious = csr._rowEntryPrevious[i]
 
-            if pPrevious != 0
-                csr._rowEntryNext[pPrevious] = pNext
+            csr._rowEntryNext[i] = 0
+            if iPrevious != 0
+                csr._rowEntryNext[iPrevious] = pNext
+            else
+                csr._rowFirstEntry[row] = pNext
             end
 
-            if pNext != 0
-                csr._rowEntryPrevious[pNext] = pPrevious
-            end
-
-            csr._map[i] = 0
-
-            @atomic csr._NEntries[1] -= 1
-            @atomic csr._NEntriesRowCompacted[row] -= 1
         end
 
     end
 
 end
 
-function removeRowCol!(csr::CSRBlock{P, 0}, row::Int, col::Int) where {P}
-
-    if !isRowAlive(csr, row)
-
-        @print("Warning: Trying to remove from a row that is not alive. Ignoring.\n")
-
-    elseif !hasRowCol(csr, row, col)
-
-        @print("Warning: Trying to remove a column that does not exist in the row. Ignoring.\n")
-
-    else
-
-        i = getEntryAtRowCol(csr, row, col)
-        if i != 0            
-            csr._map[i] = 0
-
-            @atomic csr._NEntries[1] -= 1
-            @atomic csr._NEntriesRowCompacted[row] -= 1
-        end
-
-    end
-
-end
 
 ######################################################################################################
 # toDevice - Device transfer functions for CSR structures
@@ -1108,7 +1277,7 @@ end
 function toDevice(csr::CSRBlock{P}, ::Type{CPU}) where {P<:GPU}
     CSRBlock(
         Adapt.adapt(Array, csr._NBlock),
-        csr._sortingFlavor,
+        csr._sorted,
         Adapt.adapt(Array, csr._map),
         isnothing(csr._rowEntryNext) ? nothing : Adapt.adapt(Array, csr._rowEntryNext),
         isnothing(csr._rowEntryPrevious) ? nothing : Adapt.adapt(Array, csr._rowEntryPrevious),
@@ -1116,7 +1285,6 @@ function toDevice(csr::CSRBlock{P}, ::Type{CPU}) where {P<:GPU}
         isnothing(csr._rowLastEntry) ? nothing : Adapt.adapt(Array, csr._rowLastEntry),
         SizedVector{1}(Array(csr._NRows)[1]),
         SizedVector{1}(Array(csr._NRowsCache)[1]),
-        SizedVector{1}(Array(csr._NRowsAdd)[1]),
         SizedVector{1}(Array(csr._NRowsCompacted)[1]),
         SizedVector{1}(Array(csr._NEntries)[1]),
         Adapt.adapt(Array, csr._NEntriesRow),
@@ -1136,7 +1304,7 @@ toDevice(csr::CSRBlock{P}, ::CPU) where {P<:GPU} = toDevice(csr, CPU)
 function toDevice(csr::CSRBlock{P,F}, backend::Type{<:KernelAbstractions.GPU}) where {P<:CPU,F}
     CSRBlock(
         Adapt.adapt(backend, csr._NBlock),
-        csr._sortingFlavor,
+        csr._sorted,
         Adapt.adapt(backend, csr._map),
         isnothing(csr._rowEntryNext) ? nothing : Adapt.adapt(backend, csr._rowEntryNext),
         isnothing(csr._rowEntryPrevious) ? nothing : Adapt.adapt(backend, csr._rowEntryPrevious),
@@ -1144,7 +1312,6 @@ function toDevice(csr::CSRBlock{P,F}, backend::Type{<:KernelAbstractions.GPU}) w
         isnothing(csr._rowLastEntry) ? nothing : Adapt.adapt(backend, csr._rowLastEntry),
         Adapt.adapt(backend, csr._NRows),
         Adapt.adapt(backend, csr._NRowsCache),
-        Adapt.adapt(backend, csr._NRowsAdd),
         Adapt.adapt(backend, csr._NRowsCompacted),
         Adapt.adapt(backend, csr._NEntries),
         Adapt.adapt(backend, csr._NEntriesRow),
