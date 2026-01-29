@@ -9,6 +9,7 @@ module CellBasedModels
     import Base: push!
 
     hasCuda() = false
+    getDeviceIndex(arr, i=1) = Array(arr)[i] #To be resolved
 
     #Auxiliar
     # export Unit, UnitScalar, UnitArray
@@ -60,13 +61,9 @@ module CellBasedModels
     export AuxiliarFields
     include("./topology/auxiliar.jl")
 
-    export numberOfEntries, numberOfEntriesCache
-    export numberOfRows, numberOfRowsCache
-    export numberOfEntriesInRow, numberOfEntriesInRowCache
+    export dropzeros!, compact!
     
     export iterateRows, iterateRowEntries
-
-    export getEntryAtRowPos, getEntryAtRowCol, getColumnAtRowPos, getColumnAtEntry
 
     export preallocate!, remap!, reset!
 
@@ -77,12 +74,14 @@ module CellBasedModels
     export pushRowCol!, removeRowCol!, insertRowCol!
 
     include("./topology/abstractCSR.jl")
+    export DynamicalCOO, dcoo_zeros
+    include("./topology/DynamicalCOO.jl")
     # export CSRTuple
     # include("./topology/CSRTuple.jl")
     # export CSRCache
     # include("./topology/CSRCache.jl")
-    export CSRBlock
-    include("./topology/CSRBlock.jl")
+    export DynamicalCSR, dcsr_zeros
+    include("./topology/DynamicalCSR.jl")
     export Topology
     include("./topology/topology.jl")
 

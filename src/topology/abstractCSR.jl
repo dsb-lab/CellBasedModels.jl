@@ -1,1 +1,1 @@
-abstract type AbstractCSR end
+abstract type AbstractSparseMatrix end

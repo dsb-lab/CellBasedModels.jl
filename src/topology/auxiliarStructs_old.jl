@@ -1,9 +1,9 @@
 abstract type AbstractCSR end
 
 ######################################################################################################
-# CSRBlock
+# CSRStruct
 ######################################################################################################
-struct CSRBlock{
+struct CSRStruct{
             P, PR, AI, VI, VB
         } <: AbstractCSR
     _map::PR
@@ -20,9 +20,9 @@ struct CSRBlock{
     _NOverflow::AI
     _NOverflowBlock::AI
 end
-Adapt.@adapt_structure CSRBlock
+Adapt.@adapt_structure CSRStruct
 
-function CSRBlock(;
+function CSRStruct(;
     dtype::DataType=Int,
     N::Int=0,
     NBlock::Int=0,
@@ -48,7 +48,7 @@ function CSRBlock(;
     VI = typeof(_ActiveSection)
     VB = typeof(_FlagsSurvived)
 
-    CSRBlock{
+    CSRStruct{
             P, PR, AI, VI, VB
         }(
             _map,
@@ -63,7 +63,7 @@ function CSRBlock(;
         )
 end
 
-function CSRBlock(
+function CSRStruct(
             _map,
             _N,
             _NBlock,
@@ -81,7 +81,7 @@ function CSRBlock(
     VI = typeof(_ActiveSection)
     VB = typeof(_FlagsSurvived)
 
-    CSRBlock{
+    CSRStruct{
             P, PR, AI, VI, VB
         }(
             _map,
@@ -96,16 +96,16 @@ function CSRBlock(
         )
 end
 
-function CSRBlock(data::AbstractVector{<:AbstractVector}, NBlock::Int; NAddCache::Int=0)
+function CSRStruct(data::AbstractVector{<:AbstractVector}, NBlock::Int; NAddCache::Int=0)
     """
-    Create a CSRBlock from an array of arrays.
+    Create a CSRStruct from an array of arrays.
     
     Args:
         data: Vector of vectors containing the data
         NBlock: Block size (must be >= length of largest subarray)
     
     Returns:
-        CSRBlock containing all the data
+        CSRStruct containing all the data
     """
     N = length(data)
     
@@ -133,8 +133,8 @@ function CSRBlock(data::AbstractVector{<:AbstractVector}, NBlock::Int; NAddCache
         dtype = Int
     end
     
-    # Create CSRBlock with appropriate size
-    csr = CSRBlock(dtype=dtype, N=N, NBlock=NBlock, NCache=N+NAddCache)
+    # Create CSRStruct with appropriate size
+    csr = CSRStruct(dtype=dtype, N=N, NBlock=NBlock, NCache=N+NAddCache)
     
     # Fill the data
     for (blockId, arr) in enumerate(data)
@@ -148,56 +148,56 @@ function CSRBlock(data::AbstractVector{<:AbstractVector}, NBlock::Int; NAddCache
     return csr
 end
 
-function CSRBlock(data::AbstractVector{<:AbstractVector}; NAddCache::Int=0)
+function CSRStruct(data::AbstractVector{<:AbstractVector}; NAddCache::Int=0)
     """
-    Create a CSRBlock from an array of arrays.
+    Create a CSRStruct from an array of arrays.
     
     Args:
         data: Vector of vectors containing the data
         NBlock: Block size (must be >= length of largest subarray)
     
     Returns:
-        CSRBlock containing all the data
+        CSRStruct containing all the data
     """
     N = length(data)
     
     # Check that NBlock is large enough
     max_length = maximum(length(arr) for arr in data)
 
-    CSRBlock(data, max_length, NAddCache=NAddCache)
+    CSRStruct(data, max_length, NAddCache=NAddCache)
 
 end
 
-function Base.show(io::IO, x::CSRBlock{
+function Base.show(io::IO, x::CSRStruct{
             P, PR, AI, VI, VB
         }) where {
             P, PR, AI, VI, VB
         } 
     
-    println(io, "CSRBlock{lengthElements=$(lengthElements(x)), lengthElementsCache=$(lengthElementsCache(x)), block=$(Array(x._NBlock)[1])}")
+    println(io, "CSRStruct{lengthElements=$(lengthElements(x)), lengthElementsCache=$(lengthElementsCache(x)), block=$(Array(x._NBlock)[1])}")
     
 end
 
-function Base.show(io::IO, x::Type{CSRBlock})
-    println(io, "CSRBlock{")
+function Base.show(io::IO, x::Type{CSRStruct})
+    println(io, "CSRStruct{")
     # CellBasedModels.show(io, x)
     println(io, "}")
 end
 
-Base.length(field::CSRBlock{P}) where {P<:CPU} = fullLength(field)
-fullLength(field::CSRBlock{P}) where {P<:CPU} = length(field._map)
-lengthElements(field::CSRBlock{P}) where {P<:CPU} = field._N[1]
-lengthElementsCache(field::CSRBlock{P}) where {P<:CPU} = field._NCache[1]
-lengthBlock(field::CSRBlock{P}) where {P<:CPU} = field._NBlock[1]
+Base.length(field::CSRStruct{P}) where {P<:CPU} = fullLength(field)
+fullLength(field::CSRStruct{P}) where {P<:CPU} = length(field._map)
+lengthElements(field::CSRStruct{P}) where {P<:CPU} = field._N[1]
+lengthElementsCache(field::CSRStruct{P}) where {P<:CPU} = field._NCache[1]
+lengthBlock(field::CSRStruct{P}) where {P<:CPU} = field._NBlock[1]
 
-Base.size(field::CSRBlock) = size(field._map)
+Base.size(field::CSRStruct) = size(field._map)
 
-Base.eltype(::CSRBlock{P, DT}) where {P, DT} = DT
-Base.eltype(::Type{<:CSRBlock{P, DT}}) where {P, DT} = DT
+Base.eltype(::CSRStruct{P, DT}) where {P, DT} = DT
+Base.eltype(::Type{<:CSRStruct{P, DT}}) where {P, DT} = DT
 
-Base.getindex(field::CSRBlock, i::Int) = field._map[i]
+Base.getindex(field::CSRStruct, i::Int) = field._map[i]
 
-function Base.iterate(field::CSRBlock, state=(1, 1))
+function Base.iterate(field::CSRStruct, state=(1, 1))
     blockId, elementId = state
     
     # Find next valid (blockId, elementId)
@@ -222,25 +222,25 @@ function Base.iterate(field::CSRBlock, state=(1, 1))
     return nothing
 end
 
-iterateOverElements(mesh::CSRBlock) = 1:lengthElements(mesh)
-function iterateOverBlocks(mesh::CSRBlock, block::Int)
+iterateOverElements(mesh::CSRStruct) = 1:lengthElements(mesh)
+function iterateOverBlocks(mesh::CSRStruct, block::Int)
     _NBlock = field._NBlock[1]
     pos = block - 1
     active_section = field._ActiveSection[block]
     return pos*_NBlock:(pos*_NBlock+active_section)
 end
 
-# Helper function to calculate linear index in CSRBlock
-function getIndex(field::CSRBlock, ePos::Int, bPos::Int)
+# Helper function to calculate linear index in CSRStruct
+function getIndex(field::CSRStruct, ePos::Int, bPos::Int)
     return (ePos - 1) * field._NBlock[1] + bPos
 end
 
-function preallocate!(field::CSRBlock, NAddBlock::Int=0, NAddCache::Int=0)
+function preallocate!(field::CSRStruct, NAddBlock::Int=0, NAddCache::Int=0)
     """
-    Preallocate additional cache space in the CSRBlock.
+    Preallocate additional cache space in the CSRStruct.
     
     Args:
-        field: CSRBlock to modify
+        field: CSRStruct to modify
         NAddCache: Number of additional cache blocks to allocate
     """
     if NAddCache <= 0
@@ -280,7 +280,7 @@ function preallocate!(field::CSRBlock, NAddBlock::Int=0, NAddCache::Int=0)
 
 end
 
-function preallocateOverflow!(field::CSRBlock; NAdditionalCache::Int=0)
+function preallocateOverflow!(field::CSRStruct; NAdditionalCache::Int=0)
 
     NAddBlock = Array(field._NOverflowBlock)[1]
     NAddCache = Array(field._NOverflow)[1] + NAdditionalCache
@@ -291,7 +291,7 @@ function preallocateOverflow!(field::CSRBlock; NAdditionalCache::Int=0)
     field._NOverflowBlock .= 0
 end
 
-function checkBounds(field::CSRBlock, pos::Int, nPos::Int, nActive::Int, nBlock::Int)
+function checkBounds(field::CSRStruct, pos::Int, nPos::Int, nActive::Int, nBlock::Int)
     newPos = pos
     if pos + nPos - 1 > field._NCache[1]
         @atomic field._NOverflow[1] += max(field._NOverflow[1], pos + nPos - 1 - field._NCache[1]) - field._NOverflow[1]
@@ -309,7 +309,7 @@ function checkBounds(field::CSRBlock, pos::Int, nPos::Int, nActive::Int, nBlock:
     return newPos
 end
 
-function addElement!(field::CSRBlock; elementSize::Int=1)
+function addElement!(field::CSRStruct; elementSize::Int=1)
     nAdd = @atomic field._NAdded[1] += 1
     pos = field._N[1] + nAdd
     pos = checkBounds(field, pos, 1, 0, elementSize)
@@ -317,14 +317,14 @@ function addElement!(field::CSRBlock; elementSize::Int=1)
     return pos
 end
 
-function addElement!(field::CSRBlock, N::Int; elementSize::Int=1)
+function addElement!(field::CSRStruct, N::Int; elementSize::Int=1)
     nAdd = @atomic field._NAdded[1] += N
     pos = field._N[1] + nAdd - N + 1
     pos = checkBounds(field, pos, field._NCache[1], 0, elementSize)
     return pos
 end
 
-@generated function addElement!(field::CSRBlock, value::NTuple{N, T}) where {N, T}
+@generated function addElement!(field::CSRStruct, value::NTuple{N, T}) where {N, T}
     quote
         pos = addElement!(field; elementSize=$N)
         if pos != 0
@@ -339,7 +339,7 @@ end
     end
 end
 
-function pushToElement!(field::CSRBlock, ePos::Int, value::Int)
+function pushToElement!(field::CSRStruct, ePos::Int, value::Int)
     nAdd = @atomic field._ActiveSection[ePos] += 1
     if nAdd > field._NBlock[1]
         @atomic field._NOverflowBlock[1] += 1
@@ -349,7 +349,7 @@ function pushToElement!(field::CSRBlock, ePos::Int, value::Int)
     end
 end
 
-function replaceIndexFromElement!(field::CSRBlock, ePos::Int, bPos::Int, value::Int)
+function replaceIndexFromElement!(field::CSRStruct, ePos::Int, bPos::Int, value::Int)
     nActive = field._ActiveSection[ePos]
     if bPos > nActive
         @print "Cannot replace at index $bPos in element $ePos: only $nActive elements present."
@@ -359,7 +359,7 @@ function replaceIndexFromElement!(field::CSRBlock, ePos::Int, bPos::Int, value::
     end
 end
 
-function insertIndexAtElement!(field::CSRBlock, ePos::Int, bPos::Int, value::Int)
+function insertIndexAtElement!(field::CSRStruct, ePos::Int, bPos::Int, value::Int)
     nAdd = @atomic field._ActiveSection[ePos] += 1
     if nAdd > field._NBlock[1]
         @atomic field._NOverflowBlock[1] += 1
@@ -374,7 +374,7 @@ function insertIndexAtElement!(field::CSRBlock, ePos::Int, bPos::Int, value::Int
     end
 end
 
-function removeIndexFromElement!(field::CSRBlock, ePos::Int, bPos::Int)
+function removeIndexFromElement!(field::CSRStruct, ePos::Int, bPos::Int)
     nCurrent = field._ActiveSection[ePos]
     if bPos > nCurrent
         @print "Cannot remove at index $bPos in element $ePos: only $nCurrent elements present."
@@ -1238,7 +1238,7 @@ the output will represent the inverted mapping B -> A (e.g., 1 -> [2], 2 -> [1],
 
 # Arguments
 - `csr::AbstractCSR`: The CSR structure to invert
-- `returnType`: The type of CSR to return (default: CSRSlack). Can be CSRSlack, CSRBlock, CSRTuple, or CSRCache
+- `returnType`: The type of CSR to return (default: CSRSlack). Can be CSRSlack, CSRStruct, CSRTuple, or CSRCache
 - `NAddCache::Int`: Additional cache space to allocate (default: 0)
 
 # Returns
@@ -1263,8 +1263,8 @@ function invertMap(csr::AbstractCSR; returnType=CSRSlack, NAddCache::Int=0)
         # Empty CSR or all zeros
         if returnType == CSRSlack
             return CSRSlack(dtype=eltype(csr), N=0, sizes=Int[], NCache=NAddCache)
-        elseif returnType == CSRBlock
-            return CSRBlock(dtype=eltype(csr), N=0, NBlock=0, NCache=NAddCache)
+        elseif returnType == CSRStruct
+            return CSRStruct(dtype=eltype(csr), N=0, NBlock=0, NCache=NAddCache)
         elseif returnType == CSRTuple
             return CSRTuple(dtype=eltype(csr), N=0, NBlock=0, NCache=NAddCache)
         elseif returnType == CSRCache
@@ -1285,21 +1285,21 @@ function invertMap(csr::AbstractCSR; returnType=CSRSlack, NAddCache::Int=0)
     # Create the inverted structure based on return type
     if returnType == CSRSlack
         inv_csr = CSRSlack(dtype=Int, N=max_value, sizes=counts, NCache=NAddCache)
-    elseif returnType == CSRBlock
-        # For CSRBlock, use the maximum count as NBlock
+    elseif returnType == CSRStruct
+        # For CSRStruct, use the maximum count as NBlock
         max_count = maximum(counts)
-        inv_csr = CSRBlock(dtype=Int, N=max_value, NBlock=max_count, NCache=max_value + NAddCache)
+        inv_csr = CSRStruct(dtype=Int, N=max_value, NBlock=max_count, NCache=max_value + NAddCache)
     elseif returnType == CSRTuple
         # For CSRTuple, all blocks must have the same size
         if !all(c -> c == counts[1], counts)
             error("CSRTuple requires all inverted blocks to have the same size. " *
-                  "Use CSRSlack or CSRBlock instead, or ensure the input CSR has uniform connectivity.")
+                  "Use CSRSlack or CSRStruct instead, or ensure the input CSR has uniform connectivity.")
         end
         inv_csr = CSRTuple(dtype=Int, N=max_value, NBlock=counts[1], NCache=max_value + NAddCache)
     elseif returnType == CSRCache
         inv_csr = CSRCache(dtype=Int, N=max_value, sizes=counts)
     else
-        error("Unsupported return type: $returnType. Supported types are: CSRSlack, CSRBlock, CSRTuple, CSRCache")
+        error("Unsupported return type: $returnType. Supported types are: CSRSlack, CSRStruct, CSRTuple, CSRCache")
     end
     
     # Fill the inverted mapping

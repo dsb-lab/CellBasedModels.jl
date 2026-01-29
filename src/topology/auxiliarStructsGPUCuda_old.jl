@@ -1,12 +1,12 @@
-import CellBasedModels: toDevice, CSRBlock, CSRTuple, CSRSlack
+import CellBasedModels: toDevice, CSRStruct, CSRTuple, CSRSlack
 
 ######################################################################################################
 # toDevice - CUDA device transfer functions for CSR structures
 ######################################################################################################
 
-# CSRBlock to CUDA
-function toDevice(field::CSRBlock{P}, ::Type{CUDA.CUDABackend}) where {P<:CPU}
-    CSRBlock(
+# CSRStruct to CUDA
+function toDevice(field::CSRStruct{P}, ::Type{CUDA.CUDABackend}) where {P<:CPU}
+    CSRStruct(
         CUDA.CuArray(field._map),
 
         CUDA.CuArray(field._N),
@@ -23,7 +23,7 @@ function toDevice(field::CSRBlock{P}, ::Type{CUDA.CUDABackend}) where {P<:CPU}
     )
 end
 
-toDevice(field::CSRBlock{P}, ::Type{CUDA.CUDABackend}) where {P<:GPUCuda} = field
+toDevice(field::CSRStruct{P}, ::Type{CUDA.CUDABackend}) where {P<:GPUCuda} = field
 
 # CSRTuple to CUDA
 function toDevice(field::CSRTuple{P, NBlock}, ::Type{CUDA.CUDABackend}) where {P<:CPU, NBlock}

@@ -31,7 +31,7 @@ function test_iterators_in_kernel(csr)
 end
 
 # Unsorted operators
-function operations_csrblock_execute(csr, csrOld)
+function operations_CSRStruct_execute(csr, csrOld)
 
     @kernel function _kernel!(csr, csrOld)
         pushRow!(csr, 1)
@@ -48,7 +48,7 @@ function operations_csrblock_execute(csr, csrOld)
 
 end
 
-function operations_csrblock_execute2(csr, csrOld)
+function operations_CSRStruct_execute2(csr, csrOld)
     
     @kernel function _kernel!(csr)
         insertRowCol!(csr, 3, 11)
@@ -61,7 +61,7 @@ function operations_csrblock_execute2(csr, csrOld)
 
 end
 
-function operations_csrblock_execute3(csr, csrOld)
+function operations_CSRStruct_execute3(csr, csrOld)
     
     @kernel function _kernel!(csr)
         insertRowCol!(csr, 3, 5)
@@ -75,7 +75,7 @@ function operations_csrblock_execute3(csr, csrOld)
 end
 
 # Sorted operators
-function operations_csrblock_execute_sorted(csr, csrOld)
+function operations_CSRStruct_execute_sorted(csr, csrOld)
 
     @kernel function _kernel!(csr, csrOld)
         pushRow!(csr, 1)
@@ -92,7 +92,7 @@ function operations_csrblock_execute_sorted(csr, csrOld)
 
 end
 
-function operations_csrblock_execute2_sorted(csr, csrOld)
+function operations_CSRStruct_execute2_sorted(csr, csrOld)
     
     @kernel function _kernel!(csr)
         insertRowCol!(csr, 3, 11)
@@ -105,7 +105,7 @@ function operations_csrblock_execute2_sorted(csr, csrOld)
 
 end
 
-function operations_csrblock_execute3_sorted(csr, csrOld)
+function operations_CSRStruct_execute3_sorted(csr, csrOld)
     
     @kernel function _kernel!(csr)
         insertRowCol!(csr, 3, 5)
@@ -120,11 +120,11 @@ end
 
 # println("Benchmarking CSR Structures")
 # println("================================")
-# println("CSRBlock:")
-# csrBlock = CSRBlock(N=3,NBlock=2,NCache=10)
-# csrBlock._ActiveSection .= 2
-# csrBlock._map .= 1:20
-# @btime f(csrBlock)
+# println("CSRStruct:")
+# CSRStruct = CSRStruct(N=3,NBlock=2,NCache=10)
+# CSRStruct._ActiveSection .= 2
+# CSRStruct._map .= 1:20
+# @btime f(CSRStruct)
 
 # println("CSRTuple:")
 # csrTuple = CSRTuple(N=3,NBlock=2,NCache=10)
@@ -146,423 +146,700 @@ end
 
 @testset "Topology" begin
 
-    # @testset "CSRTuple" begin
-
-    #     #Start
-    #     csr = CSRTuple(2, 3, 10)
-    #     csr._map .= 0:19
-    #     csr._NEntries[] = 5
-    #     @test csr._NRows[] == 3
-    #     @test csr._NBlock == 2
-    #     @test csr._NRowsCache[] == 10
-    #     @test length(csr._map) == 20
-    #     @test numberOfRows(csr) == 3
-    #     @test numberOfRowsCache(csr) == 10
+    @testset "DynamicalCOO" begin
         
-    #     # Test iterator returns all elements (no active section filtering)
-    #     results = [i for i in csr]
-    #     @test length(results) == 5  # 3 blocks * 2 elements each
+        coo = dcoo_zeros(Float64, 2)
+        coo[1,1] = 5
+        coo[10,15] = 12
+        coo[2,3] = 7
+        @test coo._coo == [(1,1,5.0), (10,15,12.0), (2,3,7.0)]
+        @test coo._NEntries == [3,3,3]
+        @test coo._NRows == [2]
+        @test coo._NCols == [15]
+
+        println(coo)
+
+    end
+
+    @testset "DynamicalCSR" begin
+
+        # csr = dcsr_zeros(2, 2, n_coo=2)
+        # println(csr)
+        # @test csr._values == zeros(4)
+        # @test csr._cols == zeros(Int, 4)
+        # @test csr._rowOffsets == [1,3,5]
+        # @test csr._NRows == [2,2]
+        # @test csr._NCols == [0]
+        # @test csr._NEntries == [0,4,0]
+        # @test csr._NEntriesRow == [0 2 0;0 2 0]
+        # @test csr._cooN == [0, 2, 0]
+        # @test csr._coo == [(0,0,0.0), (0,0,0.0)]
+
+        # csr[1,1] = 1
+        # csr[1,2] = 0
+        # csr[1,5] = 7
+        # csr[2,3] = 5
+        # @test csr._values == [1.,0.,5.,0.]
+        # @test csr._cols == [1,2,3,0]
+        # @test csr._rowOffsets == [1,3,5]
+        # @test csr._NRows == [2,2]
+        # @test csr._NCols == [5]
+        # @test csr._NEntries == [4,4,3]
+        # @test csr._NEntriesRow == [3 2 2;1 2 1]
+        # @test csr._cooN == [1, 2, 1]
+        # @test csr._coo == [(1,5,7.0), (0,0,0.0)]
+
+        # dropzeros!(csr)
+        # @test csr._values == [1.,7.,5.,0.]
+        # @test csr._cols == [1,5,3,0]
+        # @test csr._rowOffsets == [1,3,5]
+        # @test csr._NRows == [2,2]
+        # @test csr._NCols == [5]
+        # @test csr._NEntries == [3,4,3]
+        # @test csr._NEntriesRow == [2 2 2;1 2 1]
+        # @test csr._cooN == [0, 2, 0]
+        # @test csr._coo == [(0,0,0.0), (0,0,0.0)]
+
+        # compact!(csr)
+        # println(csr._NEntriesRowCache)
+        # println(csr._values)
+        # println(csr._cols)
+        # println(csr._rowOffsets)
+        # print(csr)
+
+        # #Start
+        # csr = CSRStruct(2, 3, 10)
+        # @test numberOfEntries(csr) == 0
+        # @test numberOfEntriesCache(csr) == 20
+        # @test numberOfRows(csr) == 3
+        # @test numberOfRowsCache(csr) == 10
+        # @test numberOfEntriesInRow(csr, 1) == 0
+        # @test numberOfEntriesInRow(csr, 2) == 0
+        # @test numberOfEntriesInRowCache(csr, 1) == 2
+        # @test csr._map == zeros(Int, 20)
+        # @test csr._NRowsCompacted[] == 3
+        # @test csr._NEntriesRow == zeros(Int, 10)
+        # @test csr._NEntriesRowAdd == zeros(Int, 10)
+        # @test csr._NEntriesRowCompacted == zeros(Int, 10)
+
+        # # Test matrix constructor
+        # mat = reshape([i for i in 1:12], 4, 3)
+        # mat[2, 3] = 0  # Introduce a zero to test sparsity
+        # csrMat = CSRStruct(mat, NRowsCache=5, NBlock=4)
+        # @test numberOfEntries(csrMat) == 11
+        # @test numberOfEntriesCache(csrMat) == 20
+        # @test numberOfRows(csrMat) == 4
+        # @test numberOfRowsCache(csrMat) == 5
+        # @test numberOfEntriesInRow(csrMat, 1) == 3
+        # @test numberOfEntriesInRow(csrMat, 2) == 2
+        # @test numberOfEntriesInRow(csrMat, 3) == 3
+        # @test numberOfEntriesInRow(csrMat, 4) == 3
+        # @test numberOfEntriesInRowCache(csrMat, 1) == 4
+        # @test csrMat._map == [1,5,9,0,2,6,0,0,3,7,11,0,4,8,12,0,0,0,0,0]
+        # @test csrMat._NRowsCompacted[] == 4
+        # @test csrMat._NEntriesRow == [3,2,3,3,0]
+        # @test csrMat._NEntriesRowAdd == [3,2,3,3,0]
+        # @test csrMat._NEntriesRowCompacted == [3,2,3,3,0]        
+
+        # # Test nested vector constructor
+        # mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
+        # csrMat = CSRStruct(mat, NRowsCache=5, NBlock=4)
+        # @test numberOfEntries(csrMat) == 11
+        # @test numberOfEntriesCache(csrMat) == 20
+        # @test numberOfRows(csrMat) == 4
+        # @test numberOfRowsCache(csrMat) == 5
+        # @test numberOfEntriesInRow(csrMat, 1) == 3
+        # @test numberOfEntriesInRow(csrMat, 2) == 2
+        # @test numberOfEntriesInRow(csrMat, 3) == 3
+        # @test numberOfEntriesInRow(csrMat, 4) == 3
+        # @test numberOfEntriesInRowCache(csrMat, 1) == 4
+        # @test csrMat._map == [1,2,3,0,4,5,0,0,6,7,8,0,9,10,11,0,0,0,0,0]
+        # @test csrMat._NRowsCompacted[] == 4
+        # @test csrMat._NEntriesRow == [3,2,3,3,0]
+        # @test csrMat._NEntriesRowAdd == [3,2,3,3,0]
+        # @test csrMat._NEntriesRowCompacted == [3,2,3,3,0]        
         
-    #     # Check all blocks iterate through all elements
-    #     @test results[1] == (1, 1)
-    #     @test results[2] == (2, 2)
-    #     @test results[3] == (2, 3)
-    #     @test results[4] == (3, 4)
-    #     @test results[5] == (3, 5)
+        # # Test accessors
+        # mat = [[1,2,3], [1,2], [1,5]]
+        # csrMat = CSRStruct(mat, NRowsCache=10, NBlock=4)
+        # csrMat._map[5] = 0
+        # csrMat._map[6] = 0
+        # csrMat._map[9] = 0
+        # csrMat._rowSurvived[2] = 0
+        # # getEntryAtRowPos
+        # @test getEntryAtRowPos(csrMat, 0, 1) == 0
+        # @test getEntryAtRowPos(csrMat, 1, 0) == 0
+        # @test getEntryAtRowPos(csrMat, 1, 1) == 1
+        # @test getEntryAtRowPos(csrMat, 1, 2) == 2
+        # @test getEntryAtRowPos(csrMat, 1, 3) == 3
+        # @test getEntryAtRowPos(csrMat, 1, 4) == 4
+        # @test getEntryAtRowPos(csrMat, 1, 5) == 0
+        # @test getEntryAtRowPos(csrMat, 2, 1) == 5
+        # @test getEntryAtRowPos(csrMat, 2, 2) == 6
+        # @test getEntryAtRowPos(csrMat, 2, 3) == 7
+        # @test getEntryAtRowPos(csrMat, 2, 4) == 8
+        # @test getEntryAtRowPos(csrMat, 3, 1) == 9
+        # @test getEntryAtRowPos(csrMat, 3, 2) == 10
+        # @test getEntryAtRowPos(csrMat, 3, 3) == 11
+        # @test getEntryAtRowPos(csrMat, 3, 4) == 12
+        # @test getEntryAtRowPos(csrMat, 3, 5) == 0
+        # @test getEntryAtRowPos(csrMat, 4, 1) == 0
+        # # getEntryAtRowCol
+        # @test getEntryAtRowCol(csrMat, 0, 1) == 0
+        # @test getEntryAtRowCol(csrMat, 1, 0) == 0
+        # @test getEntryAtRowCol(csrMat, 1, 1) == 1
+        # @test getEntryAtRowCol(csrMat, 1, 2) == 2
+        # @test getEntryAtRowCol(csrMat, 1, 3) == 3
+        # @test getEntryAtRowCol(csrMat, 1, 4) == 0
+        # @test getEntryAtRowCol(csrMat, 2, 5) == 0
+        # @test getEntryAtRowCol(csrMat, 3, 4) == 0
+        # @test getEntryAtRowCol(csrMat, 3, 5) == 10
+        # @test getEntryAtRowCol(csrMat, 4, 1) == 0
+        # # getPosAtRowCol
+        # @test getPosAtRowCol(csrMat, 0, 1) == 0
+        # @test getPosAtRowCol(csrMat, 1, 0) == 0
+        # @test getPosAtRowCol(csrMat, 1, 1) == 1
+        # @test getPosAtRowCol(csrMat, 1, 2) == 2
+        # @test getPosAtRowCol(csrMat, 1, 3) == 3
+        # @test getPosAtRowCol(csrMat, 1, 4) == 0
+        # @test getPosAtRowCol(csrMat, 2, 5) == 0
+        # @test getPosAtRowCol(csrMat, 3, 5) == 2
+        # @test getPosAtRowCol(csrMat, 3, 4) == 0
+        # @test getPosAtRowCol(csrMat, 4, 1) == 0
+        # # getPosAtEntry
+        # @test getPosAtEntry(csrMat, 0) == 0
+        # @test getPosAtEntry(csrMat, 1) == 1
+        # @test getPosAtEntry(csrMat, 2) == 2
+        # @test getPosAtEntry(csrMat, 3) == 3
+        # @test getPosAtEntry(csrMat, 4) == 4
+        # @test getPosAtEntry(csrMat, 5) == 1
+        # @test getPosAtEntry(csrMat, 6) == 2
+        # @test getPosAtEntry(csrMat, 7) == 3
+        # @test getPosAtEntry(csrMat, 8) == 4
+        # @test getPosAtEntry(csrMat, 9) == 1
+        # @test getPosAtEntry(csrMat, 10) == 2
+        # @test getPosAtEntry(csrMat, 11) == 3
+        # @test getPosAtEntry(csrMat, 12) == 4
+        # @test getPosAtEntry(csrMat, 13) == 0
+        # # getColAtRowPos
+        # @test getColAtRowPos(csrMat, 0, 1) == 0
+        # @test getColAtRowPos(csrMat, 1, 0) == 0
+        # @test getColAtRowPos(csrMat, 1, 1) == 1
+        # @test getColAtRowPos(csrMat, 1, 2) == 2
+        # @test getColAtRowPos(csrMat, 1, 3) == 3
+        # @test getColAtRowPos(csrMat, 1, 4) == 0
+        # @test getColAtRowPos(csrMat, 1, 5) == 0
+        # @test getColAtRowPos(csrMat, 2, 1) == 0
+        # @test getColAtRowPos(csrMat, 2, 2) == 0
+        # @test getColAtRowPos(csrMat, 2, 3) == 0
+        # @test getColAtRowPos(csrMat, 2, 4) == 0
+        # @test getColAtRowPos(csrMat, 2, 5) == 0
+        # @test getColAtRowPos(csrMat, 3, 1) == 0
+        # @test getColAtRowPos(csrMat, 3, 2) == 5
+        # @test getColAtRowPos(csrMat, 3, 3) == 0
+        # @test getColAtRowPos(csrMat, 3, 4) == 0
+        # @test getColAtRowPos(csrMat, 3, 5) == 0
+        # @test getColAtRowPos(csrMat, 4, 1) == 0
+        # # getColAtEntry
+        # @test getColAtEntry(csrMat, 0) == 0
+        # @test getColAtEntry(csrMat, 1) == 1
+        # @test getColAtEntry(csrMat, 2) == 2
+        # @test getColAtEntry(csrMat, 3) == 3
+        # @test getColAtEntry(csrMat, 4) == 0
+        # @test getColAtEntry(csrMat, 5) == 0
+        # @test getColAtEntry(csrMat, 6) == 0
+        # @test getColAtEntry(csrMat, 7) == 0
+        # @test getColAtEntry(csrMat, 8) == 0
+        # @test getColAtEntry(csrMat, 9) == 0
+        # @test getColAtEntry(csrMat, 10) == 5
+        # @test getColAtEntry(csrMat, 11) == 0
+        # @test getColAtEntry(csrMat, 12) == 0
+        # @test getColAtEntry(csrMat, 13) == 0
+        # # getRowAtEntry
+        # @test getRowAtEntry(csrMat, 0) == 0
+        # @test getRowAtEntry(csrMat, 1) == 1
+        # @test getRowAtEntry(csrMat, 2) == 1
+        # @test getRowAtEntry(csrMat, 3) == 1
+        # @test getRowAtEntry(csrMat, 4) == 1
+        # @test getRowAtEntry(csrMat, 5) == 0
+        # @test getRowAtEntry(csrMat, 6) == 0
+        # @test getRowAtEntry(csrMat, 7) == 0
+        # @test getRowAtEntry(csrMat, 8) == 0
+        # @test getRowAtEntry(csrMat, 9) == 3
+        # @test getRowAtEntry(csrMat, 10) == 3
+        # @test getRowAtEntry(csrMat, 11) == 3
+        # @test getRowAtEntry(csrMat, 12) == 3
+        # @test getRowAtEntry(csrMat, 13) == 0
+
+        # # Test next accessors
+        # mat = [[1,5], [1,2], [1,2,3]]
+        # csrMat = CSRStruct(mat, NRowsCache=10, NBlock=4)
+        # csrMat._map[5] = 0
+        # csrMat._map[6] = 0
+        # csrMat._map[9] = 0
+        # csrMat._rowSurvived[2] = 0
+
+        # mat = [[1,5], [1,2], [1,2,3]]
+        # csrMat_sorted = CSRStruct(mat, NRowsCache=3, NBlock=4, sorted=true)
+        # csrMat_sorted._map[1] = 0
+        # csrMat_sorted._map[5] = 0
+        # csrMat_sorted._map[6] = 0
+        # csrMat_sorted._rowSurvived[2] = 0
+        # csrMat_sorted._rowFirstEntry .= [2,1,2]
+        # csrMat_sorted._rowEntryNext .= [
+        #         2,0,0,0,
+        #         0,0,0,0,
+        #         3,1,0,0,
+        #     ]
+
+        # # getNextEntryAtRowPos Unsorted
+        # @test getNextEntryAtRowPos(csrMat, 0, 1) == 0
+        # @test getNextEntryAtRowPos(csrMat, 1, 0) == 0
+        # @test getNextEntryAtRowPos(csrMat, 1, 1) == 2
+        # @test getNextEntryAtRowPos(csrMat, 1, 2) == 3
+        # @test getNextEntryAtRowPos(csrMat, 1, 3) == 0
+        # @test getNextEntryAtRowPos(csrMat, 1, 4) == 0
+        # @test getNextEntryAtRowPos(csrMat, 1, 5) == 0
+        # @test getNextEntryAtRowPos(csrMat, 2, 1) == 0
+        # @test getNextEntryAtRowPos(csrMat, 2, 2) == 0
+        # @test getNextEntryAtRowPos(csrMat, 2, 3) == 0
+        # @test getNextEntryAtRowPos(csrMat, 2, 4) == 0
+        # @test getNextEntryAtRowPos(csrMat, 3, 1) == 0
+        # @test getNextEntryAtRowPos(csrMat, 3, 2) == 0
+        # @test getNextEntryAtRowPos(csrMat, 3, 3) == 0
+        # @test getNextEntryAtRowPos(csrMat, 3, 4) == 0
+        # @test getNextEntryAtRowPos(csrMat, 3, 5) == 0
+        # @test getNextEntryAtRowPos(csrMat, 4, 1) == 0
+        # # getNextEntryAtRowPos Sorted
+        # @test getNextEntryAtRowPos(csrMat_sorted, 0, 1) == 0
+        # @test getNextEntryAtRowPos(csrMat_sorted, 1, 0) == 0
+        # @test getNextEntryAtRowPos(csrMat_sorted, 1, 1) == 3
+        # @test getNextEntryAtRowPos(csrMat_sorted, 1, 2) == 1
+        # @test getNextEntryAtRowPos(csrMat_sorted, 1, 3) == 0
+        # @test getNextEntryAtRowPos(csrMat_sorted, 1, 4) == 0
+        # @test getNextEntryAtRowPos(csrMat_sorted, 1, 5) == 0
+        # @test getNextEntryAtRowPos(csrMat_sorted, 2, 1) == 6
+        # @test getNextEntryAtRowPos(csrMat_sorted, 2, 2) == 0
+        # @test getNextEntryAtRowPos(csrMat_sorted, 2, 3) == 0
+        # @test getNextEntryAtRowPos(csrMat_sorted, 2, 4) == 0
+        # @test getNextEntryAtRowPos(csrMat_sorted, 3, 1) == 0
+        # @test getNextEntryAtRowPos(csrMat_sorted, 3, 2) == 0
+        # @test getNextEntryAtRowPos(csrMat_sorted, 3, 3) == 0
+        # @test getNextEntryAtRowPos(csrMat_sorted, 3, 4) == 0
+        # @test getNextEntryAtRowPos(csrMat_sorted, 3, 5) == 0
+        # @test getNextEntryAtRowPos(csrMat_sorted, 4, 1) == 0
+        # # getNextEntryAtRowCol Unsorted
+        # @test getNextEntryAtRowCol(csrMat, 0, 1) == 0
+        # @test getNextEntryAtRowCol(csrMat, 1, 0) == 0
+        # @test getNextEntryAtRowCol(csrMat, 1, 1) == 2
+        # @test getNextEntryAtRowCol(csrMat, 1, 2) == 3
+        # @test getNextEntryAtRowCol(csrMat, 1, 3) == 0
+        # @test getNextEntryAtRowCol(csrMat, 1, 4) == 0
+        # @test getNextEntryAtRowCol(csrMat, 2, 5) == 0
+        # @test getNextEntryAtRowCol(csrMat, 3, 4) == 0
+        # @test getNextEntryAtRowCol(csrMat, 3, 5) == 0
+        # @test getNextEntryAtRowCol(csrMat, 4, 1) == 0
+        # # getNextEntryAtRowCol Sorted
+        # @test getNextEntryAtRowCol(csrMat_sorted, 0, 1) == 0
+        # @test getNextEntryAtRowCol(csrMat_sorted, 1, 0) == 0
+        # @test getNextEntryAtRowCol(csrMat_sorted, 1, 1) == 3
+        # @test getNextEntryAtRowCol(csrMat_sorted, 1, 2) == 1
+        # @test getNextEntryAtRowCol(csrMat_sorted, 1, 3) == 0
+        # @test getNextEntryAtRowCol(csrMat_sorted, 1, 4) == 0
+        # @test getNextEntryAtRowCol(csrMat_sorted, 2, 5) == 0
+        # @test getNextEntryAtRowCol(csrMat_sorted, 3, 4) == 0
+        # @test getNextEntryAtRowCol(csrMat_sorted, 3, 5) == 0
+        # @test getNextEntryAtRowCol(csrMat_sorted, 4, 1) == 0
+        # # getNextPosAtRowCol Unsorted
+        # @test getNextPosAtRowCol(csrMat, 0, 1) == 0
+        # @test getNextPosAtRowCol(csrMat, 1, 0) == 0
+        # @test getNextPosAtRowCol(csrMat, 1, 1) == 2
+        # @test getNextPosAtRowCol(csrMat, 1, 2) == 3
+        # @test getNextPosAtRowCol(csrMat, 1, 3) == 0
+        # @test getNextPosAtRowCol(csrMat, 1, 4) == 0
+        # @test getNextPosAtRowCol(csrMat, 2, 5) == 0
+        # @test getNextPosAtRowCol(csrMat, 3, 5) == 0
+        # @test getNextPosAtRowCol(csrMat, 3, 4) == 0
+        # @test getNextPosAtRowCol(csrMat, 4, 1) == 0
+        # # getNextPosAtRowCol Sorted
+        # @test getNextPosAtRowCol(csrMat_sorted, 0, 1) == 0
+        # @test getNextPosAtRowCol(csrMat_sorted, 1, 0) == 0
+        # @test getNextPosAtRowCol(csrMat_sorted, 1, 1) == 3
+        # @test getNextPosAtRowCol(csrMat_sorted, 1, 2) == 1
+        # @test getNextPosAtRowCol(csrMat_sorted, 1, 3) == 0
+        # @test getNextPosAtRowCol(csrMat_sorted, 1, 4) == 0
+        # @test getNextPosAtRowCol(csrMat_sorted, 2, 5) == 0
+        # @test getNextPosAtRowCol(csrMat_sorted, 3, 5) == 0
+        # @test getNextPosAtRowCol(csrMat_sorted, 3, 4) == 0
+        # @test getNextPosAtRowCol(csrMat_sorted, 4, 1) == 0
+        # # getNextPosAtEntry Unsorted
+        # @test getPosAtEntry(csrMat, 0) == 0
+        # @test getPosAtEntry(csrMat, 1) == 1
+        # @test getPosAtEntry(csrMat, 2) == 2
+        # @test getPosAtEntry(csrMat, 3) == 3
+        # @test getPosAtEntry(csrMat, 4) == 4
+        # @test getPosAtEntry(csrMat, 5) == 1
+        # @test getPosAtEntry(csrMat, 6) == 2
+        # @test getPosAtEntry(csrMat, 7) == 3
+        # @test getPosAtEntry(csrMat, 8) == 4
+        # @test getPosAtEntry(csrMat, 9) == 1
+        # @test getPosAtEntry(csrMat, 10) == 2
+        # @test getPosAtEntry(csrMat, 11) == 3
+        # @test getPosAtEntry(csrMat, 12) == 4
+        # @test getPosAtEntry(csrMat, 13) == 0
+        # # getNextPosAtEntry Sorted
+        # @test getPosAtEntry(csrMat, 0) == 0
+        # @test getPosAtEntry(csrMat, 1) == 1
+        # @test getPosAtEntry(csrMat, 2) == 2
+        # @test getPosAtEntry(csrMat, 3) == 3
+        # @test getPosAtEntry(csrMat, 4) == 4
+        # @test getPosAtEntry(csrMat, 5) == 1
+        # @test getPosAtEntry(csrMat, 6) == 2
+        # @test getPosAtEntry(csrMat, 7) == 3
+        # @test getPosAtEntry(csrMat, 8) == 4
+        # @test getPosAtEntry(csrMat, 9) == 1
+        # @test getPosAtEntry(csrMat, 10) == 2
+        # @test getPosAtEntry(csrMat, 11) == 3
+        # @test getPosAtEntry(csrMat, 12) == 4
+        # @test getPosAtEntry(csrMat, 13) == 0
+        # # getColAtRowPos
+        # @test getColAtRowPos(csrMat, 0, 1) == 0
+        # @test getColAtRowPos(csrMat, 1, 0) == 0
+        # @test getColAtRowPos(csrMat, 1, 1) == 1
+        # @test getColAtRowPos(csrMat, 1, 2) == 2
+        # @test getColAtRowPos(csrMat, 1, 3) == 3
+        # @test getColAtRowPos(csrMat, 1, 4) == 0
+        # @test getColAtRowPos(csrMat, 1, 5) == 0
+        # @test getColAtRowPos(csrMat, 2, 1) == 0
+        # @test getColAtRowPos(csrMat, 2, 2) == 0
+        # @test getColAtRowPos(csrMat, 2, 3) == 0
+        # @test getColAtRowPos(csrMat, 2, 4) == 0
+        # @test getColAtRowPos(csrMat, 2, 5) == 0
+        # @test getColAtRowPos(csrMat, 3, 1) == 0
+        # @test getColAtRowPos(csrMat, 3, 2) == 5
+        # @test getColAtRowPos(csrMat, 3, 3) == 0
+        # @test getColAtRowPos(csrMat, 3, 4) == 0
+        # @test getColAtRowPos(csrMat, 3, 5) == 0
+        # @test getColAtRowPos(csrMat, 4, 1) == 0
+        # # getColAtEntry
+        # @test getColAtEntry(csrMat, 0) == 0
+        # @test getColAtEntry(csrMat, 1) == 1
+        # @test getColAtEntry(csrMat, 2) == 2
+        # @test getColAtEntry(csrMat, 3) == 3
+        # @test getColAtEntry(csrMat, 4) == 0
+        # @test getColAtEntry(csrMat, 5) == 0
+        # @test getColAtEntry(csrMat, 6) == 0
+        # @test getColAtEntry(csrMat, 7) == 0
+        # @test getColAtEntry(csrMat, 8) == 0
+        # @test getColAtEntry(csrMat, 9) == 0
+        # @test getColAtEntry(csrMat, 10) == 5
+        # @test getColAtEntry(csrMat, 11) == 0
+        # @test getColAtEntry(csrMat, 12) == 0
+        # @test getColAtEntry(csrMat, 13) == 0
+        # # getRowAtEntry
+        # @test getRowAtEntry(csrMat, 0) == 0
+        # @test getRowAtEntry(csrMat, 1) == 1
+        # @test getRowAtEntry(csrMat, 2) == 1
+        # @test getRowAtEntry(csrMat, 3) == 1
+        # @test getRowAtEntry(csrMat, 4) == 1
+        # @test getRowAtEntry(csrMat, 5) == 0
+        # @test getRowAtEntry(csrMat, 6) == 0
+        # @test getRowAtEntry(csrMat, 7) == 0
+        # @test getRowAtEntry(csrMat, 8) == 0
+        # @test getRowAtEntry(csrMat, 9) == 3
+        # @test getRowAtEntry(csrMat, 10) == 3
+        # @test getRowAtEntry(csrMat, 11) == 3
+        # @test getRowAtEntry(csrMat, 12) == 3
+        # @test getRowAtEntry(csrMat, 13) == 0
+
+        # @test getNextEntryAtRowCol(csrMat, 2, 5) == 7
+        # @test getNextEntryAtRowCol(csrMat, 2, 7) == 0
+        # @test getNextPosAtRowCol(csrMat, 3, 7) == 2
+        # @test getNextPosAtRowCol(csrMat, 3, 1) == 0
+        # @test getNextPosAtEntry(csrMat, 5) == 1
+        # @test getNextColAtRowPos(csrMat, 3, 3) == 8
+        # @test getNextColAtRowPos(csrMat, 3, 5) == 0
+        # @test getNextColAtEntry(csrMat, 10) == 7
+
+        # # Test iterator returns all elements (no active section filtering)
+        # mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
+        # csrMat = CSRStruct(mat, NRowsCache=10, NBlock=4)
+        # results = [i for i in csrMat]
+        # @test length(results) == 11  # 4 blocks with a total of 11 elements
+        # # Check all blocks iterate through all elements
+        # @test results == [(1, 1), (1, 2), (1, 3), (2, 4), (2, 5), (3, 6), (3, 7), (3, 8), (4, 9), (4, 10), (4, 11)]
         
-    #     # Test with larger block size
-    #     csr2 = CSRTuple(5, 2, 10)
-    #     csr2._map[1:10] .= 1:10
-    #     csr2._NEntries[] = 10
-        
-    #     results2 = [f for f in csr2]
-    #     @test length(results2) == 10  # 2 blocks * 5 elements each
-    #     @test results2[1] == (1, 1)
-    #     @test results2[5] == (1, 5)
-    #     @test results2[6] == (2, 6)
-    #     @test results2[10] == (2, 10)
+        # #Test row iterator "Unassigned"
+        # mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
+        # csrMat = CSRStruct(mat, NRowsCache=10, NBlock=4)
+        # row_results = [i for i in iterateRowEntries(csrMat, 2)]
+        # @test length(row_results) == 2
+        # @test row_results == [4, 5]
 
-    #     # Test matrix constructor
-    #     mat = reshape(1:12, 4, 3)
-    #     csrMat = CSRTuple(mat, additionalCache=5)
-    #     @test csrMat._NRows[] == 4
-    #     @test csrMat._NBlock == 3
-    #     @test csrMat._NRowsCache[] == 9
-    #     @test csrMat._map[1:12] == collect(1:12)
+        # #Test rows iterator "Sorted"
+        # mat = [[2,3,1], [5,4], [8,6,7], [11,10,9]]
+        # csrMat = CSRStruct(mat, NRowsCache=10, NBlock=4, sorted=true)
+        # rows_results = [i for i in csrMat]
+        # @test length(rows_results) == 11
+        # @test rows_results == [(1, 1), (1, 2), (1, 3), (2, 4), (2, 5), (3, 6), (3, 7), (3, 8), (4, 9), (4, 10), (4, 11)]
 
-    #     # Test nested vectors constructor
-    #     nestedVec = [[1,2], [3,4], [5,6]]
-    #     csrNested = CSRTuple(nestedVec, additionalCache=4)
-    #     @test csrNested._NRows[] == 3
-    #     @test csrNested._NBlock == 2
-    #     @test csrNested._NRowsCache[] == 7
-    #     @test csrNested._map[1:6] == collect(1:6)
-        
-    #     nestedVec2 = [[10,20,30], [40,50], [60,70,80,90]]
-    #     @test_throws AssertionError CSRTuple(nestedVec2, additionalCache=5)
+        # # Test iterators in kernel
+        # mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
+        # csrMat = CSRStruct(mat, NRowsCache=10, NBlock=4)
+        # for sorted_flag in [false, true]
+        #     csrMat = CSRStruct(mat, NRowsCache=10, NBlock=4, sorted=sorted_flag)
+        #     for device in devices
+        #         csr_device = CellBasedModels.toDevice(csrMat, device)
+        #         v1, v2, v3 = test_iterators_in_kernel(csr_device)
+        #         @test v1 == 11
+        #         @test v2 == 3
+        #         @test v3 == 4
+        #     end
+        # end
 
-    #     # Test operators
-    #     for device in devices
+        # # Unsorted: Test operators and compactions
+        # for device in devices
 
-    #         nestedVec = [[1,2], [3,4], [0,6], [7,8], [9,10], [11,12], [13,14]]
-    #         csr = CSRTuple(nestedVec, additionalCache=4)
-    #         csr_device = CellBasedModels.toDevice(csr, device)
-    #         v = operations_csrtuple_test(csr_device)
-    #         v_host = Array(v)
-    #         csr_host = toDevice(csr_device, CPU())
-    #         @test v_host[1] == true        # isInRow
-    #         @test v_host[2] == 2           # lengthRowCache
-    #         @test v_host[3] == 1           # lengthRowActive
-    #         @test getColumnAtRowPos(csr_host, 4, 1) == 5  # substitute!
-    #         @test getColumnAtRowPos(csr_host, 5, 1) == 11 # substitutePos!
-    #         @test getColumnAtRowPos(csr_host, 6, 1) == 0  # remove!
-    #         @test getColumnAtRowPos(csr_host, 7, 2) == 0  # removePos!
-
-    #     end
-
-    # end
-
-    @testset "CSRBlock" begin
-
-        #Start
-        csr = CSRBlock(2, 3, 10)
-        @test numberOfEntries(csr) == 0
-        @test numberOfEntriesCache(csr) == 20
-        @test numberOfRows(csr) == 3
-        @test numberOfRowsCache(csr) == 10
-        @test numberOfEntriesInRow(csr, 1) == 0
-        @test numberOfEntriesInRow(csr, 2) == 0
-        @test numberOfEntriesInRowCache(csr, 1) == 2
-        @test csr._map == zeros(Int, 20)
-        @test csr._NRowsCompacted[] == 3
-        @test csr._NEntriesRow == zeros(Int, 10)
-        @test csr._NEntriesRowAdd == zeros(Int, 10)
-        @test csr._NEntriesRowCompacted == zeros(Int, 10)
-
-        # Test matrix constructor
-        mat = reshape([i for i in 1:12], 4, 3)
-        mat[2, 3] = 0  # Introduce a zero to test sparsity
-        csrMat = CSRBlock(mat, NRowsCache=5, NBlock=4)
-        @test numberOfEntries(csrMat) == 11
-        @test numberOfEntriesCache(csrMat) == 20
-        @test numberOfRows(csrMat) == 4
-        @test numberOfRowsCache(csrMat) == 5
-        @test numberOfEntriesInRow(csrMat, 1) == 3
-        @test numberOfEntriesInRow(csrMat, 2) == 2
-        @test numberOfEntriesInRow(csrMat, 3) == 3
-        @test numberOfEntriesInRow(csrMat, 4) == 3
-        @test numberOfEntriesInRowCache(csrMat, 1) == 4
-        @test csrMat._map == [1,5,9,0,2,6,0,0,3,7,11,0,4,8,12,0,0,0,0,0]
-        @test csrMat._NRowsCompacted[] == 4
-        @test csrMat._NEntriesRow == [3,2,3,3,0]
-        @test csrMat._NEntriesRowAdd == [3,2,3,3,0]
-        @test csrMat._NEntriesRowCompacted == [3,2,3,3,0]        
-
-        # Test nested vector constructor
-        mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
-        csrMat = CSRBlock(mat, NRowsCache=5, NBlock=4)
-        @test numberOfEntries(csrMat) == 11
-        @test numberOfEntriesCache(csrMat) == 20
-        @test numberOfRows(csrMat) == 4
-        @test numberOfRowsCache(csrMat) == 5
-        @test numberOfEntriesInRow(csrMat, 1) == 3
-        @test numberOfEntriesInRow(csrMat, 2) == 2
-        @test numberOfEntriesInRow(csrMat, 3) == 3
-        @test numberOfEntriesInRow(csrMat, 4) == 3
-        @test numberOfEntriesInRowCache(csrMat, 1) == 4
-        @test csrMat._map == [1,2,3,0,4,5,0,0,6,7,8,0,9,10,11,0,0,0,0,0]
-        @test csrMat._NRowsCompacted[] == 4
-        @test csrMat._NEntriesRow == [3,2,3,3,0]
-        @test csrMat._NEntriesRowAdd == [3,2,3,3,0]
-        @test csrMat._NEntriesRowCompacted == [3,2,3,3,0]        
-        
-        # Test accessors
-        mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
-        csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4)
-        @test getEntryAtRowPos(csrMat, 1, 2) == 2
-        @test getEntryAtRowCol(csrMat, 2, 5) == 6
-        @test getColumnAtRowPos(csrMat, 3, 3) == 8
-        @test getColumnAtEntry(csrMat, 10) == 7
-
-        # Test iterator returns all elements (no active section filtering)
-        mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
-        csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4)
-        results = [i for i in csrMat]
-        @test length(results) == 11  # 4 blocks with a total of 11 elements
-        # Check all blocks iterate through all elements
-        @test results == [(1, 1), (1, 2), (1, 3), (2, 4), (2, 5), (3, 6), (3, 7), (3, 8), (4, 9), (4, 10), (4, 11)]
-        
-        #Test row iterator "Unassigned"
-        mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
-        csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4)
-        row_results = [i for i in iterateRowEntries(csrMat, 2)]
-        @test length(row_results) == 2
-        @test row_results == [4, 5]
-
-        #Test rows iterator "Sorted"
-        mat = [[2,3,1], [5,4], [8,6,7], [11,10,9]]
-        csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4, sorted=true)
-        rows_results = [i for i in csrMat]
-        @test length(rows_results) == 11
-        @test rows_results == [(1, 1), (1, 2), (1, 3), (2, 4), (2, 5), (3, 6), (3, 7), (3, 8), (4, 9), (4, 10), (4, 11)]
-
-        # Test iterators in kernel
-        mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
-        csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4)
-        for sorted_flag in [false, true]
-            csrMat = CSRBlock(mat, NRowsCache=10, NBlock=4, sorted=sorted_flag)
-            for device in devices
-                csr_device = CellBasedModels.toDevice(csrMat, device)
-                v1, v2, v3 = test_iterators_in_kernel(csr_device)
-                @test v1 == 11
-                @test v2 == 3
-                @test v3 == 4
-            end
-        end
-
-        # Unsorted: Test operators and compactions
-        for device in devices
-
-            mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
-            csrMat = CSRBlock(mat, NRowsCache=5, NBlock=4)
-            csr_device = CellBasedModels.toDevice(csrMat, device)
-            csrNew_device = copy(csrMat)
+        #     mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
+        #     csrMat = CSRStruct(mat, NRowsCache=5, NBlock=4)
+        #     csr_device = CellBasedModels.toDevice(csrMat, device)
+        #     csrNew_device = copy(csrMat)
             
-            @test Array(csr_device._map) == [
-                    1,2,3,0,
-                    4,5,0,0,
-                    6,7,8,0,
-                    9,10,11,0,
-                    0,0,0,0
-                ]
-            @test Array(csr_device._NEntries) == [11]
-            @test Array(csr_device._NRows) == [4]
-            @test Array(csr_device._NRowsCache) == [5]
-            @test Array(csr_device._NRowsCompacted) == [4]
-            @test Array(csr_device._NEntriesRow) == [3,2,3,3,0]
-            @test Array(csr_device._NEntriesRowAdd) == [3,2,3,3,0]
-            @test Array(csr_device._NEntriesRowCompacted) == [3,2,3,3,0]
-            @test Array(csr_device._rowSurvived) == [1,1,1,1,0]
+        #     @test Array(csr_device._map) == [
+        #             1,2,3,0,
+        #             4,5,0,0,
+        #             6,7,8,0,
+        #             9,10,11,0,
+        #             0,0,0,0
+        #         ]
+        #     @test Array(csr_device._NEntries) == [11]
+        #     @test Array(csr_device._NRows) == [4]
+        #     @test Array(csr_device._NRowsCache) == [5]
+        #     @test Array(csr_device._NRowsCompacted) == [4]
+        #     @test Array(csr_device._NEntriesRow) == [3,2,3,3,0]
+        #     @test Array(csr_device._NEntriesRowAdd) == [3,2,3,3,0]
+        #     @test Array(csr_device._NEntriesRowCompacted) == [3,2,3,3,0]
+        #     @test Array(csr_device._rowSurvived) == [1,1,1,1,0]
 
-            operations_csrblock_execute(csrNew_device, csr_device)
-            @test Array(csrNew_device._map) == [
-                    1,2,3,10,
-                    4,5,10,0,
-                    6,0,8,0,
-                    0,0,0,0,
-                    1,0,0,0
-                ]
-            @test Array(csrNew_device._NEntries) == [10]
-            @test Array(csrNew_device._NRows) == [5]
-            @test Array(csrNew_device._NRowsCache) == [5]
-            @test Array(csrNew_device._NRowsCompacted) == [4]
-            @test Array(csrNew_device._NEntriesRow) == [4,3,3,0,1]
-            @test Array(csrNew_device._NEntriesRowAdd) == [4,3,3,0,1]
-            @test Array(csrNew_device._NEntriesRowCompacted) == [4,3,2,0,1]
-            @test Array(csrNew_device._rowSurvived) == [1,1,1,0,1]
-            @test CellBasedModels.overflow(csrNew_device) == false
+        #     operations_CSRStruct_execute(csrNew_device, csr_device)
+        #     @test Array(csrNew_device._map) == [
+        #             1,2,3,10,
+        #             4,5,10,0,
+        #             6,0,8,0,
+        #             0,0,0,0,
+        #             1,0,0,0
+        #         ]
+        #     @test Array(csrNew_device._NEntries) == [10]
+        #     @test Array(csrNew_device._NRows) == [5]
+        #     @test Array(csrNew_device._NRowsCache) == [5]
+        #     @test Array(csrNew_device._NRowsCompacted) == [4]
+        #     @test Array(csrNew_device._NEntriesRow) == [4,3,3,0,1]
+        #     @test Array(csrNew_device._NEntriesRowAdd) == [4,3,3,0,1]
+        #     @test Array(csrNew_device._NEntriesRowCompacted) == [4,3,2,0,1]
+        #     @test Array(csrNew_device._rowSurvived) == [1,1,1,0,1]
+        #     @test CellBasedModels.overflow(csrNew_device) == false
 
-            preallocate!(csrNew_device, csr_device)
-            @test Array(csrNew_device._map) == [
-                    1,2,3,10,
-                    4,5,10,0,
-                    6,0,8,0,
-                    0,0,0,0,
-                    1,0,0,0
-                ]
-            @test Array(csrNew_device._NEntries) == [10]
-            @test Array(csrNew_device._NRows) == [5]
-            @test Array(csrNew_device._NRowsCache) == [5]
-            @test Array(csrNew_device._NRowsCompacted) == [4]
-            @test Array(csrNew_device._NEntriesRow) == [4,3,3,0,1]
-            @test Array(csrNew_device._NEntriesRowAdd) == [4,3,3,0,1]
-            @test Array(csrNew_device._NEntriesRowCompacted) == [4,3,2,0,1]
-            @test Array(csrNew_device._rowSurvived) == [1,1,1,0,1]
-            @test CellBasedModels.overflow(csrNew_device) == false
+        #     preallocate!(csrNew_device, csr_device)
+        #     @test Array(csrNew_device._map) == [
+        #             1,2,3,10,
+        #             4,5,10,0,
+        #             6,0,8,0,
+        #             0,0,0,0,
+        #             1,0,0,0
+        #         ]
+        #     @test Array(csrNew_device._NEntries) == [10]
+        #     @test Array(csrNew_device._NRows) == [5]
+        #     @test Array(csrNew_device._NRowsCache) == [5]
+        #     @test Array(csrNew_device._NRowsCompacted) == [4]
+        #     @test Array(csrNew_device._NEntriesRow) == [4,3,3,0,1]
+        #     @test Array(csrNew_device._NEntriesRowAdd) == [4,3,3,0,1]
+        #     @test Array(csrNew_device._NEntriesRowCompacted) == [4,3,2,0,1]
+        #     @test Array(csrNew_device._rowSurvived) == [1,1,1,0,1]
+        #     @test CellBasedModels.overflow(csrNew_device) == false
             
-            copyto!(csr_device, csrNew_device)
-            @test all(csrNew_device._NBlock .== csr_device._NBlock)
-            @test all(csrNew_device._sorted .== csr_device._sorted)
-            @test all(csrNew_device._map .== csr_device._map)
-            @test all(csrNew_device._rowEntryNext .== csr_device._rowEntryNext)
-            @test all(csrNew_device._rowEntryPrevious .== csr_device._rowEntryPrevious)
-            @test all(csrNew_device._rowFirstEntry .== csr_device._rowFirstEntry)
-            @test all(csrNew_device._rowLastEntry .== csr_device._rowLastEntry)
-            @test all(csrNew_device._NRows .== csr_device._NRows)
-            @test all(csrNew_device._NRowsCache .== csr_device._NRowsCache)
-            @test all(csrNew_device._NRowsCompacted .== csr_device._NRowsCompacted)
-            @test all(csrNew_device._NEntries .== csr_device._NEntries)
-            @test all(csrNew_device._NEntriesRow .== csr_device._NEntriesRow)
-            @test all(csrNew_device._NEntriesRowAdd .== csr_device._NEntriesRowAdd)
-            @test all(csrNew_device._NEntriesRowCompacted .== csr_device._NEntriesRowCompacted)
-            @test all(csrNew_device._rowSurvived .== csr_device._rowSurvived)
+        #     copyto!(csr_device, csrNew_device)
+        #     @test all(csrNew_device._NBlock .== csr_device._NBlock)
+        #     @test all(csrNew_device._sorted .== csr_device._sorted)
+        #     @test all(csrNew_device._map .== csr_device._map)
+        #     @test all(csrNew_device._rowEntryNext .== csr_device._rowEntryNext)
+        #     @test all(csrNew_device._rowEntryPrevious .== csr_device._rowEntryPrevious)
+        #     @test all(csrNew_device._rowFirstEntry .== csr_device._rowFirstEntry)
+        #     @test all(csrNew_device._rowLastEntry .== csr_device._rowLastEntry)
+        #     @test all(csrNew_device._NRows .== csr_device._NRows)
+        #     @test all(csrNew_device._NRowsCache .== csr_device._NRowsCache)
+        #     @test all(csrNew_device._NRowsCompacted .== csr_device._NRowsCompacted)
+        #     @test all(csrNew_device._NEntries .== csr_device._NEntries)
+        #     @test all(csrNew_device._NEntriesRow .== csr_device._NEntriesRow)
+        #     @test all(csrNew_device._NEntriesRowAdd .== csr_device._NEntriesRowAdd)
+        #     @test all(csrNew_device._NEntriesRowCompacted .== csr_device._NEntriesRowCompacted)
+        #     @test all(csrNew_device._rowSurvived .== csr_device._rowSurvived)
 
-            operations_csrblock_execute2(csrNew_device, csr_device)
-            @test Array(csrNew_device._map) == [
-                    1,2,3,10,
-                    4,5,10,0,
-                    6,0,8,11,
-                    0,0,0,0,
-                    1,0,0,0
-                ]
-            @test Array(csrNew_device._NEntries) == [12]
-            @test Array(csrNew_device._NRows) == [5]
-            @test Array(csrNew_device._NRowsCache) == [5]
-            @test Array(csrNew_device._NRowsCompacted) == [4]
-            @test Array(csrNew_device._NEntriesRow) == [4,3,5,0,1]
-            @test Array(csrNew_device._NEntriesRowAdd) == [4,3,5,0,1]
-            @test Array(csrNew_device._NEntriesRowCompacted) == [4,3,4,0,1]
-            @test Array(csrNew_device._rowSurvived) == [1,1,1,0,1]
-            @test CellBasedModels.overflow(csrNew_device) == true
+        #     operations_CSRStruct_execute2(csrNew_device, csr_device)
+        #     @test Array(csrNew_device._map) == [
+        #             1,2,3,10,
+        #             4,5,10,0,
+        #             6,0,8,11,
+        #             0,0,0,0,
+        #             1,0,0,0
+        #         ]
+        #     @test Array(csrNew_device._NEntries) == [12]
+        #     @test Array(csrNew_device._NRows) == [5]
+        #     @test Array(csrNew_device._NRowsCache) == [5]
+        #     @test Array(csrNew_device._NRowsCompacted) == [4]
+        #     @test Array(csrNew_device._NEntriesRow) == [4,3,5,0,1]
+        #     @test Array(csrNew_device._NEntriesRowAdd) == [4,3,5,0,1]
+        #     @test Array(csrNew_device._NEntriesRowCompacted) == [4,3,4,0,1]
+        #     @test Array(csrNew_device._rowSurvived) == [1,1,1,0,1]
+        #     @test CellBasedModels.overflow(csrNew_device) == true
 
-            preallocate!(csrNew_device, csr_device)
-            @test Array(csrNew_device._map) == [
-                    1,2,3,10,
-                    4,5,10,0,
-                    6,8,0,0,
-                    0,0,0,0,
-                    1,0,0,0
-                ]
-            @test Array(csrNew_device._NEntries) == [10]
-            @test Array(csrNew_device._NRows) == [5]
-            @test Array(csrNew_device._NRowsCache) == [5]
-            @test Array(csrNew_device._NRowsCompacted) == [4]
-            @test Array(csrNew_device._NEntriesRow) == [4,3,2,0,1]
-            @test Array(csrNew_device._NEntriesRowAdd) == [4,3,2,0,1]
-            @test Array(csrNew_device._NEntriesRowCompacted) == [4,3,2,0,1]
-            @test Array(csrNew_device._rowSurvived) == [1,1,1,0,1]
-            @test CellBasedModels.overflow(csrNew_device) == false
+        #     preallocate!(csrNew_device, csr_device)
+        #     @test Array(csrNew_device._map) == [
+        #             1,2,3,10,
+        #             4,5,10,0,
+        #             6,8,0,0,
+        #             0,0,0,0,
+        #             1,0,0,0
+        #         ]
+        #     @test Array(csrNew_device._NEntries) == [10]
+        #     @test Array(csrNew_device._NRows) == [5]
+        #     @test Array(csrNew_device._NRowsCache) == [5]
+        #     @test Array(csrNew_device._NRowsCompacted) == [4]
+        #     @test Array(csrNew_device._NEntriesRow) == [4,3,2,0,1]
+        #     @test Array(csrNew_device._NEntriesRowAdd) == [4,3,2,0,1]
+        #     @test Array(csrNew_device._NEntriesRowCompacted) == [4,3,2,0,1]
+        #     @test Array(csrNew_device._rowSurvived) == [1,1,1,0,1]
+        #     @test CellBasedModels.overflow(csrNew_device) == false
 
-            operations_csrblock_execute2(csrNew_device, csr_device)
-            @test Array(csrNew_device._map) == [
-                    1,2,3,10,
-                    4,5,10,0,
-                    6,8,11,14,
-                    0,0,0,0,
-                    1,0,0,0
-                ]
-            @test Array(csrNew_device._NEntries) == [12]
-            @test Array(csrNew_device._NRows) == [5]
-            @test Array(csrNew_device._NRowsCache) == [5]
-            @test Array(csrNew_device._NRowsCompacted) == [4]
-            @test Array(csrNew_device._NEntriesRow) == [4,3,4,0,1]
-            @test Array(csrNew_device._NEntriesRowAdd) == [4,3,4,0,1]
-            @test Array(csrNew_device._NEntriesRowCompacted) == [4,3,4,0,1]
-            @test Array(csrNew_device._rowSurvived) == [1,1,1,0,1]
-            @test CellBasedModels.overflow(csrNew_device) == false
+        #     operations_CSRStruct_execute2(csrNew_device, csr_device)
+        #     @test Array(csrNew_device._map) == [
+        #             1,2,3,10,
+        #             4,5,10,0,
+        #             6,8,11,14,
+        #             0,0,0,0,
+        #             1,0,0,0
+        #         ]
+        #     @test Array(csrNew_device._NEntries) == [12]
+        #     @test Array(csrNew_device._NRows) == [5]
+        #     @test Array(csrNew_device._NRowsCache) == [5]
+        #     @test Array(csrNew_device._NRowsCompacted) == [4]
+        #     @test Array(csrNew_device._NEntriesRow) == [4,3,4,0,1]
+        #     @test Array(csrNew_device._NEntriesRowAdd) == [4,3,4,0,1]
+        #     @test Array(csrNew_device._NEntriesRowCompacted) == [4,3,4,0,1]
+        #     @test Array(csrNew_device._rowSurvived) == [1,1,1,0,1]
+        #     @test CellBasedModels.overflow(csrNew_device) == false
 
-            copyto!(csr_device, csrNew_device)
-            @test all(csrNew_device._NBlock .== csr_device._NBlock)
-            @test all(csrNew_device._sorted .== csr_device._sorted)
-            @test all(csrNew_device._map .== csr_device._map)
-            @test all(csrNew_device._rowEntryNext .== csr_device._rowEntryNext)
-            @test all(csrNew_device._rowEntryPrevious .== csr_device._rowEntryPrevious)
-            @test all(csrNew_device._rowFirstEntry .== csr_device._rowFirstEntry)
-            @test all(csrNew_device._rowLastEntry .== csr_device._rowLastEntry)
-            @test all(csrNew_device._NRows .== csr_device._NRows)
-            @test all(csrNew_device._NRowsCache .== csr_device._NRowsCache)
-            @test all(csrNew_device._NRowsCompacted .== csr_device._NRowsCompacted)
-            @test all(csrNew_device._NEntries .== csr_device._NEntries)
-            @test all(csrNew_device._NEntriesRow .== csr_device._NEntriesRow)
-            @test all(csrNew_device._NEntriesRowAdd .== csr_device._NEntriesRowAdd)
-            @test all(csrNew_device._NEntriesRowCompacted .== csr_device._NEntriesRowCompacted)
-            @test all(csrNew_device._rowSurvived .== csr_device._rowSurvived)
+        #     copyto!(csr_device, csrNew_device)
+        #     @test all(csrNew_device._NBlock .== csr_device._NBlock)
+        #     @test all(csrNew_device._sorted .== csr_device._sorted)
+        #     @test all(csrNew_device._map .== csr_device._map)
+        #     @test all(csrNew_device._rowEntryNext .== csr_device._rowEntryNext)
+        #     @test all(csrNew_device._rowEntryPrevious .== csr_device._rowEntryPrevious)
+        #     @test all(csrNew_device._rowFirstEntry .== csr_device._rowFirstEntry)
+        #     @test all(csrNew_device._rowLastEntry .== csr_device._rowLastEntry)
+        #     @test all(csrNew_device._NRows .== csr_device._NRows)
+        #     @test all(csrNew_device._NRowsCache .== csr_device._NRowsCache)
+        #     @test all(csrNew_device._NRowsCompacted .== csr_device._NRowsCompacted)
+        #     @test all(csrNew_device._NEntries .== csr_device._NEntries)
+        #     @test all(csrNew_device._NEntriesRow .== csr_device._NEntriesRow)
+        #     @test all(csrNew_device._NEntriesRowAdd .== csr_device._NEntriesRowAdd)
+        #     @test all(csrNew_device._NEntriesRowCompacted .== csr_device._NEntriesRowCompacted)
+        #     @test all(csrNew_device._rowSurvived .== csr_device._rowSurvived)
 
-            operations_csrblock_execute3(csrNew_device, csr_device)
-            @test Array(csrNew_device._map) == [
-                    1,2,3,10,
-                    4,5,10,0,
-                    6,8,11,14,
-                    0,0,0,0,
-                    1,0,0,0
-                ]
-            @test Array(csrNew_device._NEntries) == [13]
-            @test Array(csrNew_device._NRows) == [6]
-            @test Array(csrNew_device._NRowsCache) == [5]
-            @test Array(csrNew_device._NRowsCompacted) == [5]
-            @test Array(csrNew_device._NEntriesRow) == [4,3,5,0,1]
-            @test Array(csrNew_device._NEntriesRowAdd) == [4,3,5,0,1]
-            @test Array(csrNew_device._NEntriesRowCompacted) == [4,3,5,0,1]
-            @test Array(csrNew_device._rowSurvived) == [1,1,1,0,1]
-            @test CellBasedModels.overflow(csrNew_device) == true
+        #     operations_CSRStruct_execute3(csrNew_device, csr_device)
+        #     @test Array(csrNew_device._map) == [
+        #             1,2,3,10,
+        #             4,5,10,0,
+        #             6,8,11,14,
+        #             0,0,0,0,
+        #             1,0,0,0
+        #         ]
+        #     @test Array(csrNew_device._NEntries) == [13]
+        #     @test Array(csrNew_device._NRows) == [6]
+        #     @test Array(csrNew_device._NRowsCache) == [5]
+        #     @test Array(csrNew_device._NRowsCompacted) == [5]
+        #     @test Array(csrNew_device._NEntriesRow) == [4,3,5,0,1]
+        #     @test Array(csrNew_device._NEntriesRowAdd) == [4,3,5,0,1]
+        #     @test Array(csrNew_device._NEntriesRowCompacted) == [4,3,5,0,1]
+        #     @test Array(csrNew_device._rowSurvived) == [1,1,1,0,1]
+        #     @test CellBasedModels.overflow(csrNew_device) == true
 
-            preallocate!(csrNew_device, csr_device)
-            @test Array(csrNew_device._map) == [
-                    1,2,3,10,0,
-                    4,5,10,0,0,
-                    6,8,11,14,0,
-                    1,0,0,0,0,
-                    0,0,0,0,0,
-                ]
-            @test Array(csrNew_device._NEntries) == [12]
-            @test Array(csrNew_device._NRows) == [4]
-            @test Array(csrNew_device._NRowsCache) == [5]
-            @test Array(csrNew_device._NRowsCompacted) == [4]
-            @test Array(csrNew_device._NEntriesRow) == [4,3,4,1,0]
-            @test Array(csrNew_device._NEntriesRowAdd) == [4,3,4,1,0]
-            @test Array(csrNew_device._NEntriesRowCompacted) == [4,3,4,1,0]
-            @test Array(csrNew_device._rowSurvived) == [1,1,1,1,0]
-            @test CellBasedModels.overflow(csrNew_device) == false
+        #     preallocate!(csrNew_device, csr_device)
+        #     @test Array(csrNew_device._map) == [
+        #             1,2,3,10,0,
+        #             4,5,10,0,0,
+        #             6,8,11,14,0,
+        #             1,0,0,0,0,
+        #             0,0,0,0,0,
+        #         ]
+        #     @test Array(csrNew_device._NEntries) == [12]
+        #     @test Array(csrNew_device._NRows) == [4]
+        #     @test Array(csrNew_device._NRowsCache) == [5]
+        #     @test Array(csrNew_device._NRowsCompacted) == [4]
+        #     @test Array(csrNew_device._NEntriesRow) == [4,3,4,1,0]
+        #     @test Array(csrNew_device._NEntriesRowAdd) == [4,3,4,1,0]
+        #     @test Array(csrNew_device._NEntriesRowCompacted) == [4,3,4,1,0]
+        #     @test Array(csrNew_device._rowSurvived) == [1,1,1,1,0]
+        #     @test CellBasedModels.overflow(csrNew_device) == false
 
-        end
+        # end
 
-        # Sorted: Test operators and compactions
-        for device in devices
+        # # Sorted: Test operators and compactions
+        # for device in devices
 
-            mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
-            csrMat = CSRBlock(mat, NRowsCache=5, NBlock=4, sorted=true)
-            csr_device = CellBasedModels.toDevice(csrMat, device)
-            csrNew_device = copy(csrMat)
+        #     mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
+        #     csrMat = CSRStruct(mat, NRowsCache=5, NBlock=4, sorted=true)
+        #     csr_device = CellBasedModels.toDevice(csrMat, device)
+        #     csrNew_device = copy(csrMat)
             
-            @test Array(csr_device._map) == [
-                    1,2,3,0,
-                    4,5,0,0,
-                    6,7,8,0,
-                    9,10,11,0,
-                    0,0,0,0
-                ]
-            @test Array(csr_device._rowEntryNext) == [
-                    2,3,0,0,
-                    2,0,0,0,
-                    2,3,0,0,
-                    2,3,0,0,
-                    0,0,0,0
-                ]
-            @test Array(csr_device._rowFirstEntry) == [1,1,1,1,0]
-            @test Array(csr_device._rowLastEntry) == [3,2,3,3,0]
-            @test Array(csr_device._NEntries) == [11]
-            @test Array(csr_device._NRows) == [4]
-            @test Array(csr_device._NRowsCache) == [5]
-            @test Array(csr_device._NRowsCompacted) == [4]
-            @test Array(csr_device._NEntriesRow) == [3,2,3,3,0]
-            @test Array(csr_device._NEntriesRowAdd) == [3,2,3,3,0]
-            @test Array(csr_device._NEntriesRowCompacted) == [3,2,3,3,0]
-            @test Array(csr_device._rowSurvived) == [1,1,1,1,0]
+        #     @test Array(csr_device._map) == [
+        #             1,2,3,0,
+        #             4,5,0,0,
+        #             6,7,8,0,
+        #             9,10,11,0,
+        #             0,0,0,0
+        #         ]
+        #     @test Array(csr_device._rowEntryNext) == [
+        #             2,3,0,0,
+        #             2,0,0,0,
+        #             2,3,0,0,
+        #             2,3,0,0,
+        #             0,0,0,0
+        #         ]
+        #     @test Array(csr_device._rowFirstEntry) == [1,1,1,1,0]
+        #     @test Array(csr_device._rowLastEntry) == [3,2,3,3,0]
+        #     @test Array(csr_device._NEntries) == [11]
+        #     @test Array(csr_device._NRows) == [4]
+        #     @test Array(csr_device._NRowsCache) == [5]
+        #     @test Array(csr_device._NRowsCompacted) == [4]
+        #     @test Array(csr_device._NEntriesRow) == [3,2,3,3,0]
+        #     @test Array(csr_device._NEntriesRowAdd) == [3,2,3,3,0]
+        #     @test Array(csr_device._NEntriesRowCompacted) == [3,2,3,3,0]
+        #     @test Array(csr_device._rowSurvived) == [1,1,1,1,0]
 
-            operations_csrblock_execute_sorted(csrNew_device, csr_device)
-            @test Array(csrNew_device._map) == [
-                    1,2,3,10,
-                    4,5,10,0,
-                    6,0,8,0,
-                    0,0,0,0,
-                    1,0,0,0
-                ]
-            @test Array(csrNew_device._rowEntryNext) == [
-                    2,4,0,3,
-                    2,3,0,0,
-                    3,0,0,0,
-                    0,0,0,0,
-                    0,0,0,0
-                ]
-            @test Array(csrNew_device._NEntries) == [10]
-            @test Array(csrNew_device._NRows) == [5]
-            @test Array(csrNew_device._NRowsCache) == [5]
-            @test Array(csrNew_device._NRowsCompacted) == [4]
-            @test Array(csrNew_device._NEntriesRow) == [4,3,3,0,1]
-            @test Array(csrNew_device._NEntriesRowAdd) == [4,3,3,0,1]
-            @test Array(csrNew_device._NEntriesRowCompacted) == [4,3,2,0,1]
-            @test Array(csrNew_device._rowSurvived) == [1,1,1,0,1]
-            @test CellBasedModels.overflow(csrNew_device) == false
+        #     operations_CSRStruct_execute_sorted(csrNew_device, csr_device)
+        #     @test Array(csrNew_device._map) == [
+        #             1,2,3,10,
+        #             4,5,10,0,
+        #             6,0,8,0,
+        #             0,0,0,0,
+        #             1,0,0,0
+        #         ]
+        #     @test Array(csrNew_device._rowEntryNext) == [
+        #             2,4,0,3,
+        #             2,3,0,0,
+        #             3,0,0,0,
+        #             0,0,0,0,
+        #             0,0,0,0
+        #         ]
+        #     @test Array(csrNew_device._NEntries) == [10]
+        #     @test Array(csrNew_device._NRows) == [5]
+        #     @test Array(csrNew_device._NRowsCache) == [5]
+        #     @test Array(csrNew_device._NRowsCompacted) == [4]
+        #     @test Array(csrNew_device._NEntriesRow) == [4,3,3,0,1]
+        #     @test Array(csrNew_device._NEntriesRowAdd) == [4,3,3,0,1]
+        #     @test Array(csrNew_device._NEntriesRowCompacted) == [4,3,2,0,1]
+        #     @test Array(csrNew_device._rowSurvived) == [1,1,1,0,1]
+        #     @test CellBasedModels.overflow(csrNew_device) == false
 
             # preallocate!(csrNew_device, csr_device)
             # @test Array(csrNew_device._map) == [
@@ -599,7 +876,7 @@ end
             # @test all(csrNew_device._NEntriesRowCompacted .== csr_device._NEntriesRowCompacted)
             # @test all(csrNew_device._rowSurvived .== csr_device._rowSurvived)
 
-            # operations_csrblock_execute2(csrNew_device, csr_device)
+            # operations_CSRStruct_execute2(csrNew_device, csr_device)
             # @test Array(csrNew_device._map) == [
             #         1,2,3,10,
             #         4,5,10,0,
@@ -635,7 +912,7 @@ end
             # @test Array(csrNew_device._rowSurvived) == [1,1,1,0,1]
             # @test CellBasedModels.overflow(csrNew_device) == false
 
-            # operations_csrblock_execute2(csrNew_device, csr_device)
+            # operations_CSRStruct_execute2(csrNew_device, csr_device)
             # @test Array(csrNew_device._map) == [
             #         1,2,3,10,
             #         4,5,10,0,
@@ -670,7 +947,7 @@ end
             # @test all(csrNew_device._NEntriesRowCompacted .== csr_device._NEntriesRowCompacted)
             # @test all(csrNew_device._rowSurvived .== csr_device._rowSurvived)
 
-            # operations_csrblock_execute3(csrNew_device, csr_device)
+            # operations_CSRStruct_execute3(csrNew_device, csr_device)
             # @test Array(csrNew_device._map) == [
             #         1,2,3,10,
             #         4,5,10,0,
@@ -706,7 +983,7 @@ end
             # @test Array(csrNew_device._rowSurvived) == [1,1,1,1,0]
             # @test CellBasedModels.overflow(csrNew_device) == false
 
-        end
+        # end
 
     end
 

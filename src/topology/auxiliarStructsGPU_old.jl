@@ -1,4 +1,4 @@
-function KernelAbstractions.get_backend(field::CSRBlock)
+function KernelAbstractions.get_backend(field::CSRStruct)
     KernelAbstractions.get_backend(field._map)
 end
 
@@ -14,9 +14,9 @@ end
 # toDevice - Device transfer functions for CSR structures
 ######################################################################################################
 
-# CSRBlock to CPU
-function toDevice(field::CSRBlock{P}, ::Type{CPU}) where {P<:GPU}
-    CSRBlock(
+# CSRStruct to CPU
+function toDevice(field::CSRStruct{P}, ::Type{CPU}) where {P<:GPU}
+    CSRStruct(
         Adapt.adapt(Array, field._map),
         SizedVector{1}(Array(field._N)[1]),
         SizedVector{1}(Array(field._NBlock)[1]),
@@ -29,7 +29,7 @@ function toDevice(field::CSRBlock{P}, ::Type{CPU}) where {P<:GPU}
     )
 end
 
-toDevice(field::CSRBlock{P}, ::Type{CPU}) where {P<:CPU} = field
+toDevice(field::CSRStruct{P}, ::Type{CPU}) where {P<:CPU} = field
 
 # CSRTuple to CPU
 function toDevice(field::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:GPU, NBlock}
