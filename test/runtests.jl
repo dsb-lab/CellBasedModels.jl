@@ -18,7 +18,8 @@ devices = CUDA.has_cuda() ? [CPU, CUDA.CUDABackend] : [CPU]
     # include("testDiffSym.jl")
     # include("testDiffAuto.jl")
     # include("testDebugAutodif.jl")
-    include("testTopologyAuxiliar.jl")
+    include("testDynamicalCOO.jl")
+    # include("testTopologyAuxiliar.jl")
 
     # include("testUnstructuredMesh.jl")
     # include("testUnstructuredMeshSCE.jl")

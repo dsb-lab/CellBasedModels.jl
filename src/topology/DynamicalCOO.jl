@@ -9,9 +9,6 @@ struct DynamicalCOO{
     _rows::I
     _cols::I
 
-    _NRows::I
-    _NCols::I
-
     _NEntries::I
     _NEntriesCache::I
     _NEntriesNonzero::I
@@ -29,9 +26,6 @@ function DynamicalCOO(
         _values,
         _rows,
         _cols,
-
-        _NRows,
-        _NCols,
         
         _NEntries,
         _NEntriesCache,
@@ -48,7 +42,7 @@ function DynamicalCOO(
     P = platform()
     T = eltype(_values)
     V = typeof(_values)
-    I = typeof(_NRows)
+    I = typeof(_NEntries)
     L = typeof(_lock)
 
     DynamicalCOO{
@@ -57,9 +51,6 @@ function DynamicalCOO(
             _values,
             _rows,
             _cols,
-
-            _NRows,
-            _NCols,
             
             _NEntries,
             _NEntriesCache,
@@ -81,8 +72,6 @@ function dcoo_zeros(dtype::DataType, n_coo::Int=0)
     _rows = zeros(Int, n_coo)
     _cols = zeros(Int, n_coo)
     _values = zeros(dtype, n_coo)
-    _NRows = Int[0]
-    _NCols = Int[0]
     _NEntries = Int[0]
     _NEntriesCache = Int[n_coo]
     _NEntriesNonzero = Int[0]
@@ -96,9 +85,6 @@ function dcoo_zeros(dtype::DataType, n_coo::Int=0)
             _rows,
             _cols,
             _values,
-
-            _NRows,
-            _NCols,
             
             _NEntries,
             _NEntriesCache,
@@ -119,8 +105,8 @@ end
 
 function Base.show(io::IO, x::DynamicalCOO{P, T}) where {P, T}
     
-    nrows = getDeviceIndex(x._NRows)
-    ncols = getDeviceIndex(x._NCols)
+    nrows = numberOfRows(x)
+    ncols = numberOfCols(x)
     nentries = numberOfEntries(x)
     
     println(io, "DynamicalCOO{$T} with $(nentries) stored entries")
@@ -169,12 +155,14 @@ function Base.show(io::IO, x::Type{DynamicalCOO{P, T, V, I}}) where {P, T, V, I}
     println(io, "DynamicalCOO{$P, $T, $V, $I}")
 end
 
-Base.length(coo::DynamicalCOO{P}) where {P} = numberOfEntriesCache(coo)
+Base.length(coo::DynamicalCOO{P}) where {P} = length(coo._values)
 numberOfEntries(coo::DynamicalCOO{P}) where {P<:CPU} = getDeviceIndex(coo._NEntries)
 numberOfEntriesCache(coo::DynamicalCOO{P}) where {P<:CPU} = getDeviceIndex(coo._NEntriesCache)
 numberOfEntriesNonzero(coo::DynamicalCOO{P}) where {P<:CPU} = getDeviceIndex(coo._NEntriesNonzero)
 numberOfEntriesFree(coo::DynamicalCOO{P}) where {P<:CPU} = getDeviceIndex(coo._NEntriesFree)
 numberOfEntriesFreeNext(coo::DynamicalCOO{P}) where {P<:CPU} = getDeviceIndex(coo._NEntriesFreeNext)
+numberOfRows(coo::DynamicalCOO{P}) where {P<:CPU} = maximum(coo._rows)
+numberOfCols(coo::DynamicalCOO{P}) where {P<:CPU} = maximum(coo._cols)
 
 """
     setindex!(coo::DynamicalCOO, value, i::Int, j::Int)
@@ -184,20 +172,10 @@ Allows syntax: x[i,j] = value
 """
 function Base.setindex!(coo::DynamicalCOO{P}, value, i::Int, j::Int) where {P<:CPU}
 
-    nRows = getDeviceIndex(coo._NRows)
-    nCols = getDeviceIndex(coo._NCols)
     nEntries = min(numberOfEntriesCache(coo), numberOfEntries(coo))
 
     if i <= 0 || j <= 0
         @print "Indices must be positive integers."
-    end
-
-    if i > nRows
-        @atomic coo._NRows[1] = max(i, Array(coo._NRows)[1])
-    end        
-
-    if j > nCols
-        @atomic coo._NCols[1] = max(j, Array(coo._NCols)[1])
     end
 
     # Search for i j in coo
@@ -243,20 +221,10 @@ end
 
 function Base.setindex!(coo::DynamicalCOO{P}, value, i::Int, j::Int) where {P<:GPU}
 
-    nRows = getDeviceIndex(coo._NRows)
-    nCols = getDeviceIndex(coo._NCols)
     nEntries = min(numberOfEntriesCache(coo), numberOfEntries(coo))
 
     if i <= 0 || j <= 0
         @print "Indices must be positive integers."
-    end
-
-    if i > nRows
-        @atomic coo._NRows[1] = max(i, Array(coo._NRows)[1])
-    end        
-
-    if j > nCols
-        @atomic coo._NCols[1] = max(j, Array(coo._NCols)[1])
     end
 
     # Search for i j in coo
@@ -364,6 +332,43 @@ function _getindex(coo::DynamicalCOO, i::Int, j::Int)
     return nothing
 end
 
+function overflow(coo::DynamicalCOO)
+
+    return overflowEntries(coo) >= 0
+
+end
+
+function overflowEntries(coo::DynamicalCOO)
+
+    return abs(min(getDeviceIndex(coo._NEntriesFree), 0))
+
+end
+
+function overflowRows(coo::DynamicalCOO)
+
+    return overflowEntries(coo)
+
+end
+
+function allocationRatio(coo::DynamicalCOO)
+
+    nEntries = numberOfEntries(coo)
+    nEntriesCache = numberOfEntriesCache(coo)
+
+    if nEntriesCache == 0
+        return 0.0
+    else
+        return nEntries / nEntriesCache
+    end
+
+end
+
+function allocationsFailed(coo::DynamicalCOO)
+
+    return numberOfEntries(coo) > numberOfEntriesCache(coo)
+
+end
+
 function synchronize(coo::DynamicalCOO)
 
     chunk = getDeviceIndex(coo._NEntriesFreeNext) - 1
@@ -402,7 +407,6 @@ function dropzeros!(coo::DynamicalCOO{P, T}) where {P<:CPU, T}
         i = @index(Global)
 
         if values[i] == 0 && rows[i] != 0
-            @print "Dropping zero at position $i\n"
             rows[i] = 0
             cols[i] = 0
             @atomic nEntries[1] -= 1
@@ -550,7 +554,7 @@ function compact!(coo::DynamicalCOO)
 
 end
 
-function compactto!(coo::DynamicalCOO, cooTarget::DynamicalCOO)
+function compactto!(cooTarget::DynamicalCOO{P, T}, coo::DynamicalCOO{P, T}) where {P, T}
 
     @kernel function kernel_mark_surviving!(rows, surviving)
        
@@ -575,6 +579,15 @@ function compactto!(coo::DynamicalCOO, cooTarget::DynamicalCOO)
 
     end
 
+    lscr = length(coo)
+    ldst = length(cooTarget)
+    if ldst < lscr
+        resize!(cooTarget._values, lscr)
+        resize!(cooTarget._cols, lscr)
+        resize!(cooTarget._rows, lscr)
+        resize!(cooTarget._entriesFree, lscr)
+    end
+
     backend = KernelAbstractions.get_backend(coo)
     threads = backend === CPU() ? Threads.nthreads() : 256
 
@@ -597,6 +610,7 @@ function compactto!(coo::DynamicalCOO, cooTarget::DynamicalCOO)
     kernel_map!(backend, threads)(coo._rows, cooTarget._rows, mapping, surviving, ndrange = length(coo))
 
     setDeviceIndex!(cooTarget._NEntries, nNonzero)
+    setDeviceIndex!(cooTarget._NEntriesCache, getDeviceIndex(coo._NEntriesCache))
     setDeviceIndex!(cooTarget._NEntriesNonzero, nNonzero)
     setDeviceIndex!(cooTarget._NEntriesFree, length(coo)-nNonzero)
     setDeviceIndex!(cooTarget._NEntriesFreeNextInit, length(coo)-nNonzero+1)
@@ -609,56 +623,241 @@ function compactto!(coo::DynamicalCOO, cooTarget::DynamicalCOO)
 
 end
 
+function Base.similar(coo::DynamicalCOO)
+
+    dtype = eltype(coo._values)
+    n_coo = length(coo)
+
+    _rows = Array{Int}(undef, n_coo)
+    _cols = Array{Int}(undef, n_coo)
+    _values = Array{dtype}(undef, n_coo)
+    _NEntries = Array{Int}(undef, 1)
+    _NEntriesCache = Array{Int}(undef, 1)
+    _NEntriesNonzero = Array{Int}(undef, 1)
+    _NEntriesFree = Array{Int}(undef, 1)
+    _NEntriesFreeNextInit = Array{Int}(undef, 1)
+    _NEntriesFreeNext = Array{Int}(undef, 1)
+    _entriesFree = Array{Int}(undef, n_coo)
+    _lock = ReentrantLock()
+
+    return DynamicalCOO(
+            _rows,
+            _cols,
+            _values,
+            
+            _NEntries,
+            _NEntriesCache,
+            _NEntriesNonzero,
+            
+            _NEntriesFree,
+            _NEntriesFreeNextInit,
+            _NEntriesFreeNext,
+            _entriesFree,
+
+            _lock
+        )
+
+end
+
+function Base.copy(coo::DynamicalCOO)
+
+    cooCopy = similar(coo)
+
+    cooCopy._rows .= coo._rows
+    cooCopy._cols .= coo._cols
+    cooCopy._values .= coo._values
+
+    cooCopy._NEntries .= coo._NEntries
+    cooCopy._NEntriesCache .= coo._NEntriesCache
+    cooCopy._NEntriesNonzero .= coo._NEntriesNonzero
+
+    cooCopy._NEntriesFree .= coo._NEntriesFree
+    cooCopy._NEntriesFreeNextInit .= coo._NEntriesFreeNextInit
+    cooCopy._NEntriesFreeNext .= coo._NEntriesFreeNext
+    cooCopy._entriesFree .= coo._entriesFree
+
+    return cooCopy
+
+end
+
+function Base.copyto!(dest::DynamicalCOO{P, T}, src::DynamicalCOO{P, T}) where {P, T}
+
+    lscr = length(src)
+    ldst = length(dest)
+    biggerdst = ldst > lscr
+    if ldst < lscr
+        resize!(dest._values, lscr)
+        resize!(dest._cols, lscr)
+        resize!(dest._rows, lscr)
+        resize!(dest._entriesFree, lscr)
+    end
+
+    if biggerdst
+        @views(dest._values[1:length(src)]) .= src._values
+        @views(dest._values[length(src)+1:end]) .= 0
+        @views(dest._cols[1:length(src)]) .= src._cols
+        @views(dest._cols[length(src)+1:end]) .= 0
+        @views(dest._rows[1:length(src)]) .= src._rows
+        @views(dest._rows[length(src)+1:end]) .= 0
+        @views(dest._entriesFree[1:length(src)]) .= src._entriesFree
+        @views(dest._entriesFree[length(src)+1:end]) .= 0
+    else
+        dest._values .= src._values
+        dest._cols .= src._cols
+        dest._rows .= src._rows
+        dest._entriesFree .= src._entriesFree
+    end
+    dest._NEntries .= src._NEntries
+    dest._NEntriesCache .= src._NEntriesCache
+    dest._NEntriesNonzero .= src._NEntriesNonzero
+    dest._NEntriesFree .= src._NEntriesFree
+    dest._NEntriesFreeNextInit .= src._NEntriesFreeNextInit
+    dest._NEntriesFreeNext .= src._NEntriesFreeNext
+
+    return dest
+
+end
+
 function dropcache!(coo::DynamicalCOO)
 
-    dropzeros!(coo)
-    nEntries = numberOfEntries(coo)
-    resize!(coo._coo, nEntries)
-    coo._NEntries .= nEntries
+    compact!(coo)
+    nEntriesNonzero = numberOfEntriesNonzero(coo)
+
+    resize!(coo._rows, nEntriesNonzero)
+    resize!(coo._cols, nEntriesNonzero)
+    resize!(coo._values, nEntriesNonzero)
+    resize!(coo._entriesFree, nEntriesNonzero)
+
+    setDeviceIndex!(coo._NEntries, nEntriesNonzero)
+    setDeviceIndex!(coo._NEntriesCache, nEntriesNonzero)
+    setDeviceIndex!(coo._NEntriesNonzero, nEntriesNonzero)
+    setDeviceIndex!(coo._NEntriesFree, nEntriesNonzero)
+    setDeviceIndex!(coo._NEntriesFreeNextInit, nEntriesNonzero + 1)
+    setDeviceIndex!(coo._NEntriesFreeNext, 0)
+
+    coo._entriesFree .= 0
 
     return
 
 end
 
-function overflowed(coo::DynamicalCOO)
+function dropcacheto!(cooTarget::DynamicalCOO{P, T}, coo::DynamicalCOO{P, T}) where {P, T}
 
-    nEntriesCache = numberOfEntriesCache(coo)
-    nEntries = numberOfEntries(coo)
+    compactto!(coo, cooTarget)
+    nEntriesNonzero = numberOfEntriesNonzero(cooTarget)
 
-    return nEntries > nEntriesCache
+    resize!(cooTarget._rows, nEntriesNonzero)
+    resize!(cooTarget._cols, nEntriesNonzero)
+    resize!(cooTarget._values, nEntriesNonzero)
+    resize!(cooTarget._entriesFree, nEntriesNonzero)
+
+    setDeviceIndex!(cooTarget._NEntries, nEntriesNonzero)
+    setDeviceIndex!(cooTarget._NEntriesCache, nEntriesNonzero)
+    setDeviceIndex!(cooTarget._NEntriesNonzero, nEntriesNonzero)
+    setDeviceIndex!(cooTarget._NEntriesFree, nEntriesNonzero)
+    setDeviceIndex!(cooTarget._NEntriesFreeNextInit, nEntriesNonzero + 1)
+    setDeviceIndex!(cooTarget._NEntriesFreeNext, 0)
+
+    cooTarget._entriesFree .= 0
+
+    return
+
+end
+
+function remaprows!(coo::DynamicalCOO, rowmap::AbstractVector{Int})
+
+    @kernel function kernel_remap_rows!(rows, rowmap)
+        
+        i = @index(Global)
+        
+        if rows[i] != 0
+            oldRow = rows[i]
+            if oldRow <= length(rowmap)
+                rows[i] = rowmap[oldRow]
+            else
+                @print "Row index $oldRow out of bounds for rowmap of length $(length(rowmap))\n"
+            end
+        end
+        
+    end
+    
+    backend = KernelAbstractions.get_backend(coo)
+    threads = backend === CPU() ? Threads.nthreads() : 256
+    kernel_remap_rows!(backend, threads)(coo._rows, rowmap, ndrange = length(coo))
+    
+    return
+
+end
+
+function remapcols!(coo::DynamicalCOO, colmap::AbstractVector{Int})
+
+    @kernel function kernel_remap_cols!(cols, colmap)
+        
+        i = @index(Global)
+        
+        if cols[i] != 0
+            oldCol = cols[i]
+            if oldCol <= length(colmap)
+                cols[i] = colmap[oldCol]
+            else
+                @print "Column index $oldCol out of bounds for colmap of length $(length(colmap))\n"
+            end
+        end
+        
+    end
+    
+    backend = KernelAbstractions.get_backend(coo)
+    threads = backend === CPU() ? Threads.nthreads() : 256
+    kernel_remap_cols!(backend, threads)(coo._cols, colmap, ndrange = length(coo))
+    
+    return
 
 end
 
 KernelAbstractions.get_backend(coo::DynamicalCOO) = KernelAbstractions.get_backend(coo._values)
 
-toDevice(coo::DynamicalCOO{P}, ::Type{CPU}) where {P<:CPU} = coo
+toDevice(::Type{CPU}, coo::DynamicalCOO{P}) where {P<:CPU} = coo
 
-function toDevice(coo::DynamicalCOO{P, T}, ::Type{<:KernelAbstractions.CPU}) where {P<:GPU, T}
+function toDevice(::Type{CPU}, coo::DynamicalCOO{P, T}) where {P<:GPU, T}
     DynamicalCOO(
-        Vector(coo._coo),
-        Vector(coo._NRows),
-        Vector(coo._NCols),
-        Vector(coo._NEntries)
+        Vector(coo._values),
+        Vector(coo._rows),
+        Vector(coo._cols),
+        Vector(coo._NEntries),
+        Vector(coo._NEntriesCache),
+        Vector(coo._NEntriesNonzero),
+        Vector(coo._NEntriesFree),
+        Vector(coo._NEntriesFreeNextInit),
+        Vector(coo._NEntriesFreeNext),
+        Vector(coo._entriesFree),
+        ReentrantLock()
     )
 end
 
-function toDevice(coo::DynamicalCOO{P}, backend::KernelAbstractions.CPU) where {P<:CPU}
-    toDevice(coo, typeof(backend))
+function toDevice(backend::KernelAbstractions.CPU, coo::DynamicalCOO{P}) where {P<:CPU}
+    toDevice(CPU, coo)
 end
 
-toDevice(coo::DynamicalCOO{P}, ::GPU) where {P<:GPU} = coo
+toDevice(::GPU, coo::DynamicalCOO{P}) where {P<:GPU} = coo
 
-function toDevice(coo::DynamicalCOO{P, T}, backend::Type{<:KernelAbstractions.GPU}) where {P<:CPU, T}
+function toDevice(backend::Type{<:KernelAbstractions.GPU}, coo::DynamicalCOO{P, T}) where {P<:CPU, T}
     DynamicalCOO(
-        Adapt.adapt(backend, coo._coo),
-        Adapt.adapt(backend, coo._NRows),
-        Adapt.adapt(backend, coo._NCols),
-        Adapt.adapt(backend, coo._NEntries)
+        Adapt.adapt(backend, coo._values),
+        Adapt.adapt(backend, coo._rows),
+        Adapt.adapt(backend, coo._cols),
+        Adapt.adapt(backend, coo._NEntries),
+        Adapt.adapt(backend, coo._NEntriesCache),
+        Adapt.adapt(backend, coo._NEntriesNonzero),
+        Adapt.adapt(backend, coo._NEntriesFree),
+        Adapt.adapt(backend, coo._NEntriesFreeNextInit),
+        Adapt.adapt(backend, coo._NEntriesFreeNext),
+        Adapt.adapt(backend, coo._entriesFree),
+        coo._lock
     )
 end
 
-function toDevice(coo::DynamicalCOO{P}, backend::KernelAbstractions.GPU) where {P<:CPU}
-    toDevice(coo, typeof(backend))
+function toDevice(backend::KernelAbstractions.GPU, coo::DynamicalCOO{P}) where {P<:CPU}
+    toDevice(typeof(backend), coo)
 end
 
 """
