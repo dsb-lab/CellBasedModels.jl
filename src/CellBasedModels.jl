@@ -5,15 +5,16 @@ module CellBasedModels
     using Printf
     export CPU, GPU
     using KernelAbstractions
-    import Atomix: @atomic, @atomicswap, @print
+    import Atomix: @atomic, @atomicswap, @print, @atomicreplace
     import Base: push!
 
     hasCuda() = false
-    getDeviceIndex(arr, i=1) = Array(arr)[i] #To be resolved
+    getDeviceIndex(arr, i=1) = Array(arr)[i] #TO BE BETTER DONE
+    setDeviceIndex!(arr, val) = arr .= val   #TO BE BETTER DONE
 
     #Auxiliar
     # export Unit, UnitScalar, UnitArray
-    # include("./auxiliar/units.jl")ç
+    # include("./auxiliar/units.jl")
     export Parameter
     include("./auxiliar/parameter.jl")
     export @diffsym
@@ -60,18 +61,6 @@ module CellBasedModels
     #Topology
     export AuxiliarFields
     include("./topology/auxiliar.jl")
-
-    export dropzeros!, compact!
-    
-    export iterateRows, iterateRowEntries
-
-    export preallocate!, remap!, reset!
-
-    export claim_pushRow!, claim_removeRow!
-    export claim_pushRowCol!, claim_removeRowCol!, claim_insertRowCol!
-
-    export pushRow!, removeRow!
-    export pushRowCol!, removeRowCol!, insertRowCol!
 
     include("./topology/abstractCSR.jl")
     export DynamicalCOO, dcoo_zeros

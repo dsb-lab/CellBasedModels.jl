@@ -1,4 +1,4 @@
-import CellBasedModels: AbstractMeshObject, GPU, platform
+import CellBasedModels: AbstractMeshObject, GPU, platform, toDevice
 
 abstract type GPUCuda <: GPU end
 abstract type GPUCuDevice <: GPU end
@@ -9,4 +9,12 @@ end
 
 function platform(::CUDA.CuDeviceArray)
     return GPUCuDevice
+end
+
+function toDevice(::CUDA.CUDABackend, x::AbstractArray)
+    return CUDA.CuArray(x)
+end
+
+function toDevice(::Type{CUDA.CUDABackend}, x::AbstractArray)
+    return CUDA.CuArray(x)
 end

@@ -2,38 +2,75 @@
 # DynamicalCOO - Fixed-size tuples (block size is a type parameter)
 ######################################################################################################
 struct DynamicalCOO{
-            P, T, V, I
+            P, T, V, I, L
         } <: AbstractSparseMatrix
 
-    _coo::V
+    _values::V
+    _rows::I
+    _cols::I
 
     _NRows::I
     _NCols::I
 
     _NEntries::I
+    _NEntriesCache::I
+    _NEntriesNonzero::I
 
+    _NEntriesFree::I
+    _NEntriesFreeNextInit::I
+    _NEntriesFreeNext::I
+    _entriesFree::I
+
+    _lock::L
 end
 Adapt.@adapt_structure DynamicalCOO
 
 function DynamicalCOO(
-        _coo,
+        _values,
+        _rows,
+        _cols,
+
         _NRows,
         _NCols,
-        _NEntries
+        
+        _NEntries,
+        _NEntriesCache,
+        _NEntriesNonzero,
+        
+        _NEntriesFree,
+        _NEntriesFreeNextInit,
+        _NEntriesFreeNext,
+        _entriesFree,
+
+        _lock
     )
     
     P = platform()
-    T = eltype(_coo).parameters[1]
-    V = typeof(_coo)
+    T = eltype(_values)
+    V = typeof(_values)
     I = typeof(_NRows)
+    L = typeof(_lock)
 
     DynamicalCOO{
-            P, T, V, I
+            P, T, V, I, L
         }(
-            _coo,
+            _values,
+            _rows,
+            _cols,
+
             _NRows,
             _NCols,
-            _NEntries
+            
+            _NEntries,
+            _NEntriesCache,
+            _NEntriesNonzero,
+            
+            _NEntriesFree,
+            _NEntriesFreeNextInit,
+            _NEntriesFreeNext,
+            _entriesFree,
+
+            _lock
         )
 end
 
@@ -41,16 +78,38 @@ function dcoo_zeros(dtype::DataType, n_coo::Int=0)
 
     @assert n_coo >= 0 "n_coo must be >= 0"
 
-    _coo = [(0, 0, zero(dtype)) for i in 1:n_coo]
+    _rows = zeros(Int, n_coo)
+    _cols = zeros(Int, n_coo)
+    _values = zeros(dtype, n_coo)
     _NRows = Int[0]
     _NCols = Int[0]
-    _NEntries = Int[0, n_coo, 0]
+    _NEntries = Int[0]
+    _NEntriesCache = Int[n_coo]
+    _NEntriesNonzero = Int[0]
+    _NEntriesFree = Int[n_coo]
+    _NEntriesFreeNextInit = Int[n_coo+1]
+    _NEntriesFreeNext = Int[0]
+    _entriesFree = [i for i in n_coo:-1:1]
+    _lock = ReentrantLock()
 
     DynamicalCOO(
-            _coo,
+            _rows,
+            _cols,
+            _values,
+
             _NRows,
             _NCols,
-            _NEntries
+            
+            _NEntries,
+            _NEntriesCache,
+            _NEntriesNonzero,
+            
+            _NEntriesFree,
+            _NEntriesFreeNextInit,
+            _NEntriesFreeNext,
+            _entriesFree,
+            
+            _lock
         )
 end
 
@@ -110,82 +169,179 @@ function Base.show(io::IO, x::Type{DynamicalCOO{P, T, V, I}}) where {P, T, V, I}
     println(io, "DynamicalCOO{$P, $T, $V, $I}")
 end
 
-Base.length(csr::DynamicalCOO{P}) where {P} = numberOfEntries(csr)
-numberOfEntries(csr::DynamicalCOO{P}) where {P<:CPU} = getDeviceIndex(csr._NEntries,1)
-numberOfEntriesCache(csr::DynamicalCOO{P}) where {P<:CPU} = getDeviceIndex(csr._NEntries,2)
-numberOfEntriesNonzero(csr::DynamicalCOO{P}) where {P<:CPU} = getDeviceIndex(csr._NEntries,3)
+Base.length(coo::DynamicalCOO{P}) where {P} = numberOfEntriesCache(coo)
+numberOfEntries(coo::DynamicalCOO{P}) where {P<:CPU} = getDeviceIndex(coo._NEntries)
+numberOfEntriesCache(coo::DynamicalCOO{P}) where {P<:CPU} = getDeviceIndex(coo._NEntriesCache)
+numberOfEntriesNonzero(coo::DynamicalCOO{P}) where {P<:CPU} = getDeviceIndex(coo._NEntriesNonzero)
+numberOfEntriesFree(coo::DynamicalCOO{P}) where {P<:CPU} = getDeviceIndex(coo._NEntriesFree)
+numberOfEntriesFreeNext(coo::DynamicalCOO{P}) where {P<:CPU} = getDeviceIndex(coo._NEntriesFreeNext)
 
 """
-    setindex!(csr::DynamicalCOO, value, i::Int, j::Int)
+    setindex!(coo::DynamicalCOO, value, i::Int, j::Int)
 
 Set the value at position (i, j) in the sparse matrix.
 Allows syntax: x[i,j] = value
 """
-function Base.setindex!(csr::DynamicalCOO{P}, value, i::Int, j::Int) where {P<:CPU}
+function Base.setindex!(coo::DynamicalCOO{P}, value, i::Int, j::Int) where {P<:CPU}
 
-    nRows = getDeviceIndex(csr._NRows)
-    nCols = getDeviceIndex(csr._NCols)
-    nEntries = min(numberOfEntriesCache(csr), numberOfEntries(csr))
+    nRows = getDeviceIndex(coo._NRows)
+    nCols = getDeviceIndex(coo._NCols)
+    nEntries = min(numberOfEntriesCache(coo), numberOfEntries(coo))
 
     if i <= 0 || j <= 0
         @print "Indices must be positive integers."
     end
 
     if i > nRows
-        @atomic csr._NRows[1] = max(i, Array(csr._NRows)[1])
+        @atomic coo._NRows[1] = max(i, Array(coo._NRows)[1])
     end        
 
     if j > nCols
-        @atomic csr._NCols[1] = max(j, Array(csr._NCols)[1])
+        @atomic coo._NCols[1] = max(j, Array(coo._NCols)[1])
     end
 
     # Search for i j in coo
     for k in 1:1:nEntries
         #Found
-        if csr._coo[k][1] == i && csr._coo[k][2] == j
-            old = csr._coo[k][3]
+        if coo._rows[k] == i && coo._cols[k] == j
+            old = coo._values[k]
             if old == 0 && value != 0
-                @atomic csr._NEntries[3] += 1
+                @atomic coo._NEntriesNonzero[1] += 1
             elseif old != 0 && value == 0
-                @atomic csr._NEntries[3] -= 1
+                @atomic coo._NEntriesNonzero[1] -= 1
             end
-            csr._coo[k] = (i, j, value)
-            return
+            coo._values[k] = value
+            return false
         end
     end
     # Not found, add new
-    pos = @atomic csr._NEntries[1] += 1
-    # If overflow
-    if pos <= csr._NEntries[2]
-        csr._coo[pos] = (i, j, value)
-    else
-        push!(csr._coo, (i, j, value))
-        @atomic csr._NEntries[2] += 1
+    newFreePos = @atomic coo._NEntriesFree[1] -= 1
+    if 0 <= newFreePos
+        newPos = coo._entriesFree[newFreePos+1]
+        coo._rows[newPos] = i
+        coo._cols[newPos] = j
+        coo._values[newPos] = value
+        coo._entriesFree[newFreePos+1] = 0
+    else # If overflow
+        lock(coo._lock) do
+            push!(coo._rows, i)
+            push!(coo._cols, j)
+            push!(coo._values, value)
+            push!(coo._entriesFree, 0)
+            coo._NEntriesCache[1] += 1
+        end
     end
+    @atomic coo._NEntries[1] += 1
     # Update cache
     if value != 0
-        @atomic csr._NEntries[3] += 1
+        @atomic coo._NEntriesNonzero[1] += 1
     end
 
-    return
+    return true
     
 end
 
+function Base.setindex!(coo::DynamicalCOO{P}, value, i::Int, j::Int) where {P<:GPU}
+
+    nRows = getDeviceIndex(coo._NRows)
+    nCols = getDeviceIndex(coo._NCols)
+    nEntries = min(numberOfEntriesCache(coo), numberOfEntries(coo))
+
+    if i <= 0 || j <= 0
+        @print "Indices must be positive integers."
+    end
+
+    if i > nRows
+        @atomic coo._NRows[1] = max(i, Array(coo._NRows)[1])
+    end        
+
+    if j > nCols
+        @atomic coo._NCols[1] = max(j, Array(coo._NCols)[1])
+    end
+
+    # Search for i j in coo
+    for k in 1:1:nEntries
+        #Found
+        if coo._coo[k][1] == i && coo._coo[k][2] == j
+            old = coo._coo[k][3]
+            if old == 0 && value != 0
+                @atomic coo._NEntriesNonzero[1] += 1
+            elseif old != 0 && value == 0
+                @atomic coo._NEntriesNonzero[1] -= 1
+            end
+            coo._coo[k] = (i, j, value)
+            return false
+        end
+    end
+    # Not found, add new
+    pos = @atomic coo._NEntries[1] = 1
+    # If overflow
+    if pos < coo._NEntriesCache[1]
+        coo._rows[pos-1] = i
+        coo._cols[pos-1] = j
+        coo._values[pos-1] = value
+    end
+    # Update cache
+    if value != 0
+        @atomic coo._NEntriesNonzero[1] += 1
+    end
+
+    return true
+    
+end
+
+function Base.setindex!(coo::DynamicalCOO{P}, ::Nothing, i::Int, j::Int) where {P<:CPU}
+
+    nEntries = min(numberOfEntriesCache(coo), numberOfEntries(coo))
+
+    # Search for i j in coo
+    for k in 1:1:nEntries
+        #Found
+        if coo._rows[k] == i && coo._cols[k] == j
+            result = @atomicreplace coo._rows[k] k => 0
+            if result.success
+                @atomic coo._NEntries[1] -= 1
+                if coo._values[k] != 0
+                    @atomic coo._NEntriesNonzero[1] -= 1
+                end
+                coo._cols[k] = 0
+                coo._values[k] = zero(eltype(coo._values))
+                # Add to free entries
+                newFreePos = @atomic coo._NEntriesFreeNext[1] += 1
+                newPos = coo._NEntriesFreeNextInit[1] + newFreePos - 1
+                if newPos <= length(coo._entriesFree)
+                    coo._entriesFree[newPos] = k
+                else
+                    lock(coo._lock) do
+                        push!(coo._rows, 0)
+                        push!(coo._cols, 0)
+                        push!(coo._values, 0)
+                        push!(coo._entriesFree, k)
+                    end
+                end
+            end
+        end
+    end
+    # Not found
+    return false
+
+end
+
 """
-    getindex(csr::DynamicalCOO, i::Int, j::Int)
+    getindex(coo::DynamicalCOO, i::Int, j::Int)
 
 Get the value at position (i, j) in the sparse matrix.
 Returns 0 if the entry does not exist.
 Allows syntax: value = x[i,j]
 """
-function Base.getindex(csr::DynamicalCOO{P, T}, i::Int, j::Int) where {P, T}
+function Base.getindex(coo::DynamicalCOO{P, T}, i::Int, j::Int) where {P, T}
 
-    nEntries = min(numberOfEntries(csr), numberOfEntriesCache(csr))
+    nEntries = min(numberOfEntries(coo), numberOfEntriesCache(coo))
 
     # Search for i j in coo
     for k in 1:1:nEntries
-        if csr._coo[k][1] == i && csr._coo[k][2] == j
-            return csr._coo[k][3]
+        if coo._rows[k] == i && coo._cols[k] == j
+            return coo._values[k]
         end
     end
     
@@ -193,14 +349,14 @@ function Base.getindex(csr::DynamicalCOO{P, T}, i::Int, j::Int) where {P, T}
     return zero(T)
 end
 
-function _getindex(csr::DynamicalCOO{P, T}, i::Int, j::Int) where {P, T}
+function _getindex(coo::DynamicalCOO, i::Int, j::Int)
 
-    nEntries = min(numberOfEntries(csr), numberOfEntriesCache(csr))
+    nEntries = min(numberOfEntries(coo), numberOfEntriesCache(coo))
 
     # Search for i j in coo
     for k in 1:1:nEntries
-        if csr._coo[k][1] == i && csr._coo[k][2] == j
-            return csr._coo[k][3]
+        if coo._rows[k] == i && coo._cols[k] == j
+            return coo._values[k]
         end
     end
     
@@ -208,272 +364,315 @@ function _getindex(csr::DynamicalCOO{P, T}, i::Int, j::Int) where {P, T}
     return nothing
 end
 
-function dropzeros!(csr::DynamicalCOO)
+function synchronize(coo::DynamicalCOO)
 
-    if Array(csr._NRows)[1] > Array(csr._NRowsCache)[1]
-        @error "Number of rows is less than or equal to cached number of rows. You need to preallocate more rows before dropping zeros."
-    end
+    chunk = getDeviceIndex(coo._NEntriesFreeNext) - 1
 
-    @kernel function _kernel_dropzeros!(csr)
-        row = @index(Global)
+    if chunk >= 0
 
-        rowStart = csr._rowOffsets[row]
-        rowEnd = min(rowStart + csr._NEntriesRow[row] - 1, length(csr._rowOffsets[row + 1]))
+        chunkNewInit = max(getDeviceIndex(coo._NEntriesFree), 1)
+        chunkNewEnd = chunkNewInit + chunk
 
-        count = 0
-        for i in rowStart:rowEnd
-            iNew = rowStart + count
-            # Copy non-zero values
-            if csr._values[i] != 0
-                csr._values[iNew] = csr._values[i]
-                csr._cols[iNew] = csr._cols[i]
-                if iNew != i
-                    csr._values[i] = 0
-                    csr._cols[i] = 0
-                end
-                count += 1
-            end
-        end
-        for i in 1:csr._NEntries[1]
-            iNew = rowStart + count
-            if csr._cooRows[i] == row && csr._cooValues[i] != 0
-                csr._values[iNew] = csr._cooValues[i]
-                csr._cols[iNew] = csr._cooCols[i]
-                csr._cooRows[i] = 0
-                csr._cooCols[i] = 0
-                csr._cooValues[i] = 0
-                count += 1
-            end
-        end
+        chunkOldInit = getDeviceIndex(coo._NEntriesFreeNextInit)
+        chunkOldEnd = chunkOldInit + chunk
 
-        csr._NEntriesRow[row] = count - 1
+        @view(coo._entriesFree[chunkNewInit:chunkNewEnd]) .= @views(coo._entriesFree[chunkOldInit:chunkOldEnd])
+        @views(coo._entriesFree[chunkOldInit:chunkOldEnd]) .= 0
+        setDeviceIndex!(coo._NEntriesFree, chunkNewEnd)
+        setDeviceIndex!(coo._NEntriesFreeNext, 0)
+        setDeviceIndex!(coo._NEntriesFreeNextInit, chunkNewEnd + 1)
 
     end
 
-    backend = KernelAbstractions.get_backend(csr)
-    threads = backend === CPU ? Threads.nthreads() : 256
-    _kernel_dropzeros!(backend, threads)(csr, ndrange=Array(csr._NRows)[1])
-    KernelAbstractions.synchronize(backend)
+    return
+end
 
-    csr._NEntries .= 0
+function dropzeros!(coo::DynamicalCOO{P, T}) where {P<:CPU, T}
+
+    @kernel function kernel_compact_zeros!(
+            rows,
+            cols,
+            values,
+            nEntries,
+            nEntriesFree,
+            nEntriesFreeNextInit,
+            entriesFree
+        )
+        
+        i = @index(Global)
+
+        if values[i] == 0 && rows[i] != 0
+            @print "Dropping zero at position $i\n"
+            rows[i] = 0
+            cols[i] = 0
+            @atomic nEntries[1] -= 1
+            iFree = @atomic nEntriesFree[1] += 1
+            entriesFree[iFree] = i
+            @atomic nEntriesFreeNextInit[1] += 1
+        end
+
+    end
+
+    CellBasedModels.synchronize(coo)
+
+    backend = KernelAbstractions.get_backend(coo)
+    threads = backend === CPU() ? Threads.nthreads() : 256
+    kernel_compact_zeros!(backend, threads)(coo._rows, coo._cols, coo._values, coo._NEntries, coo._NEntriesFree, coo._NEntriesFreeNextInit, coo._entriesFree, ndrange = length(coo))
+
+    return
 
 end
 
+function preallocate!(coo::DynamicalCOO; n_rows::Int=0, n_cols::Union{Int, <:AbstractArray{<:Int}}=1)
 
-# function compact!(csr::DynamicalCOO)
+    @kernel function kernel_entriesFreePreallocate!(
+            entriesFree,
+            nEntriesFree,
+            nEntriesFreeNew,
+            dFreeCache,
+        )
+        
+        i = @index(Global)
 
-#     # Load current sizes
-#     nRows = Array(csr._NRows)[1]
-#     nRowsCache = Array(csr._NRowsCache)[1]
-#     cooN = Array(csr._NEntries)[1]
-#     cooNCache = Array(csr._cooNCache)[1]
+        if i > nEntriesFree && i <= nEntriesFreeNew
+            entriesFree[i] = i + dFreeCache
+        elseif i > nEntriesFreeNew
+            entriesFree[i] = 0
+        end
+    end
+
+    @assert n_rows >= 0 "n_rows must be >= 0"
+    if n_cols isa Int
+        @assert n_cols >= 0 "n_cols must be >= 0"
+    else
+        @assert all(n_cols .>= 0) "all elements of n_cols must be >= 0"
+        @assert length(n_cols) == n_rows "length of n_cols must be == n_rows"
+    end
+
+    nEntriesCache = numberOfEntriesCache(coo)
+    nEntries = numberOfEntries(coo)
+
+    nEntriesNew = 0
+    if n_cols isa AbstractArray{<:Int}
+        nEntriesNew += sum(n_cols)*n_rows
+    else
+        nEntriesNew += n_cols*n_rows
+    end
+
+    CellBasedModels.synchronize(coo)
+
+    nEntriesCacheNew = nEntriesCache + nEntriesNew
+    resize!(coo._rows, nEntriesCacheNew)
+    resize!(coo._cols, nEntriesCacheNew)
+    resize!(coo._values, nEntriesCacheNew)
+    resize!(coo._entriesFree, nEntriesCacheNew)
+
+    @views coo._rows[nEntriesCache+1:end] .= 0
+    @views coo._cols[nEntriesCache+1:end] .= 0
+    @views coo._values[nEntriesCache+1:end] .= 0
+
+    nEntriesFree = getDeviceIndex(coo._NEntriesFree)
+    nEntriesFreeNew = nEntriesFree + nEntriesNew
+
+    backend = KernelAbstractions.get_backend(coo)
+    threads = backend === CPU() ? Threads.nthreads() : 256
+    kernel_entriesFreePreallocate!(backend, threads)(coo._entriesFree, nEntriesFree, nEntriesFreeNew, nEntriesCache-nEntriesFree, ndrange = nEntriesCacheNew)
+    KernelAbstractions.synchronize(backend)
+
+    setDeviceIndex!(coo._NEntriesFree, nEntriesFreeNew)
+    setDeviceIndex!(coo._NEntriesFreeNextInit, nEntriesFreeNew + 1)
+    setDeviceIndex!(coo._NEntriesCache, nEntriesCacheNew)
+
+    return
+
+end
+
+function compact!(coo::DynamicalCOO)
+
+    @kernel function kernel_mark_surviving!(rows, surviving)
+       
+        i = @index(Global)
+
+        if rows[i] == 0
+            surviving[i] = 0
+        else
+            surviving[i] = 1
+        end
+
+    end
+
+    @kernel function kernel_map!(origin, target, mapping, surviving)
+
+        i = @index(Global)
+
+        if surviving[i] == 1
+            newPos = mapping[i]
+            target[newPos] = origin[i]
+        end
+
+    end
+
+    backend = KernelAbstractions.get_backend(coo)
+    threads = backend === CPU() ? Threads.nthreads() : 256
+
+    surviving = toDevice(backend, zeros(Int, length(coo)))
+    mapping = copy(surviving)
+    auxiliar_values = zeros(eltype(coo._values), length(coo))
+    auxiliar_cols = zeros(Int, length(coo))
+
+    kernel_mark_surviving!(backend, threads)(coo._rows, surviving, ndrange = length(coo))
+    KernelAbstractions.synchronize(backend)
+
+    cumsum!(mapping, surviving)
+    nNonzero = sum(surviving) 
+
+    kernel_map!(backend, threads)(coo._values, auxiliar_values, mapping, surviving, ndrange = length(coo))
+    coo._values .= auxiliar_values
+
+    auxiliar_cols .= 0
+    kernel_map!(backend, threads)(coo._cols, auxiliar_cols, mapping, surviving, ndrange = length(coo))
+    coo._cols .= auxiliar_cols
+
+    auxiliar_cols .= 0
+    kernel_map!(backend, threads)(coo._rows, auxiliar_cols, mapping, surviving, ndrange = length(coo))
+    coo._rows .= auxiliar_cols
+
+    setDeviceIndex!(coo._NEntries, nNonzero)
+    setDeviceIndex!(coo._NEntriesNonzero, nNonzero)
+    setDeviceIndex!(coo._NEntriesFree, length(coo)-nNonzero)
+    setDeviceIndex!(coo._NEntriesFreeNextInit, length(coo)-nNonzero+1)
+    setDeviceIndex!(coo._NEntriesFreeNext, 0)
+
+    coo._entriesFree .= 0
+    @view(coo._entriesFree[1:length(coo)-nNonzero]) .=  [i for i in length(coo):-1:nNonzero+1]
+
+    return
+
+end
+
+function compactto!(coo::DynamicalCOO, cooTarget::DynamicalCOO)
+
+    @kernel function kernel_mark_surviving!(rows, surviving)
+       
+        i = @index(Global)
+
+        if rows[i] == 0
+            surviving[i] = 0
+        else
+            surviving[i] = 1
+        end
+
+    end
+
+    @kernel function kernel_map!(origin, target, mapping, surviving)
+
+        i = @index(Global)
+
+        if surviving[i] == 1
+            newPos = mapping[i]
+            target[newPos] = origin[i]
+        end
+
+    end
+
+    backend = KernelAbstractions.get_backend(coo)
+    threads = backend === CPU() ? Threads.nthreads() : 256
+
+    surviving = toDevice(backend, zeros(Int, length(coo)))
+    mapping = copy(surviving)
+
+    kernel_mark_surviving!(backend, threads)(coo._rows, surviving, ndrange = length(coo))
+    KernelAbstractions.synchronize(backend)
+
+    cumsum!(mapping, surviving)
+    nNonzero = sum(surviving) 
+
+    cooTarget._values .= 0
+    kernel_map!(backend, threads)(coo._values, cooTarget._values, mapping, surviving, ndrange = length(coo))
+
+    cooTarget._cols .= 0
+    kernel_map!(backend, threads)(coo._cols, cooTarget._cols, mapping, surviving, ndrange = length(coo))
+
+    cooTarget._rows .= 0
+    kernel_map!(backend, threads)(coo._rows, cooTarget._rows, mapping, surviving, ndrange = length(coo))
+
+    setDeviceIndex!(cooTarget._NEntries, nNonzero)
+    setDeviceIndex!(cooTarget._NEntriesNonzero, nNonzero)
+    setDeviceIndex!(cooTarget._NEntriesFree, length(coo)-nNonzero)
+    setDeviceIndex!(cooTarget._NEntriesFreeNextInit, length(coo)-nNonzero+1)
+    setDeviceIndex!(cooTarget._NEntriesFreeNext, 0)
     
-#     @kernel function _kernel_check_row_overload(NEntriesRow, NEntriesRowCache,result)
-#         row = @index(Global)
+    cooTarget._entriesFree .= 0
+    @view(cooTarget._entriesFree[1:length(coo)-nNonzero]) .=  [i for i in length(coo):-1:nNonzero+1]
 
-#         if NEntriesRow[row] >= NEntriesRowCache[row]
-#             result[1] = true
-#         end
-#     end
+    return
 
-#     backend = KernelAbstractions.get_backend(csr)
-#     threads = backend === CPU ? Threads.nthreads() : 256
-#     nRowsEntriesOverflow = Adapt.adapt(backend, zeros(Bool, 1))
-#     _kernel_check_row_overload(backend, threads)(csr._NEntriesRow, csr._NEntriesRowCache, nRowsEntriesOverflow, ndrange=Array(csr._NRowsCache)[1])
-#     KernelAbstractions.synchronize(backend)
+end
 
-#     nRowsEntriesOverflow = Array(nRowsEntriesOverflow)[1]
+function dropcache!(coo::DynamicalCOO)
 
-#     if nRows <= nRowsCache && !nRowsEntriesOverflow && cooN == 0
-#         nothing
-#     elseif nRows <= nRowsCache && !nRowsEntriesOverflow && cooN > 0
-#         dropzeros!(csr)
-#     elseif nRows > nRowsCache && !nRowsEntriesOverflow && cooN == 0
-#         preallocateRows!(csr)
-#     elseif nRows > nRowsCache && !nRowsEntriesOverflow && cooN > 0
-#         preallocateRows!(csr)
-#         dropzeros!(csr)
-#     else
-#         preallocate!(csr)
-#     end
+    dropzeros!(coo)
+    nEntries = numberOfEntries(coo)
+    resize!(coo._coo, nEntries)
+    coo._NEntries .= nEntries
 
-# end
+    return
 
-# function preallocateRows!(csr; factor=1.2, nRowEntries::Int=10)
+end
 
-#     @assert factor > 1 "Factor must be greater than 1."
+function overflowed(coo::DynamicalCOO)
 
-#     function kernel_refillOffsets!(rowOffsets, nRowEntries)
-#         index = @index(Global)
-#         if index > 1
-#             base = rowOffsets[1]
-#             rowOffsets[index] = base + nRowEntries*(index-1)
-#         end
-#     end
+    nEntriesCache = numberOfEntriesCache(coo)
+    nEntries = numberOfEntries(coo)
 
-#     backend = KernelAbstractions.get_backend(csr)
-#     threads = backend === CPU ? Threads.nthreads() : 256
+    return nEntries > nEntriesCache
 
-#     nRows = Array(csr._NRows)[1]
-#     nRowsCache = Array(csr._NRowsCache)[1]
-#     nRowsCacheNew = round(Int, nRows * factor)
-#     nEntries = Array(csr._NEntriesCache)[1]
-#     nEntriesNew = nEntries + nRowEntries * (nRowsCacheNew - nRowsCache)
+end
 
-#     resize!(csr._values, nEntriesNew)
-#     @views csr._values[nEntries+1:end] .= 0
-#     resize!(csr._cols, nEntriesNew)
-#     @views csr._cols[nEntries+1:end] .= 0
-#     resize!(csr._rowOffsets, nRowsCacheNew + 1)
-#     offsets = @view csr._rowOffsets[nRowsCache:end]
-#     kernel_refillOffsets!(backend, threads)(offsets, nRowEntries, ndrange=length(offsets))
-#     KernelAbstractions.synchronize(backend)
-#     csr._NRows .= nRowsCacheNew
-#     csr._NRowsCache .= nRowsCacheNew
-#     csr._NEntries .= nEntriesNew
-#     csr._NEntriesCache .= nEntriesNew
-#     resize!(csr._NEntriesRow, nRowsCacheNew)
-#     @views csr._NEntriesRow[nRowsCache+1:end] .= 0
-#     resize!(csr._NEntriesRowCache, nRowsCacheNew)
-#     @views csr._NEntriesRowCache[nRowsCache+1:end] .= nRowEntries
+KernelAbstractions.get_backend(coo::DynamicalCOO) = KernelAbstractions.get_backend(coo._values)
 
+toDevice(coo::DynamicalCOO{P}, ::Type{CPU}) where {P<:CPU} = coo
 
-# end
+function toDevice(coo::DynamicalCOO{P, T}, ::Type{<:KernelAbstractions.CPU}) where {P<:GPU, T}
+    DynamicalCOO(
+        Vector(coo._coo),
+        Vector(coo._NRows),
+        Vector(coo._NCols),
+        Vector(coo._NEntries)
+    )
+end
 
-# """
-#     preallocate!(csr::DynamicalCOO)
+function toDevice(coo::DynamicalCOO{P}, backend::KernelAbstractions.CPU) where {P<:CPU}
+    toDevice(coo, typeof(backend))
+end
 
-# Reallocate the sparse matrix when rows or per-row caches overflow.
+toDevice(coo::DynamicalCOO{P}, ::GPU) where {P<:GPU} = coo
 
-# This function expands storage when:
-# 1. Any row's entry count exceeds its allocated cache (expand that row's cache 1.5x)
-# 2. Number of rows exceeds NRowsCache (expand NRowsCache 1.5x)
-# 3. COO entries exceed cooNCache (expand cooNCache 1.5x)
+function toDevice(coo::DynamicalCOO{P, T}, backend::Type{<:KernelAbstractions.GPU}) where {P<:CPU, T}
+    DynamicalCOO(
+        Adapt.adapt(backend, coo._coo),
+        Adapt.adapt(backend, coo._NRows),
+        Adapt.adapt(backend, coo._NCols),
+        Adapt.adapt(backend, coo._NEntries)
+    )
+end
 
-# Strategy:
-# - Check what needs expansion
-# - If no expansion needed, return early
-# - If row/cache expansion needed: compute new offsets, remap data, expand storage
-# - If COO expansion needed: resize COO arrays
-# - Uses kernels for parallel data movement (CPU/GPU compatible)
-# """
-# function preallocate!(csr::DynamicalCOO{P, T, V, I}) where {P, T, V, I}
+function toDevice(coo::DynamicalCOO{P}, backend::KernelAbstractions.GPU) where {P<:CPU}
+    toDevice(coo, typeof(backend))
+end
 
-#     if nRows < nRowsCache && !nRowsEntriesOverflow
+"""
+    compress_zeros_blocked!(a; zeroElement=zero(eltype(a)), zero_tail=true) -> newlen
 
-#     # Step 1: Expand per-row caches if any row is full
-#     for row in 1:nRows
-#         if csr._NEntriesRow[row] >= csr._NEntriesRowCache[row]
-#             # Row is full, expand its cache by 1.5x
-#             csr._NEntriesRowCache[row] = round(Int, max(2, csr._NEntriesRowCache[row] * 1.5))
-#         end
-#     end
-    
-#     # Step 2: Determine new nRowsCache if current rows exceed it
-#     newNRowsCache = nRows > nRowsCache ? max(nRows + 1, round(Int, nRowsCache * 1.5)) : nRowsCache
-    
-#     # Step 3: Determine new cooNCache if COO is full
-#     newCooNCache = cooN >= cooNCache ? max(cooN + 1, round(Int, cooNCache * 1.5)) : cooNCache
-    
-#     # Step 4: Check if any reallocation needed
-#     rowExpansionNeeded = newNRowsCache > nRowsCache
-#     rowCacheChanged = any(csr._NEntriesRowCache[1:nRows] .!= @view csr._rowOffsets[2:nRows+1] .- @view csr._rowOffsets[1:nRows])
-#     cooExpansionNeeded = newCooNCache > cooNCache
-    
-#     if !rowExpansionNeeded && !rowCacheChanged && !cooExpansionNeeded
-#         return csr  # No expansion needed
-#     end
-    
-#     # Step 5: If rows need expansion, remap storage and recompute offsets
-#     if rowExpansionNeeded || rowCacheChanged
-#         backend = KernelAbstractions.get_backend(csr._values)
-        
-#         # Save old offsets and storage info
-#         oldRowOffsets = copy(csr._rowOffsets)
-#         oldStorageSize = length(csr._values)
-        
-#         # Compute new offsets based on updated NEntriesRowCache
-#         resize!(csr._rowOffsets, newNRowsCache + 1)
-#         csr._rowOffsets[1] = 1
-#         for i in 1:newNRowsCache
-#             if i <= nRows
-#                 csr._rowOffsets[i+1] = csr._rowOffsets[i] + csr._NEntriesRowCache[i]
-#             else
-#                 csr._rowOffsets[i+1] = csr._rowOffsets[i]  # New rows start empty
-#             end
-#         end
-        
-#         newStorageSize = csr._rowOffsets[newNRowsCache + 1] - 1
-        
-#         # Remap data from old positions to new positions using kernel
-#         @kernel function _remap_and_fill!(values_old, cols_old, values_new, cols_new, 
-#                                          oldOffsets, newOffsets, NEntriesRow, nRows)
-#             row = @index(Global)
-#             if row <= nRows
-#                 oldStart = oldOffsets[row]
-#                 newStart = newOffsets[row]
-#                 nEntries = NEntriesRow[row]
-                
-#                 # Copy entries from old to new position
-#                 for i in 1:nEntries
-#                     values_new[newStart + i - 1] = values_old[oldStart + i - 1]
-#                     cols_new[newStart + i - 1] = cols_old[oldStart + i - 1]
-#                 end
-#             end
-#         end
-        
-#         # Create new arrays
-#         newValues = similar(csr._values, newStorageSize)
-#         newCols = similar(csr._cols, newStorageSize)
-#         fill!(newValues, zero(T))
-#         fill!(newCols, 0)
-        
-#         # Run kernel to remap data
-#         _remap_and_fill!(backend, 256)(csr._values, csr._cols, newValues, newCols,
-#                                        oldRowOffsets, csr._rowOffsets, csr._NEntriesRow, nRows,
-#                                        ndrange=newNRowsCache)
-#         KernelAbstractions.synchronize(backend)
-        
-#         # Replace with new arrays
-#         csr._values = newValues
-#         csr._cols = newCols
-        
-#         # Resize row metadata
-#         resize!(csr._NEntriesRow, newNRowsCache)
-#         resize!(csr._NEntriesRowCache, newNRowsCache)
-#         if isdefined(csr, :_NEntriesRowCompacted)
-#             resize!(csr._NEntriesRowCompacted, newNRowsCache)
-#         end
-        
-#         # Fill new rows with zero entries
-#         if newNRowsCache > nRowsCache
-#             @views csr._NEntriesRow[nRowsCache+1:end] .= 0
-#             @views csr._NEntriesRowCache[nRowsCache+1:end] .= 0
-#             if isdefined(csr, :_NEntriesRowCompacted)
-#                 @views csr._NEntriesRowCompacted[nRowsCache+1:end] .= 0
-#             end
-#         end
-        
-#         # Update cache size
-#         csr._NRowsCache[1] = newNRowsCache
-#     end
-    
-#     # Step 6: Expand COO arrays if needed
-#     if cooExpansionNeeded
-#         resize!(csr._cooRows, newCooNCache)
-#         resize!(csr._cooCols, newCooNCache)
-#         resize!(csr._cooValues, newCooNCache)
-        
-#         # Fill new COO entries with zeros
-#         @views csr._cooRows[cooNCache+1:end] .= 0
-#         @views csr._cooCols[cooNCache+1:end] .= 0
-#         @views csr._cooValues[cooNCache+1:end] .= zero(T)
-        
-#         csr._cooNCache[1] = newCooNCache
-#     end
-    
-#     return csr
-# end
+Parallel in-place compaction of nonzeros (removes `zeroElement`) using:
+1) Pass 1: pack nonzeros within each workgroup tile and record per-tile counts
+2) Host scan of counts to compute tile offsets
+3) Pass 2: move each tile's packed segment to its final global position
+
+Returns `newlen` (number of kept elements). Optionally zero-fills the tail.
+"""
+function compress_zeros_blocked!(a; zeroElement=zero(eltype(a)), zero_tail::Bool=true)
 
 
-# # KernelAbstractions.get_backend(csr::DynamicalCOO) = KernelAbstractions.get_backend(csr._values)
+    return newlen
+end

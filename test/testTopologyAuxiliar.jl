@@ -144,20 +144,164 @@ end
 # csrCache._map .= 1:22
 # @btime f(csrCache)
 
+# using Atomix
+
+# @kernel function test(x)
+#     i = @index(Global)
+#     j = Atomix.@atomicreplace x[i] 0 => 1
+#     @print j.success "\n" 
+# end
+# for device in devices
+#    x = toDevice(device, zeros(Int, 10))
+#    @views(x[1:10]) .= 1:10
+#    @views(x[1:10]) .= @views(x[10:-1:1])
+#    println(x) 
+# #    backend = KernelAbstractions.get_backend(x)
+# #    println(x)
+# #    test(backend, 1)(x, ndrange=1)
+# end
+
 @testset "Topology" begin
 
     @testset "DynamicalCOO" begin
-        
+
+        # Build
         coo = dcoo_zeros(Float64, 2)
+        @test Array(coo._rows) == [0,0]
+        @test Array(coo._cols) == [0,0]
+        @test Array(coo._values) == [0.0, 0.0]
+        @test (Array(coo._NRows), Array(coo._NCols)) == ([0], [0])
+        @test (Array(coo._NEntries), Array(coo._NEntriesCache), Array(coo._NEntriesNonzero)) == ([0],[2],[0])
+        @test (Array(coo._NEntriesFree), Array(coo._NEntriesFreeNextInit), Array(coo._NEntriesFreeNext)) == ([2],[3],[0])
+        @test (Array(coo._entriesFree)) == [2,1]
+        # Insert
         coo[1,1] = 5
         coo[10,15] = 12
         coo[2,3] = 7
-        @test coo._coo == [(1,1,5.0), (10,15,12.0), (2,3,7.0)]
-        @test coo._NEntries == [3,3,3]
-        @test coo._NRows == [2]
-        @test coo._NCols == [15]
+        @test Array(coo._rows) == [1,10,2]
+        @test Array(coo._cols) == [1,15,3]
+        @test Array(coo._values) == [5.0, 12.0, 7.0]
+        @test (Array(coo._NRows), Array(coo._NCols)) == ([10], [15])
+        @test (Array(coo._NEntries), Array(coo._NEntriesCache), Array(coo._NEntriesNonzero)) == ([3],[3],[3])
+        @test (Array(coo._NEntriesFree), Array(coo._NEntriesFreeNextInit), Array(coo._NEntriesFreeNext)) == ([-1],[3],[0])
+        @test (Array(coo._entriesFree)) == [0,0,0]
+        # Modify 
+        coo[1,1] = 7
+        coo[10,15] = 11
+        coo[2,3] = 0
+        @test Array(coo._rows) == [1,10,2]
+        @test Array(coo._cols) == [1,15,3]
+        @test Array(coo._values) == [7.0, 11.0, 0.0]
+        @test (Array(coo._NRows), Array(coo._NCols)) == ([10], [15])
+        @test (Array(coo._NEntries), Array(coo._NEntriesCache), Array(coo._NEntriesNonzero)) == ([3],[3],[2])
+        @test (Array(coo._NEntriesFree), Array(coo._NEntriesFreeNextInit), Array(coo._NEntriesFreeNext)) == ([-1],[3],[0])
+        @test (Array(coo._entriesFree)) == [0,0,0]
+        # Remove
+        coo[1,1] = nothing
+        coo[1,3] = nothing
+        @test Array(coo._rows) == [0,10,2]
+        @test Array(coo._cols) == [0,15,3]
+        @test Array(coo._values) == [0.0, 11.0, 0.0]
+        @test (Array(coo._NRows), Array(coo._NCols)) == ([10], [15])
+        @test (Array(coo._NEntries), Array(coo._NEntriesCache), Array(coo._NEntriesNonzero)) == ([2],[3],[1])
+        @test (Array(coo._NEntriesFree), Array(coo._NEntriesFreeNextInit), Array(coo._NEntriesFreeNext)) == ([-1],[3],[1])
+        @test (Array(coo._entriesFree)) == [0,0,1]
+        # synchronize
+        CellBasedModels.synchronize(coo)
+        @test Array(coo._rows) == [0,10,2]
+        @test Array(coo._cols) == [0,15,3]
+        @test Array(coo._values) == [0.0, 11.0, 0.0]
+        @test (Array(coo._NRows), Array(coo._NCols)) == ([10], [15])
+        @test (Array(coo._NEntries), Array(coo._NEntriesCache), Array(coo._NEntriesNonzero)) == ([2],[3],[1])
+        @test (Array(coo._NEntriesFree), Array(coo._NEntriesFreeNextInit), Array(coo._NEntriesFreeNext)) == ([1],[2],[0])
+        @test (Array(coo._entriesFree)) == [1,0,0]
+        # dropzeros!
+        CellBasedModels.dropzeros!(coo)
+        @test Array(coo._rows) == [0,10,0]
+        @test Array(coo._cols) == [0,15,0]
+        @test Array(coo._values) == [0.0, 11.0, 0.0]
+        @test (Array(coo._NRows), Array(coo._NCols)) == ([10], [15])
+        @test (Array(coo._NEntries), Array(coo._NEntriesCache), Array(coo._NEntriesNonzero)) == ([1],[3],[1])
+        @test (Array(coo._NEntriesFree), Array(coo._NEntriesFreeNextInit), Array(coo._NEntriesFreeNext)) == ([2],[3],[0])
+        @test (Array(coo._entriesFree)) == [1,3,0]
+        # preallocate!
+        CellBasedModels.preallocate!(coo, n_rows=2)
+        @test Array(coo._rows) == [0,10,0,0,0]
+        @test Array(coo._cols) == [0,15,0,0,0]
+        @test Array(coo._values) == [0.0, 11.0, 0.0, 0.0, 0.0]
+        @test (Array(coo._NRows), Array(coo._NCols)) == ([10], [15])
+        @test (Array(coo._NEntries), Array(coo._NEntriesCache), Array(coo._NEntriesNonzero)) == ([1],[5],[1])
+        @test (Array(coo._NEntriesFree), Array(coo._NEntriesFreeNextInit), Array(coo._NEntriesFreeNext)) == ([4],[5],[0])
+        @test (Array(coo._entriesFree)) == [1,3,4,5,0]
+        # compact!
+        CellBasedModels.compact!(coo)
+        @test Array(coo._rows) == [10,0,0,0,0]
+        @test Array(coo._cols) == [15,0,0,0,0]
+        @test Array(coo._values) == [11.0, 0.0, 0.0, 0.0, 0.0]
+        @test (Array(coo._NRows), Array(coo._NCols)) == ([10], [15])
+        @test (Array(coo._NEntries), Array(coo._NEntriesCache), Array(coo._NEntriesNonzero)) == ([1],[5],[1])
+        @test (Array(coo._NEntriesFree), Array(coo._NEntriesFreeNextInit), Array(coo._NEntriesFreeNext)) == ([4],[5],[0])
+        @test (Array(coo._entriesFree)) == [5,4,3,2,0]
+        # compactto!
+        # copyto!
+        # dropcache!
+        # remaprows!
+        # remapcols!
 
-        println(coo)
+        # @test Array(coo._coo) == [(10,15,12.0), (2,3,7.0), (0,0,0.0)]
+        # @test Array(coo._NEntries) == [2,3,2]
+        # @test Array(coo._NRows) == [10]
+        # @test Array(coo._NCols) == [15]
+
+        # preallocate!(coo, n_entries=2)
+        # coo[5,5] = 3
+        # @test Array(coo._coo) == [(10,15,12.0), (2,3,7.0), (5,5,3.0), (0,0,0.0), (0,0,0.0)]
+        # @test Array(coo._NEntries) == [3,5,3]
+        # @test Array(coo._NRows) == [10]
+        # @test Array(coo._NCols) == [15]
+        # dropcache!(coo)
+        # @test Array(coo._coo) == [(10,15,12.0), (2,3,7.0), (5,5,3.0)]
+        # @test Array(coo._NEntries) == [3,3,3]
+        # @test Array(coo._NRows) == [10]
+        # @test Array(coo._NCols) == [15]
+        
+        for device in devices
+            # coo = dcoo_zeros(Float64, 2)
+            # @test Array(coo._rows) == [1,10,2]
+            # @test Array(coo._cols) == [1,15,3]
+            # @test Array(coo._values) == [5.0, 12.0, 7.0]
+            # @test (Array(coo._NRows), Array(coo._NCols)) == ([10], [15])
+            # @test (Array(coo._NEntries), Array(coo._NEntriesCache), Array(coo._NEntriesNonzero)) == ([2],[3],[2])
+            # @test (Array(coo._NEntriesFree), Array(coo._NEntriesFreeNextInit), Array(coo._NEntriesFreeNext)) == ([-1],[2],[0])
+            # coo = toDevice(coo, device)
+            # coo[1,1] = 5
+            # coo[10,15] = 12
+            # coo[2,3] = 7
+            # @test Array(coo._rows) == [1,10,2]
+            # @test Array(coo._cols) == [1,15,3]
+            # @test Array(coo._values) == [5.0, 12.0, 7.0]
+            # @test (Array(coo._NRows), Array(coo._NCols)) == ([10], [15])
+            # @test (Array(coo._NEntries), Array(coo._NEntriesCache), Array(coo._NEntriesNonzero)) == ([2],[3],[2])
+            # @test (Array(coo._NEntriesFree), Array(coo._NEntriesFreeNextInit), Array(coo._NEntriesFreeNext)) == ([-1],[2],[0])
+            # dropzeros!(coo)
+            # @test Array(coo._coo) == [(10,15,12.0), (2,3,7.0), (0,0,0.0)]
+            # @test Array(coo._NEntries) == [2,3,2]
+            # @test Array(coo._NRows) == [10]
+            # @test Array(coo._NCols) == [15]
+            # preallocate!(coo, n_entries=2)
+            # coo[5,5] = 3
+            # @test Array(coo._coo) == [(10,15,12.0), (2,3,7.0), (5,5,3.0), (0,0,0.0), (0,0,0.0)]
+            # @test Array(coo._NEntries) == [3,5,3]
+            # @test Array(coo._NRows) == [10]
+            # @test Array(coo._NCols) == [15]
+            # dropcache!(coo)
+            # @test Array(coo._coo) == [(10,15,12.0), (2,3,7.0), (5,5,3.0)]
+            # @test Array(coo._NEntries) == [3,3,3]
+            # @test Array(coo._NRows) == [10]
+            # @test Array(coo._NCols) == [15]
+
+            # println(coo._coo)
+        end
 
     end
 

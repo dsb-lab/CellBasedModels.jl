@@ -1,8 +1,18 @@
+using CellBasedModels: CPU
+
 function platform()
     return CPU
 end
 function platform(x)
     return CPU
+end
+
+function toDevice(::CPU, x::AbstractArray)
+    return x
+end
+
+function toDevice(::Type{CPU}, x::AbstractArray)
+    return x
 end
 
 # """"
