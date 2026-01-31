@@ -1,11 +1,11 @@
-import CellBasedModels: toDevice, CSRStruct, CSRTuple, CSRSlack
+import CellBasedModels: toBackend, CSRStruct, CSRTuple, CSRSlack
 
 ######################################################################################################
-# toDevice - CUDA device transfer functions for CSR structures
+# toBackend - CUDA backend transfer functions for CSR structures
 ######################################################################################################
 
 # CSRStruct to CUDA
-function toDevice(field::CSRStruct{P}, ::Type{CUDA.CUDABackend}) where {P<:CPU}
+function toBackend(field::CSRStruct{P}, ::Type{CUDA.CUDABackend}) where {P<:CPU}
     CSRStruct(
         CUDA.CuArray(field._map),
 
@@ -23,10 +23,10 @@ function toDevice(field::CSRStruct{P}, ::Type{CUDA.CUDABackend}) where {P<:CPU}
     )
 end
 
-toDevice(field::CSRStruct{P}, ::Type{CUDA.CUDABackend}) where {P<:GPUCuda} = field
+toBackend(field::CSRStruct{P}, ::Type{CUDA.CUDABackend}) where {P<:GPUCuda} = field
 
 # CSRTuple to CUDA
-function toDevice(field::CSRTuple{P, NBlock}, ::Type{CUDA.CUDABackend}) where {P<:CPU, NBlock}
+function toBackend(field::CSRTuple{P, NBlock}, ::Type{CUDA.CUDABackend}) where {P<:CPU, NBlock}
     CSRTuple(
         CUDA.CuArray(field._map),
         CUDA.CuArray(field._N),
@@ -39,10 +39,10 @@ function toDevice(field::CSRTuple{P, NBlock}, ::Type{CUDA.CUDABackend}) where {P
     )
 end
 
-toDevice(field::CSRTuple{P, NBlock}, ::Type{CUDA.CUDABackend}) where {P<:GPUCuda, NBlock} = field
+toBackend(field::CSRTuple{P, NBlock}, ::Type{CUDA.CUDABackend}) where {P<:GPUCuda, NBlock} = field
 
 # CSRSlack to CUDA
-function toDevice(field::CSRSlack{P, PR, AI, AF, VI, VI2, VB}, ::Type{CUDA.CUDABackend}) where {P<:CPU, PR, AI, AF, VI, VI2, VB}
+function toBackend(field::CSRSlack{P, PR, AI, AF, VI, VI2, VB}, ::Type{CUDA.CUDABackend}) where {P<:CPU, PR, AI, AF, VI, VI2, VB}
     CSRSlack(
         CUDA.CuArray(field._map),
         CUDA.CuArray(field._N),
@@ -58,4 +58,4 @@ function toDevice(field::CSRSlack{P, PR, AI, AF, VI, VI2, VB}, ::Type{CUDA.CUDAB
     )
 end
 
-toDevice(field::CSRSlack{P}, ::Type{CUDA.CUDABackend}) where {P<:GPUCuda} = field
+toBackend(field::CSRSlack{P}, ::Type{CUDA.CUDABackend}) where {P<:GPUCuda} = field

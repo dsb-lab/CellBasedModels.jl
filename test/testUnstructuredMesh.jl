@@ -122,12 +122,12 @@ using KernelAbstractions
             field.a .= 7.0
             field.b .= 2
 
-            field_gpu = toDevice(field, CUDA.CUDABackend)
+            field_gpu = toBackend(field, CUDA.CUDABackend)
 
             @test typeof(field_gpu._id) <: CUDA.CuArray
             @test typeof(field_gpu.a) <: CUDA.CuArray
 
-            field_cpu = toDevice(field_gpu, CPU)
+            field_cpu = toBackend(field_gpu, CPU)
 
             @test typeof(field_cpu) == typeof(field)
         end
@@ -142,8 +142,8 @@ using KernelAbstractions
         @test field2.a == fill(7.0, 3)
         @test field2.b == fill(0, 3)
         if CUDA.has_cuda()
-            field_gpu = toDevice(field, CUDA.CUDABackend)
-            field2_gpu = toDevice(field2, CUDA.CUDABackend)
+            field_gpu = toBackend(field, CUDA.CUDABackend)
+            field2_gpu = toBackend(field2, CUDA.CUDABackend)
             copyto!(field2_gpu, field_gpu)
             @test Array(field2_gpu.a) == fill(7.0, 3)
             @test Array(field2_gpu.b) == fill(0, 3)
@@ -160,8 +160,8 @@ using KernelAbstractions
         @test field2.a == fill(3.7, 3)
         @test field2.b == fill(0, 3)
         if CUDA.has_cuda()
-            field_gpu = toDevice(field, CUDA.CUDABackend)
-            field2_gpu = toDevice(field2, CUDA.CUDABackend)
+            field_gpu = toBackend(field, CUDA.CUDABackend)
+            field2_gpu = toBackend(field2, CUDA.CUDABackend)
             @. field2_gpu = field_gpu * 0.1 + 3.0
             @test Array(field2_gpu.a) == fill(3.7, 3)
             @test Array(field2_gpu.b) == fill(0, 3)
@@ -178,8 +178,8 @@ using KernelAbstractions
         @test field2.a == fill(3.7, 3)
         @test field2.b == fill(0, 3)
         if CUDA.has_cuda()
-            field_gpu = toDevice(field, CUDA.CUDABackend)
-            field2_gpu = toDevice(field2, CUDA.CUDABackend)
+            field_gpu = toBackend(field, CUDA.CUDABackend)
+            field2_gpu = toBackend(field2, CUDA.CUDABackend)
             DifferentialEquations.DiffEqBase.@.. field2_gpu = field_gpu * 0.1 + 3.0
             @test Array(field2_gpu.a) == fill(3.7, 3)
             @test Array(field2_gpu.b) == fill(0, 3)
@@ -195,7 +195,7 @@ using KernelAbstractions
 
             field = UnstructuredMeshField(meshProperty; N=3, NCache=5)
             field._pReference .= [true, false]
-            field_gpu = toDevice(field, CUDA.CUDABackend)
+            field_gpu = toBackend(field, CUDA.CUDABackend)
 
             @test_nowarn CUDA.@cuda test_kernel_field!(field_gpu)
 
@@ -352,10 +352,10 @@ using KernelAbstractions
                     end
                     obj[scope_index].a .= 7.0
                     obj[scope_index].b .= 2
-                    obj_gpu = toDevice(obj, CUDA.CUDABackend)
+                    obj_gpu = toBackend(obj, CUDA.CUDABackend)
                     @test typeof(obj_gpu[scope_index]._id) <: CUDA.CuArray
                     @test typeof(obj_gpu[scope_index].a) <: CUDA.CuArray
-                    obj_cpu = toDevice(obj_gpu, CPU)
+                    obj_cpu = toBackend(obj_gpu, CPU)
                     @test typeof(obj_cpu) == typeof(obj)
                 end
             end
@@ -406,8 +406,8 @@ using KernelAbstractions
                 @test obj2[scope_index].b == fill(2, 2)
                 @test obj2[scope_index]._p.b == [2, 2, 0, 0]
                 if CUDA.has_cuda()
-                    obj_gpu = toDevice(obj, CUDA.CUDABackend)
-                    obj2_gpu = toDevice(obj2, CUDA.CUDABackend)
+                    obj_gpu = toBackend(obj, CUDA.CUDABackend)
+                    obj2_gpu = toBackend(obj2, CUDA.CUDABackend)
                     copyto!(obj2_gpu, obj_gpu)
                     @test Array(obj2_gpu[scope_index].a) == fill(0.0, 2)
                     @test Array(obj2_gpu[scope_index]._p.a) == [0.0, 0.0, 0.0, 0.0]
@@ -462,8 +462,8 @@ using KernelAbstractions
                 @test obj2[scope_index].b == fill(0, 2)
                 @test obj2[scope_index]._p.b == [0, 0, 0, 0]
                 if CUDA.has_cuda()
-                    obj_gpu = toDevice(obj, CUDA.CUDABackend)
-                    obj2_gpu = toDevice(obj2, CUDA.CUDABackend)
+                    obj_gpu = toBackend(obj, CUDA.CUDABackend)
+                    obj2_gpu = toBackend(obj2, CUDA.CUDABackend)
                     obj2_gpu[scope_index].a .= 0.0
                     @. obj2_gpu = obj_gpu * 0.1 + 3.0
                     @test Array(obj2_gpu[scope_index].a) == fill(3.7, 2)
@@ -514,8 +514,8 @@ using KernelAbstractions
                 @test obj2[scope_index].b == fill(0, 2)
                 @test obj2[scope_index]._p.b == [0, 0, 0, 0]
                 if CUDA.has_cuda()
-                    obj_gpu = toDevice(obj, CUDA.CUDABackend)
-                    obj2_gpu = toDevice(obj2, CUDA.CUDABackend)
+                    obj_gpu = toBackend(obj, CUDA.CUDABackend)
+                    obj2_gpu = toBackend(obj2, CUDA.CUDABackend)
                     obj2_gpu[scope_index].a .= 0.0
                     DifferentialEquations.DiffEqBase.@.. obj2_gpu = obj_gpu * 0.1 + 3.0
                     @test Array(obj2_gpu[scope_index].a) == fill(3.7, 2)
@@ -555,7 +555,7 @@ using KernelAbstractions
                         mesh = UnstructuredMesh(dims; n = Node(), a  = Agent(props))
                         obj = UnstructuredMeshObject(mesh, n = (2,4), a = (2,4))
                     end
-                    obj_gpu = toDevice(obj, CUDA.CUDABackend)
+                    obj_gpu = toBackend(obj, CUDA.CUDABackend)
 
                     @test_nowarn CUDA.@cuda test_kernel_object!(obj_gpu)
                 end
@@ -626,7 +626,7 @@ using KernelAbstractions
                         else
                             obj[scope_index]._pReference .= [false, true]
                         end
-                        obj_gpu = toDevice(obj, CUDA.CUDABackend)
+                        obj_gpu = toBackend(obj, CUDA.CUDABackend)
                         prob = ODEProblem(fODE!, obj_gpu, (0.0, 1.0))
                         integrator = init(prob, integratorAlg, dt=0.1, save_everystep=false)
                         for i in 1:10
@@ -730,7 +730,7 @@ using KernelAbstractions
             @test all(integrator.u.n.nnCL .== integrator.u.n.nnFull)
 
             if CUDA.has_cuda()
-                obj_gpu = toDevice(obj, CUDA.CUDABackend)
+                obj_gpu = toBackend(obj, CUDA.CUDABackend)
                 problem_gpu = CBProblem(mesh, obj_gpu, (0.0, 1.0))
                 integrator_gpu = init(problem_gpu, dt=0.1)
                 step!(integrator_gpu)
@@ -796,7 +796,7 @@ using KernelAbstractions
             @test all(integrator.u.n.nnCL .== integrator.u.n.nnFull)
 
             if CUDA.has_cuda()
-                obj_gpu = toDevice(obj, CUDA.CUDABackend)
+                obj_gpu = toBackend(obj, CUDA.CUDABackend)
                 problem_gpu = CBProblem(mesh, obj_gpu, (0.0, 1.0))
                 integrator_gpu = init(problem_gpu, dt=0.1)
                 step!(integrator_gpu)
@@ -866,7 +866,7 @@ using KernelAbstractions
             @test all(integrator.u.n.nnCL .== integrator.u.n.nnFull)
 
             if CUDA.has_cuda()
-                obj_gpu = toDevice(obj, CUDA.CUDABackend)
+                obj_gpu = toBackend(obj, CUDA.CUDABackend)
                 problem_gpu = CBProblem(mesh, obj_gpu, (0.0, 1.0))
                 integrator_gpu = init(problem_gpu, dt=0.1)
                 step!(integrator_gpu)
@@ -934,7 +934,7 @@ using KernelAbstractions
                 surviving_b = [obj.n.b[i] for i in 1:n[1] if obj.n._FlagsSurvived[i]]
                 
                 # Perform compaction via update!
-                obj_gpu = toDevice(obj, CUDA.CUDABackend)
+                obj_gpu = toBackend(obj, CUDA.CUDABackend)
                 CellBasedModels.update!(obj_gpu)
                 
                 # After compaction, N should be 3 (3 surviving elements)
@@ -1045,7 +1045,7 @@ using KernelAbstractions
         @test integrator.t == 0.1
 
         if CUDA.has_cuda()
-            obj_gpu = toDevice(obj, CUDA.CUDABackend)
+            obj_gpu = toBackend(obj, CUDA.CUDABackend)
             problem_gpu = CBProblem(model, obj_gpu)
             integrator_gpu = init(problem_gpu, dt=0.1)
             

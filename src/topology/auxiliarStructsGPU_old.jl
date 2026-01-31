@@ -11,11 +11,11 @@ function KernelAbstractions.get_backend(field::CSRSlack)
 end
 
 ######################################################################################################
-# toDevice - Device transfer functions for CSR structures
+# toBackend - Device transfer functions for CSR structures
 ######################################################################################################
 
 # CSRStruct to CPU
-function toDevice(field::CSRStruct{P}, ::Type{CPU}) where {P<:GPU}
+function toBackend(field::CSRStruct{P}, ::Type{CPU}) where {P<:GPU}
     CSRStruct(
         Adapt.adapt(Array, field._map),
         SizedVector{1}(Array(field._N)[1]),
@@ -29,10 +29,10 @@ function toDevice(field::CSRStruct{P}, ::Type{CPU}) where {P<:GPU}
     )
 end
 
-toDevice(field::CSRStruct{P}, ::Type{CPU}) where {P<:CPU} = field
+toBackend(field::CSRStruct{P}, ::Type{CPU}) where {P<:CPU} = field
 
 # CSRTuple to CPU
-function toDevice(field::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:GPU, NBlock}
+function toBackend(field::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:GPU, NBlock}
     CSRTuple(
         Adapt.adapt(Array, field._map),
         SizedVector{1}(Array(field._N)[1]),
@@ -45,10 +45,10 @@ function toDevice(field::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:GPU, NBlock
     )
 end
 
-toDevice(field::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:CPU, NBlock} = field
+toBackend(field::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:CPU, NBlock} = field
 
 # CSRSlack to CPU
-function toDevice(field::CSRSlack{P, PR, AI, AF, VI, VI2, VB}, ::Type{CPU}) where {P<:GPU, PR, AI, AF, VI, VI2, VB}
+function toBackend(field::CSRSlack{P, PR, AI, AF, VI, VI2, VB}, ::Type{CPU}) where {P<:GPU, PR, AI, AF, VI, VI2, VB}
     CSRSlack(
         Adapt.adapt(Array, field._map),
         SizedVector{1}(Array(field._N)[1]),
@@ -64,4 +64,4 @@ function toDevice(field::CSRSlack{P, PR, AI, AF, VI, VI2, VB}, ::Type{CPU}) wher
     )
 end
 
-toDevice(field::CSRSlack{P}, ::Type{CPU}) where {P<:CPU} = field
+toBackend(field::CSRSlack{P}, ::Type{CPU}) where {P<:CPU} = field

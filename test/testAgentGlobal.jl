@@ -61,7 +61,7 @@ using KernelAbstractions
         obj.g.a2 .= 1.0
         obj.g.b .= 0
 
-        obj_gpu = toDevice(obj, CUDA.CUDABackend)
+        obj_gpu = toBackend(obj, CUDA.CUDABackend)
         problem = CBProblem(
             model,
             obj_gpu

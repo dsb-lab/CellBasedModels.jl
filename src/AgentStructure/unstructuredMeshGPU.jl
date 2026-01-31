@@ -65,9 +65,9 @@ end
 # ########################################################################################
 # # to CPU / to GPU conversions
 # ########################################################################################
-toDevice(field::UnstructuredMeshField{P}, ::Type{CPU}) where {P<:CPU} = field
+toBackend(field::UnstructuredMeshField{P}, ::Type{CPU}) where {P<:CPU} = field
 
-function toDevice(field::UnstructuredMeshField{P}, ::Type{CPU}) where {P<:GPU}
+function toBackend(field::UnstructuredMeshField{P}, ::Type{CPU}) where {P<:GPU}
     
     UnstructuredMeshField(
         field._p              === nothing ? nothing : Adapt.adapt(Array, field._p),
@@ -84,15 +84,15 @@ function toDevice(field::UnstructuredMeshField{P}, ::Type{CPU}) where {P<:GPU}
     )
 end
 
-toDevice(mesh::UnstructuredMeshObject{P}, ::Type{CPU}) where {P<:CPU} = mesh
+toBackend(mesh::UnstructuredMeshObject{P}, ::Type{CPU}) where {P<:CPU} = mesh
 
-function toDevice(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}, ::Type{CPU}) where {P<:GPU, D, S, DT, NN, PAR, AB}
+function toBackend(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}, ::Type{CPU}) where {P<:GPU, D, S, DT, NN, PAR, AB}
 
     PNew = platform()
     DTNew = DT <: AbstractFloat ? DATATYPE[AbstractFloat] : DT
 
     p = NamedTuple{keys(field._p)}(
-        toDevice(p, CPU) for p in values(field._p)
+        toBackend(p, CPU) for p in values(field._p)
     )
     n = initNeighbors(D, field._neighbors, p)
     _FlagOverflow = SizedVector{1}(false)

@@ -151,8 +151,8 @@ end
 #     j = Atomix.@atomicreplace x[i] 0 => 1
 #     @print j.success "\n" 
 # end
-# for device in devices
-#    x = toDevice(device, zeros(Int, 10))
+# for backend in backends
+#    x = toBackend(backend, zeros(Int, 10))
 #    @views(x[1:10]) .= 1:10
 #    @views(x[1:10]) .= @views(x[10:-1:1])
 #    println(x) 
@@ -180,7 +180,7 @@ end
         # @test Array(coo._NRows) == [10]
         # @test Array(coo._NCols) == [15]
         
-        for device in devices
+        for backend in backends
             # coo = dcoo_zeros(Float64, 2)
             # @test Array(coo._rows) == [1,10,2]
             # @test Array(coo._cols) == [1,15,3]
@@ -188,7 +188,7 @@ end
             # @test (Array(coo._NRows), Array(coo._NCols)) == ([10], [15])
             # @test (Array(coo._NEntries), Array(coo._NEntriesCache), Array(coo._NEntriesNonzero)) == ([2],[3],[2])
             # @test (Array(coo._NEntriesFree), Array(coo._NEntriesFreeNextInit), Array(coo._NEntriesFreeNext)) == ([-1],[2],[0])
-            # coo = toDevice(coo, device)
+            # coo = toBackend(coo, backend)
             # coo[1,1] = 5
             # coo[10,15] = 12
             # coo[2,3] = 7
@@ -647,8 +647,8 @@ end
         # csrMat = CSRStruct(mat, NRowsCache=10, NBlock=4)
         # for sorted_flag in [false, true]
         #     csrMat = CSRStruct(mat, NRowsCache=10, NBlock=4, sorted=sorted_flag)
-        #     for device in devices
-        #         csr_device = CellBasedModels.toDevice(csrMat, device)
+        #     for backend in backends
+        #         csr_device = CellBasedModels.toBackend(csrMat, backend)
         #         v1, v2, v3 = test_iterators_in_kernel(csr_device)
         #         @test v1 == 11
         #         @test v2 == 3
@@ -657,11 +657,11 @@ end
         # end
 
         # # Unsorted: Test operators and compactions
-        # for device in devices
+        # for backend in backends
 
         #     mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
         #     csrMat = CSRStruct(mat, NRowsCache=5, NBlock=4)
-        #     csr_device = CellBasedModels.toDevice(csrMat, device)
+        #     csr_device = CellBasedModels.toBackend(csrMat, backend)
         #     csrNew_device = copy(csrMat)
             
         #     @test Array(csr_device._map) == [
@@ -843,11 +843,11 @@ end
         # end
 
         # # Sorted: Test operators and compactions
-        # for device in devices
+        # for backend in backends
 
         #     mat = [[1,2,3], [4,5], [6,7,8], [9,10,11]]
         #     csrMat = CSRStruct(mat, NRowsCache=5, NBlock=4, sorted=true)
-        #     csr_device = CellBasedModels.toDevice(csrMat, device)
+        #     csr_device = CellBasedModels.toBackend(csrMat, backend)
         #     csrNew_device = copy(csrMat)
             
         #     @test Array(csr_device._map) == [
@@ -1100,11 +1100,11 @@ end
     #     @test results == [(1, 1), (1, 2), (1, 3), (2, 4), (2, 5), (3, 6)]
 
     #     # Test operators
-    #     for device in devices
+    #     for backend in backends
 
     #         # addElement!
     #         csr = CSRCache([2, 3]; additionalNCache=5, additionalL=0, dtype=Int)
-    #         csr_device = CellBasedModels.toDevice(csr, device)
+    #         csr_device = CellBasedModels.toBackend(csr, backend)
 
     #         kernel_csrcache_memclaim_addElement(csr_device, 4)
     #         @test Array(csr_device._N)[1] == 2         

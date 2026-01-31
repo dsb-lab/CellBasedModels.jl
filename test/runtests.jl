@@ -10,7 +10,7 @@ using Adapt
 verbose = true
 benchmark = true #just for internal optimizations
 
-devices = CUDA.has_cuda() ? [CPU, CUDA.CUDABackend] : [CPU]
+backends = CUDA.has_cuda() ? [CPU(), CUDA.CUDABackend()] : [CPU()]
 
 @testset verbose=true "CellBasedModels.jl" begin
     # include("testIndexing.jl")

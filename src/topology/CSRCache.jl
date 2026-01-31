@@ -268,10 +268,10 @@ function remap!(field::CSRCache{P, NBlock, T}) where {P, NBlock, T}
         end
     end
     auxiliar = similar(field._map)
-    device = KernelAbstractions.get_backend(field)
-    threads = device === CPU ? Threads.nthreads() : 256
-    _kernel_remap!(device, threads)(field._map, field._addOffsets, auxiliar, lengthElements(field), NBlock, ndrange=lengthElements(field))
-    KernelAbstractions.synchronize(device)
+    backend = KernelAbstractions.get_backend(field)
+    threads = backend === CPU ? Threads.nthreads() : 256
+    _kernel_remap!(backend, threads)(field._map, field._addOffsets, auxiliar, lengthElements(field), NBlock, ndrange=lengthElements(field))
+    KernelAbstractions.synchronize(backend)
 
     @views field._map[1:lengthElements(field)*NBlock] .= auxiliar[1:lengthElements(field)*NBlock]
 
@@ -412,11 +412,11 @@ function KernelAbstractions.get_backend(field::CSRCache)
 end
 
 ######################################################################################################
-# toDevice - Device transfer functions for CSR structures
+# toBackend - Device transfer functions for CSR structures
 ######################################################################################################
 
 # CSRCache to CPU
-function toDevice(field::CSRCache{P}, ::Type{CPU}) where {P<:GPU}
+function toBackend(field::CSRCache{P}, ::Type{CPU}) where {P<:GPU}
     CSRCache(
         Adapt.adapt(Array, field._map),
         Adapt.adapt(Array, field._elementOffsets),
@@ -429,14 +429,14 @@ function toDevice(field::CSRCache{P}, ::Type{CPU}) where {P<:GPU}
         Adapt.adapt(Array, field._childs),
     )
 end
-function toDevice(field::CSRCache{P}, device::CPU) where {P<:CPU}
-    toDevice(field, typeof(device))
+function toBackend(field::CSRCache{P}, backend::CPU) where {P<:CPU}
+    toBackend(field, typeof(backend))
 end
 
-toDevice(field::CSRCache{P}, ::Type{CPU}) where {P<:CPU} = field
-toDevice(field::CSRCache{P}, ::CPU) where {P<:GPU} = toDevice(field, CPU)
+toBackend(field::CSRCache{P}, ::Type{CPU}) where {P<:CPU} = field
+toBackend(field::CSRCache{P}, ::CPU) where {P<:GPU} = toBackend(field, CPU)
 
-function toDevice(field::CSRCache{P}, backend::Type{<:KernelAbstractions.GPU}) where {P<:CPU}
+function toBackend(field::CSRCache{P}, backend::Type{<:KernelAbstractions.GPU}) where {P<:CPU}
     CSRCache(
         Adapt.adapt(backend, field._map),
         Adapt.adapt(backend, field._elementOffsets),
@@ -450,9 +450,9 @@ function toDevice(field::CSRCache{P}, backend::Type{<:KernelAbstractions.GPU}) w
     )
 end
 
-function toDevice(field::CSRCache{P}, backend::KernelAbstractions.GPU) where {P<:CPU}
-    toDevice(field, typeof(backend))
+function toBackend(field::CSRCache{P}, backend::KernelAbstractions.GPU) where {P<:CPU}
+    toBackend(field, typeof(backend))
 end
 
-toDevice(field::CSRCache{P}, ::KernelAbstractions.GPU) where {P<:GPU} = field
-toDevice(field::CSRCache{P}, ::Type{<:KernelAbstractions.GPU}) where {P<:GPU} = field
+toBackend(field::CSRCache{P}, ::KernelAbstractions.GPU) where {P<:GPU} = field
+toBackend(field::CSRCache{P}, ::Type{<:KernelAbstractions.GPU}) where {P<:GPU} = field

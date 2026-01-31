@@ -7,11 +7,11 @@ function platform(x)
     return CPU
 end
 
-function toDevice(::CPU, x::AbstractArray)
+function toBackend(::CPU, x::AbstractArray)
     return x
 end
 
-function toDevice(::Type{CPU}, x::AbstractArray)
+function toBackend(::Type{CPU}, x::AbstractArray)
     return x
 end
 

@@ -1,7 +1,7 @@
 import CellBasedModels: DATATYPE
 import CellBasedModels: lengthCache, lengthProperties, lengthPropertiesNew, sizeFull, sizeFullCache, nCopyProperties
 import CellBasedModels: UnstructuredMeshField, UnstructuredMeshFieldStyle, UnstructuredMeshObject, UnstructuredMeshObjectStyle, unpack_voa
-import CellBasedModels: toDevice, CPU
+import CellBasedModels: toBackend, CPU
 import CellBasedModels: initNeighbors
 import KernelAbstractions
 
@@ -29,9 +29,9 @@ Base.size(field::UnstructuredMeshField{P}) where {P<:GPUCuDevice} = (nCopyProper
 # ########################################################################################
 # # to CPU / to GPU conversions
 # ########################################################################################
-toDevice(field::UnstructuredMeshField{P}, ::CUDA.CUDABackend) where {P<:CPU} = field
+toBackend(field::UnstructuredMeshField{P}, ::CUDA.CUDABackend) where {P<:CPU} = field
 
-function toDevice(field::UnstructuredMeshField{P}, ::Type{CUDA.CUDABackend}) where {P<:CPU}
+function toBackend(field::UnstructuredMeshField{P}, ::Type{CUDA.CUDABackend}) where {P<:CPU}
     UnstructuredMeshField(
         field._p              === nothing ? nothing : Adapt.adapt(CUDA.CuArray, field._p),
         field._NP             === nothing ? nothing : field._NP,
@@ -47,15 +47,15 @@ function toDevice(field::UnstructuredMeshField{P}, ::Type{CUDA.CUDABackend}) whe
     )
 end
 
-toDevice(mesh::UnstructuredMeshObject{D, P}, ::CUDA.CUDABackend) where {D, P<:GPUCuda} = mesh
+toBackend(mesh::UnstructuredMeshObject{D, P}, ::CUDA.CUDABackend) where {D, P<:GPUCuda} = mesh
 
-function toDevice(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}, ::Type{CUDA.CUDABackend}) where {P<:CPU, D, S, DT, NN, PAR, AB}
+function toBackend(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}, ::Type{CUDA.CUDABackend}) where {P<:CPU, D, S, DT, NN, PAR, AB}
 
     PNew = GPUCuda
     DTNew = DT <: AbstractFloat ? Float32 : DT
 
     p = NamedTuple{keys(field._p)}(
-        toDevice(p, CUDA.CUDABackend) for p in values(field._p)
+        toBackend(p, CUDA.CUDABackend) for p in values(field._p)
     )
     n = initNeighborsGPU(D, field._neighbors, p)
     _FlagOverflow = CUDA.CuArray([false])

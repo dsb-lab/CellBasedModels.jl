@@ -65,7 +65,7 @@ using Atomix
     #     obj.n.a2 .= 1.0
     #     obj.n.b .= 0
 
-    #     obj_gpu = toDevice(obj, CUDA.CUDABackend)
+    #     obj_gpu = toBackend(obj, CUDA.CUDABackend)
     #     problem = CBProblem(
     #         model,
     #         obj_gpu
@@ -103,14 +103,14 @@ using Atomix
     end
 
     for cache in [20, 10] 
-        for device in devices
+        for backend in backends
             #Initialize the object
             obj = createObject(model, n=(10,cache))
             obj.n.x .= rand(size(obj.n.x))
             obj.n.y .= rand(size(obj.n.y))
             obj.n.w .= rand(1:3, length(obj.n.w))
 
-            obj_gpu = toDevice(obj, device)
+            obj_gpu = toBackend(obj, backend)
             problem = CBProblem(
                 model,
                 obj_gpu

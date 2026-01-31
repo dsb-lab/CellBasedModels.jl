@@ -49,7 +49,7 @@ module CellBasedModels
 
     #Platforms
     # export CPU, GPU
-    export toDevice
+    export toBackend
     include("./platforms.jl")
 
     #Abstraact types

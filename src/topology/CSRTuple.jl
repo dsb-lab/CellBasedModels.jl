@@ -297,10 +297,10 @@ function map!(csrTarget::CSRTuple{P, NBlock}, csrOrigin::CSRTuple{P, NBlock}, ma
             end
         end
     end
-    device = KernelAbstractions.get_backend(csrTarget)
-    threads = device === CPU ? Threads.nthreads() : 256
-    _kernel_remap!(device, threads)(csrTarget, csrOrigin, map, ndrange=numberOfRows(csrTarget))
-    KernelAbstractions.synchronize(device)
+    backend = KernelAbstractions.get_backend(csrTarget)
+    threads = backend === CPU ? Threads.nthreads() : 256
+    _kernel_remap!(backend, threads)(csrTarget, csrOrigin, map, ndrange=numberOfRows(csrTarget))
+    KernelAbstractions.synchronize(backend)
 
     return
 end
@@ -407,7 +407,7 @@ function removePosAtRow!(csr::CSRTuple{P, NBlock}, row::Int, pos::Int) where {P,
 end
 
 ######################################################################################################
-# toDevice - Device transfer functions for CSR structures
+# toBackend - Device transfer functions for CSR structures
 ######################################################################################################
 
 function KernelAbstractions.get_backend(csr::CSRTuple)
@@ -415,7 +415,7 @@ function KernelAbstractions.get_backend(csr::CSRTuple)
 end
 
 # CSRTuple to CPU
-function toDevice(csr::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:GPU, NBlock}
+function toBackend(csr::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:GPU, NBlock}
     CSRTuple(
         csr._NBlock,
         Adapt.adapt(Array, csr._map),
@@ -425,14 +425,14 @@ function toDevice(csr::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:GPU, NBlock}
         Adapt.adapt(Array, csr._NEntriesRow),
     )
 end
-function toDevice(csr::CSRTuple{P, NBlock}, device::CPU) where {P<:CPU, NBlock}
-    toDevice(csr, typeof(device))
+function toBackend(csr::CSRTuple{P, NBlock}, backend::CPU) where {P<:CPU, NBlock}
+    toBackend(csr, typeof(backend))
 end
 
-toDevice(csr::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:CPU, NBlock} = csr
-toDevice(csr::CSRTuple{P, NBlock}, ::CPU) where {P<:GPU, NBlock} = toDevice(csr, CPU)
+toBackend(csr::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:CPU, NBlock} = csr
+toBackend(csr::CSRTuple{P, NBlock}, ::CPU) where {P<:GPU, NBlock} = toBackend(csr, CPU)
 
-function toDevice(csr::CSRTuple{P,NBlock}, backend::Type{<:KernelAbstractions.GPU}) where {P<:CPU, NBlock}
+function toBackend(csr::CSRTuple{P,NBlock}, backend::Type{<:KernelAbstractions.GPU}) where {P<:CPU, NBlock}
     CSRTuple(
         csr._NBlock,
         Adapt.adapt(backend, csr._map),
@@ -443,9 +443,9 @@ function toDevice(csr::CSRTuple{P,NBlock}, backend::Type{<:KernelAbstractions.GP
     )
 end
 
-function toDevice(csr::CSRTuple{P,NBlock}, backend::KernelAbstractions.GPU) where {P<:CPU, NBlock}
-    toDevice(csr, typeof(backend))
+function toBackend(csr::CSRTuple{P,NBlock}, backend::KernelAbstractions.GPU) where {P<:CPU, NBlock}
+    toBackend(csr, typeof(backend))
 end
 
-toDevice(csr::CSRTuple{P,NBlock}, ::KernelAbstractions.GPU) where {P<:GPU,NBlock} = csr
-toDevice(csr::CSRTuple{P,NBlock}, ::Type{<:KernelAbstractions.GPU}) where {P<:GPU,NBlock} = csr
+toBackend(csr::CSRTuple{P,NBlock}, ::KernelAbstractions.GPU) where {P<:GPU,NBlock} = csr
+toBackend(csr::CSRTuple{P,NBlock}, ::Type{<:KernelAbstractions.GPU}) where {P<:GPU,NBlock} = csr
