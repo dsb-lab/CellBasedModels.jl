@@ -12,6 +12,8 @@ struct DynamicalCOO{
     _NEntries::I
     _NEntriesCache::I
     _NEntriesNonzero::I
+    _NOverflowInsert::I
+    _NOverflowErase::I
 
     _NEntriesFree::I
     _NEntriesFreeNextInit::I
@@ -30,6 +32,8 @@ function DynamicalCOO(
         _NEntries,
         _NEntriesCache,
         _NEntriesNonzero,
+        _NOverflowInsert,
+        _NOverflowErase,
         
         _NEntriesFree,
         _NEntriesFreeNextInit,
@@ -55,7 +59,8 @@ function DynamicalCOO(
             _NEntries,
             _NEntriesCache,
             _NEntriesNonzero,
-            
+            _NOverflowInsert,
+            _NOverflowErase,
             _NEntriesFree,
             _NEntriesFreeNextInit,
             _NEntriesFreeNext,
@@ -75,6 +80,8 @@ function dcoo_zeros(dtype::DataType, n_coo::Int=0)
     _NEntries = Int[0]
     _NEntriesCache = Int[n_coo]
     _NEntriesNonzero = Int[0]
+    _NOverflowInsert = Int[0]
+    _NOverflowErase = Int[0]
     _NEntriesFree = Int[n_coo]
     _NEntriesFreeNextInit = Int[n_coo+1]
     _NEntriesFreeNext = Int[0]
@@ -89,6 +96,8 @@ function dcoo_zeros(dtype::DataType, n_coo::Int=0)
             _NEntries,
             _NEntriesCache,
             _NEntriesNonzero,
+            _NOverflowInsert,
+            _NOverflowErase,
             
             _NEntriesFree,
             _NEntriesFreeNextInit,
@@ -207,6 +216,8 @@ function Base.setindex!(coo::DynamicalCOO{P}, value, i::Int, j::Int) where {P<:C
             push!(coo._values, value)
             push!(coo._entriesFree, 0)
             coo._NEntriesCache[1] += 1
+            coo._NEntriesFree[1] += 1
+            coo._NOverflowInsert[1] += 1
         end
     end
     @atomic coo._NEntries[1] += 1
@@ -249,6 +260,9 @@ function Base.setindex!(coo::DynamicalCOO{P}, value, i::Int, j::Int) where {P<:G
         coo._cols[newPos] = j
         coo._values[newPos] = value
         coo._entriesFree[newFreePos+1] = 0
+    else
+        @atomic coo._NEntriesFree[1] += 1
+        @atomic coo._NOverflowInsert[1] += 1
     end
     @atomic coo._NEntries[1] += 1
     # Update cache
@@ -278,15 +292,13 @@ function Base.setindex!(coo::DynamicalCOO{P}, ::Nothing, i::Int, j::Int) where {
                 coo._values[k] = zero(eltype(coo._values))
                 # Add to free entries
                 newFreePos = @atomic coo._NEntriesFreeNext[1] += 1
-                newPos = coo._NEntriesFreeNextInit[1] + newFreePos - 1
+                newPos = coo._NEntriesFreeNextInit[1] + newFreePos
                 if newPos <= length(coo._entriesFree)
-                    coo._entriesFree[newPos] = k
+                    coo._entriesFree[newPos-1] = k
                 else
                     lock(coo._lock) do
-                        push!(coo._rows, 0)
-                        push!(coo._cols, 0)
-                        push!(coo._values, 0)
                         push!(coo._entriesFree, k)
+                        coo._NOverflowErase[1] += 1
                     end
                 end
             end
@@ -315,9 +327,12 @@ function Base.setindex!(coo::DynamicalCOO{P}, ::Nothing, i::Int, j::Int) where {
                 coo._values[k] = zero(eltype(coo._values))
                 # Add to free entries
                 newFreePos = @atomic coo._NEntriesFreeNext[1] += 1
-                newPos = coo._NEntriesFreeNextInit[1] + newFreePos - 1
+                newPos = coo._NEntriesFreeNextInit[1] + newFreePos
                 if newPos <= length(coo._entriesFree)
-                    coo._entriesFree[newPos] = k
+                    coo._entriesFree[newPos-1] = k
+                else
+                    @atomic coo._NEntriesFreeNext[1] -= 1
+                    @atomic coo._NOverflowErase[1] += 1
                 end
             end
         end
@@ -372,8 +387,7 @@ end
 
 function overflowEntries(coo::DynamicalCOO)
 
-    return abs(min(getDeviceIndex(coo._NEntriesFree), 0)) + 
-        abs(min(-getDeviceIndex(coo._NEntriesFreeNextInit) - getDeviceIndex(coo._NEntriesFreeNext) + 1 + numberOfEntriesCache(coo), 0))
+    return getDeviceIndex(coo._NOverflowInsert)
 
 end
 
@@ -396,36 +410,46 @@ function allocationRatio(coo::DynamicalCOO)
 
 end
 
-function allocationsFailed(coo::DynamicalCOO)
+function allocationsFailed(coo::DynamicalCOO{P}) where {P<:CPU}
 
-    return numberOfEntries(coo) > numberOfEntriesCache(coo) || getDeviceIndex(coo._NEntriesFreeNextInit) + getDeviceIndex(coo._NEntriesFreeNext) > numberOfEntriesCache(coo)
+    return false
+
+end
+
+function allocationsFailed(coo::DynamicalCOO{P}) where {P<:GPU}
+
+    return getDeviceIndex(coo._NOverflowInsert) > 0 || getDeviceIndex(coo._NOverflowErase) > 0
 
 end
 
 function synchronize(coo::DynamicalCOO)
 
-    chunk = getDeviceIndex(coo._NEntriesFreeNext) - 1
+    chunk = getDeviceIndex(coo._NEntriesFreeNext)
 
-    if chunk >= 0
+    chunkNewInit = getDeviceIndex(coo._NEntriesFree) + 1
+    chunkNewEnd = chunkNewInit + chunk
 
-        chunkNewInit = max(getDeviceIndex(coo._NEntriesFree), 1)
-        chunkNewEnd = chunkNewInit + chunk
+    chunkOldInit = getDeviceIndex(coo._NEntriesFreeNextInit)
+    chunkOldEnd = chunkOldInit + chunk
 
-        chunkOldInit = getDeviceIndex(coo._NEntriesFreeNextInit)
-        chunkOldEnd = chunkOldInit + chunk
-
+    if chunk > 0
         @view(coo._entriesFree[chunkNewInit:chunkNewEnd]) .= @views(coo._entriesFree[chunkOldInit:chunkOldEnd])
-        @views(coo._entriesFree[chunkOldInit:chunkOldEnd]) .= 0
-        setDeviceIndex!(coo._NEntriesFree, chunkNewEnd)
-        setDeviceIndex!(coo._NEntriesFreeNext, 0)
-        setDeviceIndex!(coo._NEntriesFreeNextInit, chunkNewEnd + 1)
+        @views(coo._entriesFree[chunkOldInit+1:1:chunkOldEnd]) .= 0
+    end
 
+    setDeviceIndex!(coo._NEntriesFree, chunkNewEnd - 1)
+    setDeviceIndex!(coo._NEntriesFreeNext, 0)
+    setDeviceIndex!(coo._NEntriesFreeNextInit, chunkNewEnd)
+
+    # Resize if entries overflowed
+    if length(coo._entriesFree) > length(coo._values)
+        resize!(coo._entriesFree, length(coo._values))
     end
 
     return
 end
 
-function dropzeros!(coo::DynamicalCOO{P, T}) where {P<:CPU, T}
+function dropzeros!(coo::DynamicalCOO)
 
     @kernel function kernel_compact_zeros!(
             rows,
@@ -554,8 +578,8 @@ function compact!(coo::DynamicalCOO)
 
     surviving = toBackend(backend, zeros(Int, length(coo)))
     mapping = copy(surviving)
-    auxiliar_values = zeros(eltype(coo._values), length(coo))
-    auxiliar_cols = zeros(Int, length(coo))
+    auxiliar_values = toBackend(backend, zeros(eltype(coo._values), length(coo)))
+    auxiliar_cols = toBackend(backend, zeros(Int, length(coo)))
 
     kernel_mark_surviving!(backend, threads)(coo._rows, surviving, ndrange = length(coo))
     KernelAbstractions.synchronize(backend)
@@ -564,24 +588,29 @@ function compact!(coo::DynamicalCOO)
     nNonzero = sum(surviving) 
 
     kernel_map!(backend, threads)(coo._values, auxiliar_values, mapping, surviving, ndrange = length(coo))
+    KernelAbstractions.synchronize(backend)
     coo._values .= auxiliar_values
 
     auxiliar_cols .= 0
     kernel_map!(backend, threads)(coo._cols, auxiliar_cols, mapping, surviving, ndrange = length(coo))
+    KernelAbstractions.synchronize(backend)
     coo._cols .= auxiliar_cols
 
     auxiliar_cols .= 0
     kernel_map!(backend, threads)(coo._rows, auxiliar_cols, mapping, surviving, ndrange = length(coo))
+    KernelAbstractions.synchronize(backend)
     coo._rows .= auxiliar_cols
 
     setDeviceIndex!(coo._NEntries, nNonzero)
     setDeviceIndex!(coo._NEntriesNonzero, nNonzero)
+    setDeviceIndex!(coo._NOverflowInsert, 0)
+    setDeviceIndex!(coo._NOverflowErase, 0)
     setDeviceIndex!(coo._NEntriesFree, length(coo)-nNonzero)
     setDeviceIndex!(coo._NEntriesFreeNextInit, length(coo)-nNonzero+1)
     setDeviceIndex!(coo._NEntriesFreeNext, 0)
 
     coo._entriesFree .= 0
-    @view(coo._entriesFree[1:length(coo)-nNonzero]) .=  [i for i in length(coo):-1:nNonzero+1]
+    @view(coo._entriesFree[1:length(coo)-nNonzero]) .=  toBackend(backend, [i for i in length(coo):-1:nNonzero+1])
 
     return
 
@@ -645,12 +674,14 @@ function compactto!(cooTarget::DynamicalCOO{P, T}, coo::DynamicalCOO{P, T}) wher
     setDeviceIndex!(cooTarget._NEntries, nNonzero)
     setDeviceIndex!(cooTarget._NEntriesCache, getDeviceIndex(coo._NEntriesCache))
     setDeviceIndex!(cooTarget._NEntriesNonzero, nNonzero)
+    setDeviceIndex!(cooTarget._NOverflowInsert, 0)
+    setDeviceIndex!(cooTarget._NOverflowErase, 0)
     setDeviceIndex!(cooTarget._NEntriesFree, length(coo)-nNonzero)
     setDeviceIndex!(cooTarget._NEntriesFreeNextInit, length(coo)-nNonzero+1)
     setDeviceIndex!(cooTarget._NEntriesFreeNext, 0)
     
     cooTarget._entriesFree .= 0
-    @view(cooTarget._entriesFree[1:length(coo)-nNonzero]) .=  [i for i in length(coo):-1:nNonzero+1]
+    @view(cooTarget._entriesFree[1:length(coo)-nNonzero]) .=  toBackend(KernelAbstractions.get_backend(cooTarget), [i for i in length(coo):-1:nNonzero+1])
 
     return
 
@@ -661,17 +692,25 @@ function Base.similar(coo::DynamicalCOO)
     dtype = eltype(coo._values)
     n_coo = length(coo)
 
-    _rows = Array{Int}(undef, n_coo)
-    _cols = Array{Int}(undef, n_coo)
-    _values = Array{dtype}(undef, n_coo)
-    _NEntries = Array{Int}(undef, 1)
-    _NEntriesCache = Array{Int}(undef, 1)
-    _NEntriesNonzero = Array{Int}(undef, 1)
-    _NEntriesFree = Array{Int}(undef, 1)
-    _NEntriesFreeNextInit = Array{Int}(undef, 1)
-    _NEntriesFreeNext = Array{Int}(undef, 1)
-    _entriesFree = Array{Int}(undef, n_coo)
-    _lock = ReentrantLock()
+    backend = KernelAbstractions.get_backend(coo)
+
+    _rows = toBackend(backend, Array{Int}(undef, n_coo))
+    _cols = toBackend(backend, Array{Int}(undef, n_coo))
+    _values = toBackend(backend, Array{dtype}(undef, n_coo))
+    _NEntries = toBackend(backend, Array{Int}(undef, 1))
+    _NEntriesCache = toBackend(backend, Array{Int}(undef, 1))
+    _NEntriesNonzero = toBackend(backend, Array{Int}(undef, 1))
+    _NOverflowInsert = toBackend(backend, Array{Int}(undef, 1))
+    _NOverflowErase = toBackend(backend, Array{Int}(undef, 1))
+    _NEntriesFree = toBackend(backend, Array{Int}(undef, 1))
+    _NEntriesFreeNextInit = toBackend(backend, Array{Int}(undef, 1))
+    _NEntriesFreeNext = toBackend(backend, Array{Int}(undef, 1))
+    _entriesFree = toBackend(backend, Array{Int}(undef, n_coo))
+    if backend === CPU
+        _lock = ReentrantLock()
+    else
+        _lock = nothing
+    end
 
     return DynamicalCOO(
             _rows,
@@ -681,6 +720,8 @@ function Base.similar(coo::DynamicalCOO)
             _NEntries,
             _NEntriesCache,
             _NEntriesNonzero,
+            _NOverflowInsert,
+            _NOverflowErase,
             
             _NEntriesFree,
             _NEntriesFreeNextInit,
@@ -695,19 +736,7 @@ end
 function Base.copy(coo::DynamicalCOO)
 
     cooCopy = similar(coo)
-
-    cooCopy._rows .= coo._rows
-    cooCopy._cols .= coo._cols
-    cooCopy._values .= coo._values
-
-    cooCopy._NEntries .= coo._NEntries
-    cooCopy._NEntriesCache .= coo._NEntriesCache
-    cooCopy._NEntriesNonzero .= coo._NEntriesNonzero
-
-    cooCopy._NEntriesFree .= coo._NEntriesFree
-    cooCopy._NEntriesFreeNextInit .= coo._NEntriesFreeNextInit
-    cooCopy._NEntriesFreeNext .= coo._NEntriesFreeNext
-    cooCopy._entriesFree .= coo._entriesFree
+    copyto!(cooCopy, coo)
 
     return cooCopy
 
@@ -743,6 +772,8 @@ function Base.copyto!(dest::DynamicalCOO{P, T}, src::DynamicalCOO{P, T}) where {
     dest._NEntries .= src._NEntries
     dest._NEntriesCache .= src._NEntriesCache
     dest._NEntriesNonzero .= src._NEntriesNonzero
+    dest._NOverflowInsert .= src._NOverflowInsert
+    dest._NOverflowErase .= src._NOverflowErase
     dest._NEntriesFree .= src._NEntriesFree
     dest._NEntriesFreeNextInit .= src._NEntriesFreeNextInit
     dest._NEntriesFreeNext .= src._NEntriesFreeNext
@@ -776,7 +807,7 @@ end
 
 function dropcacheto!(cooTarget::DynamicalCOO{P, T}, coo::DynamicalCOO{P, T}) where {P, T}
 
-    compactto!(coo, cooTarget)
+    compactto!(cooTarget, coo)
     nEntriesNonzero = numberOfEntriesNonzero(cooTarget)
 
     resize!(cooTarget._rows, nEntriesNonzero)
@@ -787,6 +818,8 @@ function dropcacheto!(cooTarget::DynamicalCOO{P, T}, coo::DynamicalCOO{P, T}) wh
     setDeviceIndex!(cooTarget._NEntries, nEntriesNonzero)
     setDeviceIndex!(cooTarget._NEntriesCache, nEntriesNonzero)
     setDeviceIndex!(cooTarget._NEntriesNonzero, nEntriesNonzero)
+    setDeviceIndex!(cooTarget._NOverflowInsert, 0)
+    setDeviceIndex!(cooTarget._NOverflowErase, 0)
     setDeviceIndex!(cooTarget._NEntriesFree, nEntriesNonzero)
     setDeviceIndex!(cooTarget._NEntriesFreeNextInit, nEntriesNonzero + 1)
     setDeviceIndex!(cooTarget._NEntriesFreeNext, 0)
@@ -813,7 +846,9 @@ function remaprows!(coo::DynamicalCOO, rowmap::AbstractVector{Int})
         end
         
     end
-    
+
+    rowmap = toBackend(KernelAbstractions.get_backend(coo), rowmap)
+
     backend = KernelAbstractions.get_backend(coo)
     threads = backend === CPU() ? Threads.nthreads() : 256
     kernel_remap_rows!(backend, threads)(coo._rows, rowmap, ndrange = length(coo))
@@ -839,6 +874,8 @@ function remapcols!(coo::DynamicalCOO, colmap::AbstractVector{Int})
         
     end
     
+    colmap = toBackend(KernelAbstractions.get_backend(coo), colmap)
+
     backend = KernelAbstractions.get_backend(coo)
     threads = backend === CPU() ? Threads.nthreads() : 256
     kernel_remap_cols!(backend, threads)(coo._cols, colmap, ndrange = length(coo))
@@ -863,6 +900,8 @@ function toBackend(::KernelAbstractions.CPU, coo::DynamicalCOO{P, T}) where {P<:
         Vector(coo._NEntries),
         Vector(coo._NEntriesCache),
         Vector(coo._NEntriesNonzero),
+        Vector(coo._NOverflowInsert),
+        Vector(coo._NOverflowErase),
         Vector(coo._NEntriesFree),
         Vector(coo._NEntriesFreeNextInit),
         Vector(coo._NEntriesFreeNext),
@@ -881,6 +920,8 @@ function toBackend(backend::KernelAbstractions.GPU, coo::DynamicalCOO{P}) where 
         toBackend(backend, coo._NEntries),
         toBackend(backend, coo._NEntriesCache),
         toBackend(backend, coo._NEntriesNonzero),
+        toBackend(backend, coo._NOverflowInsert),
+        toBackend(backend, coo._NOverflowErase),
         toBackend(backend, coo._NEntriesFree),
         toBackend(backend, coo._NEntriesFreeNextInit),
         toBackend(backend, coo._NEntriesFreeNext),
