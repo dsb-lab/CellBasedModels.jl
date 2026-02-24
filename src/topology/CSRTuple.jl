@@ -415,7 +415,7 @@ function KernelAbstractions.get_backend(csr::CSRTuple)
 end
 
 # CSRTuple to CPU
-function toBackend(csr::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:GPU, NBlock}
+function toBackend(csr::CSRTuple{P, NBlock}, ::CPU) where {P<:GPU, NBlock}
     CSRTuple(
         csr._NBlock,
         Adapt.adapt(Array, csr._map),
@@ -425,21 +425,17 @@ function toBackend(csr::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:GPU, NBlock}
         Adapt.adapt(Array, csr._NEntriesRow),
     )
 end
-function toBackend(csr::CSRTuple{P, NBlock}, backend::CPU) where {P<:CPU, NBlock}
-    toBackend(csr, typeof(backend))
-end
 
-toBackend(csr::CSRTuple{P, NBlock}, ::Type{CPU}) where {P<:CPU, NBlock} = csr
-toBackend(csr::CSRTuple{P, NBlock}, ::CPU) where {P<:GPU, NBlock} = toBackend(csr, CPU)
+toBackend(csr::CSRTuple{P, NBlock}, ::CPU) where {P<:CPU, NBlock} = csr
 
-function toBackend(csr::CSRTuple{P,NBlock}, backend::Type{<:KernelAbstractions.GPU}) where {P<:CPU, NBlock}
+function toBackend(csr::CSRTuple{P,NBlock}, backend::KernelAbstractions.GPU) where {P<:CPU, NBlock}
     CSRTuple(
         csr._NBlock,
-        Adapt.adapt(backend, csr._map),
-        Adapt.adapt(backend, csr._NRows),
-        Adapt.adapt(backend, csr._NRowsCache),
-        Adapt.adapt(backend, csr._NEntries),
-        Adapt.adapt(backend, csr._NEntriesRow),
+        Adapt.adapt(typeof(backend), csr._map),
+        Adapt.adapt(typeof(backend), csr._NRows),
+        Adapt.adapt(typeof(backend), csr._NRowsCache),
+        Adapt.adapt(typeof(backend), csr._NEntries),
+        Adapt.adapt(typeof(backend), csr._NEntriesRow),
     )
 end
 

@@ -416,7 +416,7 @@ end
 ######################################################################################################
 
 # CSRCache to CPU
-function toBackend(field::CSRCache{P}, ::Type{CPU}) where {P<:GPU}
+function toBackend(field::CSRCache{P}, ::CPU) where {P<:GPU}
     CSRCache(
         Adapt.adapt(Array, field._map),
         Adapt.adapt(Array, field._elementOffsets),
@@ -429,14 +429,10 @@ function toBackend(field::CSRCache{P}, ::Type{CPU}) where {P<:GPU}
         Adapt.adapt(Array, field._childs),
     )
 end
-function toBackend(field::CSRCache{P}, backend::CPU) where {P<:CPU}
-    toBackend(field, typeof(backend))
-end
 
-toBackend(field::CSRCache{P}, ::Type{CPU}) where {P<:CPU} = field
-toBackend(field::CSRCache{P}, ::CPU) where {P<:GPU} = toBackend(field, CPU)
+toBackend(field::CSRCache{P}, ::CPU) where {P<:CPU} = field
 
-function toBackend(field::CSRCache{P}, backend::Type{<:KernelAbstractions.GPU}) where {P<:CPU}
+function toBackend(field::CSRCache{P}, backend::KernelAbstractions.GPU) where {P<:CPU}
     CSRCache(
         Adapt.adapt(backend, field._map),
         Adapt.adapt(backend, field._elementOffsets),

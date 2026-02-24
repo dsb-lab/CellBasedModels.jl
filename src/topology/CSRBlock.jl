@@ -1274,7 +1274,7 @@ function KernelAbstractions.get_backend(csr::CSRBlock)
 end
 
 # CSRBlock to CPU
-function toBackend(csr::CSRBlock{P}, ::Type{CPU}) where {P<:GPU}
+function toBackend(csr::CSRBlock{P}, ::CPU) where {P<:GPU}
     CSRBlock(
         Adapt.adapt(Array, csr._NBlock),
         csr._sorted,
@@ -1294,37 +1294,28 @@ function toBackend(csr::CSRBlock{P}, ::Type{CPU}) where {P<:GPU}
         Adapt.adapt(Array, csr._auxiliar),
     )
 end
-function toBackend(csr::CSRBlock{P}, backend::CPU) where {P<:CPU}
-    toBackend(csr, typeof(backend))
-end
 
-toBackend(csr::CSRBlock{P}, ::Type{CPU}) where {P<:CPU} = csr
-toBackend(csr::CSRBlock{P}, ::CPU) where {P<:GPU} = toBackend(csr, CPU)
+toBackend(csr::CSRBlock{P}, ::CPU) where {P<:CPU} = csr
 
-function toBackend(csr::CSRBlock{P,F}, backend::Type{<:KernelAbstractions.GPU}) where {P<:CPU,F}
+function toBackend(csr::CSRBlock{P,F}, backend::KernelAbstractions.GPU) where {P<:CPU,F}
     CSRBlock(
-        Adapt.adapt(backend, csr._NBlock),
+        Adapt.adapt(typeof(backend), csr._NBlock),
         csr._sorted,
-        Adapt.adapt(backend, csr._map),
-        isnothing(csr._rowEntryNext) ? nothing : Adapt.adapt(backend, csr._rowEntryNext),
-        isnothing(csr._rowEntryPrevious) ? nothing : Adapt.adapt(backend, csr._rowEntryPrevious),
-        isnothing(csr._rowFirstEntry) ? nothing : Adapt.adapt(backend, csr._rowFirstEntry),
-        isnothing(csr._rowLastEntry) ? nothing : Adapt.adapt(backend, csr._rowLastEntry),
-        Adapt.adapt(backend, csr._NRows),
-        Adapt.adapt(backend, csr._NRowsCache),
-        Adapt.adapt(backend, csr._NRowsCompacted),
-        Adapt.adapt(backend, csr._NEntries),
-        Adapt.adapt(backend, csr._NEntriesRow),
-        Adapt.adapt(backend, csr._NEntriesRowAdd),
-        Adapt.adapt(backend, csr._NEntriesRowCompacted),
-        Adapt.adapt(backend, csr._rowSurvived),
-        Adapt.adapt(backend, csr._auxiliar),
+        Adapt.adapt(typeof(backend), csr._map),
+        isnothing(csr._rowEntryNext) ? nothing : Adapt.adapt(typeof(backend), csr._rowEntryNext),
+        isnothing(csr._rowEntryPrevious) ? nothing : Adapt.adapt(typeof(backend), csr._rowEntryPrevious),
+        isnothing(csr._rowFirstEntry) ? nothing : Adapt.adapt(typeof(backend), csr._rowFirstEntry),
+        isnothing(csr._rowLastEntry) ? nothing : Adapt.adapt(typeof(backend), csr._rowLastEntry),
+        Adapt.adapt(typeof(backend), csr._NRows),
+        Adapt.adapt(typeof(backend), csr._NRowsCache),
+        Adapt.adapt(typeof(backend), csr._NRowsCompacted),
+        Adapt.adapt(typeof(backend), csr._NEntries),
+        Adapt.adapt(typeof(backend), csr._NEntriesRow),
+        Adapt.adapt(typeof(backend), csr._NEntriesRowAdd),
+        Adapt.adapt(typeof(backend), csr._NEntriesRowCompacted),
+        Adapt.adapt(typeof(backend), csr._rowSurvived),
+        Adapt.adapt(typeof(backend), csr._auxiliar),
     )
 end
 
-function toBackend(csr::CSRBlock{P,F}, backend::KernelAbstractions.GPU) where {P<:CPU,F}
-    toBackend(csr, typeof(backend))
-end
-
 toBackend(csr::CSRBlock{P,F}, ::KernelAbstractions.GPU) where {P<:GPU,F} = csr
-toBackend(csr::CSRBlock{P,F}, ::Type{<:KernelAbstractions.GPU}) where {P<:GPU,F} = csr

@@ -122,12 +122,12 @@ using KernelAbstractions
             field.a .= 7.0
             field.b .= 2
 
-            field_gpu = toBackend(field, CUDA.CUDABackend)
+            field_gpu = toBackend(field, CUDA.CUDABackend())
 
             @test typeof(field_gpu._id) <: CUDA.CuArray
             @test typeof(field_gpu.a) <: CUDA.CuArray
 
-            field_cpu = toBackend(field_gpu, CPU)
+            field_cpu = toBackend(field_gpu, CPU())
 
             @test typeof(field_cpu) == typeof(field)
         end
@@ -352,10 +352,10 @@ using KernelAbstractions
                     end
                     obj[scope_index].a .= 7.0
                     obj[scope_index].b .= 2
-                    obj_gpu = toBackend(obj, CUDA.CUDABackend)
+                    obj_gpu = toBackend(obj, CUDA.CUDABackend())
                     @test typeof(obj_gpu[scope_index]._id) <: CUDA.CuArray
                     @test typeof(obj_gpu[scope_index].a) <: CUDA.CuArray
-                    obj_cpu = toBackend(obj_gpu, CPU)
+                    obj_cpu = toBackend(obj_gpu, CPU())
                     @test typeof(obj_cpu) == typeof(obj)
                 end
             end

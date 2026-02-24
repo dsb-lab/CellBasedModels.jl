@@ -1127,7 +1127,17 @@ function UnstructuredMeshObject(
     for n in values(p) #To FIX
         D = max(D, length(filter(k -> k in (:x, :y, :z), keys(n._p))))
     end
-    P = platform()
+    # Detect platform from the first field in p instead of using default
+    P = nothing
+    for field in values(p)
+        if field !== nothing
+            # Get platform from UnstructuredMeshField type parameter
+            P = typeof(field).parameters[1]
+            break
+        end
+    end
+    P = P === nothing ? platform() : P
+    
     S = Nothing
     DT = Nothing
     for i in values(p)

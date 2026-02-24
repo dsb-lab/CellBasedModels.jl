@@ -15,7 +15,8 @@ function NeighborsFull(
     auxBuffers=nothing,
 )
 
-    P = platform()
+    # Detect platform from mesh data
+    P = platform(mesh)
     NeighborsFull{P, typeof(mesh), typeof(neighbors), typeof(auxBuffers)}(mesh, neighbors, auxBuffers)
 
 end
@@ -60,7 +61,7 @@ function initNeighbors(
     permTableNamed = NamedTuple{tuple(keys(permTable)...)}(values(permTable))
     auxBuffersNamed = NamedTuple{tuple(keys(auxBuffers)...)}(values(auxBuffers))
 
-    NeighborsFull{platform(), typeof(meshParameters), typeof(permTableNamed), typeof(auxBuffersNamed)}(meshParameters, permTableNamed, auxBuffersNamed)
+    NeighborsFull{platform(meshParameters[1]), typeof(meshParameters), typeof(permTableNamed), typeof(auxBuffersNamed)}(meshParameters, permTableNamed, auxBuffersNamed)
 
 end
 

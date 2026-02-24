@@ -2,8 +2,12 @@ using CellBasedModels
 using CUDA
 using Atomix: @atomic
 
-macro f_sym(x)
-    :(2*$(esc(x)))
+macro f_sym(g)
+    :(2*$(esc(g)))
+end
+
+macro f_sym_tuple(x)
+    :((2*$(esc(x)), 3*$(esc(x))))
 end
 
 function kernel(out)
@@ -129,6 +133,7 @@ end
     end derivatives=(dc_dp1 = (c, p.p1), dz_dx = (z, x))
     
     @test dc_dp1 == y^2  # dc/dp.p1 = b = y^2
+    @test dz_dx == 2
 
     # Test with tuple
     x = 2

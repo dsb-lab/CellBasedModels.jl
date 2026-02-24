@@ -54,6 +54,8 @@ for type in [
                 end
             end
         end
+
+        dest
     end
 end
 
@@ -65,9 +67,9 @@ end
 # ########################################################################################
 # # to CPU / to GPU conversions
 # ########################################################################################
-toBackend(field::UnstructuredMeshField{P}, ::Type{CPU}) where {P<:CPU} = field
+toBackend(field::UnstructuredMeshField{P}, ::CPU) where {P<:CPU} = field
 
-function toBackend(field::UnstructuredMeshField{P}, ::Type{CPU}) where {P<:GPU}
+function toBackend(field::UnstructuredMeshField{P}, ::CPU) where {P<:GPU}
     
     UnstructuredMeshField(
         field._p              === nothing ? nothing : Adapt.adapt(Array, field._p),
@@ -84,26 +86,29 @@ function toBackend(field::UnstructuredMeshField{P}, ::Type{CPU}) where {P<:GPU}
     )
 end
 
-toBackend(mesh::UnstructuredMeshObject{P}, ::Type{CPU}) where {P<:CPU} = mesh
+toBackend(mesh::UnstructuredMeshObject{P}, ::CPU) where {P<:CPU} = mesh
 
-function toBackend(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}, ::Type{CPU}) where {P<:GPU, D, S, DT, NN, PAR, AB}
+function toBackend(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}, ::CPU) where {P<:GPU, D, S, DT, NN, PAR, TOPO, AB}
 
     PNew = platform()
     DTNew = DT <: AbstractFloat ? DATATYPE[AbstractFloat] : DT
 
     p = NamedTuple{keys(field._p)}(
-        toBackend(p, CPU) for p in values(field._p)
+        toBackend(p, CPU()) for p in values(field._p)
     )
     n = initNeighbors(D, field._neighbors, p)
+    t = toBackend(field._topology, CPU())
     _FlagOverflow = SizedVector{1}(false)
 
     PARNew = typeof(p)
     NNNew = typeof(n)
+    TOPONew = typeof(t)
     ABNew = typeof(_FlagOverflow)
 
-    UnstructuredMeshObject{PNew, D, S, DTNew, NNNew, PARNew, ABNew}(
+    UnstructuredMeshObject{PNew, D, S, DTNew, NNNew, PARNew, TOPONew, ABNew}(
         p,
         n,
+        t,
         _FlagOverflow
     )
 end

@@ -14,6 +14,11 @@ module CellBasedModels
     getDeviceIndex(arr, i=1) = Array(arr)[i] #TO BE BETTER DONE
     setDeviceIndex!(arr, val) = arr .= val   #TO BE BETTER DONE
 
+    Base.zero(::Nothing) = nothing
+    Base.zero(::Type{Nothing}) = nothing
+    Base.copy(::Nothing) = nothing
+    Base.size(::Nothing) = ()
+
     #Auxiliar
     # export Unit, UnitScalar, UnitArray
     # include("./auxiliar/units.jl")
