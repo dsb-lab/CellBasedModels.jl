@@ -5,7 +5,10 @@ module CellBasedModels
     using Printf
     export CPU, GPU
     using KernelAbstractions
+    import KernelAbstractions: @index
+    export @index
     import Atomix: @atomic, @atomicswap, @print, @atomicreplace
+    export @atomic
     import Base: push!
 
     hasCuda() = false
@@ -23,6 +26,7 @@ module CellBasedModels
     include("./auxiliar/diffauto.jl")
     export @consistency_diffauto
     include("./auxiliar/debugging.jl")
+    export @dot, @cross, @norm, @normSquared, @normalize
     include("./auxiliar/algebra.jl")
     include("./auxiliar/indexing.jl")
     # include("./auxiliar/meta.jl")
