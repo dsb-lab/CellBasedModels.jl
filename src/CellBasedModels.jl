@@ -7,7 +7,8 @@ module CellBasedModels
     using KernelAbstractions
     import KernelAbstractions: @index
     export @index
-    import Atomix: @atomic, @atomicswap, @print, @atomicreplace
+    import Atomix
+    const var"@atomic" = Atomix.var"@atomic"
     export @atomic
     import Base: push!
 
