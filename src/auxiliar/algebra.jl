@@ -1,7 +1,3 @@
-module Algebra
-
-export @dot, @cross, @norm, @normSquared, @normalize
-
 macro cross(v1x, v1y, v2x, v2y)
     return v1x*v2y - v1y*v2x
 end
@@ -62,7 +58,5 @@ macro normalize(v1x, v1y, v1z)
         v1y / sqrt(v1x^2 + v1y^2 + v1z^2),
         v1z / sqrt(v1x^2 + v1y^2 + v1z^2),
     )
-
-end
 
 end
