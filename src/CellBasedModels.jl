@@ -19,7 +19,7 @@ module CellBasedModels
     # include("./auxiliar/units.jl")
     export Parameter
     include("./auxiliar/parameter.jl")
-    export @diff_sym, @diffauto, @consistency_diffauto
+    export @diffsym, @diffauto, @consistency_diffauto
     include("./auxiliar/diffsym.jl")
     include("./auxiliar/diffauto.jl")
     include("./auxiliar/debugging.jl")
