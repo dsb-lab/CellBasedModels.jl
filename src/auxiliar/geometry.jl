@@ -1,3 +1,39 @@
+function posPeriodicBoundary(x, x0, x_min, x_max)
+    L = x_max - x_min
+
+    l_best = abs(x-x0)
+    x_best = x
+
+    l = abs(x-x0+L)
+    if l < l_best
+        l_best = l
+        x_best = x + L
+    end
+
+    l = abs(x-x0-L)
+    if l < l_best
+        l_best = l
+        x_best = x - L
+    end
+
+    return x_best
+end
+
+function posPeriodicBoundary(x, x0, x_min, x_max, y, y0, y_min, y_max)
+    x_best = posPeriodicBoundary(x, x0, x_min, x_max)
+    y_best = posPeriodicBoundary(y, y0, y_min, y_max)
+
+    return x_best, y_best
+end
+
+function posPeriodicBoundary(x, x0, x_min, x_max, y, y0, y_min, y_max, z, z0, z_min, z_max)
+    x_best = posPeriodicBoundary(x, x0, x_min, x_max)
+    y_best = posPeriodicBoundary(y, y0, y_min, y_max)
+    z_best = posPeriodicBoundary(z, z0, z_min, z_max)
+
+    return x_best, y_best, z_best
+end
+
 module Geometry
 
     ##############################################################################################################################

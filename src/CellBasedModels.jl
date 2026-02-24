@@ -14,10 +14,10 @@ module CellBasedModels
     getDeviceIndex(arr, i=1) = Array(arr)[i] #TO BE BETTER DONE
     setDeviceIndex!(arr, val) = arr .= val   #TO BE BETTER DONE
 
-    Base.zero(::Nothing) = nothing
-    Base.zero(::Type{Nothing}) = nothing
-    Base.copy(::Nothing) = nothing
-    Base.size(::Nothing) = ()
+    # Base.zero(::Nothing) = nothing
+    # Base.zero(::Type{Nothing}) = nothing
+    # Base.copy(::Nothing) = nothing
+    # Base.size(::Nothing) = ()
 
     #Auxiliar
     # export Unit, UnitScalar, UnitArray
@@ -30,6 +30,8 @@ module CellBasedModels
     include("./auxiliar/debugging.jl")
     export @dot, @cross, @norm, @normSquared, @normalize
     include("./auxiliar/algebra.jl")
+    export posPeriodicBoundary
+    include("./auxiliar/geometry.jl")
     include("./auxiliar/indexing.jl")
     # include("./auxiliar/meta.jl")
     # include("./auxiliar/recursiveCachedArrays.jl")
