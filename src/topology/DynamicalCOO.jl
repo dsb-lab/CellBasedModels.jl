@@ -929,19 +929,3 @@ function toBackend(backend::KernelAbstractions.GPU, coo::DynamicalCOO{P}) where 
         nothing
     )
 end
-
-"""
-    compress_zeros_blocked!(a; zeroElement=zero(eltype(a)), zero_tail=true) -> newlen
-
-Parallel in-place compaction of nonzeros (removes `zeroElement`) using:
-1) Pass 1: pack nonzeros within each workgroup tile and record per-tile counts
-2) Host scan of counts to compute tile offsets
-3) Pass 2: move each tile's packed segment to its final global position
-
-Returns `newlen` (number of kept elements). Optionally zero-fills the tail.
-"""
-function compress_zeros_blocked!(a; zeroElement=zero(eltype(a)), zero_tail::Bool=true)
-
-
-    return newlen
-end

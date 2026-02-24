@@ -1,4 +1,5 @@
 import CellBasedModels: compactArray!, compactUnstructuredMeshField!
+import KernelAbstractions
 
 function compactUnstructuredMeshField!(prop::UnstructuredMeshField{P}, perm, aux::NamedTuple, NNew) where {P <: GPU}
     N = lengthPropertiesNew(prop)
@@ -30,7 +31,7 @@ function compactArrayGPU!(data, auxBuffer, perm, N::Int, NNew::Int)
     # CUDA.synchronize()
     backend = get_backend(data)
     compactArray_kernel!(backend, 256)(data, auxBuffer, perm, N, ndrange=size(data))
-    synchronize(backend)
+    KernelAbstractions.synchronize(backend)
     # Copy back from auxiliary buffer to original array
     @inbounds @views data[1:NNew] .= auxBuffer[1:NNew]
     return nothing

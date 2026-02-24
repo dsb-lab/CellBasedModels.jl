@@ -49,7 +49,7 @@ end
 
 toBackend(mesh::UnstructuredMeshObject{D, P}, ::CUDA.CUDABackend) where {D, P<:GPUCuda} = mesh
 
-function toBackend(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}, ::Type{CUDA.CUDABackend}) where {P<:CPU, D, S, DT, NN, PAR, AB}
+function toBackend(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}, ::Type{CUDA.CUDABackend}) where {P<:CPU, D, S, DT, NN, PAR, TOPO, AB}
 
     PNew = GPUCuda
     DTNew = DT <: AbstractFloat ? Float32 : DT
@@ -58,15 +58,18 @@ function toBackend(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, AB}, ::Ty
         toBackend(p, CUDA.CUDABackend) for p in values(field._p)
     )
     n = initNeighborsGPU(D, field._neighbors, p)
+    t = toBackend(field._topology, CUDA.CUDABackend)
     _FlagOverflow = CUDA.CuArray([false])
 
     PARNew = typeof(p)
     NNNew = typeof(n)
+    TOPONew = typeof(field._topology)
     ABNew = typeof(_FlagOverflow)
 
-    UnstructuredMeshObject{PNew, D, S, DTNew, NNNew, PARNew, ABNew}(
+    UnstructuredMeshObject{PNew, D, S, DTNew, NNNew, PARNew, TOPONew, ABNew}(
         p,
         n,
+        t,
         _FlagOverflow
     )
 end

@@ -398,8 +398,9 @@ macro kernel_launch(ex...)
 
         # ndrange_val = $ndrange_calc
         # println("Launching kernel with ndrange = ", ndrange_val, " and threads = ", threads)
-        $fname(backend, threads)($(fargs...), ndrange=$(kwargs.ndrange))
-        CellBasedModels.synchronize(backend)
+        ndrange = $(kwargs.ndrange) isa UnstructuredMeshField ? length($(kwargs.ndrange)) : $(kwargs.ndrange)
+        $fname(backend, threads)($(fargs...), ndrange=ndrange)
+        KernelAbstractions.synchronize(backend)
     end
 
     # println(code)

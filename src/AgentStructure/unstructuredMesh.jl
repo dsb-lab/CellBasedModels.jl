@@ -1142,9 +1142,9 @@ function UnstructuredMeshObject(
 
     return UnstructuredMeshObject{
             P, D, S, DT, typeof(neighbors),
-            typeof(p), typeof(_FlagOverflow)
+            typeof(p), typeof(topology), typeof(_FlagOverflow)
         }(
-            p, neighbors, _FlagOverflow
+            p, neighbors, topology, _FlagOverflow
         )
 end
 

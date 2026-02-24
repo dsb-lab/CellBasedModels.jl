@@ -103,6 +103,11 @@ function Topology(
             end
         end
     end
+
+    if isempty(list)
+        return Topology(nothing)
+    end
+
     basicRelations = list
     if !isConnected(basicRelations)
         error("The basic relations derived from the mesh structure are not fully connected. Please check the mesh definition.")
@@ -120,6 +125,12 @@ function Topology(
     RI = typeof(inference_table)
     
     return Topology{P, RB, RA, RI}(entities, basicRelations, directRelations, inference_table)
+end
+
+const  TopologyEmpty = Topology{Nothing, Nothing, Nothing, Nothing}
+
+function Topology(::Nothing)
+    return Topology{Nothing, Nothing, Nothing, Nothing}(nothing, nothing, nothing, nothing)
 end
 
 function addRelations!(
@@ -185,27 +196,27 @@ function TopologyObject(
     for (origin, target) in directRelations
         # Check if user specified a custom CSR type in meshType
         if haskey(meshType, (origin, target))
-            csr = meshType[(origin, target)]
+            topology = meshType[(origin, target)]
         else
             # Use default CSR type based on relation
             if origin == :Edge && target == :Node
                 # Edge->Node: fixed 2 nodes, use CSRTuple
-                csr = CSRTuple(dtype=Int, N=0, NBlock=2, NCache=0)
+                topology = CSRTuple(dtype=Int, N=0, NBlock=2, NCache=0)
             else
                 # Default: variable connections, use CSRSlack
-                csr = CSRSlack(dtype=Int, N=0, sizes=Int64[], NCache=0)
+                topology = CSRSlack(dtype=Int, N=0, sizes=Int64[], NCache=0)
             end
         end
-        relations_dict[(origin, target)] = csr
+        relations_dict[(origin, target)] = topology
     end
     
     # Convert to nested NamedTuple: origin -> target -> CSR
     nested_dict = Dict{Symbol, Dict{Symbol, AbstractCSR}}()
-    for ((origin, target), csr) in relations_dict
+    for ((origin, target), topology) in relations_dict
         if !haskey(nested_dict, origin)
             nested_dict[origin] = Dict{Symbol, AbstractCSR}()
         end
-        nested_dict[origin][target] = csr
+        nested_dict[origin][target] = topology
     end
     
     # Convert to NamedTuple
@@ -225,8 +236,8 @@ function Base.show(io::IO, tobj::TopologyObject)
     Base.show(io, tobj._topology)
     println(io, "and relations CSR structures: ")
     for (origin, targets) in pairs(tobj._relations)
-        for (target, csr) in pairs(targets)
-            print(io, " - Relation ", origin, " -> ", target, ": ", csr)
+        for (target, topology) in pairs(targets)
+            print(io, " - Relation ", origin, " -> ", target, ": ", topology)
         end
     end
 end
@@ -234,6 +245,10 @@ end
 ######################################################################################################
 # buildTopology - Build and validate topology for UnstructuredMeshObject
 ######################################################################################################
+function buildTopology(topology::TopologyEmpty, kwargs::Base.Pairs, params::NamedTuple; validate::Bool=true)
+    return TopologyObject{Nothing, TopologyEmpty, Nothing}(topology, nothing)
+end
+
 function buildTopology(topology::Topology, kwargs::Base.Pairs, params::NamedTuple; validate::Bool=true)
     """
     Build a TopologyObject from the mesh topology and provided data structures.
@@ -270,12 +285,12 @@ function buildTopology(topology::Topology, kwargs::Base.Pairs, params::NamedTupl
             # Handle different input types based on property type
             if origin_data isa AbstractCSR
                 # Direct CSR provided (for Edge, Face, Volume with single connection)
-                csr = origin_data
+                topology = origin_data
                 
                 # Validate: check that all references point to valid elements
                 if validate
                     target_count = get(element_counts, target, 0)
-                    for (blockId, value) in csr
+                    for (blockId, value) in topology
                         if value < 1 || value > target_count
                             error("Invalid basic relation $origin -> $target: element $blockId of $origin " *
                                   "references $target element $value, but only $target_count elements exist")
@@ -283,17 +298,17 @@ function buildTopology(topology::Topology, kwargs::Base.Pairs, params::NamedTupl
                     end
                 end
                 
-                basic_relations_dict[(origin, target)] = csr
+                basic_relations_dict[(origin, target)] = topology
                 
             elseif origin_data isa NamedTuple
                 # NamedTuple of CSRs (for Agent with multiple connections)
                 if haskey(origin_data, target)
-                    csr = origin_data[target]
+                    topology = origin_data[target]
                     
                     # Validate
                     if validate
                         target_count = get(element_counts, target, 0)
-                        for (blockId, value) in csr
+                        for (blockId, value) in topology
                             if value < 1 || value > target_count
                                 error("Invalid basic relation $origin -> $target: element $blockId of $origin " *
                                       "references $target element $value, but only $target_count elements exist")
@@ -301,7 +316,7 @@ function buildTopology(topology::Topology, kwargs::Base.Pairs, params::NamedTupl
                         end
                     end
                     
-                    basic_relations_dict[(origin, target)] = csr
+                    basic_relations_dict[(origin, target)] = topology
                 else
                     error("Missing CSR for basic relation $origin -> $target in NamedTuple")
                 end
@@ -373,11 +388,11 @@ function buildTopology(topology::Topology, kwargs::Base.Pairs, params::NamedTupl
     
     # Convert to nested NamedTuple: origin -> target -> CSR
     nested_dict = Dict{Symbol, Dict{Symbol, AbstractCSR}}()
-    for ((origin, target), csr) in relations_dict
+    for ((origin, target), topology) in relations_dict
         if !haskey(nested_dict, origin)
             nested_dict[origin] = Dict{Symbol, AbstractCSR}()
         end
-        nested_dict[origin][target] = csr
+        nested_dict[origin][target] = topology
     end
     
     # Convert to NamedTuple
@@ -427,13 +442,13 @@ function checkTopologyConsistency(tobj::TopologyObject)
             error("Missing CSR structure for basic relation $origin -> $target")
         end
         
-        csr = tobj._relations[origin][target]
+        topology = tobj._relations[origin][target]
         
         # Build kwargs - group by origin entity
         if !haskey(kwargs_dict, origin)
             kwargs_dict[origin] = Dict{Symbol, AbstractCSR}()
         end
-        kwargs_dict[origin][target] = csr
+        kwargs_dict[origin][target] = topology
     end
     
     # Convert grouped CSRs to appropriate format (single CSR or NamedTuple)
@@ -478,3 +493,33 @@ function checkTopologyConsistency(tobj::TopologyObject)
     
     return true
 end
+
+###################################################################################################
+# Platform adaptation
+###################################################################################################
+
+KernelAbstractions.get_backend(topology::Topology) = KernelAbstractions.get_backend(topology._values)
+
+toBackend(topology::TopologyObject{P}, ::KernelAbstractions.CPU) where {P<:KernelAbstractions.CPU} = topology
+
+function toBackend(topology::TopologyObject{P, T}, ::KernelAbstractions.CPU) where {P<:KernelAbstractions.GPU, T}
+    Topology(
+        toBackend(CPU(), topology._elements),
+        toBackend(CPU(), topology._basicRelations),
+        toBackend(CPU(), topology._directRelations),
+        toBackend(CPU(), topology._inferenceTable)
+    )
+end
+    
+toBackend(topology::TopologyObject{P}, ::KernelAbstractions.GPU) where {P<:KernelAbstractions.GPU} = topology
+
+function toBackend(topology::TopologyObject{P}, backend::KernelAbstractions.GPU) where {P<:KernelAbstractions.CPU}
+    Topology(
+        toBackend(backend, topology._elements),
+        toBackend(backend, topology._basicRelations),
+        toBackend(backend, topology._directRelations),
+        toBackend(backend, topology._inferenceTable)
+    )
+end
+
+toBackend(topology::TopologyObject{Nothing, TopologyEmpty, Nothing}, backend::B) where {B} = topology

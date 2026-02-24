@@ -1,7 +1,7 @@
 using CellBasedModels
 using CUDA
 
-f(x) = 2*x
+f_sym(x) = 2*x
 
 function kernel(out)
     x = 2.0; y = 4.0
@@ -54,7 +54,7 @@ end
             a = x ^ 2
             b = y ^ 2
 
-            f(x)
+            f_sym(x)
 
             c = a + b * p.p1
 

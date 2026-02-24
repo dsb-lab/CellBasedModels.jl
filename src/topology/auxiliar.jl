@@ -17,7 +17,7 @@ function AuxiliarFields(N::Int, NRow::Int) where {Int}
     return AuxiliarFields{PR}(map, copy, mapRow, copyRow)
 end
 
-function preallocate!(auxiliar::AuxiliarFields; N::Int=0, NRow::Int=0) where {T}
+function preallocate!(auxiliar::AuxiliarFields; N::Int=0, NRow::Int=0)
 
     NMaxMax = max(N, length(auxiliar._map))
     if NMaxMax > length(auxiliar._map)

@@ -65,6 +65,8 @@ module CellBasedModels
     include("./topology/abstractCSR.jl")
     export DynamicalCOO, dcoo_zeros
     include("./topology/DynamicalCOO.jl")
+    export DynamicalCSR, dcsr_zeros
+    include("./topology/abstractCSR.jl")
     # export CSRTuple
     # include("./topology/CSRTuple.jl")
     # export CSRCache

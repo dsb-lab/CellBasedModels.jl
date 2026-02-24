@@ -118,14 +118,17 @@ macro consistency_diffauto(block, args...)
 
     symbols_ex = nothing
     derivs_ex  = nothing
+    silent = false
 
     for a in args
         if a isa Expr && a.head == :(=) && a.args[1] == :symbols
             symbols_ex = a.args[2]
         elseif a isa Expr && a.head == :(=) && a.args[1] == :derivatives
             derivs_ex = a.args[2]
+        elseif a isa Expr && a.head == :(=) && a.args[1] == :silent
+            silent = a.args[2]
         else
-            error("consistency_diffauto: expected `derivatives=(...)` and optionally `symbols=(...)`")
+            error("consistency_diffauto: expected `derivatives=(...)` and optionally `symbols=(...)` or `silent=true/false`")
         end
     end
     derivs_ex === nothing && error("consistency_diffauto: missing `derivatives=(...)`")
@@ -199,6 +202,7 @@ macro consistency_diffauto(block, args...)
     end
 
     row_exprs = Expr[]
+    result_exprs = Expr[]
     for (outname, target, wrt_valid) in deriv_specs
         fname = wrapper_names[target]
         idx = findfirst(==(wrt_valid), valid_args)
@@ -207,7 +211,7 @@ macro consistency_diffauto(block, args...)
         call_args_t = copy(base_call_args)
         call_args_t[idx] = :t
 
-        push!(row_exprs, quote
+        row_expr = quote
             local analytic_value = $outname
             local analytic_num = ForwardDiff.value(analytic_value)
 
@@ -217,18 +221,42 @@ macro consistency_diffauto(block, args...)
             )
 
             local diff = abs(autodiff_num - analytic_num)
+            
+            push!(__debugauto_results__, (name=$(QuoteNode(outname)), analytic=analytic_num, autodiff=autodiff_num, difference=diff))
+        end
 
-            local diff_color = if analytic_num == 0.0 || autodiff_num == 0.0
-                "\033[33m"
-            elseif diff > __debugauto_tolerance__
-                "\033[31m"
-            else
-                "\033[32m"
-            end
+        if !silent
+            push!(row_expr.args, quote
+                local diff_color = if analytic_num == 0.0 || autodiff_num == 0.0
+                    "\033[33m"
+                elseif diff > __debugauto_tolerance__
+                    "\033[31m"
+                else
+                    "\033[32m"
+                end
 
-            Printf.@printf("│%15s│%15.6g│%15.6g│%s%15.6g\033[0m│\n",
-                $(string(outname)), analytic_num, autodiff_num, diff_color, diff)
-        end)
+                Printf.@printf("│%15s│%15.6g│%15.6g│%s%15.6g\033[0m│\n",
+                    $(string(outname)), analytic_num, autodiff_num, diff_color, diff)
+            end)
+        end
+
+        push!(row_exprs, row_expr)
+    end
+
+    header_exprs = if silent
+        Expr[]
+    else
+        [
+            :(Printf.@printf("┌%s┬%s┬%s┬%s┐\n", "─"^15, "─"^15, "─"^15, "─"^15)),
+            :(Printf.@printf("│%15s│%15s│%15s│%15s│\n", "Derivative", "Analytic", "Autodiff", "Difference")),
+            :(Printf.@printf("├%s┼%s┼%s┼%s┤\n", "─"^15, "─"^15, "─"^15, "─"^15))
+        ]
+    end
+
+    footer_exprs = if silent
+        Expr[]
+    else
+        [:(Printf.@printf("└%s┴%s┴%s┴%s┘\n", "─"^15, "─"^15, "─"^15, "─"^15))]
     end
 
     return esc(quote
@@ -236,17 +264,18 @@ macro consistency_diffauto(block, args...)
             $block
 
             local __debugauto_tolerance__ = 1e-10
+            local __debugauto_results__ = NamedTuple{(:name, :analytic, :autodiff, :difference), Tuple{Symbol, Float64, Float64, Float64}}[]
 
-            Printf.@printf("┌%s┬%s┬%s┬%s┐\n", "─"^15, "─"^15, "─"^15, "─"^15)
-            Printf.@printf("│%15s│%15s│%15s│%15s│\n", "Derivative", "Analytic", "Autodiff", "Difference")
-            Printf.@printf("├%s┼%s┼%s┼%s┤\n", "─"^15, "─"^15, "─"^15, "─"^15)
+            $(header_exprs...)
 
             $(wrappers...)
             $(row_exprs...)
 
-            Printf.@printf("└%s┴%s┴%s┴%s┘\n", "─"^15, "─"^15, "─"^15, "─"^15)
+            $(footer_exprs...)
 
             $block
+
+            __debugauto_results__
         end
     end)
 end
