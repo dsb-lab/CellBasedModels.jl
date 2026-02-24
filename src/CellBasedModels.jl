@@ -8,10 +8,6 @@ module CellBasedModels
     import KernelAbstractions: @index
     export @index
     import Atomix
-    const var"@atomic" = Atomix.var"@atomic"
-    const var"@atomicreplace" = Atomix.var"@atomicreplace"
-    const var"@atomicswap" = Atomix.var"@atomicswap"
-    export @atomic
     import Base: push!
 
     hasCuda() = false
@@ -23,11 +19,9 @@ module CellBasedModels
     # include("./auxiliar/units.jl")
     export Parameter
     include("./auxiliar/parameter.jl")
-    export @diffsym
+    export @diff_sym, @diffauto, @consistency_diffauto
     include("./auxiliar/diffsym.jl")
-    export @diffauto
     include("./auxiliar/diffauto.jl")
-    export @consistency_diffauto
     include("./auxiliar/debugging.jl")
     export @dot, @cross, @norm, @normSquared, @normalize
     include("./auxiliar/algebra.jl")
