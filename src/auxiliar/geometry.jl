@@ -1,4 +1,29 @@
-function posPeriodicBoundary(x, x0, x_min, x_max)
+function posPeriodicBoundary(x, x_min, x_max)
+    if x < x_min
+        return x + (x_max - x_min)
+    elseif x > x_max
+        return x - (x_max - x_min)
+    else
+        return x
+    end
+end
+
+function posPeriodicBoundary(x, x_min, x_max, y, y_min, y_max)
+    x_best = posPeriodicBoundary(x, x_min, x_max)
+    y_best = posPeriodicBoundary(y, y_min, y_max)
+
+    return x_best, y_best
+end
+
+function posPeriodicBoundary(x, x_min, x_max, y, y_min, y_max, z, z_min, z_max)
+    x_best = posPeriodicBoundary(x, x_min, x_max)
+    y_best = posPeriodicBoundary(y, y_min, y_max)
+    z_best = posPeriodicBoundary(z, z_min, z_max)
+
+    return x_best, y_best, z_best
+end
+
+function posRelPeriodicBoundary(x, x0, x_min, x_max)
     L = x_max - x_min
 
     l_best = abs(x-x0)
@@ -19,17 +44,17 @@ function posPeriodicBoundary(x, x0, x_min, x_max)
     return x_best
 end
 
-function posPeriodicBoundary(x, x0, x_min, x_max, y, y0, y_min, y_max)
-    x_best = posPeriodicBoundary(x, x0, x_min, x_max)
-    y_best = posPeriodicBoundary(y, y0, y_min, y_max)
+function posRelPeriodicBoundary(x, x0, x_min, x_max, y, y0, y_min, y_max)
+    x_best = posRelPeriodicBoundary(x, x0, x_min, x_max)
+    y_best = posRelPeriodicBoundary(y, y0, y_min, y_max)
 
     return x_best, y_best
 end
 
-function posPeriodicBoundary(x, x0, x_min, x_max, y, y0, y_min, y_max, z, z0, z_min, z_max)
-    x_best = posPeriodicBoundary(x, x0, x_min, x_max)
-    y_best = posPeriodicBoundary(y, y0, y_min, y_max)
-    z_best = posPeriodicBoundary(z, z0, z_min, z_max)
+function posRelPeriodicBoundary(x, x0, x_min, x_max, y, y0, y_min, y_max, z, z0, z_min, z_max)
+    x_best = posRelPeriodicBoundary(x, x0, x_min, x_max)
+    y_best = posRelPeriodicBoundary(y, y0, y_min, y_max)
+    z_best = posRelPeriodicBoundary(z, z0, z_min, z_max)
 
     return x_best, y_best, z_best
 end

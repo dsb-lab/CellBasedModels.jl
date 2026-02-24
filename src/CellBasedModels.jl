@@ -30,7 +30,7 @@ module CellBasedModels
     include("./auxiliar/debugging.jl")
     export @dot, @cross, @norm, @normSquared, @normalize
     include("./auxiliar/algebra.jl")
-    export posPeriodicBoundary
+    export posPeriodicBoundary, posRelPeriodicBoundary
     include("./auxiliar/geometry.jl")
     include("./auxiliar/indexing.jl")
     # include("./auxiliar/meta.jl")
