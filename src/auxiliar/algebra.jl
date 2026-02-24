@@ -32,6 +32,18 @@ macro norm(v1x, v1y, v1z)
 
 end
 
+macro normSquared(v1x, v1y)
+
+    return v1x^2 + v1y^2
+
+end
+
+macro normSquared(v1x, v1y, v1z)
+
+    return v1x^2 + v1y^2 + v1z^2
+
+end
+
 macro normalize(v1x, v1y)
 
     return (

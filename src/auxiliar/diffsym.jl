@@ -182,6 +182,29 @@ function _to_symbolics(ex, env::Dict{Symbol,Any})
                 last = val
             end
             return last
+        elseif ex.head == :if || ex.head == :elseif
+            # Handle if-else expressions: if cond then_branch else else_branch end
+            # Use Base.ifelse which Symbolics extends for symbolic expressions
+            cond = _to_symbolics(ex.args[1], env)
+            then_branch = _to_symbolics(ex.args[2], env)
+            if length(ex.args) >= 3
+                else_branch = _to_symbolics(ex.args[3], env)
+            else
+                else_branch = 0  # default to 0 if no else branch
+            end
+            return Base.ifelse(cond, then_branch, else_branch)
+        elseif ex.head == :comparison
+            # Handle comparison expressions like a > b
+            # These become symbolic inequalities
+            if length(ex.args) == 3
+                left = _to_symbolics(ex.args[1], env)
+                op = ex.args[2]
+                right = _to_symbolics(ex.args[3], env)
+                fn = _resolve_base_fun(op)
+                return fn(left, right)
+            else
+                error("diffsym: chained comparisons not supported in symbolic block")
+            end
         else
             error("diffsym: unsupported expression head `$(ex.head)` in symbolic block")
         end

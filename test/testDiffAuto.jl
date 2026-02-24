@@ -6,6 +6,7 @@ f_auto(x) = x^2
 
 @testset verbose = verbose "Auxiliar - DiffAuto" begin
     
+    # Test base
     x = 2
     y = 4
     p = (p1=1,)
@@ -19,8 +20,50 @@ f_auto(x) = x^2
 
     end derivatives=(dc_dx = (c, x), dc_dy = (c, y))
 
+    # Test with subfields
     @test dc_dx == 2 * x
     @test dc_dy == 2 * y
+
+    # Test with control flow
+    x = 2
+    y = 4
+    p = (p1=1,)
+
+    @diffsym begin
+        
+        a = x ^ 2
+        b = if y > 3
+                y ^ 2
+            else
+                y
+            end
+
+        c = a + b
+
+    end derivatives=(dc_dx = (c, x), dc_dy = (c, y))
+
+    @test dc_dx == 2 * x
+    @test dc_dy == 2 * y
+
+    x = 2
+    y = 2
+    p = (p1=1,)
+
+    @diffsym begin
+        
+        a = x ^ 2
+        b = if y > 3
+                y ^ 2
+            else
+                y
+            end
+
+        c = a + b
+
+    end derivatives=(dc_dx = (c, x), dc_dy = (c, y))
+
+    @test dc_dx == 2 * x
+    @test dc_dy == 1
 
     @diffauto begin
         
@@ -33,6 +76,24 @@ f_auto(x) = x^2
 
     @test dc_dp1 == x^2 * y ^2
 
+    # Test with external function
+    @test dc_dx == 2 * x
+    @test dc_dy == 2 * y
+
+    @diffauto begin
+        
+        a = x ^ 2
+        b = y ^ 2
+
+        f_auto(b)
+
+        c = a * b * p.p1
+
+    end derivatives=(dc_dp1 = (c, p.p1),)
+
+    @test dc_dp1 == x^2 * y ^2
+
+    # Test consistency with ForwardDiff
     x = 2
     y = 4
     p = (p1=1,)

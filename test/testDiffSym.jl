@@ -21,6 +21,7 @@ end
 
 @testset verbose = verbose "Auxiliar - DiffSym" begin
     
+    # Basic test
     x = 2
     y = 4
     p = (p1=1,)
@@ -37,6 +38,48 @@ end
     @test dc_dx == 2 * x
     @test dc_dy == 2 * y
 
+    # Test with control flow
+    x = 2
+    y = 4
+    p = (p1=1,)
+
+    @diffsym begin
+        
+        a = x ^ 2
+        b = if y > 3
+                y ^ 2
+            else
+                y
+            end
+
+        c = a + b
+
+    end derivatives=(dc_dx = (c, x), dc_dy = (c, y))
+
+    @test dc_dx == 2 * x
+    @test dc_dy == 2 * y
+
+    x = 2
+    y = 2
+    p = (p1=1,)
+
+    @diffsym begin
+        
+        a = x ^ 2
+        b = if y > 3
+                y ^ 2
+            else
+                y
+            end
+
+        c = a + b
+
+    end derivatives=(dc_dx = (c, x), dc_dy = (c, y))
+
+    @test dc_dx == 2 * x
+    @test dc_dy == 1
+
+    # Test with subfields
     @diffsym begin
         
         a = x ^ 2
@@ -48,6 +91,7 @@ end
 
     @test dc_dp1 == x^2 * y ^2
 
+    # Test with external function for compatibility with autodiff (should error)
     @test_throws LoadError @eval begin
         @diffsym begin
             
@@ -61,6 +105,7 @@ end
         end derivatives=(dc_dp1 = (c, p.p1),)
     end
 
+    # Test with kernel
     if CUDA.has_cuda()
 
         out = CUDA.zeros(1)
