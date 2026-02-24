@@ -1,7 +1,9 @@
 using CellBasedModels
 using CUDA
 
-f_sym(x) = 2*x
+macro f_sym(x)
+    :(2*$(esc(x)))
+end
 
 function kernel(out)
     x = 2.0; y = 4.0
@@ -80,6 +82,9 @@ end
     @test dc_dy == 1
 
     # Test with subfields
+    x = 2
+    y = 2
+    p = (p1=1,)
     @diffsym begin
         
         a = x ^ 2
@@ -91,19 +96,22 @@ end
 
     @test dc_dp1 == x^2 * y ^2
 
-    # Test with external function for compatibility with autodiff (should error)
-    @test_throws LoadError @eval begin
-        @diffsym begin
+    # Test with external macro
+    x = 2
+    y = 2
+    p = (p1=1,)
+    @diffsym begin
             
             a = x ^ 2
             b = y ^ 2
 
-            f_sym(x)
+            @f_sym(x)
 
             c = a + b * p.p1
 
-        end derivatives=(dc_dp1 = (c, p.p1),)
-    end
+    end derivatives=(dc_dp1 = (c, p.p1),)
+    
+    @test dc_dp1 == y^2  # dc/dp.p1 = b = y^2
 
     # Test with kernel
     if CUDA.has_cuda()

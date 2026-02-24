@@ -157,13 +157,32 @@ function _to_symbolics(ex, env::Dict{Symbol,Any})
         return env[ex]
     end
 
+    # Handle GlobalRef (e.g., Main.x from macro expansion)
+    if ex isa GlobalRef
+        sym = ex.name
+        haskey(env, sym) || error("diffsym: symbol `$sym` not found in symbolic environment. Declare it or ensure it is inferred.")
+        return env[sym]
+    end
+
     if ex isa Expr
         if ex.head == :call
             f = ex.args[1]
             args = ex.args[2:end]
 
-            if f isa Symbol
-                fn = _resolve_base_fun(f)
+            # Handle qualified names like Main.:* or Base.:+
+            fname = if f isa Symbol
+                f
+            elseif f isa Expr && f.head == :.
+                # e.g., :(Main.:*) -> extract the symbol
+                f.args[2] isa QuoteNode ? f.args[2].value : f.args[2]
+            elseif f isa GlobalRef
+                f.name
+            else
+                nothing
+            end
+
+            if fname isa Symbol
+                fn = _resolve_base_fun(fname)
                 sargs = Any[]
                 for a in args
                     sa = _to_symbolics(a, env)
@@ -249,6 +268,9 @@ end
 # ------------------------------------------------------------
 macro diffsym(block, args...)
     block isa Expr || error("diffsym: must pass a `begin ... end` block")
+
+    # Expand any nested macros in the block first (in caller's module context)
+    block = macroexpand(__module__, block)
 
     # --- extract keywords (symbols optional)
     symbols_ex = nothing

@@ -1,50 +1,50 @@
 macro cross(v1x, v1y, v2x, v2y)
-    :($v1x*$v2y - $v1y*$v2x)
+    :($(esc(v1x))*$(esc(v2y)) - $(esc(v1y))*$(esc(v2x)))
 end
 
 macro cross(v1x, v1y, v1z, v2x, v2y, v2z)
     :((
-        $v1y*$v2z - $v1z*$v2y,
-        $v1z*$v2x - $v1x*$v2z,
-        $v1x*$v2y - $v1y*$v2x
+        $(esc(v1y))*$(esc(v2z)) - $(esc(v1z))*$(esc(v2y)),
+        $(esc(v1z))*$(esc(v2x)) - $(esc(v1x))*$(esc(v2z)),
+        $(esc(v1x))*$(esc(v2y)) - $(esc(v1y))*$(esc(v2x))
     ))
 end
 
 macro dot(v1x, v1y, v2x, v2y)
-    :($v1x*$v2x + $v1y*$v2y)
+    :($(esc(v1x))*$(esc(v2x)) + $(esc(v1y))*$(esc(v2y)))
 end
 
 macro dot(v1x, v1y, v1z, v2x, v2y, v2z)
-    :($v1x*$v2x + $v1y*$v2y + $v1z*$v2z)
+    :($(esc(v1x))*$(esc(v2x)) + $(esc(v1y))*$(esc(v2y)) + $(esc(v1z))*$(esc(v2z)))
 end
 
 macro norm(v1x, v1y)
-    :(sqrt($v1x^2 + $v1y^2))
+    :(sqrt($(esc(v1x))^2 + $(esc(v1y))^2))
 end
 
 macro norm(v1x, v1y, v1z)
-    :(sqrt($v1x^2 + $v1y^2 + $v1z^2))
+    :(sqrt($(esc(v1x))^2 + $(esc(v1y))^2 + $(esc(v1z))^2))
 end
 
 macro normSquared(v1x, v1y)
-    :($v1x^2 + $v1y^2)
+    :($(esc(v1x))^2 + $(esc(v1y))^2)
 end
 
 macro normSquared(v1x, v1y, v1z)
-    :($v1x^2 + $v1y^2 + $v1z^2)
+    :($(esc(v1x))^2 + $(esc(v1y))^2 + $(esc(v1z))^2)
 end
 
 macro normalize(v1x, v1y)
     :((
-        $v1x / sqrt($v1x^2 + $v1y^2),
-        $v1y / sqrt($v1x^2 + $v1y^2)
+        $(esc(v1x)) / sqrt($(esc(v1x))^2 + $(esc(v1y))^2),
+        $(esc(v1y)) / sqrt($(esc(v1x))^2 + $(esc(v1y))^2)
     ))
 end
 
 macro normalize(v1x, v1y, v1z)
     :((
-        $v1x / sqrt($v1x^2 + $v1y^2 + $v1z^2),
-        $v1y / sqrt($v1x^2 + $v1y^2 + $v1z^2),
-        $v1z / sqrt($v1x^2 + $v1y^2 + $v1z^2),
+        $(esc(v1x)) / sqrt($(esc(v1x))^2 + $(esc(v1y))^2 + $(esc(v1z))^2),
+        $(esc(v1y)) / sqrt($(esc(v1x))^2 + $(esc(v1y))^2 + $(esc(v1z))^2),
+        $(esc(v1z)) / sqrt($(esc(v1x))^2 + $(esc(v1y))^2 + $(esc(v1z))^2),
     ))
 end

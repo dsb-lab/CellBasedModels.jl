@@ -5,9 +5,9 @@ module CellBasedModels
     using Printf
     export CPU, GPU
     using KernelAbstractions
+    using Atomix
     import KernelAbstractions: @index
     export @index
-    import Atomix
     import Base: push!
 
     hasCuda() = false

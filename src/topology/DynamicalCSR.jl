@@ -183,9 +183,9 @@ function Base.setindex!(csr::DynamicalCSR, value, i::Int, j::Int)
             if csr._cols[k] == j
                 old = csr._values[k]
                 if old == 0 && value != 0
-                    @atomic csr._NEntriesNonzero[1] += 1
+                    Atomix.@atomic csr._NEntriesNonzero[1] += 1
                 elseif old != 0 && value == 0
-                    @atomic csr._NEntriesNonzero[1] -= 1
+                    Atomix.@atomic csr._NEntriesNonzero[1] -= 1
                 end
                 csr._values[k] = value
                 return false
@@ -194,13 +194,13 @@ function Base.setindex!(csr::DynamicalCSR, value, i::Int, j::Int)
         # Loop not found, add new
         for k in startIdx:endIdx
             if csr._cols[k] == 0
-                result = @atomicreplace csr._cols[k] 0 => j
+                result = Atomix.@atomicreplace csr._cols[k] 0 => j
                 if result.success
                     csr._values[k] = value
                     if value != 0
-                        @atomic csr._NEntriesNonzero[1] += 1
+                        Atomix.@atomic csr._NEntriesNonzero[1] += 1
                     end
-                    @atomic csr._NEntries[1] += 1
+                    Atomix.@atomic csr._NEntries[1] += 1
                 end
                 return true
             end
@@ -208,7 +208,7 @@ function Base.setindex!(csr::DynamicalCSR, value, i::Int, j::Int)
     end
 
     # Not found, add new at coo
-    @atomic csr._NOverflowInsert[1] += 1
+    Atomix.@atomic csr._NOverflowInsert[1] += 1
 
     return setindex!(csr._coo, value, i, j)
 
@@ -222,16 +222,16 @@ function Base.setindex!(csr::DynamicalCSR{P}, ::Nothing, i::Int, j::Int) where {
     for k in 1:1:nEntries
         #Found
         if csr._rows[k] == i && csr._cols[k] == j
-            result = @atomicreplace csr._rows[k] k => 0
+            result = Atomix.@atomicreplace csr._rows[k] k => 0
             if result.success
-                @atomic csr._NEntries[1] -= 1
+                Atomix.@atomic csr._NEntries[1] -= 1
                 if csr._values[k] != 0
-                    @atomic csr._NEntriesNonzero[1] -= 1
+                    Atomix.@atomic csr._NEntriesNonzero[1] -= 1
                 end
                 csr._cols[k] = 0
                 csr._values[k] = zero(eltype(csr._values))
                 # Add to free entries
-                newFreePos = @atomic csr._NEntriesFreeNext[1] += 1
+                newFreePos = Atomix.@atomic csr._NEntriesFreeNext[1] += 1
                 newPos = csr._NEntriesFreeNextInit[1] + newFreePos
                 if newPos <= length(csr._entriesFree)
                     csr._entriesFree[newPos-1] = k
@@ -257,22 +257,22 @@ function Base.setindex!(csr::DynamicalCSR{P}, ::Nothing, i::Int, j::Int) where {
     for k in 1:1:nEntries
         #Found
         if csr._rows[k] == i && csr._cols[k] == j
-            result = @atomicreplace csr._rows[k] k => 0
+            result = Atomix.@atomicreplace csr._rows[k] k => 0
             if result.success
-                @atomic csr._NEntries[1] -= 1
+                Atomix.@atomic csr._NEntries[1] -= 1
                 if csr._values[k] != 0
-                    @atomic csr._NEntriesNonzero[1] -= 1
+                    Atomix.@atomic csr._NEntriesNonzero[1] -= 1
                 end
                 csr._cols[k] = 0
                 csr._values[k] = zero(eltype(csr._values))
                 # Add to free entries
-                newFreePos = @atomic csr._NEntriesFreeNext[1] += 1
+                newFreePos = Atomix.@atomic csr._NEntriesFreeNext[1] += 1
                 newPos = csr._NEntriesFreeNextInit[1] + newFreePos
                 if newPos <= length(csr._entriesFree)
                     csr._entriesFree[newPos-1] = k
                 else
-                    @atomic csr._NEntriesFreeNext[1] -= 1
-                    @atomic csr._NOverflowErase[1] += 1
+                    Atomix.@atomic csr._NEntriesFreeNext[1] -= 1
+                    Atomix.@atomic csr._NOverflowErase[1] += 1
                 end
             end
         end
@@ -400,10 +400,10 @@ function dropzeros!(csr::DynamicalCSR)
         if values[i] == 0 && rows[i] != 0
             rows[i] = 0
             cols[i] = 0
-            @atomic nEntries[1] -= 1
-            iFree = @atomic nEntriesFree[1] += 1
+            Atomix.@atomic nEntries[1] -= 1
+            iFree = Atomix.@atomic nEntriesFree[1] += 1
             entriesFree[iFree] = i
-            @atomic nEntriesFreeNextInit[1] += 1
+            Atomix.@atomic nEntriesFreeNextInit[1] += 1
         end
 
     end

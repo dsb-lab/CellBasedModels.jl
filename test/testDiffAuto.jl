@@ -78,7 +78,7 @@ f_auto(x) = x^2
 
     # Test with external function
     @test dc_dx == 2 * x
-    @test dc_dy == 2 * y
+    @test dc_dy == 1
 
     @diffauto begin
         

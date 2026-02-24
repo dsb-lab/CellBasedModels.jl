@@ -193,16 +193,16 @@ function Base.setindex!(coo::DynamicalCOO{P}, value, i::Int, j::Int) where {P<:C
         if coo._rows[k] == i && coo._cols[k] == j
             old = coo._values[k]
             if old == 0 && value != 0
-                @atomic coo._NEntriesNonzero[1] += 1
+                Atomix.@atomic coo._NEntriesNonzero[1] += 1
             elseif old != 0 && value == 0
-                @atomic coo._NEntriesNonzero[1] -= 1
+                Atomix.@atomic coo._NEntriesNonzero[1] -= 1
             end
             coo._values[k] = value
             return false
         end
     end
     # Not found, add new
-    newFreePos = @atomic coo._NEntriesFree[1] -= 1
+    newFreePos = Atomix.@atomic coo._NEntriesFree[1] -= 1
     if 0 <= newFreePos
         newPos = coo._entriesFree[newFreePos+1]
         coo._rows[newPos] = i
@@ -220,10 +220,10 @@ function Base.setindex!(coo::DynamicalCOO{P}, value, i::Int, j::Int) where {P<:C
             coo._NOverflowInsert[1] += 1
         end
     end
-    @atomic coo._NEntries[1] += 1
+    Atomix.@atomic coo._NEntries[1] += 1
     # Update cache
     if value != 0
-        @atomic coo._NEntriesNonzero[1] += 1
+        Atomix.@atomic coo._NEntriesNonzero[1] += 1
     end
 
     return true
@@ -244,16 +244,16 @@ function Base.setindex!(coo::DynamicalCOO{P}, value, i::Int, j::Int) where {P<:G
         if coo._rows[k] == i && coo._cols[k] == j
             old = coo._values[k]
             if old == 0 && value != 0
-                @atomic coo._NEntriesNonzero[1] += 1
+                Atomix.@atomic coo._NEntriesNonzero[1] += 1
             elseif old != 0 && value == 0
-                @atomic coo._NEntriesNonzero[1] -= 1
+                Atomix.@atomic coo._NEntriesNonzero[1] -= 1
             end
             coo._values[k] = value
             return false
         end
     end
     # Not found, add new
-    newFreePos = @atomic coo._NEntriesFree[1] -= 1
+    newFreePos = Atomix.@atomic coo._NEntriesFree[1] -= 1
     if 0 <= newFreePos
         newPos = coo._entriesFree[newFreePos+1]
         coo._rows[newPos] = i
@@ -261,13 +261,13 @@ function Base.setindex!(coo::DynamicalCOO{P}, value, i::Int, j::Int) where {P<:G
         coo._values[newPos] = value
         coo._entriesFree[newFreePos+1] = 0
     else
-        @atomic coo._NEntriesFree[1] += 1
-        @atomic coo._NOverflowInsert[1] += 1
+        Atomix.@atomic coo._NEntriesFree[1] += 1
+        Atomix.@atomic coo._NOverflowInsert[1] += 1
     end
-    @atomic coo._NEntries[1] += 1
+    Atomix.@atomic coo._NEntries[1] += 1
     # Update cache
     if value != 0
-        @atomic coo._NEntriesNonzero[1] += 1
+        Atomix.@atomic coo._NEntriesNonzero[1] += 1
     end
 
     return true
@@ -282,16 +282,16 @@ function Base.setindex!(coo::DynamicalCOO{P}, ::Nothing, i::Int, j::Int) where {
     for k in 1:1:nEntries
         #Found
         if coo._rows[k] == i && coo._cols[k] == j
-            result = @atomicreplace coo._rows[k] k => 0
+            result = Atomix.@atomicreplace coo._rows[k] k => 0
             if result.success
-                @atomic coo._NEntries[1] -= 1
+                Atomix.@atomic coo._NEntries[1] -= 1
                 if coo._values[k] != 0
-                    @atomic coo._NEntriesNonzero[1] -= 1
+                    Atomix.@atomic coo._NEntriesNonzero[1] -= 1
                 end
                 coo._cols[k] = 0
                 coo._values[k] = zero(eltype(coo._values))
                 # Add to free entries
-                newFreePos = @atomic coo._NEntriesFreeNext[1] += 1
+                newFreePos = Atomix.@atomic coo._NEntriesFreeNext[1] += 1
                 newPos = coo._NEntriesFreeNextInit[1] + newFreePos
                 if newPos <= length(coo._entriesFree)
                     coo._entriesFree[newPos-1] = k
@@ -317,22 +317,22 @@ function Base.setindex!(coo::DynamicalCOO{P}, ::Nothing, i::Int, j::Int) where {
     for k in 1:1:nEntries
         #Found
         if coo._rows[k] == i && coo._cols[k] == j
-            result = @atomicreplace coo._rows[k] k => 0
+            result = Atomix.@atomicreplace coo._rows[k] k => 0
             if result.success
-                @atomic coo._NEntries[1] -= 1
+                Atomix.@atomic coo._NEntries[1] -= 1
                 if coo._values[k] != 0
-                    @atomic coo._NEntriesNonzero[1] -= 1
+                    Atomix.@atomic coo._NEntriesNonzero[1] -= 1
                 end
                 coo._cols[k] = 0
                 coo._values[k] = zero(eltype(coo._values))
                 # Add to free entries
-                newFreePos = @atomic coo._NEntriesFreeNext[1] += 1
+                newFreePos = Atomix.@atomic coo._NEntriesFreeNext[1] += 1
                 newPos = coo._NEntriesFreeNextInit[1] + newFreePos
                 if newPos <= length(coo._entriesFree)
                     coo._entriesFree[newPos-1] = k
                 else
-                    @atomic coo._NEntriesFreeNext[1] -= 1
-                    @atomic coo._NOverflowErase[1] += 1
+                    Atomix.@atomic coo._NEntriesFreeNext[1] -= 1
+                    Atomix.@atomic coo._NOverflowErase[1] += 1
                 end
             end
         end
@@ -466,10 +466,10 @@ function dropzeros!(coo::DynamicalCOO)
         if values[i] == 0 && rows[i] != 0
             rows[i] = 0
             cols[i] = 0
-            @atomic nEntries[1] -= 1
-            iFree = @atomic nEntriesFree[1] += 1
+            Atomix.@atomic nEntries[1] -= 1
+            iFree = Atomix.@atomic nEntriesFree[1] += 1
             entriesFree[iFree] = i
-            @atomic nEntriesFreeNextInit[1] += 1
+            Atomix.@atomic nEntriesFreeNextInit[1] += 1
         end
 
     end
