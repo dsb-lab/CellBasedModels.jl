@@ -9,6 +9,8 @@ module CellBasedModels
     export @index
     import Atomix
     const var"@atomic" = Atomix.var"@atomic"
+    const var"@atomicreplace" = Atomix.var"@atomicreplace"
+    const var"@atomicswap" = Atomix.var"@atomicswap"
     export @atomic
     import Base: push!
 
