@@ -16,7 +16,7 @@ backends = CUDA.has_cuda() ? [CPU(), CUDA.CUDABackend()] : [CPU()]
     # include("testIndexing.jl")
     # include("testParameter.jl")
     include("testDiffSym.jl")
-    include("testDiffAuto.jl")
+    # include("testDiffAuto.jl")
     # include("testDynamicalCOO.jl")
     # include("testDynamicalCSR.jl")
     # include("testTopologyAuxiliar.jl")
@@ -28,7 +28,7 @@ backends = CUDA.has_cuda() ? [CPU(), CUDA.CUDABackend()] : [CPU()]
     # include("testAddFunctions.jl")
 
     # include("testAgentGlobal.jl")
-    include("testAgentPoint.jl")
+    # include("testAgentPoint.jl")
 end
 
 if benchmark

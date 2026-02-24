@@ -224,6 +224,9 @@ function _to_symbolics(ex, env::Dict{Symbol,Any})
             else
                 error("diffsym: chained comparisons not supported in symbolic block")
             end
+        elseif ex.head == :tuple
+            # Handle tuple expressions - return as a Julia Tuple
+            return Tuple(_to_symbolics(a, env) for a in ex.args)
         else
             error("diffsym: unsupported expression head `$(ex.head)` in symbolic block")
         end
@@ -242,8 +245,24 @@ function _interpret_block(sym_block::Expr, declared_vars::Dict{Symbol,Any})
         if stmt isa Expr && stmt.head == :(=)
             lhs = stmt.args[1]
             rhs = stmt.args[2]
-            lhs isa Symbol || error("diffsym: only simple `name = expr` assignments supported in block for symbolic pass; got `$lhs`")
-            env[lhs] = _to_symbolics(rhs, env)
+            if lhs isa Symbol
+                # Simple assignment: name = expr
+                env[lhs] = _to_symbolics(rhs, env)
+            elseif lhs isa Expr && lhs.head == :tuple
+                # Tuple destructuring: (a, b, c) = expr
+                rhs_val = _to_symbolics(rhs, env)
+                if rhs_val isa Tuple
+                    length(lhs.args) == length(rhs_val) || error("diffsym: tuple destructuring mismatch: $(length(lhs.args)) variables on LHS vs $(length(rhs_val)) values on RHS")
+                    for (i, var) in enumerate(lhs.args)
+                        var isa Symbol || error("diffsym: tuple destructuring only supports simple symbols, got `$var`")
+                        env[var] = rhs_val[i]
+                    end
+                else
+                    error("diffsym: tuple destructuring requires RHS to return a tuple, got `$(typeof(rhs_val))`")
+                end
+            else
+                error("diffsym: only simple `name = expr` or tuple destructuring `(a, b) = expr` assignments supported in block for symbolic pass; got `$lhs`")
+            end
         else
             _to_symbolics(stmt, env)
         end
@@ -273,18 +292,31 @@ macro diffsym(block, args...)
     block = macroexpand(__module__, block)
 
     # --- extract keywords (symbols optional)
+    # Note: `=` in macro args can be parsed as `:=` or `:kw` depending on context
     symbols_ex = nothing
     derivs_ex  = nothing
     for a in args
-        if a isa Expr && a.head == :(=) && a.args[1] == :symbols
-            symbols_ex = a.args[2]
-        elseif a isa Expr && a.head == :(=) && a.args[1] == :derivatives
-            derivs_ex = a.args[2]
+        if a isa Expr && (a.head == :(=) || a.head == :kw)
+            key = a.args[1]
+            val = a.args[2]
+            if key == :symbols
+                symbols_ex = val
+            elseif key == :derivatives
+                derivs_ex = val
+            else
+                error("diffsym: expected `derivatives=(...)` and optionally `symbols=(...)`")
+            end
         else
             error("diffsym: expected `derivatives=(...)` and optionally `symbols=(...)`")
         end
     end
     derivs_ex === nothing && error("diffsym: missing `derivatives=(...)`")
+
+    # Normalize derivs_ex to always be a tuple
+    # Single entry like derivatives=(dc_dx=(c,x)) without trailing comma parses as :(=), not :tuple
+    if derivs_ex isa Expr && (derivs_ex.head == :(=) || derivs_ex.head == :kw)
+        derivs_ex = Expr(:tuple, derivs_ex)
+    end
 
     (derivs_ex isa Expr && derivs_ex.head == :tuple) ||
         error("diffsym: `derivatives=` must be a named tuple literal, e.g. derivatives=(dc_dx=(c,x),)")
@@ -295,7 +327,7 @@ macro diffsym(block, args...)
 
         # also include any wrt entries from derivatives, even if not used in the block
         for entry in derivs_ex.args
-            (entry isa Expr && entry.head == :(=)) || error("diffsym: each derivative entry must be like `dc_dx = (c, x)`")
+            (entry isa Expr && (entry.head == :(=) || entry.head == :kw)) || error("diffsym: each derivative entry must be like `dc_dx = (c, x)`")
             pair = entry.args[2]
             (pair isa Expr && pair.head == :tuple && length(pair.args) == 2) ||
                 error("diffsym: `$(entry.args[1])` must be a 2-tuple `(f, x)`")
@@ -343,7 +375,7 @@ macro diffsym(block, args...)
     # store (outname, f_sym, wrt_valid_sym)
     deriv_specs = Vector{Tuple{Symbol, Symbol, Symbol}}()
     for entry in derivs_ex.args
-        (entry isa Expr && entry.head == :(=)) ||
+        (entry isa Expr && (entry.head == :(=) || entry.head == :kw)) ||
             error("diffsym: each derivative entry must be like `dc_dx = (c, x)`")
 
         outname = entry.args[1]

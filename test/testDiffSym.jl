@@ -1,5 +1,6 @@
 using CellBasedModels
 using CUDA
+using Atomix: @atomic
 
 macro f_sym(x)
     :(2*$(esc(x)))
@@ -39,6 +40,22 @@ end
 
     @test dc_dx == 2 * x
     @test dc_dy == 2 * y
+
+    # Basic test
+    x = 2
+    y = 4
+    p = (p1=1,)
+
+    @diffsym begin
+        
+        a = x ^ 2
+        b = y ^ 2
+
+        c = a + b
+
+    end derivatives=(dc_dx = (c, x))
+
+    @test dc_dx == 2 * x
 
     # Test with control flow
     x = 2
@@ -105,13 +122,28 @@ end
             a = x ^ 2
             b = y ^ 2
 
-            @f_sym(x)
+            z = @f_sym(x)
 
             c = a + b * p.p1
 
-    end derivatives=(dc_dp1 = (c, p.p1),)
+    end derivatives=(dc_dp1 = (c, p.p1), dz_dx = (z, x))
     
     @test dc_dp1 == y^2  # dc/dp.p1 = b = y^2
+
+    # Test with tuple
+    x = 2
+    y = 2
+    p = (p1=1,)
+    @diffsym begin
+            
+            a = x ^ 2
+            b = y ^ 2
+
+            z, z2 = @f_sym_tuple(x)
+
+            c = a + b * p.p1
+
+    end derivatives=(dc_dp1 = (c, p.p1), dz_dx = (z, x), dz2_dx = (z2, x))
 
     # Test with kernel
     if CUDA.has_cuda()
