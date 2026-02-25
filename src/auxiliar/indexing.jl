@@ -628,6 +628,70 @@ in a 3D grid. Includes the center; out-of-bounds as `-1`.
 end
 
 """
+    linearNeighbors1DPeriodic(idx::Int, shape::NTuple{1,Int}) -> NTuple{3,Int}
+
+Returns periodic neighbors of a 1-based linear index in a 1D grid.
+Wraps around at boundaries.
+"""
+@inline function linearNeighbors1DPeriodic(idx::Int, shape::NTuple{1,Int})::NTuple{3,Int}
+    nx = shape[1]
+    @inline wrap(xi) = mod1(xi, nx)
+    return (wrap(idx-1), idx, wrap(idx+1))
+end
+
+"""
+    linearNeighbors2DPeriodic(idx::Int, shape::NTuple{2,Int}) -> NTuple{9,Int}
+
+Returns periodic neighbors of a 1-based linear index in a 2D grid.
+Wraps around at boundaries.
+"""
+@inline function linearNeighbors2DPeriodic(idx::Int, shape::NTuple{2,Int})::NTuple{9,Int}
+    x, y = linearToCartesian2D(idx, shape)
+    nx, ny = shape
+
+    @inline wrap_x(xi) = mod1(xi, nx)
+    @inline wrap_y(yi) = mod1(yi, ny)
+    @inline lin(xi, yi) = wrap_x(xi) + (wrap_y(yi) - 1) * nx
+
+    return (
+        lin(x-1,y-1), lin(x  ,y-1), lin(x+1,y-1),
+        lin(x-1,y  ), lin(x  ,y  ), lin(x+1,y  ),
+        lin(x-1,y+1), lin(x  ,y+1), lin(x+1,y+1),
+    )
+end
+
+"""
+    linearNeighbors3DPeriodic(idx::Int, shape::NTuple{3,Int}) -> NTuple{27,Int}
+
+Returns periodic neighbors of a 1-based linear index in a 3D grid.
+Wraps around at boundaries.
+"""
+@inline function linearNeighbors3DPeriodic(idx::Int, shape::NTuple{3,Int})::NTuple{27,Int}
+    x, y, z = linearToCartesian3D(idx, shape)
+    nx, ny, nz = shape
+    nxy = nx * ny
+
+    @inline wrap_x(xi) = mod1(xi, nx)
+    @inline wrap_y(yi) = mod1(yi, ny)
+    @inline wrap_z(zi) = mod1(zi, nz)
+    @inline lin(xi, yi, zi) = wrap_x(xi) + (wrap_y(yi) - 1) * nx + (wrap_z(zi) - 1) * nxy
+
+    return (
+        lin(x-1,y-1,z-1), lin(x  ,y-1,z-1), lin(x+1,y-1,z-1),
+        lin(x-1,y  ,z-1), lin(x  ,y  ,z-1), lin(x+1,y  ,z-1),
+        lin(x-1,y+1,z-1), lin(x  ,y+1,z-1), lin(x+1,y+1,z-1),
+
+        lin(x-1,y-1,z  ), lin(x  ,y-1,z  ), lin(x+1,y-1,z  ),
+        lin(x-1,y  ,z  ), lin(x  ,y  ,z  ), lin(x+1,y  ,z  ),
+        lin(x-1,y+1,z  ), lin(x  ,y+1,z  ), lin(x+1,y+1,z  ),
+
+        lin(x-1,y-1,z+1), lin(x  ,y-1,z+1), lin(x+1,y-1,z+1),
+        lin(x-1,y  ,z+1), lin(x  ,y  ,z+1), lin(x+1,y  ,z+1),
+        lin(x-1,y+1,z+1), lin(x  ,y+1,z+1), lin(x+1,y+1,z+1),
+    )
+end
+
+"""
     mortonNeighbors2D(idx::Int, shape::Tuple{Int,Int}) -> NTuple{9,Int}
 
 Returns neighbors of a **1-based Morton rank** as **1-based Morton ranks**

@@ -18,11 +18,13 @@ end
 function createObject(
         mesh::AgentPoint;
         n::Union{Integer,Tuple{Integer, Integer}}=0,
+        neighbors::AbstractNeighbors=NeighborsFull(),
     )
 
     UnstructuredMeshObject(
         mesh;
         n=n,
+        neighbors=neighbors,
     )
 
 end

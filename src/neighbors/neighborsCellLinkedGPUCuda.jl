@@ -68,7 +68,8 @@ function initNeighborsGPU(
         typeof(meshParameters), 
         typeof(box), typeof(cellSize), typeof(gridTuple), 
         typeof(cellNamed), typeof(cellOffsetNamed),
-    }(meshParameters, box, cellSize, gridTuple, cellNamed, cellOffsetNamed, cellCountsNamed, permTableNamed)
+        typeof(neighbors.periodic),
+    }(meshParameters, box, cellSize, gridTuple, cellNamed, cellOffsetNamed, cellCountsNamed, permTableNamed, neighbors.periodic)
 
 end
 

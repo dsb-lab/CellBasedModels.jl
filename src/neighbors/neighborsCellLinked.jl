@@ -1,4 +1,4 @@
-struct NeighborsCellLinked{D, P, UM, B, CS, G, C, CO} <: AbstractNeighbors 
+struct NeighborsCellLinked{D, P, UM, B, CS, G, C, CO, Per} <: AbstractNeighbors 
 
     u::UM
 
@@ -11,12 +11,14 @@ struct NeighborsCellLinked{D, P, UM, B, CS, G, C, CO} <: AbstractNeighbors
     cellCounts::CO
 
     permTable::C
+
+    periodic::Per
     
 end
 Adapt.@adapt_structure NeighborsCellLinked
 
-function NeighborsCellLinked(;box, cellSize, periodic=nothing)
-    NeighborsCellLinked{Nothing, Nothing, Nothing, typeof(box), typeof(cellSize), Nothing, Nothing, Nothing}(
+function NeighborsCellLinked(;box, cellSize, periodic=false)
+    NeighborsCellLinked{Nothing, Nothing, Nothing, typeof(box), typeof(cellSize), Nothing, Nothing, Nothing, typeof(periodic)}(
         nothing, 
         box, 
         cellSize,
@@ -24,7 +26,8 @@ function NeighborsCellLinked(;box, cellSize, periodic=nothing)
         nothing,
         nothing,
         nothing,
-        nothing
+        nothing,
+        periodic
     )
 end
 
@@ -40,6 +43,8 @@ function NeighborsCellLinked(
     cellCounts,
 
     permTable,
+
+    periodic,
 )
 
     NeighborsCellLinked{
@@ -51,6 +56,7 @@ function NeighborsCellLinked(
         typeof(grid),
         typeof(cell),
         typeof(cellOffset),
+        typeof(periodic),
     }(
         mesh,
         box,
@@ -60,6 +66,7 @@ function NeighborsCellLinked(
         cellOffset,
         cellCounts,
         permTable,
+        periodic,
     )
 
 end
@@ -80,7 +87,7 @@ function initNeighbors(
     if size(neighbors.box) != (D, 2)
         error("Box size mismatch. Expected size ($(D), 2), found size $(size(neighbors.box))")
     end
-    box = neighbors.box
+    box = Array(neighbors.box)  # Convert to CPU if on GPU
 
     cellSize = neighbors.cellSize
     if cellSize isa Number
@@ -93,7 +100,8 @@ function initNeighbors(
             error("Cell size mismatch. Expected length $(D), found length $(length(cellSize))")
         end
     elseif cellSize isa AbstractVector
-        # Vector cellSize: check length
+        # Vector cellSize: check length and convert to CPU
+        cellSize = Array(cellSize)  # Convert to CPU if on GPU
         if length(cellSize) != D
             error("Cell size mismatch. Expected length $(D), found length $(length(cellSize))")        
         end
@@ -130,7 +138,8 @@ function initNeighbors(
         typeof(meshParameters), 
         typeof(box), typeof(cellSize), typeof(gridTuple), 
         typeof(cellNamed), typeof(cellOffsetNamed),
-    }(meshParameters, box, cellSize, gridTuple, cellNamed, cellOffsetNamed, cellCountsNamed, permTableNamed)
+        typeof(neighbors.periodic),
+    }(meshParameters, box, cellSize, gridTuple, cellNamed, cellOffsetNamed, cellCountsNamed, permTableNamed, neighbors.periodic)
 
 end
 
@@ -239,21 +248,21 @@ end
 @inline function iterateOverNeighbors(mesh::UnstructuredMeshObject{P, 1, S, DT, NN}, name::Symbol, x) where {P, S, DT, NN<:NeighborsCellLinked}
     n = mesh._neighbors
     c = assignCell(n, x)
-    neigh = linearNeighbors1D(c, n.grid)
+    neigh = n.periodic ? linearNeighbors1DPeriodic(c, n.grid) : linearNeighbors1D(c, n.grid)
     return CellLinkedIterator(length(neigh), n, neigh, n.cellOffset[name], n.permTable[name])
 end
 
 @inline function iterateOverNeighbors(mesh::UnstructuredMeshObject{P, 2, S, DT, NN}, name::Symbol, x, y) where {P, S, DT, NN<:NeighborsCellLinked}
     n = mesh._neighbors
     c = assignCell(n, x, y)
-    neigh = linearNeighbors2D(c, n.grid)
+    neigh = n.periodic ? linearNeighbors2DPeriodic(c, n.grid) : linearNeighbors2D(c, n.grid)
     return CellLinkedIterator(length(neigh), n, neigh, n.cellOffset[name], n.permTable[name])
 end
 
 @inline function iterateOverNeighbors(mesh::UnstructuredMeshObject{P, 3, S, DT, NN}, name::Symbol, x, y, z) where {P, S, DT, NN<:NeighborsCellLinked}
     n = mesh._neighbors
     c = assignCell(n, x, y, z)
-    neigh = linearNeighbors3D(c, n.grid)
+    neigh = n.periodic ? linearNeighbors3DPeriodic(c, n.grid) : linearNeighbors3D(c, n.grid)
     return CellLinkedIterator(length(neigh), n, neigh, n.cellOffset[name], n.permTable[name])
 end
 

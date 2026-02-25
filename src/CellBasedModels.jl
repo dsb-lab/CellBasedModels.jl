@@ -106,6 +106,8 @@ module CellBasedModels
     include("./neighbors/neighborsFull.jl")
     export NeighborsCellLinked
     include("./neighbors/neighborsCellLinked.jl")
+    export NeighborsHash, CurveType, CURVE_MORTON, CURVE_HILBERT
+    include("./neighbors/neighborsHash.jl")
     # export StructuredMesh, StructuredMeshObject
     # include("./AgentStructure/structuredMesh.jl")
     # export MultiMesh, MultiMeshObject

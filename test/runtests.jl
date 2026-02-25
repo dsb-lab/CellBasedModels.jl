@@ -15,7 +15,7 @@ backends = CUDA.has_cuda() ? [CPU(), CUDA.CUDABackend()] : [CPU()]
 @testset verbose=true "CellBasedModels.jl" begin
     # include("testIndexing.jl")
     # include("testParameter.jl")
-    include("testDiffSym.jl")
+    # include("testDiffSym.jl")
     # include("testDiffAuto.jl")
     # include("testDynamicalCOO.jl")
     # include("testDynamicalCSR.jl")
@@ -28,7 +28,9 @@ backends = CUDA.has_cuda() ? [CPU(), CUDA.CUDABackend()] : [CPU()]
     # include("testAddFunctions.jl")
 
     # include("testAgentGlobal.jl")
-    # include("testAgentPoint.jl")
+    include("testAgentPoint.jl")
+
+    # include("test.jl")
 end
 
 if benchmark
@@ -38,6 +40,8 @@ if benchmark
 
     N = 100000
     n = 10000
+
+    # include("benchmarkNeighborsAlgorithms.jl")
 
     # include("benchmarkCommunityIndices.jl")
     # include("benchmarkRecursiveCachedArrays.jl")
