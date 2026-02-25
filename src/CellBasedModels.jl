@@ -28,7 +28,7 @@ module CellBasedModels
     include("./auxiliar/diffsym.jl")
     include("./auxiliar/diffauto.jl")
     include("./auxiliar/debugging.jl")
-    export @dot, @cross, @norm, @normSquared, @normalize
+    export @dot, @cross, @norm, @normSquared, @normalize, @project, @tangent
     include("./auxiliar/algebra.jl")
     export posPeriodicBoundary, posRelPeriodicBoundary
     include("./auxiliar/geometry.jl")
