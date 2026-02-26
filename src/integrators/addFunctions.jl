@@ -31,7 +31,7 @@ function chain_with_index(lhs)
     return go(lhs)
 end
 
-function extract_assigns(fdefs)
+function extract_assigns(fdefs; mod::Module=Main)
     assigns = Tuple[]
 
     # Heads we treat differently
@@ -42,7 +42,7 @@ function extract_assigns(fdefs)
         fdef = f.fdef
 
         # Expand macros in the function body
-        fdef_expanded = macroexpand(Main, fdef)
+        fdef_expanded = macroexpand(mod, fdef)
 
         # tracked: first arg (du), second (u) is protected
         tracked_syms   = f.args[1:2]
@@ -208,9 +208,9 @@ function extract_topology_loops(fdefs)
     return unique(topology_pairs)
 end
 
-function analyze_rule_code(kwargs, fdefs; type)
+function analyze_rule_code(kwargs, fdefs; type, mod::Module=Main)
 
-    unique_assigns = extract_assigns(fdefs)
+    unique_assigns = extract_assigns(fdefs; mod=mod)
     topology_pairs = extract_topology_loops(fdefs)
 
     # build emitted code (unchanged structure)
@@ -279,7 +279,7 @@ end
 macro addRule(ex...)
 
     kwargs, functions = extract_parameters(1, ex)
-    code = analyze_rule_code(kwargs, functions; type=:RULE)
+    code = analyze_rule_code(kwargs, functions; type=:RULE, mod=__module__)
 
     return esc(code)
 end
@@ -287,7 +287,7 @@ end
 macro addODE(ex...)
 
     kwargs, functions = extract_parameters(1, ex)
-    code = analyze_rule_code(kwargs, functions; type=:ODE)
+    code = analyze_rule_code(kwargs, functions; type=:ODE, mod=__module__)
 
     return esc(code)
 end
@@ -295,7 +295,7 @@ end
 macro addSDE(ex...)
 
     kwargs, functions = extract_parameters(2, ex)
-    code = analyze_rule_code(kwargs, functions; type=:SDE)
+    code = analyze_rule_code(kwargs, functions; type=:SDE, mod=__module__)
 
     return esc(code)
 end
@@ -340,14 +340,14 @@ function extract_parameters_kernel_launch(ex)
     
 end
 
-function extract_calls(fdefs)
+function extract_calls(fdefs; mod::Module=Main)
     assigns = Tuple[]
 
     for f in fdefs
         fdef = f.fdef
 
         # Expand macros in the function body
-        fdef_expanded = macroexpand(Main, fdef)
+        fdef_expanded = macroexpand(mod, fdef)
 
         # tracked: first arg (du), second (u) is protected
         tracked_syms   = f.args[1:2]
@@ -379,7 +379,7 @@ end
 macro kernel_launch(ex...)
 
     kwargs, functions = extract_parameters_kernel_launch(ex)
-    unique_assigns = extract_calls(functions)
+    unique_assigns = extract_calls(functions; mod=__module__)
 
     fname = functions[1].fname
     fargs = functions[1].args
