@@ -32,9 +32,6 @@ end
 ##########################################################################
 # Functions for working with Agents
 ##########################################################################
-
-iterateOverNeighbors(mesh::AgentPointObject, agentIndex::Integer) = iterateOverNeighbors(mesh, :n, agentIndex)
-
 macro AgentPoint_Add!(
     ex...
 )
