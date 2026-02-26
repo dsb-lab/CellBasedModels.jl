@@ -1,5 +1,6 @@
 using MacroTools
 using Symbolics
+using Symbolics.SymbolicUtils.Code: cse!, CSEState, topological_sort
 
 # --- normalize declared symbol forms (x, p.p1, p[i1], p[i1,i2]) -> valid Symbol + original Expr key
 function _normalize_declared_symbol(symex)
@@ -402,7 +403,9 @@ macro diffsym(block, args...)
 
     env = _interpret_block(sym_block, declared_vars)
 
-    deriv_assign_exprs = Expr[]
+    # Collect all derivative symbolic expressions
+    deriv_syms = []
+    deriv_names = Symbol[]
     for (outname, f, wrt_valid) in deriv_specs
         haskey(env, f) || error("diffsym: requested derivative of `$f`, but `$f` is not defined in the block")
 
@@ -411,8 +414,42 @@ macro diffsym(block, args...)
 
         d = Symbolics.expand_derivatives(Symbolics.Differential(xvar)(fexpr))
         d = Symbolics.simplify(d)
+        push!(deriv_syms, d)
+        push!(deriv_names, outname)
+    end
 
-        ex_d = Symbolics.toexpr(d)
+    # Apply Common Subexpression Elimination (CSE) across ALL derivatives
+    cse_state = CSEState()
+    cse_output_vars = []
+    for d in deriv_syms
+        # cse! takes the unwrapped expression and accumulates common subexpressions in state
+        r = cse!(Symbolics.unwrap(d), cse_state)
+        push!(cse_output_vars, r)
+    end
+
+    # Get topologically sorted CSE assignments
+    sorted_assigns = topological_sort(cse_state.sorted_exprs)
+
+    deriv_assign_exprs = Expr[]
+    
+    # First, add the CSE intermediate variable assignments
+    for item in sorted_assigns
+        lhs_ex = Symbolics.toexpr(item.lhs)
+        rhs_ex = Symbolics.toexpr(item.rhs)
+        # substitute valid symbols back to original dotted/bracket expressions
+        rhs_ex_orig = MacroTools.postwalk(rhs_ex) do node
+            if node isa Symbol && haskey(valid_to_orig, node)
+                valid_to_orig[node]
+            else
+                node
+            end
+        end
+        push!(deriv_assign_exprs, :($lhs_ex = $rhs_ex_orig))
+    end
+
+    # Then add the final derivative assignments using the CSE output variables
+    for (i, outname) in enumerate(deriv_names)
+        ex_d = Symbolics.toexpr(cse_output_vars[i])
 
         # substitute valid symbols back to original dotted/bracket expressions
         ex_d_orig = MacroTools.postwalk(ex_d) do node
