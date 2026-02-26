@@ -236,15 +236,19 @@ function Base.show(io::IO, x::UnstructuredMesh)
     end
     # Display topological relations
     println(io, "\nTopological Relations")
-    relationsbase = collect(x._topology._basicRelations)
-    relations = collect(x._topology._directRelations)
-    sort!(relations, by = r -> (r[1], r[2]))
-    for (origin, target) in relations
-        if (origin, target) in relationsbase
-            print(io, "\t", origin, " → ", target, " (basic)\n")
-        else
-            println(io, "\t", origin, " → ", target)
+    if x._topology._basicRelations !== nothing && x._topology._directRelations !== nothing
+        relationsbase = collect(x._topology._basicRelations)
+        relations = collect(x._topology._directRelations)
+        sort!(relations, by = r -> (r[1], r[2]))
+        for (origin, target) in relations
+            if (origin, target) in relationsbase
+                print(io, "\t", origin, " → ", target, " (basic)\n")
+            else
+                println(io, "\t", origin, " → ", target)
+            end
         end
+    else
+        println(io, "\t(none)")
     end
 end
 
@@ -1322,6 +1326,26 @@ function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, 
         field._FlagOverflow
     )
 
+end
+
+## Deepcopy - preserve _neighbors reference
+function Base.deepcopy_internal(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}, stackdict::IdDict) where {P, D, S, DT, NN, PAR, TOPO, AB}
+    if haskey(stackdict, field)
+        return stackdict[field]
+    end
+    
+    # Deepcopy the data arrays but preserve _neighbors and _topology references
+    new_field = UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}(
+        NamedTuple{keys(field._p)}(
+            Base.deepcopy_internal(getfield(field._p, name), stackdict) for name in keys(field._p)
+        ),
+        field._neighbors,  # Preserve reference
+        field._topology,   # Preserve reference  
+        deepcopy(field._FlagOverflow)
+    )
+    
+    stackdict[field] = new_field
+    return new_field
 end
 
 ## Zero

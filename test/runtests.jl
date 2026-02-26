@@ -6,6 +6,7 @@ using BenchmarkTools
 using KernelAbstractions
 using Printf
 using Adapt
+using DifferentialEquations
 
 verbose = true
 benchmark = true #just for internal optimizations
@@ -27,8 +28,10 @@ backends = CUDA.has_cuda() ? [CPU(), CUDA.CUDABackend()] : [CPU()]
     # include("testMultiMesh.jl")
     # include("testAddFunctions.jl")
 
+    include("testNeighbors.jl")
+
     # include("testAgentGlobal.jl")
-    include("testAgentPoint.jl")
+    # include("testAgentPoint.jl")
 
     # include("test.jl")
 end
