@@ -91,7 +91,7 @@ rod2D = ABM(2,
 
     neighborsAlg=CBMNeighbors.CellLinked(cellEdge=4),
     platform=GPU(),
-    agentAlg = CBMIntegrators.Heun()
+    agentAlg = IntegrationAlgs.Heun()
 );
 
 ```
@@ -253,7 +253,7 @@ rods2dGrowth = ABM(2,
 
     neighborsAlg=CBMNeighbors.CellLinked(cellEdge=4),
     platform=GPU(),
-    agentAlg=CBMIntegrators.Heun()
+    agentAlg=IntegrationAlgs.Heun()
 );
 ```
 

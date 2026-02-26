@@ -192,7 +192,7 @@ model = ABM(3,
         end
     end,
 
-    agentAlg=CBMIntegrators.Heun()
+    agentAlg=IntegrationAlgs.Heun()
 );
 ```
 

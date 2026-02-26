@@ -525,7 +525,7 @@ function createDEProblem(com,scope)
         elseif scope == :model
             paramsIntegratorName,paramsIntegrator = specialIntegratorArguments(com.abm.modelAlg,com.abm)
         elseif scope == :medium
-            paramsIntegratorName,paramsIntegrator = CBMIntegrators.specialIntegratorArguments(com.abm.mediumAlg,com.abm)
+            paramsIntegratorName,paramsIntegrator = IntegrationAlgs.specialIntegratorArguments(com.abm.mediumAlg,com.abm)
         end
     catch
         nothing

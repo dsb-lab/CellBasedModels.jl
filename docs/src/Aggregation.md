@@ -340,7 +340,7 @@ model2 = ABM(2,
         dt(D) = -αT*D
     end,
 
-    agentAlg = CBMIntegrators.EM(),
+    agentAlg = IntegrationAlgs.EM(),
     modelAlg = DifferentialEquations.Euler(),
     neighborsAlg = CBMNeighbors.CellLinked(cellEdge=2),
 );
@@ -422,9 +422,9 @@ Check how alternative algorithms improve the speeding time.
 
 
 ```julia
-modelFull = ABM(2, baseModelInit=[model2], agentAlg = CBMIntegrators.EM(), neighborsAlg=CBMNeighbors.Full())
-modelVerlet = ABM(2, baseModelInit=[model2], agentAlg = CBMIntegrators.EM(), neighborsAlg=CBMNeighbors.VerletDisplacement(skin=2,nMaxNeighbors=20))
-modelCellLinked = ABM(2, baseModelInit=[model2], agentAlg = CBMIntegrators.EM(), neighborsAlg=CBMNeighbors.CellLinked(cellEdge=2))
+modelFull = ABM(2, baseModelInit=[model2], agentAlg = IntegrationAlgs.EM(), neighborsAlg=CBMNeighbors.Full())
+modelVerlet = ABM(2, baseModelInit=[model2], agentAlg = IntegrationAlgs.EM(), neighborsAlg=CBMNeighbors.VerletDisplacement(skin=2,nMaxNeighbors=20))
+modelCellLinked = ABM(2, baseModelInit=[model2], agentAlg = IntegrationAlgs.EM(), neighborsAlg=CBMNeighbors.CellLinked(cellEdge=2))
 
 function initialize(model,N,simBox)
         return Community(model,N=N,

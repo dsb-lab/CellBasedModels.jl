@@ -40,7 +40,7 @@ module CellBasedModels
     # include("./constants.jl")
 
     #Custom integrators
-    # export CBMIntegrators
+    # export IntegrationAlgs
     # export Rule, ODE, DynamicalODE, SplitODE, SDE, RODE, ADIODE
     # include("./integrators/abstractTypes.jl")
     # include("./integrators/integratorsFunctionGeneration.jl")
@@ -118,6 +118,12 @@ module CellBasedModels
     include("./integrators/addFunctions.jl")
     export RuleProblem, Rule
     include("./integrators/ruleProblem.jl")
+
+    #Custom integration algorithms (must be loaded before cellBasedProblem.jl)
+    export IntegrationAlgs
+    include("./integrators/integrators.jl")
+    using .IntegrationAlgs
+
     export CBProblem, CBIntegrator, init, step!, preallocate!
     include("./integrators/cellBasedProblem.jl")
 

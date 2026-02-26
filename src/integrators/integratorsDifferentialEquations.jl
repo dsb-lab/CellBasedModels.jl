@@ -427,7 +427,7 @@ function tridiagonal3DzGPU!(sub_diag, main_diag, super_diag, x_old, x_new, c_sta
     return
 end
 
-module CBMIntegrators
+module IntegrationAlgs
 
     export CustomIntegrator, CustomMediumIntegrator, CustomAgentIntegrator
 
@@ -945,7 +945,7 @@ Douglas-Gunn integrator for PDE difussion problems.
             if typeof(problem) <: ODEProblem
                 return Euler(problem,kwargs)
             else
-                error("Euler algorithm is for ODE problems only, a SDE problem has been detected. Choose an appropiate integrator from CBMIntegrators or DifferentialEquations.")
+                error("Euler algorithm is for ODE problems only, a SDE problem has been detected. Choose an appropiate integrator from IntegrationAlgs or DifferentialEquations.")
             end
 
 
@@ -954,7 +954,7 @@ Douglas-Gunn integrator for PDE difussion problems.
             if typeof(problem) <: ODEProblem
                 return Heun(problem,kwargs)
             else
-                error("Heun algorithm is for ODE problems only, a SDE problem has been detected. Choose an appropiate integrator from CBMIntegrators or DifferentialEquations.")
+                error("Heun algorithm is for ODE problems only, a SDE problem has been detected. Choose an appropiate integrator from IntegrationAlgs or DifferentialEquations.")
             end
 
         elseif typeof(alg) <: RungeKutta4
@@ -962,7 +962,7 @@ Douglas-Gunn integrator for PDE difussion problems.
             if typeof(problem) <: ODEProblem
                 return RungeKutta4(problem,kwargs)
             else
-                error("RungeKutta4 algorithm is for ODE problems only, a SDE problem has been detected. Choose an appropiate integrator from CBMIntegrators or DifferentialEquations.")
+                error("RungeKutta4 algorithm is for ODE problems only, a SDE problem has been detected. Choose an appropiate integrator from IntegrationAlgs or DifferentialEquations.")
             end
 
         elseif typeof(alg) <: EM
@@ -970,7 +970,7 @@ Douglas-Gunn integrator for PDE difussion problems.
             if typeof(problem) <: SDEProblem
                 return EM(problem,kwargs)
             else
-                error("EM algorithm is for ODE problems only, a SDE problem has been detected. Choose an appropiate integrator from CBMIntegrators or DifferentialEquations.")
+                error("EM algorithm is for ODE problems only, a SDE problem has been detected. Choose an appropiate integrator from IntegrationAlgs or DifferentialEquations.")
             end
 
         elseif typeof(alg) <: EulerHeun
@@ -978,7 +978,7 @@ Douglas-Gunn integrator for PDE difussion problems.
             if typeof(problem) <: SDEProblem
                 return EulerHeun(problem,kwargs)
             else
-                error("EulerHeun algorithm is for ODE problems only, a SDE problem has been detected. Choose an appropiate integrator from CBMIntegrators or DifferentialEquations.")
+                error("EulerHeun algorithm is for ODE problems only, a SDE problem has been detected. Choose an appropiate integrator from IntegrationAlgs or DifferentialEquations.")
             end
 
         elseif typeof(alg) <: DGADI
@@ -986,7 +986,7 @@ Douglas-Gunn integrator for PDE difussion problems.
             if typeof(problem) <: ODEProblem
                 return DGADI(problem,kwargs; difussionCoefs=alg.difussionCoefs)
             else
-                error("DGADI algorithm is for PDE problems only, a SDE problem has been detected. Choose an appropiate integrator from CBMIntegrators or DifferentialEquations.")
+                error("DGADI algorithm is for PDE problems only, a SDE problem has been detected. Choose an appropiate integrator from IntegrationAlgs or DifferentialEquations.")
             end
 
         else

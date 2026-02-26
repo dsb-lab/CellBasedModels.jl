@@ -641,7 +641,7 @@ module PhysiCell
 
         end,
 
-        mediumAlg = CBMIntegrators.DGADI(difussionCoefs=(co2=:Dco2,)),
+        mediumAlg = IntegrationAlgs.DGADI(difussionCoefs=(co2=:Dco2,)),
 
         compile=false
     )
@@ -666,7 +666,7 @@ module PhysiCell
 
         end,
 
-        mediumAlg = CBMIntegrators.DGADI(difussionCoefs=(co2=:Dco2,)),
+        mediumAlg = IntegrationAlgs.DGADI(difussionCoefs=(co2=:Dco2,)),
 
         compile=false
     )

@@ -130,11 +130,11 @@ GPU
 Integrators can be used the ones from `DifferentialEquations` for ODE or SDE problems or the custom made solvers provided in ths package.
 
 ```@docs
-CBMIntegrators.Euler
-CBMIntegrators.Heun
-CBMIntegrators.RungeKutta4
-CBMIntegrators.EM
-CBMIntegrators.EulerHeun
+IntegrationAlgs.Euler
+IntegrationAlgs.Heun
+IntegrationAlgs.RungeKutta4
+IntegrationAlgs.EM
+IntegrationAlgs.EulerHeun
 ```
 
 ## Neighbor algorithms
