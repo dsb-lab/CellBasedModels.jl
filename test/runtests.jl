@@ -23,13 +23,12 @@ backends = CUDA.has_cuda() ? [CPU(), CUDA.CUDABackend()] : [CPU()]
     # include("testTopologyAuxiliar.jl")
 
     # include("testUnstructuredMesh.jl")
-    # include("testUnstructuredMeshSCE.jl")
     # include("testStructuredMesh.jl")
     # include("testMultiMesh.jl")
     # include("testAddFunctions.jl")
 
-    # include("testNeighbors.jl")
-    include("testCustomIntegrators.jl")
+    include("testNeighbors.jl")
+    # include("testCustomIntegrators.jl")
 
     # include("testAgentGlobal.jl")
     # include("testAgentPoint.jl")
@@ -45,7 +44,7 @@ if benchmark
     N = 100000
     n = 10000
 
-    # include("benchmarkNeighborsAlgorithms.jl")
+    include("benchmarkNeighborsAlgorithms.jl")
 
     # include("benchmarkCommunityIndices.jl")
     # include("benchmarkRecursiveCachedArrays.jl")

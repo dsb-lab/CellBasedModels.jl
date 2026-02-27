@@ -45,12 +45,13 @@ function toBackend(field::UnstructuredMeshField{P}, backend::CUDA.CUDABackend) w
         field._FlagsSurvived  === nothing ? nothing : CUDA.CuArray(field._FlagsSurvived),
         field._NAdded         === nothing ? nothing : CUDA.CuArray([0]),
         field._NOverflow      === nothing ? nothing : CUDA.CuArray([0]),
+        field._neighbors      === nothing ? nothing : toBackend(field._neighbors, backend),
     )
 end
 
-toBackend(mesh::UnstructuredMeshObject{D, P}, ::CUDA.CUDABackend) where {D, P<:GPUCuda} = mesh
+toBackend(mesh::UnstructuredMeshObject{P, D}, ::CUDA.CUDABackend) where {P<:GPUCuda, D} = mesh
 
-function toBackend(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}, backend::CUDA.CUDABackend) where {P<:CPU, D, S, DT, NN, PAR, TOPO, AB}
+function toBackend(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, backend::CUDA.CUDABackend) where {P<:CPU, D, S, DT, PAR, TOPO, AB}
 
     PNew = GPUCuda
     DTNew = DT <: AbstractFloat ? Float32 : DT
@@ -58,18 +59,15 @@ function toBackend(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}
     p = NamedTuple{keys(field._p)}(
         toBackend(p, backend) for p in values(field._p)
     )
-    n = initNeighborsGPU(D, field._neighbors, p)
     t = toBackend(field._topology, backend)
     _FlagOverflow = CUDA.CuArray([false])
 
     PARNew = typeof(p)
-    NNNew = typeof(n)
     TOPONew = typeof(t)
     ABNew = typeof(_FlagOverflow)
 
-    UnstructuredMeshObject{PNew, D, S, DTNew, NNNew, PARNew, TOPONew, ABNew}(
+    UnstructuredMeshObject{PNew, D, S, DTNew, PARNew, TOPONew, ABNew}(
         p,
-        n,
         t,
         _FlagOverflow
     )
@@ -110,4 +108,64 @@ function RecursiveArrayTools.recursivefill!(
         end
     end
     dest
+end
+
+# GPU kernel adaptation: convert CuArray fields to CuDeviceArray for kernel execution
+function Adapt.adapt_structure(to::CUDA.KernelAdaptor, field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}
+    _p_adapted = field._p === nothing ? nothing : Adapt.adapt(to, field._p)
+    _id_adapted = field._id === nothing ? nothing : Adapt.adapt(to, field._id)
+    _idMax_adapted = field._idMax === nothing ? nothing : Adapt.adapt(to, field._idMax)
+    _nodes_adapted = field._nodes === nothing ? nothing : Adapt.adapt(to, field._nodes)
+    _N_adapted = field._N === nothing ? nothing : Adapt.adapt(to, field._N)
+    _NCache_adapted = field._NCache === nothing ? nothing : Adapt.adapt(to, field._NCache)
+    _FlagsSurvived_adapted = field._FlagsSurvived === nothing ? nothing : Adapt.adapt(to, field._FlagsSurvived)
+    _NAdded_adapted = field._NAdded === nothing ? nothing : Adapt.adapt(to, field._NAdded)
+    _NOverflow_adapted = field._NOverflow === nothing ? nothing : Adapt.adapt(to, field._NOverflow)
+    _neighbors_adapted = field._neighbors === nothing ? nothing : Adapt.adapt(to, field._neighbors)
+    
+    return UnstructuredMeshField{
+        GPUCuDevice, DT,
+        typeof(_p_adapted),
+        PRN, PRC,
+        typeof(_id_adapted),
+        typeof(_idMax_adapted),
+        typeof(_nodes_adapted),
+        typeof(_N_adapted),
+        typeof(_FlagsSurvived_adapted),
+        typeof(_NOverflow_adapted),
+        typeof(_neighbors_adapted)
+    }(
+        _p_adapted,
+        PRN,
+        field._pReference,
+        _id_adapted,
+        _idMax_adapted,
+        _nodes_adapted,
+        _N_adapted,
+        _NCache_adapted,
+        _FlagsSurvived_adapted,
+        _NAdded_adapted,
+        _NOverflow_adapted,
+        _neighbors_adapted
+    )
+end
+
+# GPU kernel adaptation for UnstructuredMeshObject  
+function Adapt.adapt_structure(to::CUDA.KernelAdaptor, obj::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) where {P<:GPUCuda, D, S, DT, PAR, TOPO, AB}
+    _p_adapted = NamedTuple{keys(obj._p)}(
+        Adapt.adapt(to, p) for p in values(obj._p)
+    )
+    _topology_adapted = Adapt.adapt(to, obj._topology)
+    _FlagOverflow_adapted = Adapt.adapt(to, obj._FlagOverflow)
+    
+    return UnstructuredMeshObject{
+        GPUCuDevice, D, S, DT,
+        typeof(_p_adapted),
+        typeof(_topology_adapted),
+        typeof(_FlagOverflow_adapted)
+    }(
+        _p_adapted,
+        _topology_adapted,
+        _FlagOverflow_adapted
+    )
 end

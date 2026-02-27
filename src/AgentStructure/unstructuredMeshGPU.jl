@@ -83,12 +83,13 @@ function toBackend(field::UnstructuredMeshField{P}, ::CPU) where {P<:GPU}
         field._FlagsSurvived  === nothing ? nothing : Vector{Bool}(field._FlagsSurvived),
         field._NAdded         === nothing ? nothing : SizedVector{1}(0),
         field._NOverflow      === nothing ? nothing : SizedVector{1}(0),
+        field._neighbors      === nothing ? nothing : toBackend(field._neighbors, CPU()),
     )
 end
 
 toBackend(mesh::UnstructuredMeshObject{P}, ::CPU) where {P<:CPU} = mesh
 
-function toBackend(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}, ::CPU) where {P<:GPU, D, S, DT, NN, PAR, TOPO, AB}
+function toBackend(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, ::CPU) where {P<:GPU, D, S, DT, PAR, TOPO, AB}
 
     PNew = platform()
     DTNew = DT <: AbstractFloat ? DATATYPE[AbstractFloat] : DT
@@ -96,18 +97,15 @@ function toBackend(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}
     p = NamedTuple{keys(field._p)}(
         toBackend(p, CPU()) for p in values(field._p)
     )
-    n = initNeighbors(D, field._neighbors, p)
     t = toBackend(field._topology, CPU())
     _FlagOverflow = SizedVector{1}(false)
 
     PARNew = typeof(p)
-    NNNew = typeof(n)
     TOPONew = typeof(t)
     ABNew = typeof(_FlagOverflow)
 
-    UnstructuredMeshObject{PNew, D, S, DTNew, NNNew, PARNew, TOPONew, ABNew}(
+    UnstructuredMeshObject{PNew, D, S, DTNew, PARNew, TOPONew, ABNew}(
         p,
-        n,
         t,
         _FlagOverflow
     )

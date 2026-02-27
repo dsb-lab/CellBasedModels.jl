@@ -1,9 +1,13 @@
+using Test
 using BenchmarkTools
 using CUDA
 using DifferentialEquations
 using Adapt
 import StaticArrays: SizedVector
 using KernelAbstractions
+using CellBasedModels
+
+verbose = true
 
 @testset verbose = verbose "ABM - UnstructuredMesh" begin
 
@@ -28,13 +32,13 @@ using KernelAbstractions
                 if scope === Node
                     mesh = UnstructuredMesh(dims; n  = Node(props))
                 elseif scope === Edge
-                    mesh = UnstructuredMesh(dims; n = Node(), e  = Edge((:n,:n), props))
+                    mesh = UnstructuredMesh(dims; n = Node(), e  = Edge(:n, props))
                 elseif scope === Face
                     mesh = UnstructuredMesh(dims; n = Node(), f  = Face(:n, props))
                 elseif scope === Volume
                     mesh = UnstructuredMesh(dims; n = Node(), v  = Volume(:n, props))
                 elseif scope === Agent
-                    mesh = UnstructuredMesh(dims; n = Node(), a  = Agent(props))
+                    mesh = UnstructuredMesh(dims; n = Node(), a  = Agent(:n, props))
                 end
                 @test mesh isa UnstructuredMesh
                 @test CellBasedModels.spatialDims(mesh) == dims
@@ -142,8 +146,8 @@ using KernelAbstractions
         @test field2.a == fill(7.0, 3)
         @test field2.b == fill(0, 3)
         if CUDA.has_cuda()
-            field_gpu = toBackend(field, CUDA.CUDABackend)
-            field2_gpu = toBackend(field2, CUDA.CUDABackend)
+            field_gpu = toBackend(field, CUDA.CUDABackend())
+            field2_gpu = toBackend(field2, CUDA.CUDABackend())
             copyto!(field2_gpu, field_gpu)
             @test Array(field2_gpu.a) == fill(7.0, 3)
             @test Array(field2_gpu.b) == fill(0, 3)
@@ -160,8 +164,8 @@ using KernelAbstractions
         @test field2.a == fill(3.7, 3)
         @test field2.b == fill(0, 3)
         if CUDA.has_cuda()
-            field_gpu = toBackend(field, CUDA.CUDABackend)
-            field2_gpu = toBackend(field2, CUDA.CUDABackend)
+            field_gpu = toBackend(field, CUDA.CUDABackend())
+            field2_gpu = toBackend(field2, CUDA.CUDABackend())
             @. field2_gpu = field_gpu * 0.1 + 3.0
             @test Array(field2_gpu.a) == fill(3.7, 3)
             @test Array(field2_gpu.b) == fill(0, 3)
@@ -178,8 +182,8 @@ using KernelAbstractions
         @test field2.a == fill(3.7, 3)
         @test field2.b == fill(0, 3)
         if CUDA.has_cuda()
-            field_gpu = toBackend(field, CUDA.CUDABackend)
-            field2_gpu = toBackend(field2, CUDA.CUDABackend)
+            field_gpu = toBackend(field, CUDA.CUDABackend())
+            field2_gpu = toBackend(field2, CUDA.CUDABackend())
             DifferentialEquations.DiffEqBase.@.. field2_gpu = field_gpu * 0.1 + 3.0
             @test Array(field2_gpu.a) == fill(3.7, 3)
             @test Array(field2_gpu.b) == fill(0, 3)
@@ -195,7 +199,7 @@ using KernelAbstractions
 
             field = UnstructuredMeshField(meshProperty; N=3, NCache=5)
             field._pReference .= [true, false]
-            field_gpu = toBackend(field, CUDA.CUDABackend)
+            field_gpu = toBackend(field, CUDA.CUDABackend())
 
             @test_nowarn CUDA.@cuda test_kernel_field!(field_gpu)
 
@@ -216,7 +220,7 @@ using KernelAbstractions
                     @test obj isa UnstructuredMeshObject
                     @test obj.n isa UnstructuredMeshField
                 elseif scope === Edge
-                    mesh = UnstructuredMesh(dims; n = Node(), e  = Edge((:n,:n), props))
+                    mesh = UnstructuredMesh(dims; n = Node(), e  = Edge(:n, props))
                     obj = UnstructuredMeshObject(mesh, n = (2,4), e = (2,4))
                     @test obj isa UnstructuredMeshObject
                     @test obj.n isa UnstructuredMeshField
@@ -257,7 +261,7 @@ using KernelAbstractions
                     mesh = UnstructuredMesh(dims; n  = Node(props))
                     obj = UnstructuredMeshObject(mesh, n = (2,4))
                 elseif scope === Edge
-                    mesh = UnstructuredMesh(dims; n = Node(), e  = Edge((:n,:n), props))
+                    mesh = UnstructuredMesh(dims; n = Node(), e  = Edge(:n, props))
                     obj = UnstructuredMeshObject(mesh, n = (2,4), e = (2,4))
                 elseif scope === Face
                     mesh = UnstructuredMesh(dims; n = Node(), f  = Face(:n, props))
@@ -294,7 +298,7 @@ using KernelAbstractions
                     mesh = UnstructuredMesh(dims; n  = Node(props))
                     obj = UnstructuredMeshObject(mesh, n = (2,4))
                 elseif scope === Edge
-                    mesh = UnstructuredMesh(dims; n = Node(), e  = Edge((:n,:n), props))
+                    mesh = UnstructuredMesh(dims; n = Node(), e  = Edge(:n, props))
                     obj = UnstructuredMeshObject(mesh, n = (2,4), e = (2,4))
                 elseif scope === Face
                     mesh = UnstructuredMesh(dims; n = Node(), f  = Face(:n, props))
@@ -333,7 +337,7 @@ using KernelAbstractions
                         mesh = UnstructuredMesh(dims; n  = Node(props))
                         obj = UnstructuredMeshObject(mesh, n = (2,4))
                     elseif scope === Edge
-                        mesh = UnstructuredMesh(dims; n = Node(), e  = Edge((:n,:n), props))
+                        mesh = UnstructuredMesh(dims; n = Node(), e  = Edge(:n, props))
                         obj = UnstructuredMeshObject(mesh, n = (2,4), e = (2,4))
                     elseif scope === Face
                         mesh = UnstructuredMesh(dims; n = Node(), f  = Face(:n, props))
@@ -372,7 +376,7 @@ using KernelAbstractions
                         obj = UnstructuredMeshObject(mesh, n = (2,4))
                         obj2 = UnstructuredMeshObject(mesh, n = (2,4))
                     elseif scope === Edge
-                        mesh = UnstructuredMesh(dims; n = Node(), e  = Edge((:n,:n), props))
+                        mesh = UnstructuredMesh(dims; n = Node(), e  = Edge(:n, props))
                         obj = UnstructuredMeshObject(mesh, n = (2,4), e = (2,4))
                         obj2 = UnstructuredMeshObject(mesh, n = (2,4), e = (2,4))
                     elseif scope === Face
@@ -406,8 +410,8 @@ using KernelAbstractions
                 @test obj2[scope_index].b == fill(2, 2)
                 @test obj2[scope_index]._p.b == [2, 2, 0, 0]
                 if CUDA.has_cuda()
-                    obj_gpu = toBackend(obj, CUDA.CUDABackend)
-                    obj2_gpu = toBackend(obj2, CUDA.CUDABackend)
+                    obj_gpu = toBackend(obj, CUDA.CUDABackend())
+                    obj2_gpu = toBackend(obj2, CUDA.CUDABackend())
                     copyto!(obj2_gpu, obj_gpu)
                     @test Array(obj2_gpu[scope_index].a) == fill(0.0, 2)
                     @test Array(obj2_gpu[scope_index]._p.a) == [0.0, 0.0, 0.0, 0.0]
@@ -428,7 +432,7 @@ using KernelAbstractions
                     obj = UnstructuredMeshObject(mesh, n = (2,4))
                     obj2 = UnstructuredMeshObject(mesh, n = (2,4))
                 elseif scope === Edge
-                    mesh = UnstructuredMesh(dims; n = Node(), e  = Edge((:n,:n), props))
+                    mesh = UnstructuredMesh(dims; n = Node(), e  = Edge(:n, props))
                     obj = UnstructuredMeshObject(mesh, n = (2,4), e = (2,4))
                     obj2 = UnstructuredMeshObject(mesh, n = (2,4), e = (2,4))
                 elseif scope === Face
@@ -462,8 +466,8 @@ using KernelAbstractions
                 @test obj2[scope_index].b == fill(0, 2)
                 @test obj2[scope_index]._p.b == [0, 0, 0, 0]
                 if CUDA.has_cuda()
-                    obj_gpu = toBackend(obj, CUDA.CUDABackend)
-                    obj2_gpu = toBackend(obj2, CUDA.CUDABackend)
+                    obj_gpu = toBackend(obj, CUDA.CUDABackend())
+                    obj2_gpu = toBackend(obj2, CUDA.CUDABackend())
                     obj2_gpu[scope_index].a .= 0.0
                     @. obj2_gpu = obj_gpu * 0.1 + 3.0
                     @test Array(obj2_gpu[scope_index].a) == fill(3.7, 2)
@@ -480,7 +484,7 @@ using KernelAbstractions
                     obj = UnstructuredMeshObject(mesh, n = (2,4))
                     obj2 = UnstructuredMeshObject(mesh, n = (2,4))
                 elseif scope === Edge
-                    mesh = UnstructuredMesh(dims; n = Node(), e  = Edge((:n,:n), props))
+                    mesh = UnstructuredMesh(dims; n = Node(), e  = Edge(:n, props))
                     obj = UnstructuredMeshObject(mesh, n = (2,4), e = (2,4))
                     obj2 = UnstructuredMeshObject(mesh, n = (2,4), e = (2,4))
                 elseif scope === Face
@@ -514,8 +518,8 @@ using KernelAbstractions
                 @test obj2[scope_index].b == fill(0, 2)
                 @test obj2[scope_index]._p.b == [0, 0, 0, 0]
                 if CUDA.has_cuda()
-                    obj_gpu = toBackend(obj, CUDA.CUDABackend)
-                    obj2_gpu = toBackend(obj2, CUDA.CUDABackend)
+                    obj_gpu = toBackend(obj, CUDA.CUDABackend())
+                    obj2_gpu = toBackend(obj2, CUDA.CUDABackend())
                     obj2_gpu[scope_index].a .= 0.0
                     DifferentialEquations.DiffEqBase.@.. obj2_gpu = obj_gpu * 0.1 + 3.0
                     @test Array(obj2_gpu[scope_index].a) == fill(3.7, 2)
@@ -543,7 +547,7 @@ using KernelAbstractions
                         mesh = UnstructuredMesh(dims; n  = Node(props))
                         obj = UnstructuredMeshObject(mesh, n = (2,4))
                     elseif scope === Edge
-                        mesh = UnstructuredMesh(dims; n = Node(), e  = Edge((:n,:n), props))
+                        mesh = UnstructuredMesh(dims; n = Node(), e  = Edge(:n, props))
                         obj = UnstructuredMeshObject(mesh, n = (2,4), e = (2,4))
                     elseif scope === Face
                         mesh = UnstructuredMesh(dims; n = Node(), f  = Face(:n, props))
@@ -555,7 +559,7 @@ using KernelAbstractions
                         mesh = UnstructuredMesh(dims; n = Node(), a  = Agent(props))
                         obj = UnstructuredMeshObject(mesh, n = (2,4), a = (2,4))
                     end
-                    obj_gpu = toBackend(obj, CUDA.CUDABackend)
+                    obj_gpu = toBackend(obj, CUDA.CUDABackend())
 
                     @test_nowarn CUDA.@cuda test_kernel_object!(obj_gpu)
                 end
@@ -579,7 +583,7 @@ using KernelAbstractions
                         mesh = UnstructuredMesh(dims; n  = Node(props))
                         obj = UnstructuredMeshObject(mesh, n = (2,4))
                     elseif scope === Edge
-                        mesh = UnstructuredMesh(dims; n = Node(), e  = Edge((:n,:n), props))
+                        mesh = UnstructuredMesh(dims; n = Node(), e  = Edge(:n, props))
                         obj = UnstructuredMeshObject(mesh, n = (2,4), e = (2,4))
                     elseif scope === Face
                         mesh = UnstructuredMesh(dims; n = Node(), f  = Face(:n, props))
@@ -609,7 +613,7 @@ using KernelAbstractions
                             mesh = UnstructuredMesh(dims; n  = Node(props))
                             obj = UnstructuredMeshObject(mesh, n = (2,4))
                         elseif scope === Edge
-                            mesh = UnstructuredMesh(dims; n = Node(), e  = Edge((:n,:n), props))
+                            mesh = UnstructuredMesh(dims; n = Node(), e  = Edge(:n, props))
                             obj = UnstructuredMeshObject(mesh, n = (2,4), e = (2,4))
                         elseif scope === Face
                             mesh = UnstructuredMesh(dims; n = Node(), f  = Face(:n, props))
@@ -626,7 +630,7 @@ using KernelAbstractions
                         else
                             obj[scope_index]._pReference .= [false, true]
                         end
-                        obj_gpu = toBackend(obj, CUDA.CUDABackend)
+                        obj_gpu = toBackend(obj, CUDA.CUDABackend())
                         prob = ODEProblem(fODE!, obj_gpu, (0.0, 1.0))
                         integrator = init(prob, integratorAlg, dt=0.1, save_everystep=false)
                         for i in 1:10
@@ -639,250 +643,12 @@ using KernelAbstractions
         end
     end
 
-    @testset "UnstructuredMeshObject - neighbors" begin
-
-        @testset "UnstructuredMeshObject - NeighborsFull" begin
-            for dims in 1:3  # Skip dims=0 as neighbor algorithms require spatial coordinates
-                for (scope, scope_index) in zip(all_scopes, all_scopes_index)
-                    mesh = nothing
-                    obj = nothing
-                    if scope === Node
-                        mesh = UnstructuredMesh(dims; n  = Node(props))
-                        obj = UnstructuredMeshObject(mesh, n = (2,4), neighbors=NeighborsFull())
-                    elseif scope === Edge
-                        mesh = UnstructuredMesh(dims; n = Node(), e  = Edge((:n,:n), props))
-                        obj = UnstructuredMeshObject(mesh, n = (2,4), e = (2,4), neighbors=NeighborsFull())
-                    elseif scope === Face
-                        mesh = UnstructuredMesh(dims; n = Node(), f  = Face(:n, props))
-                        obj = UnstructuredMeshObject(mesh, n = (2,4), f = (2,4), neighbors=NeighborsFull())
-                    elseif scope === Volume
-                        mesh = UnstructuredMesh(dims; n = Node(), v  = Volume(:n, props))
-                        obj = UnstructuredMeshObject(mesh, n = (2,4), v = (2,4), neighbors=NeighborsFull())
-                    elseif scope === Agent
-                        mesh = UnstructuredMesh(dims; n = Node(), a  = Agent(props))
-                        obj = UnstructuredMeshObject(mesh, n = (2,4), a = (2,4), neighbors=NeighborsFull())
-                    end
-
-                    l = []
-                    for i in iterateOverNeighbors(obj, scope_index, 1)
-                        push!(l, i)
-                    end
-
-                    @test length(l) == 2
-                
-                end
-            end
-        end
-
-        @testset "UnstructuredMeshObject - NeighborsCellLinked" begin
-            # Cell-linked neighbors only make sense for spatial dimensions >= 1
-            # 1D
-            box = [0.0 1.0]
-            cellSize = [0.1]
-            mesh = UnstructuredMesh(1; n  = Node((nnCL=Int,nnFull=Int)))
-            @addRule model=mesh function get_neighbors1D(uNew, u, p, t)
-                @kernel function get_neighbors1D_kernel!(uNew, u, p, t)
-                    x1 = 0.0
-                    x2 = 0.0
-                    i = @index(Global)
-
-                    if i < length(u.n.x)
-                        u.n.nnFull[i] = 0
-                        u.n.nnCL[i] = 0
-                        x1 = u.n.x[i]
-                        # Full neighbors
-                        for j in iterateOver(u.n)
-                            i == j ? continue : nothing
-                            x2 = u.n.x[j]
-                            dist = sqrt((x2 - x1)^2)
-                            if dist <= 0.1
-                                uNew.n.nnFull[i] += 1
-                            end
-                        end
-                        # Cell-linked neighbors
-                        for j in iterateOverNeighbors(u, :n, x1)
-                            i == j ? continue : nothing
-                            x2 = u.n.x[j]
-                            dist = sqrt((x2 - x1)^2)
-                            if dist <= 0.1
-                                uNew.n.nnCL[i] += 1
-                            end
-                        end
-                    end
-                end
-
-                dev = get_backend(uNew)
-                nthreads = 256
-                if dev == CPU()
-                    nthreads = Threads.nthreads()
-                end
-                get_neighbors1D_kernel!(dev, nthreads)(uNew, u, p, t, ndrange=length(u.n.x))
-                KernelAbstractions.synchronize(dev)
-            end
-            obj = UnstructuredMeshObject(mesh, n = 10000, neighbors=NeighborsCellLinked(box=box, cellSize=cellSize))
-
-            obj.n.x .= rand(10000)
-
-            problem = CBProblem(mesh, obj, (0.0, 1.0))
-            integrator = init(problem, dt=0.1)
-            step!(integrator)
-
-            @test all(integrator.u.n.nnCL .== integrator.u.n.nnFull)
-
-            if CUDA.has_cuda()
-                obj_gpu = toBackend(obj, CUDA.CUDABackend)
-                problem_gpu = CBProblem(mesh, obj_gpu, (0.0, 1.0))
-                integrator_gpu = init(problem_gpu, dt=0.1)
-                step!(integrator_gpu)
-
-                @test all(Array(integrator_gpu.u.n.nnCL) .== Array(integrator_gpu.u.n.nnFull))
-            end
-
-            # 2D
-            box = [0.0 1.0; 0.0 1.0]
-            cellSize = [0.1, 0.1]
-            mesh = UnstructuredMesh(2; n  = Node((nnCL=Int,nnFull=Int)))
-            @addRule model=mesh function get_neighbors2D(uNew, u, p, t)
-                @kernel function get_neighbors2D_kernel!(uNew, u, p, t)
-                    x1 = y1 = 0.0
-                    x2 = y2 = 0.0
-                    i = @index(Global)
-
-                    if i < length(u.n.x)
-                        u.n.nnFull[i] = 0
-                        u.n.nnCL[i] = 0
-                        x1 = u.n.x[i]
-                        y1 = u.n.y[i]
-                        # Full neighbors
-                        for j in iterateOver(u.n)
-                            i == j ? continue : nothing
-                            x2 = u.n.x[j]
-                            y2 = u.n.y[j]
-                            dist = sqrt((x2 - x1)^2 + (y2 - y1)^2)
-                            if dist <= 0.1
-                                uNew.n.nnFull[i] += 1
-                            end
-                        end
-                        # Cell-linked neighbors
-                        for j in iterateOverNeighbors(u, :n, x1, y1)
-                            i == j ? continue : nothing
-                            x2 = u.n.x[j]
-                            y2 = u.n.y[j]
-                            dist = sqrt((x2 - x1)^2 + (y2 - y1)^2)
-                            if dist <= 0.1
-                                uNew.n.nnCL[i] += 1
-                            end
-                        end
-                    end
-                end
-
-                dev = get_backend(uNew)
-                nthreads = 256
-                if dev == CPU()
-                    nthreads = Threads.nthreads()
-                end
-                get_neighbors2D_kernel!(dev, nthreads)(uNew, u, p, t, ndrange=length(u.n.x))
-                KernelAbstractions.synchronize(dev)
-            end
-            obj = UnstructuredMeshObject(mesh, n = 10000, neighbors=NeighborsCellLinked(box=box, cellSize=cellSize))
-
-            obj.n.x .= rand(10000)
-            obj.n.y .= rand(10000)
-
-            problem = CBProblem(mesh, obj, (0.0, 1.0))
-            integrator = init(problem, dt=0.1)
-            step!(integrator)
-
-            @test all(integrator.u.n.nnCL .== integrator.u.n.nnFull)
-
-            if CUDA.has_cuda()
-                obj_gpu = toBackend(obj, CUDA.CUDABackend)
-                problem_gpu = CBProblem(mesh, obj_gpu, (0.0, 1.0))
-                integrator_gpu = init(problem_gpu, dt=0.1)
-                step!(integrator_gpu)
-
-                @test all(Array(integrator_gpu.u.n.nnCL) .== Array(integrator_gpu.u.n.nnFull))
-            end
-
-            # 3D
-            box = [0.0 1.0; 0.0 1.0; 0.0 1.0]
-            cellSize = [0.1, 0.1, 0.1]
-            mesh = UnstructuredMesh(3; n  = Node((nnCL=Int,nnFull=Int)))
-            @addRule model=mesh function get_neighbors3D(uNew, u, p, t)
-                @kernel function get_neighbors3D_kernel!(uNew, u, p, t)
-                    x1 = y1 = z1 = 0.0
-                    x2 = y2 = z2 = 0.0
-                    i = @index(Global)
-
-                    if i < length(u.n.x)
-                        u.n.nnFull[i] = 0
-                        u.n.nnCL[i] = 0
-                        x1 = u.n.x[i]
-                        y1 = u.n.y[i]
-                        z1 = u.n.z[i]
-                        # Full neighbors
-                        for j in iterateOver(u.n)
-                            i == j ? continue : nothing
-                            x2 = u.n.x[j]
-                            y2 = u.n.y[j]
-                            z2 = u.n.z[j]
-                            dist = sqrt((x2 - x1)^2 + (y2 - y1)^2 + (z2 - z1)^2)
-                            if dist <= 0.1
-                                uNew.n.nnFull[i] += 1
-                            end
-                        end
-                        # Cell-linked neighbors
-                        for j in iterateOverNeighbors(u, :n, x1, y1, z1)
-                            i == j ? continue : nothing
-                            x2 = u.n.x[j]
-                            y2 = u.n.y[j]
-                            z2 = u.n.z[j]
-                            dist = sqrt((x2 - x1)^2 + (y2 - y1)^2 + (z2 - z1)^2)
-                            if dist <= 0.1
-                                uNew.n.nnCL[i] += 1
-                            end
-                        end
-                    end
-                end
-
-                dev = get_backend(uNew)
-                nthreads = 256
-                if dev == CPU()
-                    nthreads = Threads.nthreads()
-                end
-                get_neighbors3D_kernel!(dev, nthreads)(uNew, u, p, t, ndrange=length(u.n.x))
-                KernelAbstractions.synchronize(dev)
-            end
-            obj = UnstructuredMeshObject(mesh, n = 10000, neighbors=NeighborsCellLinked(box=box, cellSize=cellSize))
-
-            obj.n.x .= rand(10000)
-            obj.n.y .= rand(10000)
-            obj.n.z .= rand(10000)
-
-            problem = CBProblem(mesh, obj, (0.0, 1.0))
-            integrator = init(problem, dt=0.1)
-            step!(integrator)
-
-            @test all(integrator.u.n.nnCL .== integrator.u.n.nnFull)
-
-            if CUDA.has_cuda()
-                obj_gpu = toBackend(obj, CUDA.CUDABackend)
-                problem_gpu = CBProblem(mesh, obj_gpu, (0.0, 1.0))
-                integrator_gpu = init(problem_gpu, dt=0.1)
-                step!(integrator_gpu)
-
-                @test all(Array(integrator_gpu.u.n.nnCL) .== Array(integrator_gpu.u.n.nnFull))
-            end
-
-        end
-    end
-
     @testset "UnstructuredMeshObject - removing elements" begin
 
         @testset "NeighborsFull - element removal and compaction" begin
             n = (5,10)
             mesh = UnstructuredMesh(3; n  = Node(props))
-            obj = UnstructuredMeshObject(mesh, n = n, neighbors=NeighborsFull())
+            obj = UnstructuredMeshObject(mesh, n = n)
 
             # Set up data with distinct values
             obj.n.x .= rand(n[1])
@@ -916,7 +682,7 @@ using KernelAbstractions
 
                 n = (5,10)
                 mesh = UnstructuredMesh(3; n  = Node(props))
-                obj = UnstructuredMeshObject(mesh, n = n, neighbors=NeighborsFull())
+                obj = UnstructuredMeshObject(mesh, n = n)
 
                 # Set up data with distinct values
                 obj.n.x .= rand(n[1])
@@ -934,7 +700,7 @@ using KernelAbstractions
                 surviving_b = [obj.n.b[i] for i in 1:n[1] if obj.n._FlagsSurvived[i]]
                 
                 # Perform compaction via update!
-                obj_gpu = toBackend(obj, CUDA.CUDABackend)
+                obj_gpu = toBackend(obj, CUDA.CUDABackend())
                 CellBasedModels.update!(obj_gpu)
                 
                 # After compaction, N should be 3 (3 surviving elements)
@@ -1045,7 +811,7 @@ using KernelAbstractions
         @test integrator.t == 0.1
 
         if CUDA.has_cuda()
-            obj_gpu = toBackend(obj, CUDA.CUDABackend)
+            obj_gpu = toBackend(obj, CUDA.CUDABackend())
             problem_gpu = CBProblem(model, obj_gpu)
             integrator_gpu = init(problem_gpu, dt=0.1)
             

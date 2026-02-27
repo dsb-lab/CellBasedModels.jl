@@ -1,5 +1,65 @@
-import CellBasedModels: assignCell!, countInCell!, fillPermTable!, platform
+import CellBasedModels: assignCell!, countInCell!, fillPermTable!, platform, toBackend, update!
 import CellBasedModels: positionToLinear1D, positionToLinear2D, positionToLinear3D
+
+# toBackend for NeighborsCellLinked - converts CPU to GPU
+function toBackend(neighbors::NeighborsCellLinked{D, P, UM, B, CS, G, C, CO, Per}, backend::CUDA.CUDABackend) where {D, P<:CPU, UM, B, CS, G, C, CO, Per}
+    box_gpu = neighbors.box === nothing ? nothing : CUDA.CuArray(neighbors.box)
+    cell_gpu = neighbors.cell === nothing ? nothing : CUDA.CuArray(neighbors.cell)
+    cellOffset_gpu = neighbors.cellOffset === nothing ? nothing : CUDA.CuArray(neighbors.cellOffset)
+    cellCounts_gpu = neighbors.cellCounts === nothing ? nothing : CUDA.CuArray(neighbors.cellCounts)
+    permTable_gpu = neighbors.permTable === nothing ? nothing : CUDA.CuArray(neighbors.permTable)
+    
+    return NeighborsCellLinked{
+        D, GPUCuda,
+        Nothing,  # No mesh reference at field level
+        typeof(box_gpu), CS, G,
+        typeof(cell_gpu), typeof(cellOffset_gpu),
+        Per,
+    }(
+        nothing,  # u
+        box_gpu,
+        neighbors.cellSize,
+        neighbors.grid,
+        cell_gpu,
+        cellOffset_gpu,
+        cellCounts_gpu,
+        permTable_gpu,
+        neighbors.periodic,
+    )
+end
+
+# Already on GPU - no conversion needed
+toBackend(neighbors::NeighborsCellLinked{D, P}, ::CUDA.CUDABackend) where {D, P<:GPUCuda} = neighbors
+
+# toBackend for NeighborsCellLinked - converts GPU back to CPU
+function toBackend(neighbors::NeighborsCellLinked{D, P, UM, B, CS, G, C, CO, Per}, ::CPU) where {D, P<:GPU, UM, B, CS, G, C, CO, Per}
+    box_cpu = neighbors.box === nothing ? nothing : Array(neighbors.box)
+    cell_cpu = neighbors.cell === nothing ? nothing : Array(neighbors.cell)
+    cellOffset_cpu = neighbors.cellOffset === nothing ? nothing : Array(neighbors.cellOffset)
+    cellCounts_cpu = neighbors.cellCounts === nothing ? nothing : Array(neighbors.cellCounts)
+    permTable_cpu = neighbors.permTable === nothing ? nothing : Array(neighbors.permTable)
+    
+    return NeighborsCellLinked{
+        D, CPU,
+        Nothing,
+        typeof(box_cpu), CS, G,
+        typeof(cell_cpu), typeof(cellOffset_cpu),
+        Per,
+    }(
+        nothing,
+        box_cpu,
+        neighbors.cellSize,
+        neighbors.grid,
+        cell_cpu,
+        cellOffset_cpu,
+        cellCounts_cpu,
+        permTable_cpu,
+        neighbors.periodic,
+    )
+end
+
+# Already on CPU - no conversion needed
+toBackend(neighbors::NeighborsCellLinked{D, P}, ::CPU) where {D, P<:CPU} = neighbors
 
 function initNeighborsGPU(
         dims, 
@@ -184,5 +244,83 @@ function fillPermTable!(permTable::CUDA.CuArray, cellOffset::CUDA.CuArray,
         permTable, cell, cellOffset, N, cellCounts)
 
     return nothing
+end
+
+# GPU-specific field-level update for NeighborsCellLinked
+function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked}
+    N = lengthProperties(field)
+    neighbors = field._neighbors
+    
+    # Step 1: Assign each particle to its cell (GPU kernel)
+    assignCellFieldGPU!(neighbors.cell, N, field, neighbors)
+    
+    # Step 2: Count particles in each cell (GPU)
+    countInCell!(neighbors.cellOffset, N, neighbors.cell)
+    
+    # Step 3: Fill the permutation table (GPU)
+    fillPermTable!(neighbors.permTable, neighbors.cellOffset, 
+                  neighbors.cell, N, neighbors.cellCounts)
+    
+    return nothing
+end
+
+# GPU-specific cell assignment for 1D fields
+function assignCellFieldGPU!(cellArray, N, field::UnstructuredMeshField, neighbors::NeighborsCellLinked{1, P}) where {P<:GPUCuda}
+    x = field._p.x
+    
+    function kernel(cell, x, N, box, cellSize, grid)
+        i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+        if i <= N
+            @inbounds cell[i] = positionToLinear1D(x[i], box, cellSize, grid)
+        end
+        return nothing
+    end
+    
+    threads_per_block = 256
+    blocks = div(N + threads_per_block - 1, threads_per_block)
+    
+    CUDA.@cuda threads=threads_per_block blocks=blocks kernel(cellArray, x, N, neighbors.box, neighbors.cellSize, neighbors.grid)
+    CUDA.synchronize()
+end
+
+# GPU-specific cell assignment for 2D fields
+function assignCellFieldGPU!(cellArray, N, field::UnstructuredMeshField, neighbors::NeighborsCellLinked{2, P}) where {P<:GPUCuda}
+    x = field._p.x
+    y = field._p.y
+    
+    function kernel(cell, x, y, N, box, cellSize, grid)
+        i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+        if i <= N
+            @inbounds cell[i] = positionToLinear2D(x[i], y[i], box, cellSize, grid)
+        end
+        return nothing
+    end
+    
+    threads_per_block = 256
+    blocks = div(N + threads_per_block - 1, threads_per_block)
+    
+    CUDA.@cuda threads=threads_per_block blocks=blocks kernel(cellArray, x, y, N, neighbors.box, neighbors.cellSize, neighbors.grid)
+    CUDA.synchronize()
+end
+
+# GPU-specific cell assignment for 3D fields
+function assignCellFieldGPU!(cellArray, N, field::UnstructuredMeshField, neighbors::NeighborsCellLinked{3, P}) where {P<:GPUCuda}
+    x = field._p.x
+    y = field._p.y
+    z = field._p.z
+    
+    function kernel(cell, x, y, z, N, box, cellSize, grid)
+        i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+        if i <= N
+            @inbounds cell[i] = positionToLinear3D(x[i], y[i], z[i], box, cellSize, grid)
+        end
+        return nothing
+    end
+    
+    threads_per_block = 256
+    blocks = div(N + threads_per_block - 1, threads_per_block)
+    
+    CUDA.@cuda threads=threads_per_block blocks=blocks kernel(cellArray, x, y, z, N, neighbors.box, neighbors.cellSize, neighbors.grid)
+    CUDA.synchronize()
 end
 

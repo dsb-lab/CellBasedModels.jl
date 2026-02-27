@@ -1,7 +1,7 @@
 import CellBasedModels: positionToCell, mortonEncode, getNeighborCells1D, getNeighborCells2D, getNeighborCells3D
 import CellBasedModels: getNeighborCells1DPeriodic, getNeighborCells2DPeriodic, getNeighborCells3DPeriodic
 import CellBasedModels: CurveType, CURVE_MORTON, CURVE_HILBERT
-import CellBasedModels: iterateOverNeighbors, update!, lengthProperties
+import CellBasedModels: iterateOverNeighbors, update!, lengthProperties, toBackend
 
 """
 GPU implementation of NeighborsHash using sorted Morton codes instead of hash tables.
@@ -12,6 +12,289 @@ On GPU, we use a different approach than CPU:
 3. Build segment offsets (like CellLinked but sparse)
 4. Use binary search or segment lookup for neighbor iteration
 """
+
+# toBackend for NeighborsHash - converts CPU field-level to GPU
+# For GPU, we convert the pre-allocated arrays from initFieldNeighbors to CuArrays
+function toBackend(neighbors::NeighborsHash{D, P, UM, CS, HT, Per}, backend::CUDA.CUDABackend) where {D, P<:CPU, UM, CS, HT, Per}
+    # For field-level neighbors, HT is a NamedTuple with arrays
+    # Convert them to CuArrays for GPU
+    if neighbors.hashTable isa NamedTuple
+        hashTable_gpu = (
+            mortonCodes = CUDA.CuArray(neighbors.hashTable.mortonCodes),
+            sortedIndices = CUDA.CuArray(neighbors.hashTable.sortedIndices),
+            sortPerm = CUDA.CuArray(neighbors.hashTable.sortPerm),
+            uniqueCodes = CUDA.CuArray(neighbors.hashTable.uniqueCodes),
+            codeOffsets = CUDA.CuArray(neighbors.hashTable.codeOffsets),
+            numUniqueCodes = CUDA.CuArray(neighbors.hashTable.numUniqueCodes),
+            # cpuDict is not used on GPU
+        )
+        return NeighborsHash{
+            D, GPUCuda,
+            Nothing,
+            CS,
+            typeof(hashTable_gpu),
+            Per,
+        }(
+            nothing,
+            neighbors.cellSize,
+            hashTable_gpu,
+            neighbors.periodic,
+            neighbors.curveType,
+        )
+    else
+        # Old-style Dict or nothing - create empty GPU structure
+        # This path is for backwards compatibility or mesh-level conversion
+        return NeighborsHash{
+            D, GPUCuda,
+            Nothing,
+            CS,
+            Nothing,
+            Per,
+        }(
+            nothing,
+            neighbors.cellSize,
+            nothing,
+            neighbors.periodic,
+            neighbors.curveType,
+        )
+    end
+end
+
+# Already on GPU - no conversion needed
+toBackend(neighbors::NeighborsHash{D, P}, ::CUDA.CUDABackend) where {D, P<:GPUCuda} = neighbors
+
+# toBackend for NeighborsHash - converts GPU field-level back to CPU
+function toBackend(neighbors::NeighborsHash{D, P, UM, CS, HT, Per}, ::CPU) where {D, P<:GPU, UM, CS, HT, Per}
+    # Convert GPU arrays back to CPU arrays if present
+    if neighbors.hashTable isa NamedTuple
+        N = length(neighbors.hashTable.mortonCodes)
+        hashTable_cpu = (
+            mortonCodes = Array(neighbors.hashTable.mortonCodes),
+            sortedIndices = Array(neighbors.hashTable.sortedIndices),
+            sortPerm = Array(neighbors.hashTable.sortPerm),
+            uniqueCodes = Array(neighbors.hashTable.uniqueCodes),
+            codeOffsets = Array(neighbors.hashTable.codeOffsets),
+            numUniqueCodes = Array(neighbors.hashTable.numUniqueCodes),
+            cpuDict = Dict{UInt64, Vector{Int}}(),  # Fresh dict for CPU iteration
+        )
+        return NeighborsHash{
+            D, CPU,
+            Nothing,
+            CS,
+            typeof(hashTable_cpu),
+            Per,
+        }(
+            nothing,
+            neighbors.cellSize,
+            hashTable_cpu,
+            neighbors.periodic,
+            neighbors.curveType,
+        )
+    else
+        # Old-style nothing - create empty CPU structure
+        return NeighborsHash{
+            D, CPU,
+            Nothing,
+            CS,
+            Dict{UInt64, Vector{Int}},
+            Per,
+        }(
+            nothing,
+            neighbors.cellSize,
+            Dict{UInt64, Vector{Int}}(),
+            neighbors.periodic,
+            neighbors.curveType,
+        )
+    end
+end
+
+# Already on CPU - no conversion needed
+toBackend(neighbors::NeighborsHash{D, P}, ::CPU) where {D, P<:CPU} = neighbors
+
+# GPU kernel adaptation: convert NeighborsHash for use inside GPU kernels
+function Adapt.adapt_structure(to::CUDA.KernelAdaptor, neighbors::NeighborsHash{D, P, UM, CS, HT, Per}) where {D, P<:GPUCuda, UM, CS, HT, Per}
+    # Adapt the hashTable arrays for kernel use
+    adapted_hashTable = if neighbors.hashTable isa NamedTuple
+        (
+            mortonCodes = Adapt.adapt(to, neighbors.hashTable.mortonCodes),
+            sortedIndices = Adapt.adapt(to, neighbors.hashTable.sortedIndices),
+            sortPerm = Adapt.adapt(to, neighbors.hashTable.sortPerm),
+            uniqueCodes = Adapt.adapt(to, neighbors.hashTable.uniqueCodes),
+            codeOffsets = Adapt.adapt(to, neighbors.hashTable.codeOffsets),
+            numUniqueCodes = Adapt.adapt(to, neighbors.hashTable.numUniqueCodes),
+        )
+    else
+        nothing
+    end
+    return NeighborsHash{D, GPUCuDevice, Nothing, CS, typeof(adapted_hashTable), Per}(
+        nothing,
+        neighbors.cellSize,
+        adapted_hashTable,  # Use adapted hashTable for kernels
+        neighbors.periodic,
+        neighbors.curveType,
+    )
+end
+
+# GPU-specific field-level iterateOverNeighbors for NeighborsHash
+# Uses HashNeighborIteratorGPU for actual neighbor iteration
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{1}}
+    n = field._neighbors
+    if n.hashTable === nothing
+        return 1:lengthProperties(field)  # Fallback
+    end
+    ht = n.hashTable
+    
+    ix = floor(Int, x / n.cellSize[1])
+    neighborCodes = if n.periodic !== nothing
+        neighborMortonCodes1DPeriodic(ix, n.periodic[1])
+    else
+        neighborMortonCodes1D(ix)
+    end
+    numUnique = ht.numUniqueCodes[1]
+    
+    return HashNeighborIteratorGPU(ht.uniqueCodes, ht.codeOffsets, ht.sortedIndices, neighborCodes, numUnique)
+end
+
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x, y) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{2}}
+    n = field._neighbors
+    if n.hashTable === nothing
+        return 1:lengthProperties(field)  # Fallback
+    end
+    ht = n.hashTable
+    
+    ix = floor(Int, x / n.cellSize[1])
+    iy = floor(Int, y / n.cellSize[2])
+    neighborCodes = if n.periodic !== nothing
+        neighborMortonCodes2DPeriodic(ix, iy, n.periodic[1], n.periodic[2])
+    else
+        neighborMortonCodes2D(ix, iy)
+    end
+    numUnique = ht.numUniqueCodes[1]
+    
+    return HashNeighborIteratorGPU(ht.uniqueCodes, ht.codeOffsets, ht.sortedIndices, neighborCodes, numUnique)
+end
+
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x, y, z) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{3}}
+    n = field._neighbors
+    if n.hashTable === nothing
+        return 1:lengthProperties(field)  # Fallback
+    end
+    ht = n.hashTable
+    
+    ix = floor(Int, x / n.cellSize[1])
+    iy = floor(Int, y / n.cellSize[2])
+    iz = floor(Int, z / n.cellSize[3])
+    neighborCodes = if n.periodic !== nothing
+        neighborMortonCodes3DPeriodic(ix, iy, iz, n.periodic[1], n.periodic[2], n.periodic[3])
+    else
+        neighborMortonCodes3D(ix, iy, iz)
+    end
+    numUnique = ht.numUniqueCodes[1]
+    
+    return HashNeighborIteratorGPU(ht.uniqueCodes, ht.codeOffsets, ht.sortedIndices, neighborCodes, numUnique)
+end
+
+# GPUCuDevice versions (inside kernels)
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x) where {P<:GPUCuDevice, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{1}}
+    n = field._neighbors
+    if n.hashTable === nothing
+        return 1:lengthProperties(field)  # Fallback
+    end
+    ht = n.hashTable
+    
+    ix = floor(Int, x / n.cellSize[1])
+    neighborCodes = if n.periodic !== nothing
+        neighborMortonCodes1DPeriodic(ix, n.periodic[1])
+    else
+        neighborMortonCodes1D(ix)
+    end
+    numUnique = ht.numUniqueCodes[1]
+    
+    return HashNeighborIteratorGPU(ht.uniqueCodes, ht.codeOffsets, ht.sortedIndices, neighborCodes, numUnique)
+end
+
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x, y) where {P<:GPUCuDevice, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{2}}
+    n = field._neighbors
+    if n.hashTable === nothing
+        return 1:lengthProperties(field)  # Fallback
+    end
+    ht = n.hashTable
+    
+    ix = floor(Int, x / n.cellSize[1])
+    iy = floor(Int, y / n.cellSize[2])
+    neighborCodes = if n.periodic !== nothing
+        neighborMortonCodes2DPeriodic(ix, iy, n.periodic[1], n.periodic[2])
+    else
+        neighborMortonCodes2D(ix, iy)
+    end
+    numUnique = ht.numUniqueCodes[1]
+    
+    return HashNeighborIteratorGPU(ht.uniqueCodes, ht.codeOffsets, ht.sortedIndices, neighborCodes, numUnique)
+end
+
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x, y, z) where {P<:GPUCuDevice, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{3}}
+    n = field._neighbors
+    if n.hashTable === nothing
+        return 1:lengthProperties(field)  # Fallback
+    end
+    ht = n.hashTable
+    
+    ix = floor(Int, x / n.cellSize[1])
+    iy = floor(Int, y / n.cellSize[2])
+    iz = floor(Int, z / n.cellSize[3])
+    neighborCodes = if n.periodic !== nothing
+        neighborMortonCodes3DPeriodic(ix, iy, iz, n.periodic[1], n.periodic[2], n.periodic[3])
+    else
+        neighborMortonCodes3D(ix, iy, iz)
+    end
+    numUnique = ht.numUniqueCodes[1]
+    
+    return HashNeighborIteratorGPU(ht.uniqueCodes, ht.codeOffsets, ht.sortedIndices, neighborCodes, numUnique)
+end
+
+# GPU-specific field-level update for NeighborsHash
+# Computes Morton codes, sorts particles, and builds segment offsets
+function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash}
+    neighbors = field._neighbors
+    
+    # Check if we have the required arrays
+    if neighbors.hashTable === nothing
+        return nothing  # Fallback - no arrays available
+    end
+    
+    ht = neighbors.hashTable
+    D = length(neighbors.cellSize)
+    N = lengthProperties(field)
+    
+    if N == 0
+        ht.numUniqueCodes[1] = 0
+        return nothing
+    end
+    
+    # Step 1: Compute Morton codes
+    if D == 1
+        computeMortonCodes1D!(ht.mortonCodes, field._p.x, N, neighbors.cellSize[1])
+    elseif D == 2
+        computeMortonCodes2D!(ht.mortonCodes, field._p.x, field._p.y, N, neighbors.cellSize)
+    else
+        computeMortonCodes3D!(ht.mortonCodes, field._p.x, field._p.y, field._p.z, N, neighbors.cellSize)
+    end
+    
+    # Step 2: Sort particles by Morton code
+    # Get sort permutation (on GPU using sortperm_view)
+    sortPerm = sortperm(view(ht.mortonCodes, 1:N))
+    ht.sortPerm[1:N] .= sortPerm
+    
+    # Create sorted indices (original particle indices in Morton order)
+    ht.sortedIndices[1:N] .= 1:N
+    ht.sortedIndices[1:N] .= ht.sortedIndices[sortPerm]
+    
+    # Step 3: Build segment offsets for unique Morton codes
+    sortedCodes = ht.mortonCodes[sortPerm]
+    buildSegmentOffsets!(ht.uniqueCodes, ht.codeOffsets, ht.numUniqueCodes, sortedCodes, N)
+
+    return nothing
+end
 
 function initNeighborsGPU(
         dims, 

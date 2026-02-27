@@ -113,6 +113,56 @@ function NeighborsHash(
     )
 end
 
+# Initialize neighbors for NeighborsHash
+# Specializes on UnstructuredMeshField with NeighborsHash type
+function initNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash}
+    neighbors = field._neighbors
+    # Infer dimensions from field properties (check for x, y, z fields)
+    propNames = keys(field._p)
+    D = 1
+    if :z in propNames
+        D = 3
+    elseif :y in propNames
+        D = 2
+    end
+    
+    NCache = lengthCache(field)
+    
+    cellSize = neighbors.cellSize
+    if cellSize isa Number
+        cellSize = ntuple(_ -> cellSize, D)
+    elseif cellSize isa AbstractVector
+        cellSize = Tuple(cellSize)
+    end
+    
+    # Create arrays for field-level Hash (similar to CellLinked approach)
+    # This allows seamless GPU conversion via toBackend
+    hashTable = (
+        mortonCodes = zeros(UInt64, NCache),
+        sortedIndices = zeros(Int, NCache),
+        sortPerm = zeros(Int, NCache),
+        uniqueCodes = zeros(UInt64, NCache),
+        codeOffsets = zeros(Int, NCache + 1),
+        numUniqueCodes = zeros(Int, 1),
+        # Also store the Dict for CPU iteration
+        cpuDict = Dict{UInt64, Vector{Int}}(),
+    )
+    
+    NeighborsHash{
+        D, P,
+        Nothing,  # No mesh reference at field level
+        typeof(cellSize),
+        typeof(hashTable),
+        typeof(neighbors.periodic),
+    }(
+        nothing,  # u
+        cellSize,
+        hashTable,
+        neighbors.periodic,
+        neighbors.curveType,
+    )
+end
+
 """
 Convert position to cell coordinates (integer grid indices).
 For open space, cells can have negative indices.
@@ -256,75 +306,25 @@ end
     return (mod(ix - 1, nx), mod(ix, nx), mod(ix + 1, nx))
 end
 
-function initNeighbors(
-        dims, 
-        neighbors::NeighborsHash,
-        meshParameters::NamedTuple
-    )
-
-    D = dims
-    P = platform()
-
-    if dims < 1 || dims > 3
-        error("NeighborsHash only supports 1D, 2D, or 3D. Found dims=$dims")
-    end
-
-    cellSize = neighbors.cellSize
-    if cellSize isa Number
-        cellSize = ntuple(_ -> cellSize, D)
-    elseif cellSize isa Tuple
-        if length(cellSize) != D
-            error("Cell size mismatch. Expected length $(D), found length $(length(cellSize))")
-        end
-    elseif cellSize isa AbstractVector
-        cellSize = Tuple(cellSize)
-        if length(cellSize) != D
-            error("Cell size mismatch. Expected length $(D), found length $(length(cellSize))")        
-        end
+# Update for NeighborsHash - assigns particles to hash table
+function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P<:CPU, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash}
+    neighbors = field._neighbors
+    D = length(neighbors.cellSize)
+    N = lengthProperties(field)
+    
+    # Clear the CPU dictionary (used for iteration on CPU)
+    cpuDict = neighbors.hashTable.cpuDict
+    empty!(cpuDict)
+    
+    # Assign particles to cells based on dimension
+    if D == 1
+        assignParticlesToHash1D!(cpuDict, N, field._p, neighbors)
+    elseif D == 2
+        assignParticlesToHash2D!(cpuDict, N, field._p, neighbors)
     else
-        error("Cell size must be a Number, Tuple, or Vector. Found type $(typeof(cellSize))")
-    end
-
-    # Create hash tables for each property
-    # Using Dict{UInt64, Vector{Int}} for CPU
-    hashTables = Dict()
-    
-    for (name, prop) in pairs(meshParameters)
-        hashTables[name] = Dict{UInt64, Vector{Int}}()
+        assignParticlesToHash3D!(cpuDict, N, field._p, neighbors)
     end
     
-    hashTableNamed = NamedTuple{tuple(keys(hashTables)...)}(values(hashTables))
-
-    NeighborsHash{
-        D, P, 
-        typeof(meshParameters), 
-        typeof(cellSize),
-        typeof(hashTableNamed),
-        typeof(neighbors.periodic),
-    }(meshParameters, cellSize, hashTableNamed, neighbors.periodic, neighbors.curveType)
-
-end
-
-function update!(mesh::UnstructuredMeshObject{CPU, D, S, DT, NN, PAR}) where {D, S, DT, NN<:NeighborsHash, PAR}
-
-    neighbors = mesh._neighbors
-    
-    for (name, prop) in pairs(mesh._p)
-        N = lengthProperties(prop)
-        
-        # Clear hash table
-        empty!(neighbors.hashTable[name])
-        
-        # Assign particles to cells
-        if D == 1
-            assignParticlesToHash1D!(neighbors.hashTable[name], N, prop, neighbors)
-        elseif D == 2
-            assignParticlesToHash2D!(neighbors.hashTable[name], N, prop, neighbors)
-        else
-            assignParticlesToHash3D!(neighbors.hashTable[name], N, prop, neighbors)
-        end
-    end
-
     return nothing
 end
 
@@ -385,8 +385,10 @@ struct HashNeighborIterator{HT, NC}
     neighborCodes::NC  # Tuple of Morton codes for neighbor cells
 end
 
-@inline function iterateOverNeighbors(mesh::UnstructuredMeshObject{P, 1, S, DT, NN}, name::Symbol, x) where {P, S, DT, NN<:NeighborsHash}
-    n = mesh._neighbors
+
+# Field-based iterateOverNeighbors for NeighborsHash on CPU (per-field neighbors)
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x) where {P<:CPU, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{1}}
+    n = field._neighbors
     ix = positionToCell(x, n.cellSize[1])
     
     neighborCells = if n.periodic !== nothing
@@ -396,11 +398,11 @@ end
     end
     
     neighborCodes = ntuple(i -> mortonEncode(neighborCells[i]), length(neighborCells))
-    return HashNeighborIterator(n.hashTable[name], neighborCodes)
+    return HashNeighborIterator(n.hashTable.cpuDict, neighborCodes)
 end
 
-@inline function iterateOverNeighbors(mesh::UnstructuredMeshObject{P, 2, S, DT, NN}, name::Symbol, x, y) where {P, S, DT, NN<:NeighborsHash}
-    n = mesh._neighbors
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x, y) where {P<:CPU, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{2}}
+    n = field._neighbors
     ix, iy = positionToCell(x, y, n.cellSize)
     
     neighborCells = if n.periodic !== nothing
@@ -410,11 +412,11 @@ end
     end
     
     neighborCodes = ntuple(i -> mortonEncode(neighborCells[i]...), length(neighborCells))
-    return HashNeighborIterator(n.hashTable[name], neighborCodes)
+    return HashNeighborIterator(n.hashTable.cpuDict, neighborCodes)
 end
 
-@inline function iterateOverNeighbors(mesh::UnstructuredMeshObject{P, 3, S, DT, NN}, name::Symbol, x, y, z) where {P, S, DT, NN<:NeighborsHash}
-    n = mesh._neighbors
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x, y, z) where {P<:CPU, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{3}}
+    n = field._neighbors
     ix, iy, iz = positionToCell(x, y, z, n.cellSize)
     
     neighborCells = if n.periodic !== nothing
@@ -424,7 +426,7 @@ end
     end
     
     neighborCodes = ntuple(i -> mortonEncode(neighborCells[i]...), length(neighborCells))
-    return HashNeighborIterator(n.hashTable[name], neighborCodes)
+    return HashNeighborIterator(n.hashTable.cpuDict, neighborCodes)
 end
 
 @inline function Base.iterate(it::HashNeighborIterator, state=(1, 1))

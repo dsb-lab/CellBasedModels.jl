@@ -15,7 +15,7 @@
             x_i = u.n.x[i]
             y_i = u.n.y[i]
             z_i = u.n.z[i]
-            for j in iterateOverNeighbors(u, :n, x_i, y_i, z_i)
+            for j in iterateOverNeighbors(u.n, x_i, y_i, z_i)
                 if j == i
                     continue
                 end
@@ -114,7 +114,7 @@
             x_i = u.n.x[i]
             y_i = u.n.y[i]
             z_i = u.n.z[i]
-            for j in iterateOverNeighbors(u, :n, x_i, y_i, z_i)
+            for j in iterateOverNeighbors(u.n, x_i, y_i, z_i)
                 if j == i
                     continue
                 end
@@ -181,7 +181,7 @@
             x_i = u.n.x[i]
             y_i = u.n.y[i]
             z_i = u.n.z[i]
-            for j in iterateOverNeighbors(u, :n, x_i, y_i, z_i)
+            for j in iterateOverNeighbors(u.n, x_i, y_i, z_i)
                 if j == i
                     continue
                 end
@@ -255,7 +255,7 @@
             x_i = u.n.x[i]
             y_i = u.n.y[i]
             z_i = u.n.z[i]
-            for j in iterateOverNeighbors(u, :n, x_i, y_i, z_i)
+            for j in iterateOverNeighbors(u.n, x_i, y_i, z_i)
                 if j == i
                     continue
                 end
@@ -330,7 +330,7 @@
             y_i = u.n.y[i]
             z_i = u.n.z[i]
             du.n.a[i] = 0
-            for j in iterateOverNeighbors(u, :n, x_i, y_i, z_i)
+            for j in iterateOverNeighbors(u.n, x_i, y_i, z_i)
                 if j == i
                     continue
                 end
@@ -401,7 +401,7 @@
             y_i = u.n.y[i]
             z_i = u.n.z[i]
             du.n.a[i] = 0
-            for j in iterateOverNeighbors(u, :n, x_i, y_i, z_i)
+            for j in iterateOverNeighbors(u.n, x_i, y_i, z_i)
                 if j == i
                     continue
                 end

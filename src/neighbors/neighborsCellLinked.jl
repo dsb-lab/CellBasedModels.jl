@@ -71,97 +71,69 @@ function NeighborsCellLinked(
 
 end
 
-function initNeighbors(
-        dims, 
-        neighbors::NeighborsCellLinked,
-        meshParameters::NamedTuple
-    )
-
-    D = dims
-    P = platform()
-
-    if dims < 1 || dims > 3
-        error("NeighborsCellLinked only supports 1D, 2D, or 3D. Found dims=$dims")
-    end
-
-    if size(neighbors.box) != (D, 2)
-        error("Box size mismatch. Expected size ($(D), 2), found size $(size(neighbors.box))")
-    end
-    box = Array(neighbors.box)  # Convert to CPU if on GPU
-
+# Initialize neighbors for NeighborsCellLinked
+# Specializes on UnstructuredMeshField with NeighborsCellLinked type
+function initNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked}
+    neighbors = field._neighbors
+    # Use the box to determine dimensions
+    D = size(neighbors.box, 1)
+    NCache = lengthCache(field)
+    
+    box = Array(neighbors.box)
+    
     cellSize = neighbors.cellSize
     if cellSize isa Number
-        # Scalar cellSize: replicate for all dimensions
-        cellSize = fill(cellSize, D)
-    elseif cellSize isa Tuple
-        # Tuple cellSize: convert to vector and check length
-        cellSize = collect(cellSize)
-        if length(cellSize) != D
-            error("Cell size mismatch. Expected length $(D), found length $(length(cellSize))")
-        end
+        cellSize = ntuple(_ -> cellSize, D)
     elseif cellSize isa AbstractVector
-        # Vector cellSize: check length and convert to CPU
-        cellSize = Array(cellSize)  # Convert to CPU if on GPU
-        if length(cellSize) != D
-            error("Cell size mismatch. Expected length $(D), found length $(length(cellSize))")        
-        end
-    else
-        error("Cell size must be a Number, Tuple, or Vector. Found type $(typeof(cellSize))")
+        cellSize = Tuple(cellSize)
+    elseif cellSize isa Tuple
+        cellSize = cellSize
     end
-    cellSize = Tuple(cellSize)
-
-    # Calculate grid size: no padding for periodic dimensions, padding for non-periodic
-    grid = round.(Int, (box[:,2] - box[:,1]) ./ cellSize)
-    gridTuple = ntuple(i -> grid[i], D)  # Convert to NTuple for assignCell! compatibility
-    gridSize = prod(grid)  # Total number of cells
-
-    permTable = Dict()
-    cell = Dict()
-    cellOffset = Dict()
-    cellCounts = Dict()  # Per-thread workspace arrays
     
-    for (name, prop) in pairs(meshParameters)
-        permTable[name] = zeros(Int, lengthCache(prop))
-        cell[name] = zeros(Int, lengthCache(prop))
-        cellOffset[name] = zeros(Int, gridSize+1)
-        # Create per-thread workspace for cell counters (gridSize per thread)
-        cellCounts[name] = zeros(Int, gridSize+1)
-    end
-
-    permTableNamed = NamedTuple{tuple(keys(permTable)...)}(values(permTable))
-    cellNamed = NamedTuple{tuple(keys(cell)...)}(values(cell))
-    cellOffsetNamed = NamedTuple{tuple(keys(cellOffset)...)}(values(cellOffset))
-    cellCountsNamed = NamedTuple{tuple(keys(cellCounts)...)}(values(cellCounts))
-
+    # Calculate grid dimensions
+    grid = ntuple(d -> round(Int, (box[d, 2] - box[d, 1]) / cellSize[d]), D)
+    gridSize = prod(grid)
+    
+    # Create simple arrays (not dictionaries) for field-level storage
+    cell = zeros(Int, NCache)
+    cellOffset = zeros(Int, gridSize + 1)
+    cellCounts = zeros(Int, gridSize + 1)
+    permTable = zeros(Int, NCache)
+    
     NeighborsCellLinked{
-        D, P, 
-        typeof(meshParameters), 
-        typeof(box), typeof(cellSize), typeof(gridTuple), 
-        typeof(cellNamed), typeof(cellOffsetNamed),
+        D, P,
+        Nothing,  # No mesh reference at field level
+        typeof(box), typeof(cellSize), typeof(grid),
+        typeof(cell), typeof(cellOffset),
         typeof(neighbors.periodic),
-    }(meshParameters, box, cellSize, gridTuple, cellNamed, cellOffsetNamed, cellCountsNamed, permTableNamed, neighbors.periodic)
-
+    }(
+        nothing,  # u
+        box,
+        cellSize,
+        grid,
+        cell,
+        cellOffset,
+        cellCounts,
+        permTable,
+        neighbors.periodic,
+    )
 end
 
-function update!(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR}) where {P, D, S, DT, NN<:NeighborsCellLinked, PAR}
-
-    # Cell reassignment and permutation table filling
-    for (name, prop) in pairs(mesh._p)
-        N = lengthProperties(prop)
-        
-        # Step 1: Assign each particle to its cell
-        assignCell!(mesh._neighbors.cell[name], N, prop, mesh._neighbors)
-        
-        # Step 2: Count particles in each cell (parallel, no allocations)
-        countInCell!(mesh._neighbors.cellOffset[name], N, mesh._neighbors.cell[name])
-        
-        # Step 3: Fill the permutation table (parallel, reuses cellCounts workspace)
-        fillPermTable!(mesh._neighbors.permTable[name], mesh._neighbors.cellOffset[name], 
-                      mesh._neighbors.cell[name], N, mesh._neighbors.cellCounts[name])
-    end
-
-    #Renaming TO DO
-
+# Update for NeighborsCellLinked - assigns particles to cells
+function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked}
+    N = lengthProperties(field)
+    neighbors = field._neighbors
+    
+    # Step 1: Assign each particle to its cell
+    assignCell!(neighbors.cell, N, field._p, neighbors)
+    
+    # Step 2: Count particles in each cell
+    countInCell!(neighbors.cellOffset, N, neighbors.cell)
+    
+    # Step 3: Fill the permutation table
+    fillPermTable!(neighbors.permTable, neighbors.cellOffset, 
+                  neighbors.cell, N, neighbors.cellCounts)
+    
     return nothing
 end
 
@@ -245,25 +217,26 @@ function fillPermTable!(permTable, cellOffset, cell, N, cellCounts)
     
 end
 
-@inline function iterateOverNeighbors(mesh::UnstructuredMeshObject{P, 1, S, DT, NN}, name::Symbol, x) where {P, S, DT, NN<:NeighborsCellLinked}
-    n = mesh._neighbors
+# Field-based iterateOverNeighbors for NeighborsCellLinked (per-field neighbors)
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked{1}}
+    n = field._neighbors
     c = assignCell(n, x)
     neigh = n.periodic ? linearNeighbors1DPeriodic(c, n.grid) : linearNeighbors1D(c, n.grid)
-    return CellLinkedIterator(length(neigh), n, neigh, n.cellOffset[name], n.permTable[name])
+    return CellLinkedIterator(length(neigh), n, neigh, n.cellOffset, n.permTable)
 end
 
-@inline function iterateOverNeighbors(mesh::UnstructuredMeshObject{P, 2, S, DT, NN}, name::Symbol, x, y) where {P, S, DT, NN<:NeighborsCellLinked}
-    n = mesh._neighbors
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x, y) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked{2}}
+    n = field._neighbors
     c = assignCell(n, x, y)
     neigh = n.periodic ? linearNeighbors2DPeriodic(c, n.grid) : linearNeighbors2D(c, n.grid)
-    return CellLinkedIterator(length(neigh), n, neigh, n.cellOffset[name], n.permTable[name])
+    return CellLinkedIterator(length(neigh), n, neigh, n.cellOffset, n.permTable)
 end
 
-@inline function iterateOverNeighbors(mesh::UnstructuredMeshObject{P, 3, S, DT, NN}, name::Symbol, x, y, z) where {P, S, DT, NN<:NeighborsCellLinked}
-    n = mesh._neighbors
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x, y, z) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked{3}}
+    n = field._neighbors
     c = assignCell(n, x, y, z)
     neigh = n.periodic ? linearNeighbors3DPeriodic(c, n.grid) : linearNeighbors3D(c, n.grid)
-    return CellLinkedIterator(length(neigh), n, neigh, n.cellOffset[name], n.permTable[name])
+    return CellLinkedIterator(length(neigh), n, neigh, n.cellOffset, n.permTable)
 end
 
 struct CellLinkedIterator{NN, NT, CO, PT}

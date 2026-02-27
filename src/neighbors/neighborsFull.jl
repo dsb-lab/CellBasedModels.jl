@@ -1,89 +1,65 @@
-struct NeighborsFull{P, UM, PT, AB} <: AbstractNeighbors 
-
-    u::UM
+# NeighborsFull stores its own permTable and auxBuffers for compaction operations
+struct NeighborsFull{P, PT, AB} <: AbstractNeighbors 
     permTable::PT
-    auxBuffers::AB  # Auxiliary buffers for each property to enable non-allocating compaction
-
+    auxBuffers::AB
 end
 Adapt.@adapt_structure NeighborsFull
 
-NeighborsFull() = NeighborsFull(nothing, nothing, nothing)
+NeighborsFull() = NeighborsFull{Nothing, Nothing, Nothing}(nothing, nothing)
 
-function NeighborsFull(
-    mesh,
-    neighbors,
-    auxBuffers=nothing,
-)
-
-    P = platform()
-    NeighborsFull{P, typeof(mesh), typeof(neighbors), typeof(auxBuffers)}(mesh, neighbors, auxBuffers)
-
-end
-
-function initNeighbors(
-        ::Int,
-        ::NeighborsFull,
-        meshParameters::NamedTuple
-    )
-
-    permTable = Dict()
+# Constructor for creating NeighborsFull with allocated buffers and mesh properties
+function NeighborsFull(::Type{P}, NCache::Int, meshProperties=nothing) where {P}
+    permTable = Vector{Int}(undef, NCache)
     
-    # Find the maximum cache size across all properties
-    maxCacheSize = 0
-    for (name, prop) in pairs(meshParameters)
-        maxCacheSize = max(maxCacheSize, lengthCache(prop))
-    end
-    
-    # Create one reusable buffer per element type across all properties and fields
-    typeBuffers = Dict()
-    
-    for (name, prop) in pairs(meshParameters)
-        permTable[name] = zeros(Int, lengthCache(prop))
-        
-        # Create or reuse buffer for each field based on its element type
-        for (fieldname, field) in pairs(prop._p)
-            elemType = eltype(field)
-            if !haskey(typeBuffers, elemType)
-                typeBuffers[elemType] = similar(field, maxCacheSize)
-            end
-        end
-    end
-    
-    # Map each property's fields to their corresponding type buffer
-    auxBuffers = Dict()
-    for (name, prop) in pairs(meshParameters)
-        auxBuffers[name] = NamedTuple{fieldnames(typeof(prop._p))}(
-            [typeBuffers[eltype(prop._p[fname])] for fname in fieldnames(typeof(prop._p))]
+    # Create auxBuffers as a NamedTuple matching the mesh properties
+    auxBuffers = if meshProperties !== nothing && hasfield(typeof(meshProperties), :p)
+        # Create auxiliary buffers matching property names and types
+        propnames = keys(meshProperties.p)
+        buffers = NamedTuple{propnames}(
+            Vector{dtype(dt, isbits=true)}(undef, NCache) for dt in values(meshProperties.p)
         )
+        buffers
+    else
+        nothing
     end
-
-    permTableNamed = NamedTuple{tuple(keys(permTable)...)}(values(permTable))
-    auxBuffersNamed = NamedTuple{tuple(keys(auxBuffers)...)}(values(auxBuffers))
-
-    NeighborsFull{platform(), typeof(meshParameters), typeof(permTableNamed), typeof(auxBuffersNamed)}(meshParameters, permTableNamed, auxBuffersNamed)
-
+    
+    return NeighborsFull{P, typeof(permTable), typeof(auxBuffers)}(permTable, auxBuffers)
 end
 
-## Preallocate
-function preallocate!(neighbors::NeighborsFull, additionalCache::NamedTuple = (;))
+# Set the default neighbors constructor to use NeighborsFull
+DEFAULT_NEIGHBORS_CONSTRUCTOR[] = (NCache, meshProperties) -> NeighborsFull(KernelAbstractions.CPU, NCache, meshProperties)
+
+# Initialize neighbors for NeighborsFull
+# Specializes on UnstructuredMeshField with NeighborsFull type
+function initNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull}
+    NCache = lengthCache(field)
+    
+    permTable = Vector{Int}(undef, NCache)
+    
+    # Create auxBuffers matching field properties
+    propnames = keys(field._p)
+    auxBuffers = NamedTuple{propnames}(
+        Vector{eltype(p)}(undef, NCache) for p in values(field._p)
+    )
+    
+    return NeighborsFull{P, typeof(permTable), typeof(auxBuffers)}(permTable, auxBuffers)
+end
+
+## Preallocate - resize internal buffers
+function preallocate!(neighbors::NeighborsFull, newSize::Int)
     """
-    Preallocate auxiliary buffers for NeighborsFull neighbors.
-    Resizes permutation tables and auxiliary buffers when fields are expanded.
+    Preallocate auxiliary buffers for neighbor operations.
+    Resizes permutation table and auxiliary buffers.
     """
-    for (field_name, additional) in pairs(additionalCache)
-        if field_name in keys(neighbors.permTable)
-            # Resize permutation table
-            newSize = length(neighbors.permTable[field_name]) + additional
-            resize!(neighbors.permTable[field_name], newSize)
-            
-            # Resize auxiliary buffers for this field
-            if field_name in keys(neighbors.auxBuffers)
-                fieldBuffers = neighbors.auxBuffers[field_name]
-                for buffer in fieldBuffers
-                    if buffer !== nothing
-                        resize!(buffer, newSize)
-                    end
-                end
+    if neighbors.permTable !== nothing
+        resize!(neighbors.permTable, newSize)
+    end
+    
+    if neighbors.auxBuffers !== nothing
+        # auxBuffers is a NamedTuple of vectors
+        for buffer in values(neighbors.auxBuffers)
+            if buffer !== nothing
+                resize!(buffer, newSize)
             end
         end
     end
@@ -91,19 +67,33 @@ function preallocate!(neighbors::NeighborsFull, additionalCache::NamedTuple = (;
     return nothing
 end
 
-function update!(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR}) where {P, D, S, DT, NN<:NeighborsFull, PAR}
+# Fallback for nothing neighbors
+function preallocate!(::Nothing, ::Int)
+    return nothing
+end
 
-    # Compaction
+# Update function for UnstructuredMeshObject - calls update! on each field
+function update!(mesh::UnstructuredMeshObject{P, D, S, DT, PAR}) where {P, D, S, DT, PAR}
     for (name, prop) in pairs(mesh._p)
-        NAddedNew = lengthPropertiesNew(prop)
-        NNew = fillPermTable!(mesh._neighbors.permTable[name], prop._FlagsSurvived, NAddedNew)
-        compactUnstructuredMeshField!(mesh._p[name], mesh._neighbors.permTable[name], mesh._neighbors.auxBuffers[name], NNew)
+        update!(prop)
     end
-
-    # println("P: ", mesh._neighbors.permTable[:n])
-
     renameElements!(mesh)
+end
 
+# Default no-op for fields without neighbors or with nothing neighbors
+update!(::UnstructuredMeshField) = nothing
+
+# NeighborsFull: does compaction
+function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull}
+    neighbors = field._neighbors
+    if neighbors.permTable !== nothing
+        NAddedNew = lengthPropertiesNew(field)
+        NNew = fillPermTable!(neighbors.permTable, field._FlagsSurvived, NAddedNew)
+        if neighbors.auxBuffers !== nothing
+            compactUnstructuredMeshField!(field, neighbors.permTable, neighbors.auxBuffers, NNew)
+        end
+    end
+    return nothing
 end
 
 function fillPermTable!(perm, flags, N)
@@ -123,33 +113,20 @@ function fillPermTable!(perm, flags, N)
 
 end
 
-function iterateOverNeighbors(mesh::UnstructuredMeshObject{P, D, S, DT, NN}, symbol::Symbol, index::Int) where {P, D, S, DT, NN<:NeighborsFull}
-
-    return 1:lengthProperties(mesh._p[symbol])
-
+# Field-level API: iterateOverNeighbors for NeighborsFull returns all elements
+# Specializes on the NN type parameter of UnstructuredMeshField
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, index::Int) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull}
+    return 1:lengthProperties(field)
 end
 
-function iterateOverNeighbors(mesh::UnstructuredMeshObject{P, D, S, DT, NN}, symbol::Symbol, ::Any) where {P, D, S, DT, NN<:NeighborsFull}
-
-    return 1:lengthProperties(mesh._p[symbol])
-
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, ::Any) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull}
+    return 1:lengthProperties(field)
 end
 
-function iterateOverNeighbors(mesh::UnstructuredMeshObject{P, D, S, DT, NN}, symbol::Symbol, ::Any, ::Any) where {P, D, S, DT, NN<:NeighborsFull}
-
-    return 1:lengthProperties(mesh._p[symbol])
-
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, ::Any, ::Any) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull}
+    return 1:lengthProperties(field)
 end
 
-function iterateOverNeighbors(mesh::UnstructuredMeshObject{P, D, S, DT, NN}, symbol::Symbol, ::Any, ::Any, ::Any) where {P, D, S, DT, NN<:NeighborsFull}
-
-    return 1:lengthProperties(mesh._p[symbol])
-
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, ::Any, ::Any, ::Any) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull}
+    return 1:lengthProperties(field)
 end
-
-function getNeighbors(mesh::UnstructuredMeshObject{P, D, S, DT, NN}, symbol::Symbol, index::Int) where {P, D, S, DT, NN<:NeighborsFull}
-
-    return collect(iterateOverNeighbors(mesh, symbol, index))
-
-end
-

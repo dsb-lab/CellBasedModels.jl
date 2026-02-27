@@ -102,6 +102,7 @@ function DifferentialEquations.init(problem::CBProblem; dt::Real, overflowFactor
 
     integrator = CBIntegrator{typeof(problem.u), typeof(integrators)}(problem.u, integrators, dt, problem.tspan[1], overflowFactor)
 
+    # Initialize neighbor structures
     CellBasedModels.update!(integrator.u)
 
     return integrator
@@ -111,6 +112,9 @@ end
 function DifferentialEquations.step!(integrator::CBIntegrator)
 
     dt = integrator.dt
+
+    # Update neighbor structures before running kernels
+    CellBasedModels.update!(integrator.u)
 
     # Step ODEs
     for (scope, deintegrator) in pairs(integrator.integrators)

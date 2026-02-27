@@ -87,6 +87,11 @@ function Agent(cs::Symbol, p::NamedTuple=(;))
     )
 end
 
+# Convenience constructor with default connection to :n
+function Agent(p::NamedTuple)
+    Agent(:n, p)
+end
+
 ######################################################################################################
 # AGENT STRUCTURE
 ######################################################################################################
@@ -372,7 +377,8 @@ struct UnstructuredMeshField{
             PR, PRN, PRC,
             IDVI, IDAI,    
             VN,
-            AI, VB, AB            
+            AI, VB, AB,
+            NN  # Neighbors type
         }
     _p::PR
     _NP::Int
@@ -388,6 +394,9 @@ struct UnstructuredMeshField{
     _FlagsSurvived::VB
     _NAdded::AI
     _NOverflow::AB
+
+    # Neighbors structure (e.g., NeighborsFull, NeighborsHash, etc.)
+    _neighbors::NN
 end
 Adapt.@adapt_structure UnstructuredMeshField
 
@@ -395,7 +404,8 @@ function UnstructuredMeshField(
         meshProperties::AbstractUnstructuredMeshProperty;
         N::Int=0,
         NCache::Int=0,
-        id=true
+        id=true,
+        neighbors=:auto  # :auto uses createDefaultNeighbors, nothing for no neighbors
 )
 
     if meshProperties === nothing
@@ -424,6 +434,7 @@ function UnstructuredMeshField(
     _NP = length(meshProperties.p)
     _pReference = SizedVector{length(_p), Bool}([true for _ in 1:length(meshProperties.p)])
 
+    # First create field structure
     P = platform(_N)
     DT = Nothing
     for i in values(meshProperties.p)
@@ -445,13 +456,50 @@ function UnstructuredMeshField(
     PR = typeof(_p)
     PRN = _NP
     PRC = typeof(_pReference)
+    
+    # Now initialize neighbors
+    _neighbors = if neighbors === :auto
+        createDefaultNeighbors(NCache, meshProperties)
+    else
+        # For all neighbor types, create temp field with template neighbors, then call initNeighbors
+        temp_field = UnstructuredMeshField{
+                P, DT,
+                PR, PRN, PRC, 
+                IDVI, IDAI,
+                VN,
+                AI, VB, AB,
+                typeof(neighbors)
+            }(
+                _p,
+                _NP,
+                _pReference,
 
+                _id,
+                _idMax,
+
+                _nodes,
+
+                _N,
+                _NCache,
+                _FlagsSurvived,
+                _NAdded,
+                _NOverflow,
+                
+                neighbors,
+            )
+        initNeighbors(temp_field)
+    end
+    
+    NN = typeof(_neighbors)
+
+    # Return final field with proper neighbors
     UnstructuredMeshField{
             P, DT,
             PR, PRN, PRC, 
             IDVI, IDAI,
             VN,
-            AI, VB, AB
+            AI, VB, AB,
+            NN
         }(
             _p,
             _NP,
@@ -467,6 +515,8 @@ function UnstructuredMeshField(
             _FlagsSurvived,
             _NAdded,
             _NOverflow,
+            
+            _neighbors,
         )
 end
 
@@ -485,6 +535,8 @@ function UnstructuredMeshField(
             _FlagsSurvived,
             _NAdded,
             _NOverflow,
+            
+            _neighbors,
     )
 
     P = platform(_N)
@@ -508,6 +560,8 @@ function UnstructuredMeshField(
     AI = typeof(_N)
     AB = typeof(_NOverflow)
     VB = typeof(_FlagsSurvived)
+    
+    NN = typeof(_neighbors)
 
     UnstructuredMeshField{
             P, DT,
@@ -515,6 +569,7 @@ function UnstructuredMeshField(
             IDVI, IDAI,
             VN,
             AI, VB, AB,
+            NN,
         }(
             _p,
             _NP,
@@ -530,6 +585,8 @@ function UnstructuredMeshField(
             _FlagsSurvived,
             _NAdded,
             _NOverflow,
+            
+            _neighbors,
         )
 end
 
@@ -539,12 +596,14 @@ function Base.show(io::IO, x::UnstructuredMeshField{
             IDVI, IDAI,
             VN,
             AI, VB, AB,
+            NN,
         }) where {
             P, DT,
             PR, PRN, PRC,
             IDVI, IDAI,
             VN,
-            AI, VB, AB, 
+            AI, VB, AB,
+            NN,
         } 
     
     println(io, "UnstructuredMeshField: \n")
@@ -562,6 +621,7 @@ function Base.show(io::IO, x::UnstructuredMeshField{
     println(io, @sprintf("\t%-25s %-15s", "_FlagsSurvived", VB))
     println(io, @sprintf("\t%-25s %-15s", "_NAdded", AI))
     println(io, @sprintf("\t%-25s %-15s", "_NOverflow", AB))
+    println(io, @sprintf("\t%-25s %-15s", "_neighbors", NN))
 
     for ((n, t), c) in zip(pairs(x._p), x._pReference)
         if c
@@ -585,12 +645,14 @@ function show(io::IO, ::Type{UnstructuredMeshField{
             IDVI, IDAI,
             VN,
             AI, VB, AB,
+            NN,
         }}) where {
             P, DT,
             PR, PRN, PRC,
             IDVI, IDAI,
             VN,
             AI, VB, AB,
+            NN,
         } 
     for (n, t) in zip(PR.parameters[1], PR.parameters[2].parameters)
         print(io, "p.", string(n), "::", t, ", ")
@@ -607,6 +669,7 @@ function show(io::IO, ::Type{UnstructuredMeshField{
     print(io, "_FlagsSurvived::", VB, ", ")
     print(io, "_NAdded::", AI, ", ")
     print(io, "_NOverflow::", AB, ", ")
+    print(io, "_neighbors::", NN, ", ")
 end
 
 @generated function Base.getproperty(field::UnstructuredMeshField{
@@ -701,6 +764,8 @@ function Base.copy(field::UnstructuredMeshField)
         field._FlagsSurvived,
         field._NAdded,
         field._NOverflow,
+        
+        field._neighbors,
     )
 
 end
@@ -726,6 +791,8 @@ function partialCopy(field::UnstructuredMeshField, args)
         field._FlagsSurvived,
         field._NAdded,
         field._NOverflow,
+        
+        field._neighbors,
     )
 
 end
@@ -751,6 +818,8 @@ function Base.similar(field::UnstructuredMeshField)
         field._FlagsSurvived,
         field._NAdded,
         field._NOverflow,
+        
+        field._neighbors,
     )
 end
 
@@ -774,6 +843,8 @@ function Base.zero(field::UnstructuredMeshField)
         field._FlagsSurvived,
         field._NAdded,
         field._NOverflow,
+        
+        field._neighbors,
     )
 end
 
@@ -963,10 +1034,16 @@ function preallocate!(field::UnstructuredMeshField, additionalCache::Int=field._
     
     # Resize supporting arrays
     resize!(field._id, newNCache)
-    for n in field._nodes
-        n !== nothing && resize!(n, newNCache)
+    # _nodes is a single Vector, not a collection
+    if field._nodes !== nothing
+        resize!(field._nodes, newNCache)
     end
     resize!(field._FlagsSurvived, newNCache)
+    
+    # Preallocate neighbors (if present)
+    if field._neighbors !== nothing
+        preallocate!(field._neighbors, newNCache)
+    end
     
     # Update cache size
     field._NCache .= newNCache
@@ -989,11 +1066,10 @@ end
 # UnstructuredMeshObject
 ######################################################################################################
 struct UnstructuredMeshObject{
-            P, D, S, DT, NN,
+            P, D, S, DT,
             PAR, TOPO, AB
     } <: AbstractMeshObject
     _p::PAR
-    _neighbors::NN
     _topology::TOPO
     _FlagOverflow::AB
 end
@@ -1004,9 +1080,11 @@ object2mesh(::Type{<:UnstructuredMeshObject}) = UnstructuredMesh
 
 function UnstructuredMeshObject(
         mesh::UnstructuredMesh{D, S};
-        neighbors::AbstractNeighbors=NeighborsFull(),
         kwargs...
     ) where {D, S}
+
+    # Extract neighbors parameter if provided, default to :auto
+    neighbors = get(kwargs, :neighbors, :auto)
 
     fields = []
     P = platform()
@@ -1052,31 +1130,31 @@ function UnstructuredMeshObject(
                 NCache_ = kwargs[p][2]
             end
 
-            field = UnstructuredMeshField(prop, N = N_, NCache = NCache_)
+            field = UnstructuredMeshField(prop, N = N_, NCache = NCache_, neighbors = neighbors)
             push!(fields, field)
             
         elseif prop isa Edge || prop isa Face || prop isa Volume
-            # Edge, Face, Volume must be AbstractCSR
-            if !(kwargs[p] isa AbstractCSR)
-                error("$(typeof(prop).name.name) property '$p' must be an AbstractCSR. Found $(typeof(kwargs[p]))")
+            # Edge, Face, Volume must be AbstractSparseMatrix
+            if !(kwargs[p] isa AbstractSparseMatrix)
+                error("$(typeof(prop).name.name) property '$p' must be an AbstractSparseMatrix. Found $(typeof(kwargs[p]))")
             end
             
-            field = UnstructuredMeshField(prop, N = lengthElements(kwargs[p]), NCache = lengthElementsCache(kwargs[p]))
+            field = UnstructuredMeshField(prop, N = lengthElements(kwargs[p]), NCache = lengthElementsCache(kwargs[p]), neighbors = neighbors)
             push!(fields, field)
             
         elseif prop isa Agent
             # Agent depends on number of associated symbols
             if length(prop.cs) == 1
-                # Single symbol: must be AbstractCSR
-                if !(kwargs[p] isa AbstractCSR)
-                    error("Agent property '$p' with single connection ($(prop.cs[1])) must be an AbstractCSR. Found $(typeof(kwargs[p]))")
+                # Single symbol: must be AbstractSparseMatrix
+                if !(kwargs[p] isa AbstractSparseMatrix)
+                    error("Agent property '$p' with single connection ($(prop.cs[1])) must be an AbstractSparseMatrix. Found $(typeof(kwargs[p]))")
                 end
                 
-                field = UnstructuredMeshField(prop, N = lengthElements(kwargs[p]), NCache = lengthElementsCache(kwargs[p]))
+                field = UnstructuredMeshField(prop, N = lengthElements(kwargs[p]), NCache = lengthElementsCache(kwargs[p]), neighbors = neighbors)
                 push!(fields, field)
                 
             else
-                # Multiple symbols: must be NamedTuple with AbstractCSR for each symbol
+                # Multiple symbols: must be NamedTuple with AbstractSparseMatrix for each symbol
                 if !(kwargs[p] isa NamedTuple)
                     error("Agent property '$p' with multiple connections $(prop.cs) must be a NamedTuple. Found $(typeof(kwargs[p]))")
                 end
@@ -1086,8 +1164,8 @@ function UnstructuredMeshObject(
                     if !(sym in keys(kwargs[p]))
                         error("Agent property '$p' is missing connection to '$sym' in NamedTuple")
                     end
-                    if !(kwargs[p][sym] isa AbstractCSR)
-                        error("Agent property '$p' connection to '$sym' must be an AbstractCSR. Found $(typeof(kwargs[p][sym]))")
+                    if !(kwargs[p][sym] isa AbstractSparseMatrix)
+                        error("Agent property '$p' connection to '$sym' must be an AbstractSparseMatrix. Found $(typeof(kwargs[p][sym]))")
                     end
                 end
 
@@ -1097,7 +1175,7 @@ function UnstructuredMeshObject(
                         join([string(sym, "=", lengthElements(kwargs[p][sym])) for sym in prop.cs], ", "))
                 end
 
-                field = UnstructuredMeshField(prop, N = lengthElements(kwargs[p][prop.cs[1]]), NCache = lengthElementsCache(kwargs[p][prop.cs[1]]))
+                field = UnstructuredMeshField(prop, N = lengthElements(kwargs[p][prop.cs[1]]), NCache = lengthElementsCache(kwargs[p][prop.cs[1]]), neighbors = neighbors)
                 push!(fields, field)
             end
         else
@@ -1107,24 +1185,23 @@ function UnstructuredMeshObject(
     end
 
     params = NamedTuple{tuple(keys(mesh._p)...)}(fields)
-    neighbors_ = initNeighbors(D, neighbors, params)
     _FlagOverflow = SizedVector{1}(false)
     
     # Build topology object from mesh topology and validate consistency
     topology_ = buildTopology(mesh._topology, kwargs, params)
 
     meshObj = UnstructuredMeshObject{
-            P, D, S, DT, typeof(neighbors_),
+            P, D, S, DT,
             typeof(params), typeof(topology_), typeof(_FlagOverflow)
         }(
-            params, neighbors_, topology_, _FlagOverflow
+            params, topology_, _FlagOverflow
         )
 
     return meshObj
 end
 
 function UnstructuredMeshObject(
-            p, neighbors, topology, _FlagOverflow
+            p, topology, _FlagOverflow
     )
 
     D = 0
@@ -1155,10 +1232,10 @@ function UnstructuredMeshObject(
     end
 
     return UnstructuredMeshObject{
-            P, D, S, DT, typeof(neighbors),
+            P, D, S, DT,
             typeof(p), typeof(topology), typeof(_FlagOverflow)
         }(
-            p, neighbors, topology, _FlagOverflow
+            p, topology, _FlagOverflow
         )
 end
 
@@ -1199,7 +1276,7 @@ function Base.show(io::IO, x::Type{UnstructuredMeshObject{P, D, S}}) where {P, D
     println(io, "}")
 end
 
-function show(io::IO, ::Type{UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}}) where {P, D, S, DT, NN, PAR, TOPO, AB}
+function show(io::IO, ::Type{UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}}) where {P, D, S, DT, PAR, TOPO, AB}
     for (props, propsnames) in zip((PAR), ("a", "PropertiesNode", "PropertiesEdge", "PropertiesFace", "PropertiesVolume"))
         if props !== Nothing
             print(io, "\t", string(propsnames), "Meta", "=(")
@@ -1209,10 +1286,10 @@ function show(io::IO, ::Type{UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, 
     end
 end
 
-function lengthProperties(::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}) where {P, D, S, DT, NN, PAR, TOPO, AB}
+function lengthProperties(::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) where {P, D, S, DT, PAR, TOPO, AB}
     return length(PAR.parameters[1])
 end    
-function Base.length(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}) where {P, D, S, DT, NN, PAR, TOPO, AB}
+function Base.length(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) where {P, D, S, DT, PAR, TOPO, AB}
     c = 0
     for i in values(mesh._p)
         c += length(i)
@@ -1240,7 +1317,7 @@ spatialDims(::Type{<:UnstructuredMeshObject{P, D}}) where {P, D} = D
 specialization(mesh::UnstructuredMeshObject{P, D, S}) where {P, D, S} = S
 
 #Getindex
-@generated function Base.getproperty(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}, s::Symbol) where {P, D, S, DT, NN, PAR, TOPO, AB}
+@generated function Base.getproperty(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, s::Symbol) where {P, D, S, DT, PAR, TOPO, AB}
     # build a clause for each fieldname in T
     general = [
         :(if s === $(QuoteNode(name)); return getfield(field, $(QuoteNode(name))); end)
@@ -1275,26 +1352,24 @@ function LinearAlgebra.norm(u::UnstructuredMeshObject, t::Real)
 end
 
 ## Copy
-function Base.copy(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}) where {P, D, S, DT, NN, PAR, TOPO, AB}
+function Base.copy(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) where {P, D, S, DT, PAR, TOPO, AB}
 
-    UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}(
+    UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}(
         NamedTuple{keys(field._p)}(
             copy(getfield(field._p, name)) for name in keys(field._p)
         ),
-        field._neighbors,
         field._topology,
         field._FlagOverflow
     )
 
 end
 
-function partialCopy(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}, copyArgs) where {P, D, S, DT, NN, PAR, TOPO, AB}
+function partialCopy(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, copyArgs) where {P, D, S, DT, PAR, TOPO, AB}
 
-    UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}(
+    UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}(
         NamedTuple{keys(field._p)}(
             partialCopy(getfield(field._p, name), [i[2] for i in copyArgs if i[1] == name]) for name in keys(field._p)
         ),
-        field._neighbors,
         field._topology,
         field._FlagOverflow
     )
@@ -1302,44 +1377,41 @@ function partialCopy(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, A
 end
 
 ## Similar
-function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}) where {P, D, S, DT, NN, PAR, TOPO, AB}
+function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) where {P, D, S, DT, PAR, TOPO, AB}
 
-    UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}(
+    UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}(
         NamedTuple{keys(field._p)}(
             similar(getfield(field._p, name)) for name in keys(field._p)
         ),
-        field._neighbors,
         field._topology,
         field._FlagOverflow
     )
 
 end
 
-function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}, _) where {P, D, S, DT, NN, PAR, TOPO, AB}
+function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, _) where {P, D, S, DT, PAR, TOPO, AB}
 
-    UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}(
+    UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}(
         NamedTuple{keys(field._p)}(
             similar(getfield(field._p, name)) for name in keys(field._p)
         ),
-        field._neighbors,
         field._topology,
         field._FlagOverflow
     )
 
 end
 
-## Deepcopy - preserve _neighbors reference
-function Base.deepcopy_internal(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}, stackdict::IdDict) where {P, D, S, DT, NN, PAR, TOPO, AB}
+## Deepcopy - preserve _topology reference
+function Base.deepcopy_internal(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, stackdict::IdDict) where {P, D, S, DT, PAR, TOPO, AB}
     if haskey(stackdict, field)
         return stackdict[field]
     end
     
-    # Deepcopy the data arrays but preserve _neighbors and _topology references
-    new_field = UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}(
+    # Deepcopy the data arrays but preserve _topology reference
+    new_field = UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}(
         NamedTuple{keys(field._p)}(
             Base.deepcopy_internal(getfield(field._p, name), stackdict) for name in keys(field._p)
         ),
-        field._neighbors,  # Preserve reference
         field._topology,   # Preserve reference  
         deepcopy(field._FlagOverflow)
     )
@@ -1349,13 +1421,12 @@ function Base.deepcopy_internal(field::UnstructuredMeshObject{P, D, S, DT, NN, P
 end
 
 ## Zero
-function Base.zero(field::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}) where {P, D, S, DT, NN, PAR, TOPO, AB}
+function Base.zero(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) where {P, D, S, DT, PAR, TOPO, AB}
 
-    UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}(
+    UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}(
         NamedTuple{keys(field._p)}(
             zero(getfield(field._p, name)) for name in keys(field._p)
         ),
-        field._neighbors,
         field._topology,
         field._FlagOverflow
     )
@@ -1410,7 +1481,7 @@ function Base.fill!(
 end
 
 ## Preallocate
-function preallocate!(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}, additionalCache::NamedTuple = (;)) where {P, D, S, DT, NN, PAR, TOPO, AB}
+function preallocate!(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, additionalCache::NamedTuple = (;)) where {P, D, S, DT, PAR, TOPO, AB}
     """
     Allocate additional cache memory for specific fields in an UnstructuredMeshObject.
     additionalCache should be a NamedTuple with field names as keys and additional cache sizes as values.
@@ -1427,14 +1498,12 @@ function preallocate!(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, A
             @warn "Field $field_name not found in mesh. Skipping preallocation."
         end
     end
-
-    preallocate!(mesh._neighbors, additionalCache)
     
     return nothing
 end
 
 ## getOverflow
-function getOverflow(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}, factor=1) where {P, D, S, DT, NN, PAR, TOPO, AB}
+function getOverflow(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, factor=1) where {P, D, S, DT, PAR, TOPO, AB}
     """
     Extract overflow information from all fields in an UnstructuredMeshObject.
     Returns a NamedTuple with field names as keys and overflow counts as values.
@@ -1461,7 +1530,7 @@ function getOverflow(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB
     return (;overflows...)
 end
 
-function resetOverflow!(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}) where {P, D, S, DT, NN, PAR, TOPO, AB}
+function resetOverflow!(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) where {P, D, S, DT, PAR, TOPO, AB}
     """
     Reset overflow counters for all fields in an UnstructuredMeshObject.
     """
@@ -1476,7 +1545,7 @@ function resetOverflow!(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO,
     return nothing
 end
 
-function isOverflowed(mesh::UnstructuredMeshObject{P, D, S, DT, NN, PAR, TOPO, AB}) where {P, D, S, DT, NN, PAR, TOPO, AB}
+function isOverflowed(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) where {P, D, S, DT, PAR, TOPO, AB}
     return Array(mesh._FlagOverflow)[1]
 end
 
@@ -1636,14 +1705,8 @@ end
 #     mesh
 # end
 
-## Update function (placeholder for future extensions)
-function update!(mesh::UnstructuredMeshObject)
-    """
-    Update mesh after rule applications (e.g., add/remove agents).
-    Currently a placeholder for future extensions.
-    """
-    return nothing
-end
+# Note: update!(mesh::UnstructuredMeshObject) is defined in neighbors/neighborsFull.jl
+# It handles compaction using field._neighbors.permTable and field._neighbors.auxBuffers
 
 # ######################################################################################################
 # # ForwardDiff Support
