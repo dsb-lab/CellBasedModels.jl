@@ -284,6 +284,12 @@ function _wrt_to_valid(wrt, orig_to_valid::Dict{Any,Symbol}, valid_to_orig::Dict
 end
 
 # ------------------------------------------------------------
+# Helper for converting functional call syntax to infix operators
+# ------------------------------------------------------------
+const _INFIX_OPS = Set([(+), (-), (*), (/), (^)])
+const _OP_TO_SYM = Dict((+) => :+, (-) => :-, (*) => :*, (/) => :/, (^) => :^)
+
+# ------------------------------------------------------------
 # Macro
 # ------------------------------------------------------------
 macro diffsym(block, args...)
@@ -413,7 +419,8 @@ macro diffsym(block, args...)
         xvar  = declared_vars[wrt_valid]
 
         d = Symbolics.expand_derivatives(Symbolics.Differential(xvar)(fexpr))
-        d = Symbolics.simplify(d)
+        # NOTE: Removed simplify() call here - CSE handles common subexpression elimination
+        # and simplify() was the main compile-time bottleneck
         push!(deriv_syms, d)
         push!(deriv_names, outname)
     end
@@ -430,12 +437,56 @@ macro diffsym(block, args...)
     # Get topologically sorted CSE assignments
     sorted_assigns = topological_sort(cse_state.sorted_exprs)
 
+    # Helper to convert functional call syntax to infix operators
+    # e.g., (*)(a, b) → a * b, (^)(x, 2) → x^2
+    # Symbolics.toexpr returns actual function objects, not symbols
+    # Uses module-level _INFIX_OPS and _OP_TO_SYM constants
+    
+    function to_infix(ex)
+        if ex isa Expr && ex.head == :call
+            op = ex.args[1]
+            # Check if it's a binary/n-ary operator in functional form
+            if op in _INFIX_OPS && length(ex.args) >= 3
+                op_sym = _OP_TO_SYM[op]
+                return Expr(:call, op_sym, map(to_infix, ex.args[2:end])...)
+            else
+                return Expr(:call, op, map(to_infix, ex.args[2:end])...)
+            end
+        elseif ex isa Expr
+            return Expr(ex.head, map(to_infix, ex.args)...)
+        else
+            return ex
+        end
+    end
+
+    # Build a map from CSE variable names to their literal values (for inlining)
+    literal_map = Dict{Symbol, Any}()
+    
     deriv_assign_exprs = Expr[]
     
-    # First, add the CSE intermediate variable assignments
+    # First, add the CSE intermediate variable assignments (skip literals)
     for item in sorted_assigns
         lhs_ex = Symbolics.toexpr(item.lhs)
         rhs_ex = Symbolics.toexpr(item.rhs)
+        
+        # Check if RHS is just a literal number - if so, record for inlining
+        if rhs_ex isa Number
+            literal_map[lhs_ex] = rhs_ex
+            continue  # Don't emit assignment for literals
+        end
+        
+        # Convert to infix syntax
+        rhs_ex = to_infix(rhs_ex)
+        
+        # Inline any literals in the RHS
+        rhs_ex = MacroTools.postwalk(rhs_ex) do node
+            if node isa Symbol && haskey(literal_map, node)
+                literal_map[node]
+            else
+                node
+            end
+        end
+        
         # substitute valid symbols back to original dotted/bracket expressions
         rhs_ex_orig = MacroTools.postwalk(rhs_ex) do node
             if node isa Symbol && haskey(valid_to_orig, node)
@@ -450,6 +501,18 @@ macro diffsym(block, args...)
     # Then add the final derivative assignments using the CSE output variables
     for (i, outname) in enumerate(deriv_names)
         ex_d = Symbolics.toexpr(cse_output_vars[i])
+        
+        # Convert to infix syntax
+        ex_d = to_infix(ex_d)
+        
+        # Inline any literals
+        ex_d = MacroTools.postwalk(ex_d) do node
+            if node isa Symbol && haskey(literal_map, node)
+                literal_map[node]
+            else
+                node
+            end
+        end
 
         # substitute valid symbols back to original dotted/bracket expressions
         ex_d_orig = MacroTools.postwalk(ex_d) do node
