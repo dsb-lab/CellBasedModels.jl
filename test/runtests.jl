@@ -18,8 +18,9 @@ backends = CUDA.has_cuda() ? [CPU(), CUDA.CUDABackend()] : [CPU()]
     # include("testParameter.jl")
     # include("testDiffSym.jl")
     # include("testDiffAuto.jl")
-    # include("testDynamicalCOO.jl")
-    # include("testDynamicalCSR.jl")
+    include("testDynamicalCOO.jl")
+    include("testDynamicalCSR.jl")
+    include("testDynamicalELL.jl")
     # include("testTopologyAuxiliar.jl")
 
     # include("testUnstructuredMesh.jl")
@@ -27,7 +28,7 @@ backends = CUDA.has_cuda() ? [CPU(), CUDA.CUDABackend()] : [CPU()]
     # include("testMultiMesh.jl")
     # include("testAddFunctions.jl")
 
-    include("testNeighbors.jl")
+    # include("testNeighbors.jl")
     # include("testCustomIntegrators.jl")
 
     # include("testAgentGlobal.jl")
@@ -44,7 +45,7 @@ if benchmark
     N = 100000
     n = 10000
 
-    include("benchmarkNeighborsAlgorithms.jl")
+    # include("benchmarkNeighborsAlgorithms.jl")
 
     # include("benchmarkCommunityIndices.jl")
     # include("benchmarkRecursiveCachedArrays.jl")

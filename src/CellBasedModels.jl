@@ -67,20 +67,17 @@ module CellBasedModels
     include("./neighbors/abstractTypes.jl")
 
     #Topology
-    export AuxiliarFields
-    include("./topology/auxiliar.jl")
+    # export AuxiliarFields
+    # include("./topology/auxiliar.jl")
 
     include("./topology/abstractCSR.jl")
     export DynamicalCOO, dcoo_zeros
     include("./topology/DynamicalCOO.jl")
     export DynamicalCSR, dcsr_zeros
-    include("./topology/abstractCSR.jl")
-    # export CSRTuple
-    # include("./topology/CSRTuple.jl")
-    # export CSRCache
-    # include("./topology/CSRCache.jl")
-    export DynamicalCSR, dcsr_zeros
     include("./topology/DynamicalCSR.jl")
+    export DynamicalELL, dell_zeros
+    include("./topology/DynamicalELL.jl")
+    export replaceIndex!
     export Topology
     include("./topology/topology.jl")
 

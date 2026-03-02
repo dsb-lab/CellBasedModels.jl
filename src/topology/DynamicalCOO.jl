@@ -379,6 +379,238 @@ function _getindex(coo::DynamicalCOO, i::Int, j::Int)
     return nothing
 end
 
+"""
+    replaceIndex!(coo::DynamicalCOO, i_old::Int, j_old::Int, i_new::Int, j_new::Int)
+
+Replace the indices of an existing entry in-place without removing and re-adding.
+Finds the entry at (i_old, j_old) and changes its indices to (i_new, j_new), keeping the value.
+Returns true if the entry was found and replaced, false otherwise.
+
+This is more efficient than `coo[i_new, j_new] = coo[i_old, j_old]; coo[i_old, j_old] = nothing`
+because it avoids the overhead of removal and insertion.
+"""
+function replaceIndex!(coo::DynamicalCOO, i_old::Int, j_old::Int, i_new::Int, j_new::Int)
+
+    if i_old <= 0 || j_old <= 0 || i_new <= 0 || j_new <= 0
+        @print "Indices must be positive integers."
+        return false
+    end
+
+    nEntries = min(coo._NEntriesCache[1], coo._NEntries[1])
+
+    # Search for the old entry
+    for k in 1:1:nEntries
+        if coo._rows[k] == i_old && coo._cols[k] == j_old
+            # Found - replace indices in place
+            coo._rows[k] = i_new
+            coo._cols[k] = j_new
+            return true
+        end
+    end
+
+    # Entry not found
+    return false
+end
+
+"""
+    replaceIndex!(coo::DynamicalCOO, i::Int, j_old::Int, j_new::Int)
+
+Replace the column index of an existing entry in-place, keeping the same row.
+Shorthand for `replaceIndex!(coo, i, j_old, i, j_new)`.
+Returns true if the entry was found and replaced, false otherwise.
+"""
+function replaceIndex!(coo::DynamicalCOO, i::Int, j_old::Int, j_new::Int)
+    return replaceIndex!(coo, i, j_old, i, j_new)
+end
+
+"""
+    setindex!(coo::DynamicalCOO, value, i::Int, ::Colon)
+
+Set all entries in row i to value.
+Allows syntax: coo[i,:] = value
+"""
+function Base.setindex!(coo::DynamicalCOO{P}, value, i::Int, ::Colon) where {P}
+
+    nEntries = min(coo._NEntriesCache[1], coo._NEntries[1])
+
+    for k in 1:1:nEntries
+        if coo._rows[k] == i
+            old = coo._values[k]
+            if old == 0 && value != 0
+                Atomix.@atomic coo._NEntriesNonzero[1] += 1
+            elseif old != 0 && value == 0
+                Atomix.@atomic coo._NEntriesNonzero[1] -= 1
+            end
+            coo._values[k] = value
+        end
+    end
+
+    return
+end
+
+"""
+    setindex!(coo::DynamicalCOO, value, ::Colon, j::Int)
+
+Set all entries in column j to value.
+Allows syntax: coo[:,j] = value
+"""
+function Base.setindex!(coo::DynamicalCOO{P}, value, ::Colon, j::Int) where {P}
+
+    nEntries = min(coo._NEntriesCache[1], coo._NEntries[1])
+
+    for k in 1:1:nEntries
+        if coo._cols[k] == j
+            old = coo._values[k]
+            if old == 0 && value != 0
+                Atomix.@atomic coo._NEntriesNonzero[1] += 1
+            elseif old != 0 && value == 0
+                Atomix.@atomic coo._NEntriesNonzero[1] -= 1
+            end
+            coo._values[k] = value
+        end
+    end
+
+    return
+end
+
+"""
+    setindex!(coo::DynamicalCOO, ::Nothing, i::Int, ::Colon)
+
+Remove all entries in row i.
+Allows syntax: coo[i,:] = nothing
+"""
+function Base.setindex!(coo::DynamicalCOO{P}, ::Nothing, i::Int, ::Colon) where {P<:CPU}
+
+    nEntries = min(coo._NEntriesCache[1], coo._NEntries[1])
+
+    for k in 1:1:nEntries
+        if coo._rows[k] == i
+            result = Atomix.@atomicreplace coo._rows[k] i => 0
+            if result.success
+                Atomix.@atomic coo._NEntries[1] -= 1
+                if coo._values[k] != 0
+                    Atomix.@atomic coo._NEntriesNonzero[1] -= 1
+                end
+                coo._cols[k] = 0
+                coo._values[k] = zero(eltype(coo._values))
+                # Add to free entries
+                newFreePos = Atomix.@atomic coo._NEntriesFreeNext[1] += 1
+                newPos = coo._NEntriesFreeNextInit[1] + newFreePos
+                if newPos <= length(coo._entriesFree)
+                    coo._entriesFree[newPos-1] = k
+                else
+                    lock(coo._lock) do
+                        push!(coo._entriesFree, k)
+                        coo._NOverflowErase[1] += 1
+                    end
+                end
+            end
+        end
+    end
+
+    return
+end
+
+function Base.setindex!(coo::DynamicalCOO{P}, ::Nothing, i::Int, ::Colon) where {P<:GPU}
+
+    nEntries = min(coo._NEntriesCache[1], coo._NEntries[1])
+
+    for k in 1:1:nEntries
+        if coo._rows[k] == i
+            result = Atomix.@atomicreplace coo._rows[k] i => 0
+            if result.success
+                Atomix.@atomic coo._NEntries[1] -= 1
+                if coo._values[k] != 0
+                    Atomix.@atomic coo._NEntriesNonzero[1] -= 1
+                end
+                coo._cols[k] = 0
+                coo._values[k] = zero(eltype(coo._values))
+                # Add to free entries
+                newFreePos = Atomix.@atomic coo._NEntriesFreeNext[1] += 1
+                newPos = coo._NEntriesFreeNextInit[1] + newFreePos
+                if newPos <= length(coo._entriesFree)
+                    coo._entriesFree[newPos-1] = k
+                else
+                    Atomix.@atomic coo._NEntriesFreeNext[1] -= 1
+                    Atomix.@atomic coo._NOverflowErase[1] += 1
+                end
+            end
+        end
+    end
+
+    return
+end
+
+"""
+    setindex!(coo::DynamicalCOO, ::Nothing, ::Colon, j::Int)
+
+Remove all entries in column j.
+Allows syntax: coo[:,j] = nothing
+"""
+function Base.setindex!(coo::DynamicalCOO{P}, ::Nothing, ::Colon, j::Int) where {P<:CPU}
+
+    nEntries = min(coo._NEntriesCache[1], coo._NEntries[1])
+
+    for k in 1:1:nEntries
+        if coo._cols[k] == j && coo._rows[k] != 0
+            rowVal = coo._rows[k]
+            result = Atomix.@atomicreplace coo._rows[k] rowVal => 0
+            if result.success
+                Atomix.@atomic coo._NEntries[1] -= 1
+                if coo._values[k] != 0
+                    Atomix.@atomic coo._NEntriesNonzero[1] -= 1
+                end
+                coo._cols[k] = 0
+                coo._values[k] = zero(eltype(coo._values))
+                # Add to free entries
+                newFreePos = Atomix.@atomic coo._NEntriesFreeNext[1] += 1
+                newPos = coo._NEntriesFreeNextInit[1] + newFreePos
+                if newPos <= length(coo._entriesFree)
+                    coo._entriesFree[newPos-1] = k
+                else
+                    lock(coo._lock) do
+                        push!(coo._entriesFree, k)
+                        coo._NOverflowErase[1] += 1
+                    end
+                end
+            end
+        end
+    end
+
+    return
+end
+
+function Base.setindex!(coo::DynamicalCOO{P}, ::Nothing, ::Colon, j::Int) where {P<:GPU}
+
+    nEntries = min(coo._NEntriesCache[1], coo._NEntries[1])
+
+    for k in 1:1:nEntries
+        if coo._cols[k] == j && coo._rows[k] != 0
+            rowVal = coo._rows[k]
+            result = Atomix.@atomicreplace coo._rows[k] rowVal => 0
+            if result.success
+                Atomix.@atomic coo._NEntries[1] -= 1
+                if coo._values[k] != 0
+                    Atomix.@atomic coo._NEntriesNonzero[1] -= 1
+                end
+                coo._cols[k] = 0
+                coo._values[k] = zero(eltype(coo._values))
+                # Add to free entries
+                newFreePos = Atomix.@atomic coo._NEntriesFreeNext[1] += 1
+                newPos = coo._NEntriesFreeNextInit[1] + newFreePos
+                if newPos <= length(coo._entriesFree)
+                    coo._entriesFree[newPos-1] = k
+                else
+                    Atomix.@atomic coo._NEntriesFreeNext[1] -= 1
+                    Atomix.@atomic coo._NOverflowErase[1] += 1
+                end
+            end
+        end
+    end
+
+    return
+end
+
 function overflow(coo::DynamicalCOO)
 
     return overflowEntries(coo) >= 0
@@ -879,6 +1111,46 @@ function remapcols!(coo::DynamicalCOO, colmap::AbstractVector{Int})
     backend = KernelAbstractions.get_backend(coo)
     threads = backend === CPU() ? Threads.nthreads() : 256
     kernel_remap_cols!(backend, threads)(coo._cols, colmap, ndrange = length(coo))
+    
+    return
+
+end
+
+function remap!(coo::DynamicalCOO, rowmap::AbstractVector{Int}, colmap::AbstractVector{Int})
+    """
+    Remap both row and column indices in a single pass.
+    """
+
+    @kernel function kernel_remap!(rows, cols, rowmap, colmap)
+        
+        i = @index(Global)
+        
+        if rows[i] != 0
+            oldRow = rows[i]
+            if oldRow <= length(rowmap)
+                rows[i] = rowmap[oldRow]
+            else
+                @print "Row index $oldRow out of bounds for rowmap of length $(length(rowmap))\n"
+            end
+        end
+        
+        if cols[i] != 0
+            oldCol = cols[i]
+            if oldCol <= length(colmap)
+                cols[i] = colmap[oldCol]
+            else
+                @print "Column index $oldCol out of bounds for colmap of length $(length(colmap))\n"
+            end
+        end
+        
+    end
+    
+    backend = KernelAbstractions.get_backend(coo)
+    rowmap_backend = toBackend(backend, rowmap)
+    colmap_backend = toBackend(backend, colmap)
+
+    threads = backend === CPU() ? Threads.nthreads() : 256
+    kernel_remap!(backend, threads)(coo._rows, coo._cols, rowmap_backend, colmap_backend, ndrange = length(coo))
     
     return
 

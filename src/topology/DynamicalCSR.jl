@@ -64,7 +64,11 @@ function dcsr_zeros(dtype::DataType, n_rows::Int=0, n_cols::Union{Int, Vector}=0
     if n_cols isa Int
         @assert n_cols >= 0 "n_cols must be >= 0"
         n_entries += n_cols*n_rows
-        offsets = collect(1:n_cols:n_cols*n_rows+1)
+        if n_cols == 0
+            offsets = ones(Int, n_rows + 1)
+        else
+            offsets = collect(1:n_cols:n_cols*n_rows+1)
+        end
     else
         @assert all(n_cols .>= 0) "all elements of n_cols must be >= 0"
         @assert length(n_cols) == n_rows "length of n_cols must be == n_rows"
@@ -156,11 +160,11 @@ function Base.show(io::IO, x::Type{DynamicalCSR{P, T, V, I}}) where {P, T, V, I}
 end
 
 Base.length(csr::DynamicalCSR{P}) where {P} = length(csr._values)
-numberOfEntries(csr::DynamicalCSR{P}) where {P} = getDeviceIndex(csr._NEntries) + getDeviceIndex(csr._coo._NEntries)
-numberOfEntriesCache(csr::DynamicalCSR{P}) where {P} = getDeviceIndex(csr._NEntriesCache)
-numberOfEntriesNonzero(csr::DynamicalCSR{P}) where {P} = getDeviceIndex(csr._NEntriesNonzero) + getDeviceIndex(csr._coo.NEntriesNonzero)
-numberOfRows(csr::DynamicalCSR{P}) where {P} = max(maximum(csr._coo._rows), length(csr._rowOffsets)-1)
-numberOfCols(csr::DynamicalCSR{P}) where {P} = max(maximum(csr._cols), maximum(csr._coo._cols))
+numberOfEntries(csr::DynamicalCSR{P}) where {P} = getDeviceIndex(csr._NEntries) + numberOfEntries(csr._coo)
+numberOfEntriesCache(csr::DynamicalCSR{P}) where {P} = getDeviceIndex(csr._NEntriesCache)  # CSR cache only
+numberOfEntriesNonzero(csr::DynamicalCSR{P}) where {P} = getDeviceIndex(csr._NEntriesNonzero) + numberOfEntriesNonzero(csr._coo)
+numberOfRows(csr::DynamicalCSR{P}) where {P} = max(numberOfRows(csr._coo), length(csr._rowOffsets)-1)
+numberOfCols(csr::DynamicalCSR{P}) where {P} = max(maximum(csr._cols), numberOfCols(csr._coo))
 
 """
     setindex!(csr::DynamicalCSR, value, i::Int, j::Int)
@@ -216,68 +220,52 @@ end
 
 function Base.setindex!(csr::DynamicalCSR{P}, ::Nothing, i::Int, j::Int) where {P<:CPU}
 
-    nEntries = min(csr._NEntriesCache[1], csr._NEntries[1])
-
-    # Search for i j in csr
-    for k in 1:1:nEntries
-        #Found
-        if csr._rows[k] == i && csr._cols[k] == j
-            result = Atomix.@atomicreplace csr._rows[k] k => 0
-            if result.success
-                Atomix.@atomic csr._NEntries[1] -= 1
-                if csr._values[k] != 0
+    # Search in CSR portion using row offsets
+    if i > 0 && i < length(csr._rowOffsets)
+        startIdx = csr._rowOffsets[i]
+        endIdx = csr._rowOffsets[i+1] - 1
+        for k in startIdx:endIdx
+            if csr._cols[k] == j
+                if csr._values[k] != zero(eltype(csr._values))
                     Atomix.@atomic csr._NEntriesNonzero[1] -= 1
                 end
                 csr._cols[k] = 0
                 csr._values[k] = zero(eltype(csr._values))
-                # Add to free entries
-                newFreePos = Atomix.@atomic csr._NEntriesFreeNext[1] += 1
-                newPos = csr._NEntriesFreeNextInit[1] + newFreePos
-                if newPos <= length(csr._entriesFree)
-                    csr._entriesFree[newPos-1] = k
-                else
-                    lock(csr._lock) do
-                        push!(csr._entriesFree, k)
-                        csr._NOverflowErase[1] += 1
-                    end
-                end
+                Atomix.@atomic csr._NEntries[1] -= 1
+                return true
             end
         end
     end
-    # Not found
+    
+    # Also search and remove from overflow COO
+    setindex!(csr._coo, nothing, i, j)
+    
     return false
 
 end
 
 function Base.setindex!(csr::DynamicalCSR{P}, ::Nothing, i::Int, j::Int) where {P<:GPU}
 
-    nEntries = min(csr._NEntriesCache[1], csr._NEntries[1])
-
-    # Search for i j in csr
-    for k in 1:1:nEntries
-        #Found
-        if csr._rows[k] == i && csr._cols[k] == j
-            result = Atomix.@atomicreplace csr._rows[k] k => 0
-            if result.success
-                Atomix.@atomic csr._NEntries[1] -= 1
-                if csr._values[k] != 0
+    # Search in CSR portion using row offsets
+    if i > 0 && i < length(csr._rowOffsets)
+        startIdx = csr._rowOffsets[i]
+        endIdx = csr._rowOffsets[i+1] - 1
+        for k in startIdx:endIdx
+            if csr._cols[k] == j
+                if csr._values[k] != zero(eltype(csr._values))
                     Atomix.@atomic csr._NEntriesNonzero[1] -= 1
                 end
                 csr._cols[k] = 0
                 csr._values[k] = zero(eltype(csr._values))
-                # Add to free entries
-                newFreePos = Atomix.@atomic csr._NEntriesFreeNext[1] += 1
-                newPos = csr._NEntriesFreeNextInit[1] + newFreePos
-                if newPos <= length(csr._entriesFree)
-                    csr._entriesFree[newPos-1] = k
-                else
-                    Atomix.@atomic csr._NEntriesFreeNext[1] -= 1
-                    Atomix.@atomic csr._NOverflowErase[1] += 1
-                end
+                Atomix.@atomic csr._NEntries[1] -= 1
+                return true
             end
         end
     end
-    # Not found
+    
+    # Also search and remove from overflow COO
+    setindex!(csr._coo, nothing, i, j)
+    
     return false
 
 end
@@ -291,32 +279,232 @@ Allows syntax: value = x[i,j]
 """
 function Base.getindex(csr::DynamicalCSR{P, T}, i::Int, j::Int) where {P, T}
 
-    nEntries = min(numberOfEntries(csr), numberOfEntriesCache(csr))
-
-    # Search for i j in csr
-    for k in 1:1:nEntries
-        if csr._rows[k] == i && csr._cols[k] == j
-            return csr._values[k]
+    # Search in CSR portion using row offsets
+    if i > 0 && i < length(csr._rowOffsets)
+        startIdx = csr._rowOffsets[i]
+        endIdx = csr._rowOffsets[i+1] - 1
+        for k in startIdx:endIdx
+            if csr._cols[k] == j
+                return csr._values[k]
+            end
         end
     end
     
-    # Column not found, return zero
+    # Also check overflow COO
+    val = csr._coo[i, j]
+    if val != zero(T)
+        return val
+    end
+    
+    # Not found, return zero
     return zero(T)
 end
 
 function _getindex(csr::DynamicalCSR, i::Int, j::Int)
 
-    nEntries = min(numberOfEntries(csr), numberOfEntriesCache(csr))
-
-    # Search for i j in csr
-    for k in 1:1:nEntries
-        if csr._rows[k] == i && csr._cols[k] == j
-            return csr._values[k]
+    # Search in CSR portion using row offsets
+    if i > 0 && i < length(csr._rowOffsets)
+        startIdx = csr._rowOffsets[i]
+        endIdx = csr._rowOffsets[i+1] - 1
+        for k in startIdx:endIdx
+            if csr._cols[k] == j
+                return csr._values[k]
+            end
         end
     end
     
-    # Column not found, return zero
+    # Also check overflow COO
+    val = _getindex(csr._coo, i, j)
+    if val !== nothing
+        return val
+    end
+    
+    # Not found
     return nothing
+end
+
+"""
+    replaceIndex!(csr::DynamicalCSR, i_old::Int, j_old::Int, i_new::Int, j_new::Int)
+
+Replace the indices of an existing entry in-place without removing and re-adding.
+Finds the entry at (i_old, j_old) and changes its indices to (i_new, j_new), keeping the value.
+Returns true if the entry was found and replaced, false otherwise.
+
+If the row stays the same (i_old == i_new), only the column index is changed in place,
+which is very efficient. If the row changes, the function removes from the old row and
+adds to the new row (which may overflow to COO if the new row is full).
+
+This is more efficient than `csr[i_new, j_new] = csr[i_old, j_old]; csr[i_old, j_old] = nothing`
+because it avoids the overhead of separate removal and insertion operations.
+"""
+function replaceIndex!(csr::DynamicalCSR, i_old::Int, j_old::Int, i_new::Int, j_new::Int)
+
+    if i_old <= 0 || j_old <= 0 || i_new <= 0 || j_new <= 0
+        @print "Indices must be positive integers."
+        return false
+    end
+
+    # Search in CSR portion
+    if i_old > 0 && i_old < length(csr._rowOffsets)
+        startIdx = csr._rowOffsets[i_old]
+        endIdx = csr._rowOffsets[i_old+1] - 1
+        for k in startIdx:endIdx
+            if csr._cols[k] == j_old
+                # Found entry
+                if i_old == i_new
+                    # Same row - just change column in place (efficient!)
+                    csr._cols[k] = j_new
+                    return true
+                else
+                    # Different row - need to remove and re-add
+                    value = csr._values[k]
+                    # Remove from old position
+                    if value != zero(eltype(csr._values))
+                        Atomix.@atomic csr._NEntriesNonzero[1] -= 1
+                    end
+                    csr._cols[k] = 0
+                    csr._values[k] = zero(eltype(csr._values))
+                    Atomix.@atomic csr._NEntries[1] -= 1
+                    # Add to new position (may overflow to COO)
+                    setindex!(csr, value, i_new, j_new)
+                    return true
+                end
+            end
+        end
+    end
+
+    # Also search in overflow COO
+    return replaceIndex!(csr._coo, i_old, j_old, i_new, j_new)
+end
+
+"""
+    replaceIndex!(csr::DynamicalCSR, i::Int, j_old::Int, j_new::Int)
+
+Replace the column index of an existing entry in-place, keeping the same row.
+Shorthand for `replaceIndex!(csr, i, j_old, i, j_new)`.
+Returns true if the entry was found and replaced, false otherwise.
+
+This is the most efficient form as it only changes the column index without
+any structural changes to the CSR format.
+"""
+function replaceIndex!(csr::DynamicalCSR, i::Int, j_old::Int, j_new::Int)
+    return replaceIndex!(csr, i, j_old, i, j_new)
+end
+
+"""
+    setindex!(csr::DynamicalCSR, value, i::Int, ::Colon)
+
+Set all entries in row i to value.
+Allows syntax: csr[i,:] = value
+"""
+function Base.setindex!(csr::DynamicalCSR, value, i::Int, ::Colon)
+
+    # Set in CSR portion
+    if i > 0 && i < length(csr._rowOffsets)
+        startIdx = csr._rowOffsets[i]
+        endIdx = csr._rowOffsets[i+1] - 1
+        for k in startIdx:endIdx
+            if csr._cols[k] != 0
+                old = csr._values[k]
+                if old == 0 && value != 0
+                    Atomix.@atomic csr._NEntriesNonzero[1] += 1
+                elseif old != 0 && value == 0
+                    Atomix.@atomic csr._NEntriesNonzero[1] -= 1
+                end
+                csr._values[k] = value
+            end
+        end
+    end
+    
+    # Also set in overflow COO
+    csr._coo[i, :] = value
+
+    return
+end
+
+"""
+    setindex!(csr::DynamicalCSR, value, ::Colon, j::Int)
+
+Set all entries in column j to value.
+Allows syntax: csr[:,j] = value
+"""
+function Base.setindex!(csr::DynamicalCSR, value, ::Colon, j::Int)
+
+    # Set in CSR portion - must scan all entries
+    nEntries = length(csr)
+    for k in 1:nEntries
+        if csr._cols[k] == j
+            old = csr._values[k]
+            if old == 0 && value != 0
+                Atomix.@atomic csr._NEntriesNonzero[1] += 1
+            elseif old != 0 && value == 0
+                Atomix.@atomic csr._NEntriesNonzero[1] -= 1
+            end
+            csr._values[k] = value
+        end
+    end
+    
+    # Also set in overflow COO
+    csr._coo[:, j] = value
+
+    return
+end
+
+"""
+    setindex!(csr::DynamicalCSR, ::Nothing, i::Int, ::Colon)
+
+Remove all entries in row i.
+Allows syntax: csr[i,:] = nothing
+"""
+function Base.setindex!(csr::DynamicalCSR, ::Nothing, i::Int, ::Colon)
+
+    # Remove in CSR portion
+    if i > 0 && i < length(csr._rowOffsets)
+        startIdx = csr._rowOffsets[i]
+        endIdx = csr._rowOffsets[i+1] - 1
+        for k in startIdx:endIdx
+            if csr._cols[k] != 0
+                if csr._values[k] != zero(eltype(csr._values))
+                    Atomix.@atomic csr._NEntriesNonzero[1] -= 1
+                end
+                csr._cols[k] = 0
+                csr._values[k] = zero(eltype(csr._values))
+                Atomix.@atomic csr._NEntries[1] -= 1
+            end
+        end
+    end
+    
+    # Also remove from overflow COO
+    csr._coo[i, :] = nothing
+
+    return
+end
+
+"""
+    setindex!(csr::DynamicalCSR, ::Nothing, ::Colon, j::Int)
+
+Remove all entries in column j.
+Allows syntax: csr[:,j] = nothing
+"""
+function Base.setindex!(csr::DynamicalCSR, ::Nothing, ::Colon, j::Int)
+
+    # Remove in CSR portion - must scan all entries
+    nEntries = length(csr)
+    for k in 1:nEntries
+        if csr._cols[k] == j
+            if csr._values[k] != zero(eltype(csr._values))
+                Atomix.@atomic csr._NEntriesNonzero[1] -= 1
+            end
+            csr._cols[k] = 0
+            csr._values[k] = zero(eltype(csr._values))
+            Atomix.@atomic csr._NEntries[1] -= 1
+        end
+    end
+    
+    # Also remove from overflow COO
+    csr._coo[:, j] = nothing
+
+    return
 end
 
 function overflow(csr::DynamicalCSR)
@@ -358,52 +546,27 @@ end
 
 function synchronize(csr::DynamicalCSR)
 
-    chunk = getDeviceIndex(csr._NEntriesFreeNext)
-
-    chunkNewInit = getDeviceIndex(csr._NEntriesFree) + 1
-    chunkNewEnd = chunkNewInit + chunk
-
-    chunkOldInit = getDeviceIndex(csr._NEntriesFreeNextInit)
-    chunkOldEnd = chunkOldInit + chunk
-
-    if chunk > 0
-        @view(csr._entriesFree[chunkNewInit:chunkNewEnd]) .= @views(csr._entriesFree[chunkOldInit:chunkOldEnd])
-        @views(csr._entriesFree[chunkOldInit+1:1:chunkOldEnd]) .= 0
-    end
-
-    setDeviceIndex!(csr._NEntriesFree, chunkNewEnd - 1)
-    setDeviceIndex!(csr._NEntriesFreeNext, 0)
-    setDeviceIndex!(csr._NEntriesFreeNextInit, chunkNewEnd)
-
-    # Resize if entries overflowed
-    if length(csr._entriesFree) > length(csr._values)
-        resize!(csr._entriesFree, length(csr._values))
-    end
+    # CSR doesn't maintain a free list like COO
+    # Just synchronize the overflow COO storage
+    synchronize(csr._coo)
 
     return
 end
 
 function dropzeros!(csr::DynamicalCSR)
 
-    @kernel function kernel_compact_zeros!(
-            rows,
+    @kernel function kernel_dropzeros_csr!(
             cols,
             values,
-            nEntries,
-            nEntriesFree,
-            nEntriesFreeNextInit,
-            entriesFree
+            nEntries
         )
         
         i = @index(Global)
 
-        if values[i] == 0 && rows[i] != 0
-            rows[i] = 0
+        # If value is 0 but column is set, clear the entry
+        if values[i] == 0 && cols[i] != 0
             cols[i] = 0
             Atomix.@atomic nEntries[1] -= 1
-            iFree = Atomix.@atomic nEntriesFree[1] += 1
-            entriesFree[iFree] = i
-            Atomix.@atomic nEntriesFreeNextInit[1] += 1
         end
 
     end
@@ -412,29 +575,23 @@ function dropzeros!(csr::DynamicalCSR)
 
     backend = KernelAbstractions.get_backend(csr)
     threads = backend === CPU() ? Threads.nthreads() : 256
-    kernel_compact_zeros!(backend, threads)(csr._rows, csr._cols, csr._values, csr._NEntries, csr._NEntriesFree, csr._NEntriesFreeNextInit, csr._entriesFree, ndrange = length(csr))
+    kernel_dropzeros_csr!(backend, threads)(csr._cols, csr._values, csr._NEntries, ndrange = length(csr))
+
+    # Also drop zeros from the overflow COO
+    CellBasedModels.dropzeros!(csr._coo)
 
     return
 
 end
 
 function preallocate!(csr::DynamicalCSR; n_rows::Int=0, n_cols::Union{Int, <:AbstractArray{<:Int}}=1)
-
-    @kernel function kernel_entriesFreePreallocate!(
-            entriesFree,
-            nEntriesFree,
-            nEntriesFreeNew,
-            dFreeCache,
-        )
-        
-        i = @index(Global)
-
-        if i > nEntriesFree && i <= nEntriesFreeNew
-            entriesFree[i] = i + dFreeCache
-        elseif i > nEntriesFreeNew
-            entriesFree[i] = 0
-        end
-    end
+    """
+    Preallocate additional rows in the CSR structure.
+    
+    Arguments:
+    - n_rows: Number of new rows to add
+    - n_cols: Number of columns per row (Int) or array of column counts per row
+    """
 
     @assert n_rows >= 0 "n_rows must be >= 0"
     if n_cols isa Int
@@ -444,38 +601,60 @@ function preallocate!(csr::DynamicalCSR; n_rows::Int=0, n_cols::Union{Int, <:Abs
         @assert length(n_cols) == n_rows "length of n_cols must be == n_rows"
     end
 
-    nEntriesCache = numberOfEntriesCache(csr)
-    nEntries = numberOfEntries(csr)
-
-    nEntriesNew = 0
-    if n_cols isa AbstractArray{<:Int}
-        nEntriesNew += sum(n_cols)*n_rows
-    else
-        nEntriesNew += n_cols*n_rows
+    if n_rows == 0
+        return
     end
 
-    CellBasedModels.synchronize(csr)
+    # Calculate new entries needed
+    nEntriesNew = 0
+    if n_cols isa AbstractArray{<:Int}
+        nEntriesNew = sum(n_cols)
+    else
+        nEntriesNew = n_cols * n_rows
+    end
 
+    # Current sizes
+    nEntriesCache = numberOfEntriesCache(csr)
+    currentNRows = length(csr._rowOffsets) - 1
+
+    # New sizes
     nEntriesCacheNew = nEntriesCache + nEntriesNew
-    resize!(csr._rows, nEntriesCacheNew)
+    nRowsNew = currentNRows + n_rows
+
+    # Get backend
+    backend = KernelAbstractions.get_backend(csr)
+
+    # Build new row offsets array on CPU first
+    rowOffsets_cpu = Array(csr._rowOffsets)
+    lastOffset = rowOffsets_cpu[currentNRows + 1]
+    
+    newOffsets = Vector{Int}(undef, n_rows)
+    if n_cols isa Int
+        for i in 1:n_rows
+            newOffsets[i] = lastOffset + i * n_cols
+        end
+    else
+        cumOffset = lastOffset
+        for i in 1:n_rows
+            cumOffset += n_cols[i]
+            newOffsets[i] = cumOffset
+        end
+    end
+
+    # Resize arrays
     resize!(csr._cols, nEntriesCacheNew)
     resize!(csr._values, nEntriesCacheNew)
-    resize!(csr._entriesFree, nEntriesCacheNew)
+    resize!(csr._rowOffsets, nRowsNew + 1)
 
-    @views csr._rows[nEntriesCache+1:end] .= 0
+    # Initialize new entries to zero
     @views csr._cols[nEntriesCache+1:end] .= 0
     @views csr._values[nEntriesCache+1:end] .= 0
 
-    nEntriesFree = getDeviceIndex(csr._NEntriesFree)
-    nEntriesFreeNew = nEntriesFree + nEntriesNew
+    # Copy new offsets to the resized rowOffsets array
+    newOffsetsBackend = toBackend(backend, newOffsets)
+    @views csr._rowOffsets[currentNRows+2:end] .= newOffsetsBackend
 
-    backend = KernelAbstractions.get_backend(csr)
-    threads = backend === CPU() ? Threads.nthreads() : 256
-    kernel_entriesFreePreallocate!(backend, threads)(csr._entriesFree, nEntriesFree, nEntriesFreeNew, nEntriesCache-nEntriesFree, ndrange = nEntriesCacheNew)
-    KernelAbstractions.synchronize(backend)
-
-    setDeviceIndex!(csr._NEntriesFree, nEntriesFreeNew)
-    setDeviceIndex!(csr._NEntriesFreeNextInit, nEntriesFreeNew + 1)
+    # Update cache counter
     setDeviceIndex!(csr._NEntriesCache, nEntriesCacheNew)
 
     return
@@ -483,139 +662,116 @@ function preallocate!(csr::DynamicalCSR; n_rows::Int=0, n_cols::Union{Int, <:Abs
 end
 
 function compact!(csr::DynamicalCSR)
+    """
+    Compact the CSR structure by removing empty entries (where cols[k] == 0)
+    within each row. Row offsets remain unchanged, entries are compacted to the
+    front of each row's allocated space. Also compacts the overflow COO.
+    """
 
-    @kernel function kernel_mark_surviving!(rows, surviving)
-       
-        i = @index(Global)
-
-        if rows[i] == 0
-            surviving[i] = 0
-        else
-            surviving[i] = 1
+    @kernel function kernel_compact_row!(values, cols, rowOffsets)
+        row = @index(Global)
+        
+        startIdx = rowOffsets[row]
+        endIdx = rowOffsets[row + 1] - 1
+        
+        # Compact entries within this row
+        writePos = startIdx
+        for k in startIdx:endIdx
+            if cols[k] != 0
+                if writePos != k
+                    cols[writePos] = cols[k]
+                    values[writePos] = values[k]
+                    cols[k] = 0
+                    values[k] = zero(eltype(values))
+                end
+                writePos += 1
+            end
         end
-
-    end
-
-    @kernel function kernel_map!(origin, target, mapping, surviving)
-
-        i = @index(Global)
-
-        if surviving[i] == 1
-            newPos = mapping[i]
-            target[newPos] = origin[i]
-        end
-
     end
 
     backend = KernelAbstractions.get_backend(csr)
     threads = backend === CPU() ? Threads.nthreads() : 256
 
-    surviving = toBackend(backend, zeros(Int, length(csr)))
-    mapping = copy(surviving)
-    auxiliar_values = toBackend(backend, zeros(eltype(csr._values), length(csr)))
-    auxiliar_cols = toBackend(backend, zeros(Int, length(csr)))
+    nRows = length(csr._rowOffsets) - 1
+    
+    if nRows > 0
+        kernel_compact_row!(backend, threads)(csr._values, csr._cols, csr._rowOffsets, ndrange = nRows)
+        KernelAbstractions.synchronize(backend)
+    end
 
-    kernel_mark_surviving!(backend, threads)(csr._rows, surviving, ndrange = length(csr))
-    KernelAbstractions.synchronize(backend)
-
-    cumsum!(mapping, surviving)
-    nNonzero = sum(surviving) 
-
-    kernel_map!(backend, threads)(csr._values, auxiliar_values, mapping, surviving, ndrange = length(csr))
-    KernelAbstractions.synchronize(backend)
-    csr._values .= auxiliar_values
-
-    auxiliar_cols .= 0
-    kernel_map!(backend, threads)(csr._cols, auxiliar_cols, mapping, surviving, ndrange = length(csr))
-    KernelAbstractions.synchronize(backend)
-    csr._cols .= auxiliar_cols
-
-    auxiliar_cols .= 0
-    kernel_map!(backend, threads)(csr._rows, auxiliar_cols, mapping, surviving, ndrange = length(csr))
-    KernelAbstractions.synchronize(backend)
-    csr._rows .= auxiliar_cols
-
-    setDeviceIndex!(csr._NEntries, nNonzero)
-    setDeviceIndex!(csr._NEntriesNonzero, nNonzero)
+    # Update counters - NEntries and NEntriesNonzero stay the same, just reset overflow
     setDeviceIndex!(csr._NOverflowInsert, 0)
-    setDeviceIndex!(csr._NOverflowErase, 0)
-    setDeviceIndex!(csr._NEntriesFree, length(csr)-nNonzero)
-    setDeviceIndex!(csr._NEntriesFreeNextInit, length(csr)-nNonzero+1)
-    setDeviceIndex!(csr._NEntriesFreeNext, 0)
 
-    csr._entriesFree .= 0
-    @view(csr._entriesFree[1:length(csr)-nNonzero]) .=  toBackend(backend, [i for i in length(csr):-1:nNonzero+1])
+    # Also compact the overflow COO
+    compact!(csr._coo)
 
     return
 
 end
 
 function compactto!(csrTarget::DynamicalCSR{P, T}, csr::DynamicalCSR{P, T}) where {P, T}
+    """
+    Copy source CSR into target CSR, compacting entries within each row.
+    Row offsets remain unchanged, entries are compacted to the front of each row.
+    """
 
-    @kernel function kernel_mark_surviving!(rows, surviving)
-       
-        i = @index(Global)
-
-        if rows[i] == 0
-            surviving[i] = 0
-        else
-            surviving[i] = 1
+    @kernel function kernel_compact_row_to!(srcValues, srcCols, dstValues, dstCols, rowOffsets)
+        row = @index(Global)
+        
+        startIdx = rowOffsets[row]
+        endIdx = rowOffsets[row + 1] - 1
+        
+        # Compact entries within this row
+        writePos = startIdx
+        for k in startIdx:endIdx
+            if srcCols[k] != 0
+                dstCols[writePos] = srcCols[k]
+                dstValues[writePos] = srcValues[k]
+                writePos += 1
+            end
         end
-
-    end
-
-    @kernel function kernel_map!(origin, target, mapping, surviving)
-
-        i = @index(Global)
-
-        if surviving[i] == 1
-            newPos = mapping[i]
-            target[newPos] = origin[i]
+        # Zero out remaining positions in the row
+        for k in writePos:endIdx
+            dstCols[k] = 0
+            dstValues[k] = zero(eltype(dstValues))
         end
-
-    end
-
-    lscr = length(csr)
-    ldst = length(csrTarget)
-    if ldst < lscr
-        resize!(csrTarget._values, lscr)
-        resize!(csrTarget._cols, lscr)
-        resize!(csrTarget._rows, lscr)
-        resize!(csrTarget._entriesFree, lscr)
     end
 
     backend = KernelAbstractions.get_backend(csr)
     threads = backend === CPU() ? Threads.nthreads() : 256
 
-    surviving = toBackend(backend, zeros(Int, length(csr)))
-    mapping = copy(surviving)
-
-    kernel_mark_surviving!(backend, threads)(csr._rows, surviving, ndrange = length(csr))
-    KernelAbstractions.synchronize(backend)
-
-    cumsum!(mapping, surviving)
-    nNonzero = sum(surviving) 
-
-    csrTarget._values .= 0
-    kernel_map!(backend, threads)(csr._values, csrTarget._values, mapping, surviving, ndrange = length(csr))
-
-    csrTarget._cols .= 0
-    kernel_map!(backend, threads)(csr._cols, csrTarget._cols, mapping, surviving, ndrange = length(csr))
-
-    csrTarget._rows .= 0
-    kernel_map!(backend, threads)(csr._rows, csrTarget._rows, mapping, surviving, ndrange = length(csr))
-
-    setDeviceIndex!(csrTarget._NEntries, nNonzero)
-    setDeviceIndex!(csrTarget._NEntriesCache, getDeviceIndex(csr._NEntriesCache))
-    setDeviceIndex!(csrTarget._NEntriesNonzero, nNonzero)
-    setDeviceIndex!(csrTarget._NOverflowInsert, 0)
-    setDeviceIndex!(csrTarget._NOverflowErase, 0)
-    setDeviceIndex!(csrTarget._NEntriesFree, length(csr)-nNonzero)
-    setDeviceIndex!(csrTarget._NEntriesFreeNextInit, length(csr)-nNonzero+1)
-    setDeviceIndex!(csrTarget._NEntriesFreeNext, 0)
+    nOldEntries = length(csr)
     
-    csrTarget._entriesFree .= 0
-    @view(csrTarget._entriesFree[1:length(csr)-nNonzero]) .=  toBackend(KernelAbstractions.get_backend(csrTarget), [i for i in length(csr):-1:nNonzero+1])
+    # Ensure target has enough space
+    if length(csrTarget) < nOldEntries
+        resize!(csrTarget._values, nOldEntries)
+        resize!(csrTarget._cols, nOldEntries)
+    end
+    if length(csrTarget._rowOffsets) != length(csr._rowOffsets)
+        resize!(csrTarget._rowOffsets, length(csr._rowOffsets))
+    end
+
+    nRows = length(csr._rowOffsets) - 1
+    
+    # Copy row offsets (unchanged)
+    csrTarget._rowOffsets .= csr._rowOffsets
+    
+    if nRows > 0
+        kernel_compact_row_to!(backend, threads)(
+            csr._values, csr._cols, csrTarget._values, csrTarget._cols, csr._rowOffsets,
+            ndrange = nRows
+        )
+        KernelAbstractions.synchronize(backend)
+    end
+
+    # Copy counters
+    csrTarget._NEntries .= csr._NEntries
+    csrTarget._NEntriesCache .= csr._NEntriesCache
+    csrTarget._NEntriesNonzero .= csr._NEntriesNonzero
+    setDeviceIndex!(csrTarget._NOverflowInsert, 0)
+
+    # Compact overflow COO to target
+    compactto!(csrTarget._coo, csr._coo)
 
     return
 
@@ -624,45 +780,35 @@ end
 function Base.similar(csr::DynamicalCSR)
 
     dtype = eltype(csr._values)
-    n_csr = length(csr)
+    n_entries = length(csr)
+    n_rows = length(csr._rowOffsets)
+    n_coo = length(csr._coo)
 
     backend = KernelAbstractions.get_backend(csr)
 
-    _rows = toBackend(backend, Array{Int}(undef, n_csr))
-    _cols = toBackend(backend, Array{Int}(undef, n_csr))
-    _values = toBackend(backend, Array{dtype}(undef, n_csr))
+    _values = toBackend(backend, Array{dtype}(undef, n_entries))
+    _cols = toBackend(backend, Array{Int}(undef, n_entries))
+    _rowOffsets = toBackend(backend, Array{Int}(undef, n_rows))
     _NEntries = toBackend(backend, Array{Int}(undef, 1))
     _NEntriesCache = toBackend(backend, Array{Int}(undef, 1))
     _NEntriesNonzero = toBackend(backend, Array{Int}(undef, 1))
     _NOverflowInsert = toBackend(backend, Array{Int}(undef, 1))
-    _NOverflowErase = toBackend(backend, Array{Int}(undef, 1))
-    _NEntriesFree = toBackend(backend, Array{Int}(undef, 1))
-    _NEntriesFreeNextInit = toBackend(backend, Array{Int}(undef, 1))
-    _NEntriesFreeNext = toBackend(backend, Array{Int}(undef, 1))
-    _entriesFree = toBackend(backend, Array{Int}(undef, n_csr))
-    if backend === CPU
-        _lock = ReentrantLock()
-    else
-        _lock = nothing
-    end
+
+    # Create similar COO for overflow storage
+    _coo = similar(csr._coo)
 
     return DynamicalCSR(
-            _rows,
-            _cols,
             _values,
-            
+            _cols,
+
+            _rowOffsets,
+
             _NEntries,
             _NEntriesCache,
             _NEntriesNonzero,
             _NOverflowInsert,
-            _NOverflowErase,
-            
-            _NEntriesFree,
-            _NEntriesFreeNextInit,
-            _NEntriesFreeNext,
-            _entriesFree,
 
-            _lock
+            _coo
         )
 
 end
@@ -678,120 +824,259 @@ end
 
 function Base.copyto!(dest::DynamicalCSR{P, T}, src::DynamicalCSR{P, T}) where {P, T}
 
-    lscr = length(src)
+    lsrc = length(src)
     ldst = length(dest)
-    biggerdst = ldst > lscr
-    if ldst < lscr
-        resize!(dest._values, lscr)
-        resize!(dest._cols, lscr)
-        resize!(dest._rows, lscr)
-        resize!(dest._entriesFree, lscr)
+    
+    # Resize if needed
+    if ldst < lsrc
+        resize!(dest._values, lsrc)
+        resize!(dest._cols, lsrc)
+    end
+    if length(dest._rowOffsets) != length(src._rowOffsets)
+        resize!(dest._rowOffsets, length(src._rowOffsets))
     end
 
+    biggerdst = ldst > lsrc
     if biggerdst
-        @views(dest._values[1:length(src)]) .= src._values
-        @views(dest._values[length(src)+1:end]) .= 0
-        @views(dest._cols[1:length(src)]) .= src._cols
-        @views(dest._cols[length(src)+1:end]) .= 0
-        @views(dest._rows[1:length(src)]) .= src._rows
-        @views(dest._rows[length(src)+1:end]) .= 0
-        @views(dest._entriesFree[1:length(src)]) .= src._entriesFree
-        @views(dest._entriesFree[length(src)+1:end]) .= 0
+        @views(dest._values[1:lsrc]) .= src._values
+        @views(dest._values[lsrc+1:end]) .= 0
+        @views(dest._cols[1:lsrc]) .= src._cols
+        @views(dest._cols[lsrc+1:end]) .= 0
     else
         dest._values .= src._values
         dest._cols .= src._cols
-        dest._rows .= src._rows
-        dest._entriesFree .= src._entriesFree
     end
+    dest._rowOffsets .= src._rowOffsets
     dest._NEntries .= src._NEntries
     dest._NEntriesCache .= src._NEntriesCache
     dest._NEntriesNonzero .= src._NEntriesNonzero
     dest._NOverflowInsert .= src._NOverflowInsert
-    dest._NOverflowErase .= src._NOverflowErase
-    dest._NEntriesFree .= src._NEntriesFree
-    dest._NEntriesFreeNextInit .= src._NEntriesFreeNextInit
-    dest._NEntriesFreeNext .= src._NEntriesFreeNext
+
+    # Copy the overflow COO
+    copyto!(dest._coo, src._coo)
 
     return dest
 
 end
 
 function dropcache!(csr::DynamicalCSR)
+    """
+    Drop unused cache from the CSR structure by fully compacting entries 
+    (rebuilding row offsets) and resizing arrays.
+    """
 
-    compact!(csr)
-    nEntriesNonzero = numberOfEntriesNonzero(csr)
+    backend = KernelAbstractions.get_backend(csr)
+    
+    # Get arrays on CPU for rebuilding
+    rowOffsets_cpu = Array(csr._rowOffsets)
+    cols_cpu = Array(csr._cols)
+    values_cpu = Array(csr._values)
+    nRows = length(rowOffsets_cpu) - 1
+    
+    # Count surviving entries per row and total
+    survivingPerRow = zeros(Int, nRows)
+    for row in 1:nRows
+        startIdx = rowOffsets_cpu[row]
+        endIdx = rowOffsets_cpu[row + 1] - 1
+        for k in startIdx:endIdx
+            if cols_cpu[k] != 0
+                survivingPerRow[row] += 1
+            end
+        end
+    end
+    nSurviving = sum(survivingPerRow)
+    
+    # Build new row offsets
+    newRowOffsets = Vector{Int}(undef, nRows + 1)
+    newRowOffsets[1] = 1
+    for row in 1:nRows
+        newRowOffsets[row + 1] = newRowOffsets[row] + survivingPerRow[row]
+    end
+    
+    # Build compacted arrays
+    newCols = zeros(Int, nSurviving)
+    newValues = zeros(eltype(values_cpu), nSurviving)
+    
+    writePos = 1
+    for row in 1:nRows
+        startIdx = rowOffsets_cpu[row]
+        endIdx = rowOffsets_cpu[row + 1] - 1
+        for k in startIdx:endIdx
+            if cols_cpu[k] != 0
+                newCols[writePos] = cols_cpu[k]
+                newValues[writePos] = values_cpu[k]
+                writePos += 1
+            end
+        end
+    end
+    
+    # Resize and copy back
+    resize!(csr._cols, nSurviving)
+    resize!(csr._values, nSurviving)
+    resize!(csr._rowOffsets, nRows + 1)
+    
+    csr._cols .= toBackend(backend, newCols)
+    csr._values .= toBackend(backend, newValues)
+    csr._rowOffsets .= toBackend(backend, newRowOffsets)
 
-    resize!(csr._rows, nEntriesNonzero)
-    resize!(csr._cols, nEntriesNonzero)
-    resize!(csr._values, nEntriesNonzero)
-    resize!(csr._entriesFree, nEntriesNonzero)
+    # Update counters to reflect new cache size
+    setDeviceIndex!(csr._NEntries, nSurviving)
+    setDeviceIndex!(csr._NEntriesCache, nSurviving)
+    setDeviceIndex!(csr._NEntriesNonzero, nSurviving)
+    setDeviceIndex!(csr._NOverflowInsert, 0)
 
-    setDeviceIndex!(csr._NEntries, nEntriesNonzero)
-    setDeviceIndex!(csr._NEntriesCache, nEntriesNonzero)
-    setDeviceIndex!(csr._NEntriesNonzero, nEntriesNonzero)
-    setDeviceIndex!(csr._NEntriesFree, nEntriesNonzero)
-    setDeviceIndex!(csr._NEntriesFreeNextInit, nEntriesNonzero + 1)
-    setDeviceIndex!(csr._NEntriesFreeNext, 0)
-
-    csr._entriesFree .= 0
+    # Drop cache from the overflow COO as well
+    dropcache!(csr._coo)
 
     return
 
 end
 
 function dropcacheto!(csrTarget::DynamicalCSR{P, T}, csr::DynamicalCSR{P, T}) where {P, T}
+    """
+    Drop unused cache from csr and copy fully compacted version to csrTarget.
+    Rebuilds row offsets to remove empty slots.
+    """
+    
+    backend = KernelAbstractions.get_backend(csr)
+    
+    # Get arrays on CPU for rebuilding
+    rowOffsets_cpu = Array(csr._rowOffsets)
+    cols_cpu = Array(csr._cols)
+    values_cpu = Array(csr._values)
+    nRows = length(rowOffsets_cpu) - 1
+    
+    # Count surviving entries per row and total
+    survivingPerRow = zeros(Int, nRows)
+    for row in 1:nRows
+        startIdx = rowOffsets_cpu[row]
+        endIdx = rowOffsets_cpu[row + 1] - 1
+        for k in startIdx:endIdx
+            if cols_cpu[k] != 0
+                survivingPerRow[row] += 1
+            end
+        end
+    end
+    nSurviving = sum(survivingPerRow)
+    
+    # Build new row offsets
+    newRowOffsets = Vector{Int}(undef, nRows + 1)
+    newRowOffsets[1] = 1
+    for row in 1:nRows
+        newRowOffsets[row + 1] = newRowOffsets[row] + survivingPerRow[row]
+    end
+    
+    # Build compacted arrays
+    newCols = zeros(Int, nSurviving)
+    newValues = zeros(eltype(values_cpu), nSurviving)
+    
+    writePos = 1
+    for row in 1:nRows
+        startIdx = rowOffsets_cpu[row]
+        endIdx = rowOffsets_cpu[row + 1] - 1
+        for k in startIdx:endIdx
+            if cols_cpu[k] != 0
+                newCols[writePos] = cols_cpu[k]
+                newValues[writePos] = values_cpu[k]
+                writePos += 1
+            end
+        end
+    end
+    
+    # Resize target and copy
+    resize!(csrTarget._cols, nSurviving)
+    resize!(csrTarget._values, nSurviving)
+    resize!(csrTarget._rowOffsets, nRows + 1)
+    
+    csrTarget._cols .= toBackend(backend, newCols)
+    csrTarget._values .= toBackend(backend, newValues)
+    csrTarget._rowOffsets .= toBackend(backend, newRowOffsets)
 
-    compactto!(csrTarget, csr)
-    nEntriesNonzero = numberOfEntriesNonzero(csrTarget)
-
-    resize!(csrTarget._rows, nEntriesNonzero)
-    resize!(csrTarget._cols, nEntriesNonzero)
-    resize!(csrTarget._values, nEntriesNonzero)
-    resize!(csrTarget._entriesFree, nEntriesNonzero)
-
-    setDeviceIndex!(csrTarget._NEntries, nEntriesNonzero)
-    setDeviceIndex!(csrTarget._NEntriesCache, nEntriesNonzero)
-    setDeviceIndex!(csrTarget._NEntriesNonzero, nEntriesNonzero)
+    # Update target counters to reflect new cache size
+    setDeviceIndex!(csrTarget._NEntries, nSurviving)
+    setDeviceIndex!(csrTarget._NEntriesCache, nSurviving)
+    setDeviceIndex!(csrTarget._NEntriesNonzero, nSurviving)
     setDeviceIndex!(csrTarget._NOverflowInsert, 0)
-    setDeviceIndex!(csrTarget._NOverflowErase, 0)
-    setDeviceIndex!(csrTarget._NEntriesFree, nEntriesNonzero)
-    setDeviceIndex!(csrTarget._NEntriesFreeNextInit, nEntriesNonzero + 1)
-    setDeviceIndex!(csrTarget._NEntriesFreeNext, 0)
 
-    csrTarget._entriesFree .= 0
+    # Drop cache from the overflow COO as well
+    dropcacheto!(csrTarget._coo, csr._coo)
 
     return
 
 end
 
 function remaprows!(csr::DynamicalCSR, rowmap::AbstractVector{Int})
+    """
+    Physically reorder rows in the CSR structure according to rowmap.
+    rowmap[newRow] = oldRow means new row newRow gets data from old row oldRow.
+    """
 
-    @kernel function kernel_remap_rows!(rows, rowmap)
+    @kernel function kernel_remap_rows!(values, cols, newValues, newCols, rowOffsets, newRowOffsets, rowmap)
+        newRow = @index(Global)
         
-        i = @index(Global)
+        oldRow = rowmap[newRow]
         
-        if rows[i] != 0
-            oldRow = rows[i]
-            if oldRow <= length(rowmap)
-                rows[i] = rowmap[oldRow]
-            else
-                @print "Row index $oldRow out of bounds for rowmap of length $(length(rowmap))\n"
-            end
+        # Get old and new row ranges
+        oldStart = rowOffsets[oldRow]
+        oldEnd = rowOffsets[oldRow + 1] - 1
+        newStart = newRowOffsets[newRow]
+        
+        # Copy entries from old row to new position
+        for k in 0:(oldEnd - oldStart)
+            newValues[newStart + k] = values[oldStart + k]
+            newCols[newStart + k] = cols[oldStart + k]
         end
-        
     end
-
-    rowmap = toBackend(KernelAbstractions.get_backend(csr), rowmap)
-
+    
     backend = KernelAbstractions.get_backend(csr)
     threads = backend === CPU() ? Threads.nthreads() : 256
-    kernel_remap_rows!(backend, threads)(csr._rows, rowmap, ndrange = length(csr))
+    
+    # Get row offsets on CPU for computing new offsets
+    rowOffsets_cpu = Array(csr._rowOffsets)
+    rowmap_cpu = Array(rowmap)
+    nRows = length(rowOffsets_cpu) - 1
+    
+    @assert length(rowmap_cpu) == nRows "rowmap length must equal number of rows"
+    
+    # Compute new row offsets on CPU (small array, sequential cumsum)
+    newRowOffsets_cpu = Vector{Int}(undef, nRows + 1)
+    newRowOffsets_cpu[1] = 1
+    for newRow in 1:nRows
+        oldRow = rowmap_cpu[newRow]
+        rowLength = rowOffsets_cpu[oldRow + 1] - rowOffsets_cpu[oldRow]
+        newRowOffsets_cpu[newRow + 1] = newRowOffsets_cpu[newRow] + rowLength
+    end
+    
+    # Create temporary arrays on device for reordered data
+    newValues = similar(csr._values)
+    newCols = similar(csr._cols)
+    newRowOffsets = toBackend(backend, newRowOffsets_cpu)
+    rowmap_backend = toBackend(backend, rowmap_cpu)
+    
+    # Run kernel to copy entries
+    kernel_remap_rows!(backend, threads)(
+        csr._values, csr._cols, newValues, newCols,
+        csr._rowOffsets, newRowOffsets, rowmap_backend,
+        ndrange = nRows
+    )
+    KernelAbstractions.synchronize(backend)
+    
+    # Copy reordered data back
+    csr._values .= newValues
+    csr._cols .= newCols
+    csr._rowOffsets .= newRowOffsets
+    
+    # Also remap the overflow COO
+    remaprows!(csr._coo, rowmap)
     
     return
 
 end
 
 function remapcols!(csr::DynamicalCSR, colmap::AbstractVector{Int})
+    """
+    Remap column indices in the CSR structure.
+    """
 
     @kernel function kernel_remap_cols!(cols, colmap)
         
@@ -808,11 +1093,88 @@ function remapcols!(csr::DynamicalCSR, colmap::AbstractVector{Int})
         
     end
     
-    colmap = toBackend(KernelAbstractions.get_backend(csr), colmap)
+    colmap_backend = toBackend(KernelAbstractions.get_backend(csr), colmap)
 
     backend = KernelAbstractions.get_backend(csr)
     threads = backend === CPU() ? Threads.nthreads() : 256
-    kernel_remap_cols!(backend, threads)(csr._cols, colmap, ndrange = length(csr))
+    kernel_remap_cols!(backend, threads)(csr._cols, colmap_backend, ndrange = length(csr))
+    
+    # Also remap columns in overflow COO
+    remapcols!(csr._coo, colmap)
+    
+    return
+
+end
+
+function remap!(csr::DynamicalCSR, rowmap::AbstractVector{Int}, colmap::AbstractVector{Int})
+    """
+    Remap both rows and columns in a single pass.
+    Physically reorders rows and remaps column indices together.
+    """
+
+    @kernel function kernel_remap!(values, cols, newValues, newCols, rowOffsets, newRowOffsets, rowmap, colmap)
+        newRow = @index(Global)
+        
+        oldRow = rowmap[newRow]
+        
+        # Get old and new row ranges
+        oldStart = rowOffsets[oldRow]
+        oldEnd = rowOffsets[oldRow + 1] - 1
+        newStart = newRowOffsets[newRow]
+        
+        # Copy entries from old row to new position and remap columns
+        for k in 0:(oldEnd - oldStart)
+            newValues[newStart + k] = values[oldStart + k]
+            oldCol = cols[oldStart + k]
+            if oldCol != 0 && oldCol <= length(colmap)
+                newCols[newStart + k] = colmap[oldCol]
+            else
+                newCols[newStart + k] = oldCol
+            end
+        end
+    end
+    
+    backend = KernelAbstractions.get_backend(csr)
+    threads = backend === CPU() ? Threads.nthreads() : 256
+    
+    # Get row offsets on CPU for computing new offsets
+    rowOffsets_cpu = Array(csr._rowOffsets)
+    rowmap_cpu = Array(rowmap)
+    nRows = length(rowOffsets_cpu) - 1
+    
+    @assert length(rowmap_cpu) == nRows "rowmap length must equal number of rows"
+    
+    # Compute new row offsets on CPU (small array, sequential cumsum)
+    newRowOffsets_cpu = Vector{Int}(undef, nRows + 1)
+    newRowOffsets_cpu[1] = 1
+    for newRow in 1:nRows
+        oldRow = rowmap_cpu[newRow]
+        rowLength = rowOffsets_cpu[oldRow + 1] - rowOffsets_cpu[oldRow]
+        newRowOffsets_cpu[newRow + 1] = newRowOffsets_cpu[newRow] + rowLength
+    end
+    
+    # Create temporary arrays on device for reordered data
+    newValues = similar(csr._values)
+    newCols = similar(csr._cols)
+    newRowOffsets = toBackend(backend, newRowOffsets_cpu)
+    rowmap_backend = toBackend(backend, rowmap_cpu)
+    colmap_backend = toBackend(backend, colmap)
+    
+    # Run kernel to copy entries and remap columns
+    kernel_remap!(backend, threads)(
+        csr._values, csr._cols, newValues, newCols,
+        csr._rowOffsets, newRowOffsets, rowmap_backend, colmap_backend,
+        ndrange = nRows
+    )
+    KernelAbstractions.synchronize(backend)
+    
+    # Copy reordered data back
+    csr._values .= newValues
+    csr._cols .= newCols
+    csr._rowOffsets .= newRowOffsets
+    
+    # Also remap the overflow COO
+    remap!(csr._coo, rowmap, colmap)
     
     return
 
