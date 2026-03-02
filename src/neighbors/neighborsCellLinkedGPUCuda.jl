@@ -137,11 +137,20 @@ end
 function assignCell!(cellArray, N, prop, neighbors::NeighborsCellLinked{1, GPUCuda})
     x = prop.x
     cell = cellArray
+    periodic = neighbors.periodic
     
-    function kernel(cell, x, N, box, cellSize, grid)
+    function kernel(cell, x, N, box, cellSize, grid, periodic)
         i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
         if i <= N
-            @inbounds cell[i] = positionToLinear1D(x[i], box, cellSize, grid)
+            @inbounds begin
+                xi = x[i]
+                # Wrap position for periodic boundaries
+                if periodic
+                    boxLen = box[1, 2] - box[1, 1]
+                    xi = box[1, 1] + mod(xi - box[1, 1], boxLen)
+                end
+                cell[i] = positionToLinear1D(xi, box, cellSize, grid)
+            end
         end
         return nothing
     end
@@ -149,7 +158,7 @@ function assignCell!(cellArray, N, prop, neighbors::NeighborsCellLinked{1, GPUCu
     threads_per_block = 256
     blocks = div(N + threads_per_block - 1, threads_per_block)
     
-    CUDA.@cuda threads=threads_per_block blocks=blocks kernel(cell, x, N, neighbors.box, neighbors.cellSize, neighbors.grid)
+    CUDA.@cuda threads=threads_per_block blocks=blocks kernel(cell, x, N, neighbors.box, neighbors.cellSize, neighbors.grid, periodic)
     CUDA.synchronize()
 end
 
@@ -157,11 +166,22 @@ function assignCell!(cellArray, N, prop, neighbors::NeighborsCellLinked{2, GPUCu
     x = prop.x
     y = prop.y
     cell = cellArray
+    periodic = neighbors.periodic
     
-    function kernel(cell, x, y, N, box, cellSize, grid)
+    function kernel(cell, x, y, N, box, cellSize, grid, periodic)
         i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
         if i <= N
-            @inbounds cell[i] = positionToLinear2D(x[i], y[i], box, cellSize, grid)
+            @inbounds begin
+                xi, yi = x[i], y[i]
+                # Wrap positions for periodic boundaries
+                if periodic
+                    boxLenX = box[1, 2] - box[1, 1]
+                    boxLenY = box[2, 2] - box[2, 1]
+                    xi = box[1, 1] + mod(xi - box[1, 1], boxLenX)
+                    yi = box[2, 1] + mod(yi - box[2, 1], boxLenY)
+                end
+                cell[i] = positionToLinear2D(xi, yi, box, cellSize, grid)
+            end
         end
         return nothing
     end
@@ -169,7 +189,7 @@ function assignCell!(cellArray, N, prop, neighbors::NeighborsCellLinked{2, GPUCu
     threads_per_block = 256
     blocks = div(N + threads_per_block - 1, threads_per_block)
     
-    CUDA.@cuda threads=threads_per_block blocks=blocks kernel(cell, x, y, N, neighbors.box, neighbors.cellSize, neighbors.grid)
+    CUDA.@cuda threads=threads_per_block blocks=blocks kernel(cell, x, y, N, neighbors.box, neighbors.cellSize, neighbors.grid, periodic)
     CUDA.synchronize()
 end
 
@@ -178,11 +198,24 @@ function assignCell!(cellArray, N, prop, neighbors::NeighborsCellLinked{3, GPUCu
     y = prop.y
     z = prop.z
     cell = cellArray
+    periodic = neighbors.periodic
     
-    function kernel(cell, x, y, z, N, box, cellSize, grid)
+    function kernel(cell, x, y, z, N, box, cellSize, grid, periodic)
         i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
         if i <= N
-            @inbounds cell[i] = positionToLinear3D(x[i], y[i], z[i], box, cellSize, grid)
+            @inbounds begin
+                xi, yi, zi = x[i], y[i], z[i]
+                # Wrap positions for periodic boundaries
+                if periodic
+                    boxLenX = box[1, 2] - box[1, 1]
+                    boxLenY = box[2, 2] - box[2, 1]
+                    boxLenZ = box[3, 2] - box[3, 1]
+                    xi = box[1, 1] + mod(xi - box[1, 1], boxLenX)
+                    yi = box[2, 1] + mod(yi - box[2, 1], boxLenY)
+                    zi = box[3, 1] + mod(zi - box[3, 1], boxLenZ)
+                end
+                cell[i] = positionToLinear3D(xi, yi, zi, box, cellSize, grid)
+            end
         end
         return nothing
     end
@@ -190,7 +223,7 @@ function assignCell!(cellArray, N, prop, neighbors::NeighborsCellLinked{3, GPUCu
     threads_per_block = 256
     blocks = div(N + threads_per_block - 1, threads_per_block)
     
-    CUDA.@cuda threads=threads_per_block blocks=blocks kernel(cell, x, y, z, N, neighbors.box, neighbors.cellSize, neighbors.grid)
+    CUDA.@cuda threads=threads_per_block blocks=blocks kernel(cell, x, y, z, N, neighbors.box, neighbors.cellSize, neighbors.grid, periodic)
     CUDA.synchronize()
 end
 
@@ -267,11 +300,20 @@ end
 # GPU-specific cell assignment for 1D fields
 function assignCellFieldGPU!(cellArray, N, field::UnstructuredMeshField, neighbors::NeighborsCellLinked{1, P}) where {P<:GPUCuda}
     x = field._p.x
+    periodic = neighbors.periodic
     
-    function kernel(cell, x, N, box, cellSize, grid)
+    function kernel(cell, x, N, box, cellSize, grid, periodic)
         i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
         if i <= N
-            @inbounds cell[i] = positionToLinear1D(x[i], box, cellSize, grid)
+            @inbounds begin
+                xi = x[i]
+                # Wrap position for periodic boundaries before cell assignment
+                if periodic
+                    boxLen = box[1, 2] - box[1, 1]
+                    xi = box[1, 1] + mod(xi - box[1, 1], boxLen)
+                end
+                cell[i] = positionToLinear1D(xi, box, cellSize, grid)
+            end
         end
         return nothing
     end
@@ -279,7 +321,7 @@ function assignCellFieldGPU!(cellArray, N, field::UnstructuredMeshField, neighbo
     threads_per_block = 256
     blocks = div(N + threads_per_block - 1, threads_per_block)
     
-    CUDA.@cuda threads=threads_per_block blocks=blocks kernel(cellArray, x, N, neighbors.box, neighbors.cellSize, neighbors.grid)
+    CUDA.@cuda threads=threads_per_block blocks=blocks kernel(cellArray, x, N, neighbors.box, neighbors.cellSize, neighbors.grid, periodic)
     CUDA.synchronize()
 end
 
@@ -287,11 +329,22 @@ end
 function assignCellFieldGPU!(cellArray, N, field::UnstructuredMeshField, neighbors::NeighborsCellLinked{2, P}) where {P<:GPUCuda}
     x = field._p.x
     y = field._p.y
+    periodic = neighbors.periodic
     
-    function kernel(cell, x, y, N, box, cellSize, grid)
+    function kernel(cell, x, y, N, box, cellSize, grid, periodic)
         i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
         if i <= N
-            @inbounds cell[i] = positionToLinear2D(x[i], y[i], box, cellSize, grid)
+            @inbounds begin
+                xi, yi = x[i], y[i]
+                # Wrap positions for periodic boundaries before cell assignment
+                if periodic
+                    boxLenX = box[1, 2] - box[1, 1]
+                    boxLenY = box[2, 2] - box[2, 1]
+                    xi = box[1, 1] + mod(xi - box[1, 1], boxLenX)
+                    yi = box[2, 1] + mod(yi - box[2, 1], boxLenY)
+                end
+                cell[i] = positionToLinear2D(xi, yi, box, cellSize, grid)
+            end
         end
         return nothing
     end
@@ -299,7 +352,7 @@ function assignCellFieldGPU!(cellArray, N, field::UnstructuredMeshField, neighbo
     threads_per_block = 256
     blocks = div(N + threads_per_block - 1, threads_per_block)
     
-    CUDA.@cuda threads=threads_per_block blocks=blocks kernel(cellArray, x, y, N, neighbors.box, neighbors.cellSize, neighbors.grid)
+    CUDA.@cuda threads=threads_per_block blocks=blocks kernel(cellArray, x, y, N, neighbors.box, neighbors.cellSize, neighbors.grid, periodic)
     CUDA.synchronize()
 end
 
@@ -308,11 +361,24 @@ function assignCellFieldGPU!(cellArray, N, field::UnstructuredMeshField, neighbo
     x = field._p.x
     y = field._p.y
     z = field._p.z
+    periodic = neighbors.periodic
     
-    function kernel(cell, x, y, z, N, box, cellSize, grid)
+    function kernel(cell, x, y, z, N, box, cellSize, grid, periodic)
         i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
         if i <= N
-            @inbounds cell[i] = positionToLinear3D(x[i], y[i], z[i], box, cellSize, grid)
+            @inbounds begin
+                xi, yi, zi = x[i], y[i], z[i]
+                # Wrap positions for periodic boundaries before cell assignment
+                if periodic
+                    boxLenX = box[1, 2] - box[1, 1]
+                    boxLenY = box[2, 2] - box[2, 1]
+                    boxLenZ = box[3, 2] - box[3, 1]
+                    xi = box[1, 1] + mod(xi - box[1, 1], boxLenX)
+                    yi = box[2, 1] + mod(yi - box[2, 1], boxLenY)
+                    zi = box[3, 1] + mod(zi - box[3, 1], boxLenZ)
+                end
+                cell[i] = positionToLinear3D(xi, yi, zi, box, cellSize, grid)
+            end
         end
         return nothing
     end
@@ -320,7 +386,7 @@ function assignCellFieldGPU!(cellArray, N, field::UnstructuredMeshField, neighbo
     threads_per_block = 256
     blocks = div(N + threads_per_block - 1, threads_per_block)
     
-    CUDA.@cuda threads=threads_per_block blocks=blocks kernel(cellArray, x, y, z, N, neighbors.box, neighbors.cellSize, neighbors.grid)
+    CUDA.@cuda threads=threads_per_block blocks=blocks kernel(cellArray, x, y, z, N, neighbors.box, neighbors.cellSize, neighbors.grid, periodic)
     CUDA.synchronize()
 end
 

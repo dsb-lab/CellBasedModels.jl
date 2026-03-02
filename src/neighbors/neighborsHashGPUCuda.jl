@@ -146,6 +146,8 @@ end
     
     ix = floor(Int, x / n.cellSize[1])
     neighborCodes = if n.periodic !== nothing
+        # Wrap current cell index to match assignment
+        ix = mod(ix, n.periodic[1])
         neighborMortonCodes1DPeriodic(ix, n.periodic[1])
     else
         neighborMortonCodes1D(ix)
@@ -165,6 +167,9 @@ end
     ix = floor(Int, x / n.cellSize[1])
     iy = floor(Int, y / n.cellSize[2])
     neighborCodes = if n.periodic !== nothing
+        # Wrap current cell indices to match assignment
+        ix = mod(ix, n.periodic[1])
+        iy = mod(iy, n.periodic[2])
         neighborMortonCodes2DPeriodic(ix, iy, n.periodic[1], n.periodic[2])
     else
         neighborMortonCodes2D(ix, iy)
@@ -185,6 +190,10 @@ end
     iy = floor(Int, y / n.cellSize[2])
     iz = floor(Int, z / n.cellSize[3])
     neighborCodes = if n.periodic !== nothing
+        # Wrap current cell indices to match assignment
+        ix = mod(ix, n.periodic[1])
+        iy = mod(iy, n.periodic[2])
+        iz = mod(iz, n.periodic[3])
         neighborMortonCodes3DPeriodic(ix, iy, iz, n.periodic[1], n.periodic[2], n.periodic[3])
     else
         neighborMortonCodes3D(ix, iy, iz)
@@ -204,6 +213,8 @@ end
     
     ix = floor(Int, x / n.cellSize[1])
     neighborCodes = if n.periodic !== nothing
+        # Wrap current cell index to match assignment
+        ix = mod(ix, n.periodic[1])
         neighborMortonCodes1DPeriodic(ix, n.periodic[1])
     else
         neighborMortonCodes1D(ix)
@@ -223,6 +234,9 @@ end
     ix = floor(Int, x / n.cellSize[1])
     iy = floor(Int, y / n.cellSize[2])
     neighborCodes = if n.periodic !== nothing
+        # Wrap current cell indices to match assignment
+        ix = mod(ix, n.periodic[1])
+        iy = mod(iy, n.periodic[2])
         neighborMortonCodes2DPeriodic(ix, iy, n.periodic[1], n.periodic[2])
     else
         neighborMortonCodes2D(ix, iy)
@@ -243,6 +257,10 @@ end
     iy = floor(Int, y / n.cellSize[2])
     iz = floor(Int, z / n.cellSize[3])
     neighborCodes = if n.periodic !== nothing
+        # Wrap current cell indices to match assignment
+        ix = mod(ix, n.periodic[1])
+        iy = mod(iy, n.periodic[2])
+        iz = mod(iz, n.periodic[3])
         neighborMortonCodes3DPeriodic(ix, iy, iz, n.periodic[1], n.periodic[2], n.periodic[3])
     else
         neighborMortonCodes3D(ix, iy, iz)
@@ -271,13 +289,13 @@ function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, V
         return nothing
     end
     
-    # Step 1: Compute Morton codes
+    # Step 1: Compute Morton codes (with periodic wrapping if needed)
     if D == 1
-        computeMortonCodes1D!(ht.mortonCodes, field._p.x, N, neighbors.cellSize[1])
+        computeMortonCodes1D!(ht.mortonCodes, field._p.x, N, neighbors.cellSize[1], neighbors.periodic)
     elseif D == 2
-        computeMortonCodes2D!(ht.mortonCodes, field._p.x, field._p.y, N, neighbors.cellSize)
+        computeMortonCodes2D!(ht.mortonCodes, field._p.x, field._p.y, N, neighbors.cellSize, neighbors.periodic)
     else
-        computeMortonCodes3D!(ht.mortonCodes, field._p.x, field._p.y, field._p.z, N, neighbors.cellSize)
+        computeMortonCodes3D!(ht.mortonCodes, field._p.x, field._p.y, field._p.z, N, neighbors.cellSize, neighbors.periodic)
     end
     
     # Step 2: Sort particles by Morton code
@@ -358,11 +376,15 @@ function initNeighborsGPU(
 end
 
 # GPU kernel to compute Morton codes for 1D
-function computeMortonCodes1D!(mortonCodes, x, N, cellSize)
-    function kernel(mortonCodes, x, N, cellSize)
+function computeMortonCodes1D!(mortonCodes, x, N, cellSize, periodic)
+    function kernel(mortonCodes, x, N, cellSize, periodic)
         i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
         if i <= N
             ix = floor(Int, x[i] / cellSize)
+            # Wrap for periodic boundaries
+            if periodic !== nothing
+                ix = mod(ix, periodic[1])
+            end
             # Shift to positive range for Morton encoding
             mortonCodes[i] = UInt64(ix + (1 << 30))
         end
@@ -371,17 +393,23 @@ function computeMortonCodes1D!(mortonCodes, x, N, cellSize)
     
     threads = 256
     blocks = cld(N, threads)
-    CUDA.@cuda threads=threads blocks=blocks kernel(mortonCodes, x, N, cellSize)
+    CUDA.@cuda threads=threads blocks=blocks kernel(mortonCodes, x, N, cellSize, periodic)
     CUDA.synchronize()
 end
 
 # GPU kernel to compute Morton codes for 2D
-function computeMortonCodes2D!(mortonCodes, x, y, N, cellSize)
-    function kernel(mortonCodes, x, y, N, cellSize)
+function computeMortonCodes2D!(mortonCodes, x, y, N, cellSize, periodic)
+    function kernel(mortonCodes, x, y, N, cellSize, periodic)
         i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
         if i <= N
             ix = floor(Int, x[i] / cellSize[1])
             iy = floor(Int, y[i] / cellSize[2])
+            
+            # Wrap for periodic boundaries
+            if periodic !== nothing
+                ix = mod(ix, periodic[1])
+                iy = mod(iy, periodic[2])
+            end
             
             # Shift to positive range
             ux = UInt64(ix + (1 << 30))
@@ -407,18 +435,25 @@ function computeMortonCodes2D!(mortonCodes, x, y, N, cellSize)
     
     threads = 256
     blocks = cld(N, threads)
-    CUDA.@cuda threads=threads blocks=blocks kernel(mortonCodes, x, y, N, cellSize)
+    CUDA.@cuda threads=threads blocks=blocks kernel(mortonCodes, x, y, N, cellSize, periodic)
     CUDA.synchronize()
 end
 
 # GPU kernel to compute Morton codes for 3D
-function computeMortonCodes3D!(mortonCodes, x, y, z, N, cellSize)
-    function kernel(mortonCodes, x, y, z, N, cellSize)
+function computeMortonCodes3D!(mortonCodes, x, y, z, N, cellSize, periodic)
+    function kernel(mortonCodes, x, y, z, N, cellSize, periodic)
         i = (blockIdx().x - 1) * blockDim().x + threadIdx().x
         if i <= N
             ix = floor(Int, x[i] / cellSize[1])
             iy = floor(Int, y[i] / cellSize[2])
             iz = floor(Int, z[i] / cellSize[3])
+            
+            # Wrap for periodic boundaries
+            if periodic !== nothing
+                ix = mod(ix, periodic[1])
+                iy = mod(iy, periodic[2])
+                iz = mod(iz, periodic[3])
+            end
             
             # Shift to positive range
             ux = UInt64(ix + (1 << 20))
@@ -451,7 +486,7 @@ function computeMortonCodes3D!(mortonCodes, x, y, z, N, cellSize)
     
     threads = 256
     blocks = cld(N, threads)
-    CUDA.@cuda threads=threads blocks=blocks kernel(mortonCodes, x, y, z, N, cellSize)
+    CUDA.@cuda threads=threads blocks=blocks kernel(mortonCodes, x, y, z, N, cellSize, periodic)
     CUDA.synchronize()
 end
 

@@ -62,6 +62,8 @@ function DifferentialEquations.init(problem::CBProblem; dt::Real, overflowFactor
 
     end
 
+    CellBasedModels.update!(problem.u)
+
     integratorsDict = Dict{Symbol, Any}()
     for (scope, deproblem) in problem._DEProblems
 
@@ -101,9 +103,6 @@ function DifferentialEquations.init(problem::CBProblem; dt::Real, overflowFactor
     integrators = (;integratorsDict...)
 
     integrator = CBIntegrator{typeof(problem.u), typeof(integrators)}(problem.u, integrators, dt, problem.tspan[1], overflowFactor)
-
-    # Initialize neighbor structures
-    CellBasedModels.update!(integrator.u)
 
     return integrator
 

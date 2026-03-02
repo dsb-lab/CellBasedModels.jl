@@ -331,9 +331,17 @@ end
 function assignParticlesToHash1D!(hashTable, N, prop, neighbors)
     x = prop.x
     cellSize = neighbors.cellSize[1]
+    periodic = neighbors.periodic
     
     @inbounds for i in 1:N
         ix = positionToCell(x[i], cellSize)
+        
+        # Wrap cell index for periodic boundaries
+        if periodic !== nothing
+            nx = periodic[1]
+            ix = mod(ix, nx)
+        end
+        
         code = mortonEncode(ix)
         
         if haskey(hashTable, code)
@@ -348,9 +356,18 @@ function assignParticlesToHash2D!(hashTable, N, prop, neighbors)
     x = prop.x
     y = prop.y
     cellSize = neighbors.cellSize
+    periodic = neighbors.periodic
     
     @inbounds for i in 1:N
         ix, iy = positionToCell(x[i], y[i], cellSize)
+        
+        # Wrap cell indices for periodic boundaries
+        if periodic !== nothing
+            nx, ny = periodic
+            ix = mod(ix, nx)
+            iy = mod(iy, ny)
+        end
+        
         code = mortonEncode(ix, iy)
         
         if haskey(hashTable, code)
@@ -366,9 +383,19 @@ function assignParticlesToHash3D!(hashTable, N, prop, neighbors)
     y = prop.y
     z = prop.z
     cellSize = neighbors.cellSize
+    periodic = neighbors.periodic
     
     @inbounds for i in 1:N
         ix, iy, iz = positionToCell(x[i], y[i], z[i], cellSize)
+        
+        # Wrap cell indices for periodic boundaries (must match getNeighborCells3DPeriodic)
+        if periodic !== nothing
+            nx, ny, nz = periodic
+            ix = mod(ix, nx)
+            iy = mod(iy, ny)
+            iz = mod(iz, nz)
+        end
+        
         code = mortonEncode(ix, iy, iz)
         
         if haskey(hashTable, code)
@@ -392,6 +419,9 @@ end
     ix = positionToCell(x, n.cellSize[1])
     
     neighborCells = if n.periodic !== nothing
+        # Wrap current cell index to match assignment
+        nx = n.periodic[1]
+        ix = mod(ix, nx)
         getNeighborCells1DPeriodic(ix, n.periodic)
     else
         getNeighborCells1D(ix)
@@ -406,6 +436,10 @@ end
     ix, iy = positionToCell(x, y, n.cellSize)
     
     neighborCells = if n.periodic !== nothing
+        # Wrap current cell indices to match assignment
+        nx, ny = n.periodic
+        ix = mod(ix, nx)
+        iy = mod(iy, ny)
         getNeighborCells2DPeriodic(ix, iy, n.periodic)
     else
         getNeighborCells2D(ix, iy)
@@ -420,6 +454,11 @@ end
     ix, iy, iz = positionToCell(x, y, z, n.cellSize)
     
     neighborCells = if n.periodic !== nothing
+        # Wrap current cell index to match assignment (important!)
+        nx, ny, nz = n.periodic
+        ix = mod(ix, nx)
+        iy = mod(iy, ny)
+        iz = mod(iz, nz)
         getNeighborCells3DPeriodic(ix, iy, iz, n.periodic)
     else
         getNeighborCells3D(ix, iy, iz)

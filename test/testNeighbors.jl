@@ -313,6 +313,83 @@
         end
     end
 
+    # NeighborsHash periodic with negative cell indices
+    # Regression test: ensures NeighborsHash correctly handles periodic boundaries
+    # when particle positions produce negative cell indices (box centered at origin)
+    model = AgentPoint(
+        3,
+        (
+            b = Integer,
+            b_consistency = Integer
+        ),
+    )
+
+    @addRule model=model function neighbors_check_periodic_negative!(uNew, u, p, t)
+        @kernel_launch ndrange=length(uNew.n.b) function neighbors_check_periodic_negative_kernel!(uNew, u, p, t)
+            i = @index(Global)
+            x_i = u.n.x[i]
+            y_i = u.n.y[i]
+            z_i = u.n.z[i]
+            for j in iterateOverNeighbors(u.n, x_i, y_i, z_i)
+                if j == i
+                    continue
+                end
+                x_j = u.n.x[j]
+                y_j = u.n.y[j]
+                z_j = u.n.z[j]
+                x_j = posRelPeriodicBoundary(x_j, x_i, -20.0, 20.0)
+                y_j = posRelPeriodicBoundary(y_j, y_i, -20.0, 20.0)
+                z_j = posRelPeriodicBoundary(z_j, z_i, -20.0, 20.0)
+                if sqrt((x_i - x_j)^2 + (y_i - y_j)^2 + (z_i - z_j)^2) < 1.8
+                    uNew.n.b[i] += 1
+                end
+            end
+            for j in 1:length(uNew.n.b)
+                if j == i
+                    continue
+                end
+                x_j = u.n.x[j]
+                y_j = u.n.y[j]
+                z_j = u.n.z[j]
+                x_j = posRelPeriodicBoundary(x_j, x_i, -20.0, 20.0)
+                y_j = posRelPeriodicBoundary(y_j, y_i, -20.0, 20.0)
+                z_j = posRelPeriodicBoundary(z_j, z_i, -20.0, 20.0)
+                if sqrt((x_i - x_j)^2 + (y_i - y_j)^2 + (z_i - z_j)^2) < 1.8
+                    uNew.n.b_consistency[i] += 1
+                end
+            end
+        end
+    end
+
+    # Test with box centered at origin [-20, 20]³ - particles will have negative cell indices
+    for neighborAlg in [
+            NeighborsFull(), 
+            NeighborsCellLinked(box=[-20 20; -20 20; -20 20], cellSize=3.0, periodic=true),
+            NeighborsHash(box=[-20 20; -20 20; -20 20], cellSize=3.0, periodic=true)
+        ]
+        for backend in backends
+
+            obj = createObject(model, n=(200, 10000), neighbors=neighborAlg)
+            # Random positions spanning negative to positive coordinates
+            obj.n.x .= rand(200) .* 40 .- 20  # Range: [-20, 20]
+            obj.n.y .= rand(200) .* 40 .- 20
+            obj.n.z .= rand(200) .* 40 .- 20
+
+            obj_gpu = toBackend(obj, backend)
+
+            problem = CBProblem(
+                model,
+                obj_gpu
+            )
+
+            integrator = init(problem, dt=0.1)
+
+            step!(integrator)
+
+            @test all(toBackend(integrator.u, CPU()).n.b .== toBackend(integrator.u, CPU()).n.b_consistency)
+        end
+    end
+
     #ODE
     model = AgentPoint(
         3,
@@ -324,6 +401,8 @@
     )
 
     @addODE model=model function ode_f(du, u, p, t)
+        # u.n.b .= 0
+        # u.n.b_consistency .= 0
         @kernel_launch ndrange=length(du.n.b) function ode(du, u, p, t)
             i = @index(Global)
             x_i = u.n.x[i]
@@ -455,6 +534,49 @@
 
             @test all(toBackend(integrator.u, CPU()).n.b .== toBackend(integrator.u, CPU()).n.b_consistency)
         end
+    end
+
+    # Test that _neighbors reference is preserved through deepcopy/partialCopy chain
+    # This prevents regression of the issue where NeighborsCellLinked/Hash internal arrays
+    # were not shared between integrator.u and deintegrator.u
+    
+    # Helper function to get a mutable array from the neighbor structure for comparison
+    function get_neighbor_array(neighbors::NeighborsCellLinked)
+        return neighbors.permTable
+    end
+    function get_neighbor_array(neighbors::NeighborsHash)
+        return neighbors.hashTable.mortonCodes
+    end
+    
+    for neighborAlg in [
+            NeighborsCellLinked(box=[-5 5; -5 5; -5 5], cellSize=2.0),
+            NeighborsHash(box=[-5 5; -5 5; -5 5], cellSize=2.0)
+        ]
+        
+        model_ref = AgentPoint(3, (a = AbstractFloat,))
+        @addODE model=model_ref function ref_test_f(du, u, p, t)
+            @kernel_launch ndrange=length(du.n.a) function ref_kernel(du, u, p, t)
+                i = @index(Global)
+                du.n.a[i] = 0
+            end
+        end
+
+        obj = createObject(model_ref, n=(10, 100), neighbors=neighborAlg)
+        obj.n.x .= rand(10)*10 .- 5
+        obj.n.y .= rand(10)*10 .- 5
+        obj.n.z .= rand(10)*10 .- 5
+
+        # Test 1: deepcopy preserves _neighbors reference
+        obj_copy = deepcopy(obj)
+        @test get_neighbor_array(obj.n._neighbors) === get_neighbor_array(obj_copy.n._neighbors)
+
+        # Test 2: partialCopy preserves _neighbors reference
+        obj_partial = CellBasedModels.partialCopy(obj, [(:n, :a)])
+        @test get_neighbor_array(obj.n._neighbors) === get_neighbor_array(obj_partial.n._neighbors)
+
+        # Test 3: CBProblem chain preserves _neighbors reference
+        problem = CBProblem(model_ref, obj)
+        @test get_neighbor_array(obj.n._neighbors) === get_neighbor_array(problem.u.n._neighbors)
     end
 
 end

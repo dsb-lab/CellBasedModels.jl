@@ -848,6 +848,38 @@ function Base.zero(field::UnstructuredMeshField)
     )
 end
 
+## Deepcopy - preserve _neighbors reference
+function Base.deepcopy_internal(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, stackdict::IdDict) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}
+    if haskey(stackdict, field)
+        return stackdict[field]
+    end
+    
+    # Deepcopy the data arrays but preserve _neighbors reference
+    new_field = UnstructuredMeshField(
+        NamedTuple{keys(field._p)}(
+            r ? p : Base.deepcopy_internal(p, stackdict) for (p, r) in zip(values(field._p), field._pReference)
+        ),
+        field._NP,
+        field._pReference,
+
+        field._id,
+        field._idMax,
+
+        field._nodes,
+
+        field._N,
+        field._NCache,
+        field._FlagsSurvived,
+        field._NAdded,
+        field._NOverflow,
+        
+        field._neighbors,  # Preserve reference - do NOT deepcopy neighbor structure
+    )
+    
+    stackdict[field] = new_field
+    return new_field
+end
+
 ## Copyto!
 @eval @inline function Base.copyto!(
     dest::UnstructuredMeshField{P, DT, PR, PRN, PRC},

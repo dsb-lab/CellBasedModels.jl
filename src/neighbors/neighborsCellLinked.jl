@@ -138,23 +138,52 @@ function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, V
 end
 
 function assignCell(neighbors, x)
-    return positionToLinear1D(x, neighbors.box, neighbors.cellSize, neighbors.grid)
+    xi = x
+    if neighbors.periodic
+        boxLen = neighbors.box[1, 2] - neighbors.box[1, 1]
+        xi = neighbors.box[1, 1] + mod(xi - neighbors.box[1, 1], boxLen)
+    end
+    return positionToLinear1D(xi, neighbors.box, neighbors.cellSize, neighbors.grid)
 end
 
 function assignCell(neighbors, x, y)
-    return positionToLinear2D(x, y, neighbors.box, neighbors.cellSize, neighbors.grid)
+    xi, yi = x, y
+    if neighbors.periodic
+        boxLenX = neighbors.box[1, 2] - neighbors.box[1, 1]
+        boxLenY = neighbors.box[2, 2] - neighbors.box[2, 1]
+        xi = neighbors.box[1, 1] + mod(xi - neighbors.box[1, 1], boxLenX)
+        yi = neighbors.box[2, 1] + mod(yi - neighbors.box[2, 1], boxLenY)
+    end
+    return positionToLinear2D(xi, yi, neighbors.box, neighbors.cellSize, neighbors.grid)
 end
 
 function assignCell(neighbors, x, y, z)
-    return positionToLinear3D(x, y, z, neighbors.box, neighbors.cellSize, neighbors.grid)
+    xi, yi, zi = x, y, z
+    if neighbors.periodic
+        boxLenX = neighbors.box[1, 2] - neighbors.box[1, 1]
+        boxLenY = neighbors.box[2, 2] - neighbors.box[2, 1]
+        boxLenZ = neighbors.box[3, 2] - neighbors.box[3, 1]
+        xi = neighbors.box[1, 1] + mod(xi - neighbors.box[1, 1], boxLenX)
+        yi = neighbors.box[2, 1] + mod(yi - neighbors.box[2, 1], boxLenY)
+        zi = neighbors.box[3, 1] + mod(zi - neighbors.box[3, 1], boxLenZ)
+    end
+    return positionToLinear3D(xi, yi, zi, neighbors.box, neighbors.cellSize, neighbors.grid)
 end
 
 function assignCell!(cellArray, N, prop, neighbors::NeighborsCellLinked{1})
     x = @views prop.x[1:N]
     cell = @views cellArray[1:N]
+    box = neighbors.box
+    periodic = neighbors.periodic
 
     @inbounds for i in 1:N
-        cell[i] = positionToLinear1D(x[i], neighbors.box, neighbors.cellSize, neighbors.grid)
+        xi = x[i]
+        # Wrap position for periodic boundaries before cell assignment
+        if periodic
+            boxLen = box[1, 2] - box[1, 1]
+            xi = box[1, 1] + mod(xi - box[1, 1], boxLen)
+        end
+        cell[i] = positionToLinear1D(xi, box, neighbors.cellSize, neighbors.grid)
     end
 end
 
@@ -162,9 +191,19 @@ function assignCell!(cellArray, N, prop, neighbors::NeighborsCellLinked{2})
     x = @views prop.x[1:N]
     y = @views prop.y[1:N]
     cell = @views cellArray[1:N]
+    box = neighbors.box
+    periodic = neighbors.periodic
     
     @inbounds for i in 1:N
-        cell[i] = positionToLinear2D(x[i], y[i], neighbors.box, neighbors.cellSize, neighbors.grid)
+        xi, yi = x[i], y[i]
+        # Wrap positions for periodic boundaries before cell assignment
+        if periodic
+            boxLenX = box[1, 2] - box[1, 1]
+            boxLenY = box[2, 2] - box[2, 1]
+            xi = box[1, 1] + mod(xi - box[1, 1], boxLenX)
+            yi = box[2, 1] + mod(yi - box[2, 1], boxLenY)
+        end
+        cell[i] = positionToLinear2D(xi, yi, box, neighbors.cellSize, neighbors.grid)
     end
 end
 
@@ -173,9 +212,21 @@ function assignCell!(cellArray, N, prop, neighbors::NeighborsCellLinked{3})
     y = @views prop.y[1:N]
     z = @views prop.z[1:N]
     cell = @views cellArray[1:N]
+    box = neighbors.box
+    periodic = neighbors.periodic
     
     @inbounds for i in 1:N
-        cell[i] = positionToLinear3D(x[i], y[i], z[i], neighbors.box, neighbors.cellSize, neighbors.grid)
+        xi, yi, zi = x[i], y[i], z[i]
+        # Wrap positions for periodic boundaries before cell assignment
+        if periodic
+            boxLenX = box[1, 2] - box[1, 1]
+            boxLenY = box[2, 2] - box[2, 1]
+            boxLenZ = box[3, 2] - box[3, 1]
+            xi = box[1, 1] + mod(xi - box[1, 1], boxLenX)
+            yi = box[2, 1] + mod(yi - box[2, 1], boxLenY)
+            zi = box[3, 1] + mod(zi - box[3, 1], boxLenZ)
+        end
+        cell[i] = positionToLinear3D(xi, yi, zi, box, neighbors.cellSize, neighbors.grid)
     end
 end
 
