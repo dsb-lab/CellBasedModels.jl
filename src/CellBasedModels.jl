@@ -42,7 +42,8 @@ module CellBasedModels
     #Custom integrators
     # export IntegrationAlgs
     # export Rule, ODE, DynamicalODE, SplitODE, SDE, RODE, ADIODE
-    # include("./integrators/abstractTypes.jl")
+    export CustomIntegrator
+    include("./integrators/abstractTypes.jl")
     # include("./integrators/integratorsFunctionGeneration.jl")
 
     # #Random

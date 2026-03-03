@@ -701,6 +701,19 @@ end
     end
 end
 
+# Provide clear error message when trying to assign with = instead of .=
+function Base.setproperty!(field::UnstructuredMeshField, s::Symbol, v)
+    # Check if s is a user property (not an internal field)
+    if s in keys(field._p)
+        error("Cannot assign to property '$s' using '='. Use '.=' for in-place broadcast assignment instead.\n" *
+              "Example: field.$s .= value  # correct\n" *
+              "         field.$s = value   # incorrect")
+    else
+        # For internal fields, give the standard error
+        error("type UnstructuredMeshField is immutable and has no field $s that can be set")
+    end
+end
+
 nCopyProperties(field::UnstructuredMeshField) = count(!, field._pReference)
 nRefProperties(field::UnstructuredMeshField) = count(identity, field._pReference)
 
@@ -1364,6 +1377,19 @@ specialization(mesh::UnstructuredMeshObject{P, D, S}) where {P, D, S} = S
         $(general...)
         $(cases...)
         error("Unknown property: $s for the UnstructuredMeshObject.")
+    end
+end
+
+# Provide clear error message when trying to assign with = instead of .=
+function Base.setproperty!(field::UnstructuredMeshObject, s::Symbol, v)
+    # Check if s is a user property (not an internal field)
+    if s in keys(field._p)
+        error("Cannot assign to property '$s' using '='. Access the field and use '.=' for in-place broadcast assignment.\n" *
+              "Example: mesh.$s.property .= value  # correct\n" *
+              "         mesh.$s = value            # incorrect")
+    else
+        # For internal fields, give the standard error
+        error("type UnstructuredMeshObject is immutable and has no field $s that can be set")
     end
 end
 

@@ -91,9 +91,6 @@ function DifferentialEquations.init(problem::CBProblem; dt::Real, overflowFactor
         else
             if integrator === nothing
                 integratorsDict[scope] = DifferentialEquations.init(deproblem; (;args...)...)
-            elseif integrator isa IntegrationAlgs.CustomIntegrator
-                # Custom integrators from IntegrationAlgs need to be initialized directly
-                integratorsDict[scope] = typeof(integrator)(deproblem, args)
             else
                 integratorsDict[scope] = DifferentialEquations.init(deproblem, integrator; (;args...)...)
             end
