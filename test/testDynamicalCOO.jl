@@ -513,6 +513,48 @@
         @test dense[2, 3] == 4.0
         @test dense[1, 3] == 0.0  # unset entry
         @test dense[2, 2] == 0.0  # unset entry
+        # iterateRow - test row iteration in kernel
+        # Helper kernel to iterate over row and sum values
+        function _dcoo_iterate_row_sum(coo, row_idx, result)
+            @kernel function iter_kernel!(coo, row_idx, result)
+                iter = CellBasedModels.iterateRow(coo, row_idx)
+                sum_val = 0.0
+                count = 0
+                for k in 1:iter._nEntries
+                    if CellBasedModels.matchesrow(iter, k)
+                        col, val = CellBasedModels.getentry(iter, k)
+                        sum_val += val
+                        count += 1
+                    end
+                end
+                result[1] = sum_val
+                result[2] = count
+            end
+            backend = KernelAbstractions.get_backend(coo)
+            threads = backend === CPU() ? 1 : 256
+            iter_kernel!(backend, threads)(coo, row_idx, result, ndrange=1)
+            KernelAbstractions.synchronize(backend)
+        end
+        
+        coo_iter = dcoo_zeros(Float64, 5)
+        coo_iter = toBackend(backend, coo_iter)
+        _dcoo_slice_setup(coo_iter)  # Sets up: [1,1]=1, [1,2]=2, [2,1]=3, [2,3]=4
+        
+        result = toBackend(backend, zeros(Float64, 2))
+        _dcoo_iterate_row_sum(coo_iter, 1, result)
+        @test Array(result)[1] == 3.0  # 1.0 + 2.0 (row 1 values)
+        @test Array(result)[2] == 2.0  # 2 entries in row 1
+        
+        result = toBackend(backend, zeros(Float64, 2))
+        _dcoo_iterate_row_sum(coo_iter, 2, result)
+        @test Array(result)[1] == 7.0  # 3.0 + 4.0 (row 2 values)
+        @test Array(result)[2] == 2.0  # 2 entries in row 2
+        
+        # Test row with no entries
+        result = toBackend(backend, zeros(Float64, 2))
+        _dcoo_iterate_row_sum(coo_iter, 3, result)
+        @test Array(result)[1] == 0.0  # no entries
+        @test Array(result)[2] == 0.0  # 0 entries
     end
 
 end

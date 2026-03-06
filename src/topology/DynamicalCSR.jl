@@ -212,6 +212,96 @@ function todense(csr::DynamicalCSR{P, T}) where {P, T}
     return dense
 end
 
+######################################################################################################
+# Row iteration support
+######################################################################################################
+
+"""
+    CSRRowIterator{V, I}
+
+Iterator struct for iterating over entries in a specific row of a DynamicalCSR matrix.
+GPU and CPU compatible for use inside kernels.
+
+Fields:
+- `row`: The row index being iterated
+- `_cols`: Reference to the column indices array
+- `_values`: Reference to the values array
+- `_startIdx`: Starting index in the CSR arrays for this row
+- `_endIdx`: Ending index in the CSR arrays for this row
+
+Usage in a kernel:
+```julia
+iter = iterateRow(csr, i)
+for k in iter._startIdx:iter._endIdx
+    col, val = iter._cols[k], iter._values[k]
+    if col > 0  # entry exists
+        # process col, val...
+    end
+end
+```
+"""
+struct CSRRowIterator{V, I}
+    row::Int
+    _cols::I
+    _values::V
+    _startIdx::Int
+    _endIdx::Int
+end
+Adapt.@adapt_structure CSRRowIterator
+
+"""
+    iterateRow(csr::DynamicalCSR, i::Int)
+
+Create an iterator for traversing all entries in row `i` of the CSR matrix.
+Returns a `CSRRowIterator` struct that can be used inside GPU/CPU kernels.
+
+For CSR format, each row has a contiguous range of entries determined by rowOffsets.
+Use the iterator as:
+
+```julia
+iter = iterateRow(csr, i)
+for k in iter._startIdx:iter._endIdx
+    col = iter._cols[k]
+    val = iter._values[k]
+    if col > 0  # entry exists
+        # ... process entry
+    end
+end
+```
+
+Note: This only iterates over the CSR portion. Entries in the overflow COO
+are not included. Use `iterateRow(csr._coo, i)` to iterate overflow entries.
+"""
+@inline function iterateRow(csr::DynamicalCSR, i::Int)
+    nRows = length(csr._rowOffsets) - 1
+    if i <= 0 || i > nRows
+        # Return empty iterator for out-of-bounds rows
+        return CSRRowIterator(i, csr._cols, csr._values, 1, 0)
+    end
+    startIdx = csr._rowOffsets[i]
+    endIdx = csr._rowOffsets[i+1] - 1
+    return CSRRowIterator(i, csr._cols, csr._values, startIdx, endIdx)
+end
+
+"""
+    getentry(iter::CSRRowIterator, k::Int)
+
+Get the (col, value) entry at position k in the CSR arrays.
+Returns `(col, value)` tuple.
+"""
+@inline function getentry(iter::CSRRowIterator, k::Int)
+    return (iter._cols[k], iter._values[k])
+end
+
+"""
+    Base.length(iter::CSRRowIterator)
+
+Return the number of slots in this row (may include empty slots where col == 0).
+"""
+@inline function Base.length(iter::CSRRowIterator)
+    return max(0, iter._endIdx - iter._startIdx + 1)
+end
+
 """
     setindex!(csr::DynamicalCSR, value, i::Int, j::Int)
 

@@ -72,12 +72,13 @@ module CellBasedModels
     # include("./topology/auxiliar.jl")
 
     include("./topology/abstractCSR.jl")
-    export DynamicalCOO, dcoo_zeros
+    export DynamicalCOO, dcoo_zeros, COORowIterator
     include("./topology/DynamicalCOO.jl")
-    export DynamicalCSR, dcsr_zeros
+    export DynamicalCSR, dcsr_zeros, CSRRowIterator
     include("./topology/DynamicalCSR.jl")
-    export DynamicalELL, dell_zeros
+    export DynamicalELL, dell_zeros, ELLRowIterator
     include("./topology/DynamicalELL.jl")
+    export iterateRow, getentry, matchesrow, todense, replaceIndex!
     export Topology
     include("./topology/topology.jl")
 

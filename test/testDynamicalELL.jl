@@ -466,6 +466,55 @@
         @test dense[2, 2] == 0.0  # unset entry
         @test dense[3, 1] == 0.0  # unset entry
         @test dense[3, 3] == 0.0  # unset entry
+        # iterateRow - test row iteration in kernel
+        # Helper kernel to iterate over row and sum values
+        function _dell_iterate_row_sum(ell, row_idx, result)
+            @kernel function iter_kernel!(ell, row_idx, result)
+                iter = CellBasedModels.iterateRow(ell, row_idx)
+                sum_val = 0.0
+                count = 0
+                for k in iter._startIdx:iter._endIdx
+                    col, val = CellBasedModels.getentry(iter, k)
+                    if col > 0
+                        sum_val += val
+                        count += 1
+                    end
+                end
+                result[1] = sum_val
+                result[2] = count
+            end
+            backend = KernelAbstractions.get_backend(ell)
+            threads = backend === CPU() ? 1 : 256
+            iter_kernel!(backend, threads)(ell, row_idx, result, ndrange=1)
+            KernelAbstractions.synchronize(backend)
+        end
+        
+        ell_iter = dell_zeros(Float64, 3, 3, 2)
+        ell_iter = toBackend(backend, ell_iter)
+        _dell_slice_setup(ell_iter)  # Sets up: [1,1]=1, [1,2]=2, [2,1]=3, [2,3]=4, [3,2]=5
+        
+        result = toBackend(backend, zeros(Float64, 2))
+        _dell_iterate_row_sum(ell_iter, 1, result)
+        @test Array(result)[1] == 3.0  # 1.0 + 2.0 (row 1 values)
+        @test Array(result)[2] == 2.0  # 2 entries in row 1
+        
+        result = toBackend(backend, zeros(Float64, 2))
+        _dell_iterate_row_sum(ell_iter, 2, result)
+        @test Array(result)[1] == 7.0  # 3.0 + 4.0 (row 2 values)
+        @test Array(result)[2] == 2.0  # 2 entries in row 2
+        
+        result = toBackend(backend, zeros(Float64, 2))
+        _dell_iterate_row_sum(ell_iter, 3, result)
+        @test Array(result)[1] == 5.0  # 5.0 (row 3 values)
+        @test Array(result)[2] == 1.0  # 1 entry in row 3
+        
+        # Test iterator length
+        iter_cpu = CellBasedModels.iterateRow(toBackend(CPU(), dell_zeros(Float64, 3, 3, 0)), 1)
+        @test length(iter_cpu) == 3  # 3 slots per row
+        
+        # Test out-of-bounds row returns empty iterator
+        iter_oob = CellBasedModels.iterateRow(toBackend(CPU(), dell_zeros(Float64, 3, 3, 0)), 10)
+        @test length(iter_oob) == 0
     end
 
 end

@@ -206,6 +206,10 @@ function todense(ell::DynamicalELL{P, T}) where {P, T}
     return dense
 end
 
+######################################################################################################
+# Row iteration support
+######################################################################################################
+
 """
     _row_range(ell::DynamicalELL, i::Int)
 
@@ -217,6 +221,93 @@ For row i, entries are at positions (i-1)*nColsPerRow + 1 to i*nColsPerRow
     startIdx = (i - 1) * nColsPerRow + 1
     endIdx = i * nColsPerRow
     return startIdx, endIdx
+end
+
+"""
+    ELLRowIterator{V, I}
+
+Iterator struct for iterating over entries in a specific row of a DynamicalELL matrix.
+GPU and CPU compatible for use inside kernels.
+
+Fields:
+- `row`: The row index being iterated
+- `_cols`: Reference to the column indices array
+- `_values`: Reference to the values array
+- `_startIdx`: Starting index in the ELL arrays for this row
+- `_endIdx`: Ending index in the ELL arrays for this row
+
+Usage in a kernel:
+```julia
+iter = iterateRow(ell, i)
+for k in iter._startIdx:iter._endIdx
+    col, val = iter._cols[k], iter._values[k]
+    if col > 0  # entry exists
+        # process col, val...
+    end
+end
+```
+"""
+struct ELLRowIterator{V, I}
+    row::Int
+    _cols::I
+    _values::V
+    _startIdx::Int
+    _endIdx::Int
+end
+Adapt.@adapt_structure ELLRowIterator
+
+"""
+    iterateRow(ell::DynamicalELL, i::Int)
+
+Create an iterator for traversing all entries in row `i` of the ELL matrix.
+Returns an `ELLRowIterator` struct that can be used inside GPU/CPU kernels.
+
+For ELL format, each row has exactly `nColsPerRow` slots at positions
+`(i-1)*nColsPerRow+1` to `i*nColsPerRow`. Use the iterator as:
+
+```julia
+iter = iterateRow(ell, i)
+for k in iter._startIdx:iter._endIdx
+    col = iter._cols[k]
+    val = iter._values[k]
+    if col > 0  # entry exists
+        # ... process entry
+    end
+end
+```
+
+Note: This only iterates over the ELL portion. Entries in the overflow COO
+are not included. Use `iterateRow(ell._coo, i)` to iterate overflow entries.
+"""
+@inline function iterateRow(ell::DynamicalELL, i::Int)
+    nRows = ell._nRows[1]
+    nColsPerRow = ell._nColsPerRow[1]
+    if i <= 0 || i > nRows || nColsPerRow == 0
+        # Return empty iterator for out-of-bounds rows or zero cols per row
+        return ELLRowIterator(i, ell._cols, ell._values, 1, 0)
+    end
+    startIdx = (i - 1) * nColsPerRow + 1
+    endIdx = i * nColsPerRow
+    return ELLRowIterator(i, ell._cols, ell._values, startIdx, endIdx)
+end
+
+"""
+    getentry(iter::ELLRowIterator, k::Int)
+
+Get the (col, value) entry at position k in the ELL arrays.
+Returns `(col, value)` tuple.
+"""
+@inline function getentry(iter::ELLRowIterator, k::Int)
+    return (iter._cols[k], iter._values[k])
+end
+
+"""
+    Base.length(iter::ELLRowIterator)
+
+Return the number of slots in this row (may include empty slots where col == 0).
+"""
+@inline function Base.length(iter::ELLRowIterator)
+    return max(0, iter._endIdx - iter._startIdx + 1)
 end
 
 """

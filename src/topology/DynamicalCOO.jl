@@ -203,6 +203,89 @@ function todense(coo::DynamicalCOO{P, T}) where {P, T}
     return dense
 end
 
+######################################################################################################
+# Row iteration support
+######################################################################################################
+
+"""
+    COORowIterator{V, I}
+
+Iterator struct for iterating over entries in a specific row of a DynamicalCOO matrix.
+GPU and CPU compatible for use inside kernels.
+
+Fields:
+- `row`: The row index to iterate over
+- `_rows`: Reference to the row indices array
+- `_cols`: Reference to the column indices array
+- `_values`: Reference to the values array
+- `_nEntries`: Number of total entries to scan
+
+Usage in a kernel:
+```julia
+iter = iterateRow(coo, i)
+for k in 1:iter._nEntries
+    if iter._rows[k] == iter.row
+        col, val = iter._cols[k], iter._values[k]
+        # process col, val...
+    end
+end
+```
+"""
+struct COORowIterator{V, I}
+    row::Int
+    _rows::I
+    _cols::I
+    _values::V
+    _nEntries::Int
+end
+Adapt.@adapt_structure COORowIterator
+
+"""
+    iterateRow(coo::DynamicalCOO, i::Int)
+
+Create an iterator for traversing all entries in row `i` of the COO matrix.
+Returns a `COORowIterator` struct that can be used inside GPU/CPU kernels.
+
+Note: For COO format, entries are not stored by row, so iteration requires
+scanning all entries and filtering. Use the iterator as:
+
+```julia
+iter = iterateRow(coo, i)
+for k in 1:iter._nEntries
+    if iter._rows[k] == iter.row
+        col = iter._cols[k]
+        val = iter._values[k]
+        # ... process entry
+    end
+end
+```
+"""
+@inline function iterateRow(coo::DynamicalCOO, i::Int)
+    nEntries = coo._NEntries[1]
+    return COORowIterator(i, coo._rows, coo._cols, coo._values, nEntries)
+end
+
+"""
+    getentry(iter::COORowIterator, k::Int)
+
+Get the (col, value) entry at position k in the COO arrays.
+Only valid if `iter._rows[k] == iter.row`.
+Returns `(col, value)` tuple.
+"""
+@inline function getentry(iter::COORowIterator, k::Int)
+    return (iter._cols[k], iter._values[k])
+end
+
+"""
+    matchesrow(iter::COORowIterator, k::Int)
+
+Check if entry at position k belongs to the iterator's row.
+Returns true if `iter._rows[k] == iter.row`.
+"""
+@inline function matchesrow(iter::COORowIterator, k::Int)
+    return iter._rows[k] == iter.row
+end
+
 """
     setindex!(coo::DynamicalCOO, value, i::Int, j::Int)
 
