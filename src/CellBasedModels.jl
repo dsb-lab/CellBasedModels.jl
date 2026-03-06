@@ -78,6 +78,16 @@ module CellBasedModels
     include("./topology/DynamicalCSR.jl")
     export DynamicalELL, dell_zeros, ELLRowIterator
     include("./topology/DynamicalELL.jl")
+    
+    # Ordered sparse matrix structures (with linked-list traversal)
+    export DynamicalOrderedCOO, docoo_zeros, gethead, gettail, getnext, getprev
+    export insertafter!, insertbefore!, insertafter_k!, insertbefore_k!, delete_k!, setvalue!, setvalue_k!
+    include("./topology/DynamicalOrderedCOO.jl")
+    export DynamicalOrderedCSR, docsr_zeros, getrowhead, getrowtail
+    include("./topology/DynamicalOrderedCSR.jl")
+    export DynamicalOrderedELL, doell_zeros
+    include("./topology/DynamicalOrderedELL.jl")
+    
     export iterateRow, getentry, matchesrow, todense, replaceIndex!
     export Topology
     include("./topology/topology.jl")
