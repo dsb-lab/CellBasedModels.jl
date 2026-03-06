@@ -78,7 +78,6 @@ module CellBasedModels
     include("./topology/DynamicalCSR.jl")
     export DynamicalELL, dell_zeros
     include("./topology/DynamicalELL.jl")
-    export replaceIndex!
     export Topology
     include("./topology/topology.jl")
 

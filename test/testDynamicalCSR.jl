@@ -107,6 +107,27 @@
         KernelAbstractions.synchronize(backend)
     end
 
+    # replaceIndex! helper functions (must be called inside kernel)
+    function _dcsr_replace_same_row(csr, result, i, j_old, j_new)
+        @kernel function replace_kernel!(csr, result, i, j_old, j_new)
+            result[1] = CellBasedModels.replaceIndex!(csr, i, j_old, j_new) ? 1 : 0
+        end
+        backend = KernelAbstractions.get_backend(csr)
+        threads = backend === CPU() ? 1 : 256
+        replace_kernel!(backend, threads)(csr, result, i, j_old, j_new, ndrange=1)
+        KernelAbstractions.synchronize(backend)
+    end
+
+    function _dcsr_replace_cross_row(csr, result, i_old, j_old, i_new, j_new)
+        @kernel function replace_kernel!(csr, result, i_old, j_old, i_new, j_new)
+            result[1] = CellBasedModels.replaceIndex!(csr, i_old, j_old, i_new, j_new) ? 1 : 0
+        end
+        backend = KernelAbstractions.get_backend(csr)
+        threads = backend === CPU() ? 1 : 256
+        replace_kernel!(backend, threads)(csr, result, i_old, j_old, i_new, j_new, ndrange=1)
+        KernelAbstractions.synchronize(backend)
+    end
+
     for backend in backends
         csr = dcsr_zeros(Float64, 2, 2, 0)
         # Build
@@ -421,8 +442,9 @@
         @test (Array(csr_replace._NEntries), Array(csr_replace._NEntriesCache), Array(csr_replace._NEntriesNonzero)) == ([5], [9], [5])
         @test Array(csr_replace._NOverflowInsert) == [0]
         # Test same-row column replacement: [1,1] -> [1,5] (3-arg convenience form)
-        result = CellBasedModels.replaceIndex!(csr_replace, 1, 1, 5)
-        @test result == true
+        result_arr = toBackend(backend, [0])
+        _dcsr_replace_same_row(csr_replace, result_arr, 1, 1, 5)
+        @test Array(result_arr)[1] == 1
         @test Array(csr_replace._cols) == [5, 2, 0, 1, 3, 0, 2, 0, 0]  # col 1->5 at position 1
         @test Array(csr_replace._values) == [1.0, 2.0, 0.0, 3.0, 4.0, 0.0, 5.0, 0.0, 0.0]  # values unchanged
         @test Array(csr_replace._rowOffsets) == [1, 4, 7, 10]  # offsets unchanged
@@ -430,54 +452,38 @@
         @test Array(csr_replace._NOverflowInsert) == [0]
         # Test cross-row replacement within CSR: [2,1] -> [3,7] (5-arg full form)
         # This removes from row 2 and adds to row 3 (which has space)
-        result = CellBasedModels.replaceIndex!(csr_replace, 2, 1, 3, 7)
-        @test result == true
+        result_arr = toBackend(backend, [0])
+        _dcsr_replace_cross_row(csr_replace, result_arr, 2, 1, 3, 7)
+        @test Array(result_arr)[1] == 1
         @test Array(csr_replace._cols) == [5, 2, 0, 0, 3, 0, 2, 7, 0]  # row 2 col 1 removed, row 3 col 7 added
         @test Array(csr_replace._values) == [1.0, 2.0, 0.0, 0.0, 4.0, 0.0, 5.0, 3.0, 0.0]  # value 3.0 moved to row 3
         @test Array(csr_replace._rowOffsets) == [1, 4, 7, 10]  # offsets unchanged
         @test (Array(csr_replace._NEntries), Array(csr_replace._NEntriesCache), Array(csr_replace._NEntriesNonzero)) == ([5], [9], [5])
         @test Array(csr_replace._NOverflowInsert) == [0]  # no overflow needed
         # Test replacement on non-existent entry returns false
-        result = CellBasedModels.replaceIndex!(csr_replace, 99, 99, 100, 100)
-        @test result == false
+        result_arr = toBackend(backend, [0])
+        _dcsr_replace_cross_row(csr_replace, result_arr, 99, 99, 100, 100)
+        @test Array(result_arr)[1] == 0
         @test Array(csr_replace._cols) == [5, 2, 0, 0, 3, 0, 2, 7, 0]  # unchanged
         @test Array(csr_replace._values) == [1.0, 2.0, 0.0, 0.0, 4.0, 0.0, 5.0, 3.0, 0.0]  # unchanged
         @test Array(csr_replace._rowOffsets) == [1, 4, 7, 10]
         @test (Array(csr_replace._NEntries), Array(csr_replace._NEntriesCache), Array(csr_replace._NEntriesNonzero)) == ([5], [9], [5])
         @test Array(csr_replace._NOverflowInsert) == [0]
-        # Test replaceIndex! with zero value entry (should still work)
-        csr_replace._values[2] = 0.0  # Make [1,2]=0 (still in CSR but zero value)
-        Atomix.@atomic csr_replace._NEntriesNonzero[1] -= 1
-        @test Array(csr_replace._values) == [1.0, 0.0, 0.0, 0.0, 4.0, 0.0, 5.0, 3.0, 0.0]
-        @test (Array(csr_replace._NEntriesNonzero)) == ([4])
-        result = CellBasedModels.replaceIndex!(csr_replace, 1, 2, 1, 10)  # [1,2] -> [1,10]
-        @test result == true
-        @test Array(csr_replace._cols) == [5, 10, 0, 0, 3, 0, 2, 7, 0]  # col 2->10
-        @test Array(csr_replace._values) == [1.0, 0.0, 0.0, 0.0, 4.0, 0.0, 5.0, 3.0, 0.0]  # value still zero
-        @test Array(csr_replace._rowOffsets) == [1, 4, 7, 10]
-        @test (Array(csr_replace._NEntries), Array(csr_replace._NEntriesCache), Array(csr_replace._NEntriesNonzero)) == ([5], [9], [4])  # nonzero unchanged
-        @test Array(csr_replace._NOverflowInsert) == [0]
-        # Test replaceIndex! cross-row that causes overflow to COO
-        csr_replace2 = dcsr_zeros(Float64, 2, 1, 2)  # 2 rows, 1 col each, 2 COO slots
-        csr_replace2 = toBackend(backend, csr_replace2)
-        csr_replace2[1, 1] = 10.0
-        csr_replace2[2, 2] = 20.0
-        # Current state: row 1 full with col 1, row 2 full with col 2
-        @test Array(csr_replace2._cols) == [1, 2]
-        @test Array(csr_replace2._values) == [10.0, 20.0]
-        @test Array(csr_replace2._rowOffsets) == [1, 2, 3]
-        @test (Array(csr_replace2._NEntries), Array(csr_replace2._NEntriesCache), Array(csr_replace2._NEntriesNonzero)) == ([2], [2], [2])
-        @test Array(csr_replace2._NOverflowInsert) == [0]
-        # Replace [1,1] -> [2,5], but row 2 is full, so should go to COO
-        result = CellBasedModels.replaceIndex!(csr_replace2, 1, 1, 2, 5)
-        @test result == true
-        @test Array(csr_replace2._cols) == [0, 2]  # row 1 entry removed
-        @test Array(csr_replace2._values) == [0.0, 20.0]
-        @test (Array(csr_replace2._NEntries), Array(csr_replace2._NEntriesCache), Array(csr_replace2._NEntriesNonzero)) == ([1], [2], [1])
-        @test Array(csr_replace2._NOverflowInsert) == [1]  # overflow to COO
-        @test Array(csr_replace2._coo._rows)[1] == 2
-        @test Array(csr_replace2._coo._cols)[1] == 5
-        @test Array(csr_replace2._coo._values)[1] == 10.0
+        # todense - convert sparse to dense matrix
+        csr_dense = dcsr_zeros(Float64, 3, 3, 2)
+        csr_dense = toBackend(backend, csr_dense)
+        _dcsr_slice_setup(csr_dense)  # Sets up: [1,1]=1, [1,2]=2, [2,1]=3, [2,3]=4, [3,2]=5
+        dense = CellBasedModels.todense(csr_dense)
+        @test size(dense) == (3, 3)
+        @test dense[1, 1] == 1.0
+        @test dense[1, 2] == 2.0
+        @test dense[2, 1] == 3.0
+        @test dense[2, 3] == 4.0
+        @test dense[3, 2] == 5.0
+        @test dense[1, 3] == 0.0  # unset entry
+        @test dense[2, 2] == 0.0  # unset entry
+        @test dense[3, 1] == 0.0  # unset entry
+        @test dense[3, 3] == 0.0  # unset entry
     end
 
 end

@@ -7,6 +7,7 @@ using KernelAbstractions
 using Printf
 using Adapt
 using DifferentialEquations
+using Atomix
 
 verbose = true
 benchmark = true #just for internal optimizations

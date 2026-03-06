@@ -174,6 +174,36 @@ numberOfRows(coo::DynamicalCOO{P}) where {P} = maximum(coo._rows)
 numberOfCols(coo::DynamicalCOO{P}) where {P} = maximum(coo._cols)
 
 """
+    todense(coo::DynamicalCOO)
+
+Convert the sparse COO matrix to a dense matrix.
+Returns a dense matrix of size (nRows, nCols) with all stored entries filled in.
+"""
+function todense(coo::DynamicalCOO{P, T}) where {P, T}
+    nRows = numberOfRows(coo)
+    nCols = numberOfCols(coo)
+    nEntries = numberOfEntries(coo)
+    
+    # Create dense matrix on CPU
+    dense = zeros(T, nRows, nCols)
+    
+    # Copy data to CPU for iteration
+    rows = Array(coo._rows)
+    cols = Array(coo._cols)
+    values = Array(coo._values)
+    
+    # Fill in the values
+    for k in 1:nEntries
+        i, j = rows[k], cols[k]
+        if i > 0 && j > 0
+            dense[i, j] = values[k]
+        end
+    end
+    
+    return dense
+end
+
+"""
     setindex!(coo::DynamicalCOO, value, i::Int, j::Int)
 
 Set the value at position (i, j) in the sparse matrix.

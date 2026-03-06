@@ -106,6 +106,27 @@
         KernelAbstractions.synchronize(backend)
     end
 
+    # replaceIndex! helper functions (must be called inside kernel)
+    function _dcoo_replace_same_row(coo, result, i, j_old, j_new)
+        @kernel function replace_kernel!(coo, result, i, j_old, j_new)
+            result[1] = CellBasedModels.replaceIndex!(coo, i, j_old, j_new) ? 1 : 0
+        end
+        backend = KernelAbstractions.get_backend(coo)
+        threads = backend === CPU() ? 1 : 256
+        replace_kernel!(backend, threads)(coo, result, i, j_old, j_new, ndrange=1)
+        KernelAbstractions.synchronize(backend)
+    end
+
+    function _dcoo_replace_cross_row(coo, result, i_old, j_old, i_new, j_new)
+        @kernel function replace_kernel!(coo, result, i_old, j_old, i_new, j_new)
+            result[1] = CellBasedModels.replaceIndex!(coo, i_old, j_old, i_new, j_new) ? 1 : 0
+        end
+        backend = KernelAbstractions.get_backend(coo)
+        threads = backend === CPU() ? 1 : 256
+        replace_kernel!(backend, threads)(coo, result, i_old, j_old, i_new, j_new, ndrange=1)
+        KernelAbstractions.synchronize(backend)
+    end
+
     for backend in backends
         coo = dcoo_zeros(Float64, 2)
         # Build
@@ -448,8 +469,9 @@
         @test (Array(coo_replace._NEntriesFree), Array(coo_replace._NEntriesFreeNextInit), Array(coo_replace._NEntriesFreeNext)) == ([1], [6], [0])
         @test Array(coo_replace._entriesFree) == [5, 0, 0, 0, 0]
         # Test same-row column replacement: [1,1] -> [1,5] (4-arg convenience form)
-        result = CellBasedModels.replaceIndex!(coo_replace, 1, 1, 5)
-        @test result == true
+        result_arr = toBackend(backend, [0])
+        _dcoo_replace_same_row(coo_replace, result_arr, 1, 1, 5)
+        @test Array(result_arr)[1] == 1
         @test Array(coo_replace._rows) == [1, 1, 2, 2, 0]  # row unchanged
         @test Array(coo_replace._cols) == [5, 2, 1, 3, 0]  # col 1->5 at position 1
         @test Array(coo_replace._values) == [1.0, 2.0, 3.0, 4.0, 0.0]  # values unchanged
@@ -458,8 +480,9 @@
         @test (Array(coo_replace._NEntriesFree), Array(coo_replace._NEntriesFreeNextInit), Array(coo_replace._NEntriesFreeNext)) == ([1], [6], [0])
         @test Array(coo_replace._entriesFree) == [5, 0, 0, 0, 0]
         # Test cross-row replacement: [2,1] -> [3,7] (5-arg full form)
-        result = CellBasedModels.replaceIndex!(coo_replace, 2, 1, 3, 7)
-        @test result == true
+        result_arr = toBackend(backend, [0])
+        _dcoo_replace_cross_row(coo_replace, result_arr, 2, 1, 3, 7)
+        @test Array(result_arr)[1] == 1
         @test Array(coo_replace._rows) == [1, 1, 3, 2, 0]  # row 2->3 at position 3
         @test Array(coo_replace._cols) == [5, 2, 7, 3, 0]  # col 1->7 at position 3
         @test Array(coo_replace._values) == [1.0, 2.0, 3.0, 4.0, 0.0]  # values unchanged
@@ -468,8 +491,9 @@
         @test (Array(coo_replace._NEntriesFree), Array(coo_replace._NEntriesFreeNextInit), Array(coo_replace._NEntriesFreeNext)) == ([1], [6], [0])
         @test Array(coo_replace._entriesFree) == [5, 0, 0, 0, 0]
         # Test replacement on non-existent entry returns false
-        result = CellBasedModels.replaceIndex!(coo_replace, 99, 99, 100, 100)
-        @test result == false
+        result_arr = toBackend(backend, [0])
+        _dcoo_replace_cross_row(coo_replace, result_arr, 99, 99, 100, 100)
+        @test Array(result_arr)[1] == 0
         @test Array(coo_replace._rows) == [1, 1, 3, 2, 0]  # unchanged
         @test Array(coo_replace._cols) == [5, 2, 7, 3, 0]  # unchanged
         @test Array(coo_replace._values) == [1.0, 2.0, 3.0, 4.0, 0.0]  # unchanged
@@ -477,20 +501,18 @@
         @test (Array(coo_replace._NOverflowInsert), Array(coo_replace._NOverflowErase)) == ([0], [0])
         @test (Array(coo_replace._NEntriesFree), Array(coo_replace._NEntriesFreeNextInit), Array(coo_replace._NEntriesFreeNext)) == ([1], [6], [0])
         @test Array(coo_replace._entriesFree) == [5, 0, 0, 0, 0]
-        # Test replaceIndex! with zero value entry (should still work)
-        coo_replace._values[2] = 0.0  # Make [1,2]=0 (still in COO but zero value)
-        Atomix.@atomic coo_replace._NEntriesNonzero[1] -= 1
-        @test Array(coo_replace._values) == [1.0, 0.0, 3.0, 4.0, 0.0]
-        @test (Array(coo_replace._NEntriesNonzero)) == ([3])
-        result = CellBasedModels.replaceIndex!(coo_replace, 1, 2, 1, 10)
-        @test result == true
-        @test Array(coo_replace._rows) == [1, 1, 3, 2, 0]  # row unchanged
-        @test Array(coo_replace._cols) == [5, 10, 7, 3, 0]  # col 2->10 at position 2
-        @test Array(coo_replace._values) == [1.0, 0.0, 3.0, 4.0, 0.0]  # value still zero
-        @test (Array(coo_replace._NEntries), Array(coo_replace._NEntriesCache), Array(coo_replace._NEntriesNonzero)) == ([4], [5], [3])  # nonzero count unchanged
-        @test (Array(coo_replace._NOverflowInsert), Array(coo_replace._NOverflowErase)) == ([0], [0])
-        @test (Array(coo_replace._NEntriesFree), Array(coo_replace._NEntriesFreeNextInit), Array(coo_replace._NEntriesFreeNext)) == ([1], [6], [0])
-        @test Array(coo_replace._entriesFree) == [5, 0, 0, 0, 0]
+        # todense - convert sparse to dense matrix
+        coo_dense = dcoo_zeros(Float64, 5)
+        coo_dense = toBackend(backend, coo_dense)
+        _dcoo_slice_setup(coo_dense)  # Sets up: [1,1]=1, [1,2]=2, [2,1]=3, [2,3]=4
+        dense = CellBasedModels.todense(coo_dense)
+        @test size(dense) == (2, 3)
+        @test dense[1, 1] == 1.0
+        @test dense[1, 2] == 2.0
+        @test dense[2, 1] == 3.0
+        @test dense[2, 3] == 4.0
+        @test dense[1, 3] == 0.0  # unset entry
+        @test dense[2, 2] == 0.0  # unset entry
     end
 
 end

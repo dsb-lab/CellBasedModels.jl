@@ -161,6 +161,52 @@ numberOfCols(ell::DynamicalELL{P}) where {P} = max(maximum(ell._cols; init=0), n
 numberOfColsPerRow(ell::DynamicalELL{P}) where {P} = getDeviceIndex(ell._nColsPerRow)
 
 """
+    todense(ell::DynamicalELL)
+
+Convert the sparse ELL matrix to a dense matrix.
+Returns a dense matrix of size (nRows, nCols) with all stored entries filled in.
+Includes entries from both the ELL portion and the overflow COO.
+"""
+function todense(ell::DynamicalELL{P, T}) where {P, T}
+    nRows = numberOfRows(ell)
+    nCols = numberOfCols(ell)
+    
+    # Create dense matrix on CPU
+    dense = zeros(T, nRows, nCols)
+    
+    # Copy ELL data to CPU for iteration
+    cols = Array(ell._cols)
+    values = Array(ell._values)
+    ellRows = Array(ell._nRows)[1]
+    nColsPerRow = Array(ell._nColsPerRow)[1]
+    
+    # Fill from ELL portion
+    for i in 1:ellRows
+        startIdx = (i - 1) * nColsPerRow + 1
+        endIdx = i * nColsPerRow
+        for k in startIdx:endIdx
+            j = cols[k]
+            if j > 0
+                dense[i, j] = values[k]
+            end
+        end
+    end
+    
+    # Fill from overflow COO
+    coo_dense = todense(ell._coo)
+    coo_nRows, coo_nCols = size(coo_dense)
+    for i in 1:coo_nRows
+        for j in 1:coo_nCols
+            if coo_dense[i, j] != zero(T)
+                dense[i, j] = coo_dense[i, j]
+            end
+        end
+    end
+    
+    return dense
+end
+
+"""
     _row_range(ell::DynamicalELL, i::Int)
 
 Get the start and end indices for row i in the ELL format.

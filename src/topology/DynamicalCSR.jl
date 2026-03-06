@@ -167,6 +167,52 @@ numberOfRows(csr::DynamicalCSR{P}) where {P} = max(numberOfRows(csr._coo), lengt
 numberOfCols(csr::DynamicalCSR{P}) where {P} = max(maximum(csr._cols), numberOfCols(csr._coo))
 
 """
+    todense(csr::DynamicalCSR)
+
+Convert the sparse CSR matrix to a dense matrix.
+Returns a dense matrix of size (nRows, nCols) with all stored entries filled in.
+Includes entries from both the CSR portion and the overflow COO.
+"""
+function todense(csr::DynamicalCSR{P, T}) where {P, T}
+    nRows = numberOfRows(csr)
+    nCols = numberOfCols(csr)
+    
+    # Create dense matrix on CPU
+    dense = zeros(T, nRows, nCols)
+    
+    # Copy CSR data to CPU for iteration
+    cols = Array(csr._cols)
+    values = Array(csr._values)
+    rowOffsets = Array(csr._rowOffsets)
+    
+    # Fill from CSR portion
+    csrRows = length(rowOffsets) - 1
+    for i in 1:csrRows
+        startIdx = rowOffsets[i]
+        endIdx = rowOffsets[i+1] - 1
+        for k in startIdx:endIdx
+            j = cols[k]
+            if j > 0
+                dense[i, j] = values[k]
+            end
+        end
+    end
+    
+    # Fill from overflow COO
+    coo_dense = todense(csr._coo)
+    coo_nRows, coo_nCols = size(coo_dense)
+    for i in 1:coo_nRows
+        for j in 1:coo_nCols
+            if coo_dense[i, j] != zero(T)
+                dense[i, j] = coo_dense[i, j]
+            end
+        end
+    end
+    
+    return dense
+end
+
+"""
     setindex!(csr::DynamicalCSR, value, i::Int, j::Int)
 
 Set the value at position (i, j) in the sparse matrix.
