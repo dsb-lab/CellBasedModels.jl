@@ -1123,6 +1123,10 @@ Adapt.@adapt_structure UnstructuredMeshObject
 mesh2Object(::Type{<:UnstructuredMesh}) = UnstructuredMeshObject
 object2mesh(::Type{<:UnstructuredMeshObject}) = UnstructuredMesh
 
+# Helper functions to get element count from sparse matrices
+lengthElements(mat::AbstractSparseMatrix) = numberOfRows(mat)
+lengthElementsCache(mat::AbstractSparseMatrix) = numberOfEntriesCache(mat)
+
 function UnstructuredMeshObject(
         mesh::UnstructuredMesh{D, S};
         kwargs...

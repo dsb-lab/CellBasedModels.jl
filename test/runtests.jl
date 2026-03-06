@@ -25,6 +25,7 @@ backends = CUDA.has_cuda() ? [CPU(), CUDA.CUDABackend()] : [CPU()]
     include("testDynamicalOrderedCOO.jl")
     include("testDynamicalOrderedCSR.jl")
     include("testDynamicalOrderedELL.jl")
+    include("testTopology.jl")
     # include("testTopologyAuxiliar.jl")
 
     # include("testUnstructuredMesh.jl")

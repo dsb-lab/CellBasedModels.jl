@@ -1,3 +1,12 @@
+######################################################################################################
+# Topology - Contains both schema and sparse matrix relations
+######################################################################################################
+
+"""
+    getAllEntities(pairs)
+
+Extract all unique entity symbols from a list of relation pairs.
+"""
 function getAllEntities(pairs)
     entities = Set{Symbol}()
     for (origin, target) in pairs
@@ -7,13 +16,23 @@ function getAllEntities(pairs)
     return entities
 end
 
-function allShortestPaths(pairs)
+"""
+    allShortestPaths(pairs)
 
+Compute all shortest paths between entities using the given relation pairs.
+Returns a nested dictionary: origin -> target -> path
+where path is a tuple of (from, to, direction) triples.
+"""
+function allShortestPaths(pairs)
     s = getAllEntities(pairs)
     all_paths = Dict{Tuple{Symbol, Symbol}, Tuple}()
+    
+    # Initialize with direct relations
     for (origin, target) in pairs
         all_paths[(origin, target)] = ((origin, target, :d),)
     end
+    
+    # Find paths using direct relations
     l = length(all_paths)
     l_new = 0
     while l != l_new
@@ -31,11 +50,15 @@ function allShortestPaths(pairs)
         end
         l_new = length(all_paths)
     end
+    
+    # Add inverse relations
     for (origin, target) in pairs
         if !haskey(all_paths, (target, origin))
             all_paths[(target, origin)] = ((target, origin, :i),)
         end
     end
+    
+    # Find paths including inverse relations
     l = length(all_paths)
     l_new = 0
     while l != l_new
@@ -54,8 +77,7 @@ function allShortestPaths(pairs)
         l_new = length(all_paths)
     end
 
-    # Convert dictionary to nested named tuple
-    # Structure: origin -> target -> path
+    # Convert to nested dictionary
     nested_dict = Dict{Symbol, Dict{Symbol, Tuple}}()
     for ((origin, target), path) in all_paths
         if !haskey(nested_dict, origin)
@@ -63,463 +85,501 @@ function allShortestPaths(pairs)
         end
         nested_dict[origin][target] = path
     end
-        
+    
     return nested_dict
-
 end
 
-function isConnected(pairs)
+"""
+    isConnected(pairs)
 
+Check if all entities can reach each other through the given relations.
+"""
+function isConnected(pairs)
     entities = getAllEntities(pairs)
     paths = allShortestPaths(pairs)
     lpaths = sum(length(v) for v in values(paths))
-    length(entities)^2 - length(entities) == lpaths
-
+    return length(entities)^2 - length(entities) == lpaths
 end
 
-struct Topology{P, RB, RA, RI}
-    _elements::P
-    _basicRelations::RB
-    _directRelations::RA
-    _inferenceTable::RI
+######################################################################################################
+# Topology Structure - Contains schema and sparse matrix data
+######################################################################################################
+
+"""
+    Topology{P, E, BR, IR, R}
+
+Stores topological relationships using sparse matrices.
+
+Type parameters:
+- P: Platform type (CPU/GPU)
+- E: Elements type (Set of entity symbols)
+- BR: Basic relations type
+- IR: Inference table type
+- R: Relations type (NamedTuple of sparse matrices)
+
+Fields:
+- _elements: Set of entity symbols (e.g., :n, :e, :c)
+- _basicRelations: List of basic relation pairs
+- _inferenceTable: Path computation table for traversing relations
+- _relations: NamedTuple storing sparse matrices for each relation
+"""
+struct Topology{P, E, BR, IR, R}
+    _elements::E
+    _basicRelations::BR
+    _inferenceTable::IR
+    _relations::R
+end
+Adapt.@adapt_structure Topology
+
+# Empty topology type
+const TopologyEmpty = Topology{Nothing, Nothing, Nothing, Nothing, Nothing}
+
+function Topology(::Nothing)
+    return TopologyEmpty(nothing, nothing, nothing, nothing)
 end
 
-function Topology(
-    mes_properties::NamedTuple; 
-)
-    # Build basic relations from mesh structure (schema only)
-    # basic_pairs = buildBasicRelations(mesh, meshType)
-    list = []
-    for (n,s) in pairs(mes_properties)
-        if s isa Edge
-            push!(list, (n, s.c))
-        elseif s isa Face
-            push!(list, (n, s.c))
-        elseif s isa Volume
-            push!(list, (n, s.c))
-        elseif s isa Agent
-            for i in s.cs
-                push!(list, (n, i))
+"""
+    Topology(mes_properties::NamedTuple)
+
+Build a schema-only Topology (without sparse matrix data) from mesh properties.
+This is used when creating the UnstructuredMesh schema.
+"""
+function Topology(mes_properties::NamedTuple)
+    entities, basicRelations, inferenceTable = buildTopologySchema(mes_properties)
+    
+    if isnothing(entities)
+        return Topology(nothing)
+    end
+    
+    P = typeof(CPU())
+    E = typeof(entities)
+    BR = typeof(basicRelations)
+    IR = typeof(inferenceTable)
+    
+    # Schema-only: no relations stored yet
+    return Topology{P, E, BR, IR, Nothing}(entities, basicRelations, inferenceTable, nothing)
+end
+
+######################################################################################################
+# Build Topology from mesh properties
+######################################################################################################
+
+"""
+    extractBasicRelations(mes_properties::NamedTuple)
+
+Extract basic relations from mesh property definitions.
+Returns a list of (origin, target) tuples.
+"""
+function extractBasicRelations(mes_properties::NamedTuple)
+    list = Tuple{Symbol, Symbol}[]
+    for (name, prop) in pairs(mes_properties)
+        if prop isa Edge
+            push!(list, (name, prop.c))
+        elseif prop isa Face
+            push!(list, (name, prop.c))
+        elseif prop isa Volume
+            push!(list, (name, prop.c))
+        elseif prop isa Agent
+            for connected in prop.cs
+                push!(list, (name, connected))
             end
         end
     end
+    return list
+end
 
-    if isempty(list)
-        return Topology(nothing)
+"""
+    buildTopologySchema(mes_properties::NamedTuple)
+
+Build the topology schema (without data) from mesh properties.
+"""
+function buildTopologySchema(mes_properties::NamedTuple)
+    basicRelations = extractBasicRelations(mes_properties)
+    
+    if isempty(basicRelations)
+        return nothing, nothing, nothing
     end
-
-    basicRelations = list
+    
     if !isConnected(basicRelations)
         error("The basic relations derived from the mesh structure are not fully connected. Please check the mesh definition.")
     end
-
+    
     entities = getAllEntities(basicRelations)
-
-    directRelations = copy(basicRelations)
-
-    inference_table = allShortestPaths(tuple(directRelations...))    
-
-    P = typeof(entities)
-    RB = typeof(basicRelations)
-    RA = typeof(directRelations)
-    RI = typeof(inference_table)
+    inferenceTable = allShortestPaths(tuple(basicRelations...))
     
-    return Topology{P, RB, RA, RI}(entities, basicRelations, directRelations, inference_table)
+    return entities, basicRelations, inferenceTable
 end
 
-const  TopologyEmpty = Topology{Nothing, Nothing, Nothing, Nothing}
+"""
+    Topology(mes_properties::NamedTuple, kwargs::Base.Pairs)
 
-function Topology(::Nothing)
-    return Topology{Nothing, Nothing, Nothing, Nothing}(nothing, nothing, nothing, nothing)
-end
+Build a Topology with sparse matrices from mesh properties and relation data.
 
-function addRelations!(
-    topology::Topology{P, RB, RA, RI}, 
-    newRelations::Tuple{Vararg{Tuple{Symbol, Symbol}}}
-) where {P, RB, RA, RI}
+The kwargs should contain:
+- For each entity with relations: the sparse matrix or NamedTuple of sparse matrices
 
-    for (origin, target) in newRelations
-        if !(origin in topology._elements) || !(target in topology._elements)
-            error("Cannot add relation ($origin, $target): one or both entities are not present in the topology.")
-        end
-    end
-
-    pruned_new_relations = [
-        (origin, target) for (origin, target) in newRelations 
-        if !( (origin, target) in topology._directRelations )
-    ]
-
-    # Combine existing direct relations with new ones
-    append!(topology._directRelations, pruned_new_relations)
-    
-    new_inference_table = allShortestPaths(topology._directRelations)
-    for (k,e) in pairs(new_inference_table)
-        if !(haskey(topology._inferenceTable, k))
-            topology._inferenceTable[k] = e
-        end
-    end
-
-    return
-end
-
-function Base.show(io::IO, topology::Topology)
-    println(io, "Topology with entities: ")
-    for e in topology._elements
-        println(io, " - ", e)
-    end
-    println(io, "Direct relations: ")
-    for (origin, target) in topology._directRelations
-        if (origin, target) in topology._basicRelations
-            print(io, " * ")
-        else
-            print(io, "   ")
-        end
-        println(io, " - ", origin, " -> ", target)
-    end
-    println(io, "(*) Basic relations")
-end
-
-struct TopologyObject{P, T, R}
-    _topology::T
-    _relations::R
-end
-
-function TopologyObject(
-    topology::Topology,
-    structures::NamedTuple;
+Example:
+    Topology(mesh._p, (n=10, e=dcsr_zeros(...), c=(n=dcsr_zeros(...), e=dcsr_zeros(...))))
+"""
+function Topology(
+    mes_properties::NamedTuple,
+    kwargs::Base.Pairs
 )
-
-    directRelations = topology._directRelations
-
-    # Create CSR structures for all direct relations
-    relations_dict = Dict{Tuple{Symbol, Symbol}, AbstractCSR}()
-    for (origin, target) in directRelations
-        # Check if user specified a custom CSR type in meshType
-        if haskey(meshType, (origin, target))
-            topology = meshType[(origin, target)]
-        else
-            # Use default CSR type based on relation
-            if origin == :Edge && target == :Node
-                # Edge->Node: fixed 2 nodes, use CSRTuple
-                topology = CSRTuple(dtype=Int, N=0, NBlock=2, NCache=0)
-            else
-                # Default: variable connections, use CSRSlack
-                topology = CSRSlack(dtype=Int, N=0, sizes=Int64[], NCache=0)
-            end
-        end
-        relations_dict[(origin, target)] = topology
+    # Build schema
+    entities, basicRelations, inferenceTable = buildTopologySchema(mes_properties)
+    
+    if isnothing(entities)
+        return Topology(nothing)
     end
     
-    # Convert to nested NamedTuple: origin -> target -> CSR
-    nested_dict = Dict{Symbol, Dict{Symbol, AbstractCSR}}()
-    for ((origin, target), topology) in relations_dict
-        if !haskey(nested_dict, origin)
-            nested_dict[origin] = Dict{Symbol, AbstractCSR}()
+    # Extract sparse matrices for each basic relation from kwargs
+    relations_dict = Dict{Tuple{Symbol, Symbol}, AbstractSparseMatrix}()
+    
+    for (origin, target) in basicRelations
+        # Get the data for this origin entity
+        if !haskey(kwargs, origin)
+            error("Missing topology data for relation $origin -> $target")
         end
-        nested_dict[origin][target] = topology
+        
+        origin_data = kwargs[origin]
+        
+        if origin_data isa AbstractSparseMatrix
+            # Single connection (Edge, Face, Volume, or Agent with one connection)
+            relations_dict[(origin, target)] = origin_data
+        elseif origin_data isa NamedTuple
+            # Multiple connections (Agent with multiple connections)
+            if !haskey(origin_data, target)
+                error("Missing sparse matrix for relation $origin -> $target in NamedTuple")
+            end
+            relations_dict[(origin, target)] = origin_data[target]
+        elseif origin_data isa Number || origin_data isa Tuple
+            # Node - no outgoing relations to store
+            continue
+        else
+            error("Invalid data type for relation $origin -> $target: $(typeof(origin_data))")
+        end
+    end
+    
+    # Convert to nested NamedTuple: origin -> target -> sparse_matrix
+    nested_dict = Dict{Symbol, Dict{Symbol, AbstractSparseMatrix}}()
+    for ((origin, target), matrix) in relations_dict
+        if !haskey(nested_dict, origin)
+            nested_dict[origin] = Dict{Symbol, AbstractSparseMatrix}()
+        end
+        nested_dict[origin][target] = matrix
     end
     
     # Convert to NamedTuple
-    relations_nt = NamedTuple{Tuple(keys(nested_dict))}(
-        NamedTuple{Tuple(keys(targets))}(values(targets)) 
-        for targets in values(nested_dict)
-    )
-
-    T = typeof(topology)
-
-    return TopologyObject{P, T, R}(topology, relations_nt)
-
-end
-
-function Base.show(io::IO, tobj::TopologyObject)
-    println(io, "TopologyObject with topology: ")
-    Base.show(io, tobj._topology)
-    println(io, "and relations CSR structures: ")
-    for (origin, targets) in pairs(tobj._relations)
-        for (target, topology) in pairs(targets)
-            print(io, " - Relation ", origin, " -> ", target, ": ", topology)
-        end
+    if isempty(nested_dict)
+        return Topology(nothing)
     end
-end
-
-######################################################################################################
-# buildTopology - Build and validate topology for UnstructuredMeshObject
-######################################################################################################
-function buildTopology(topology::TopologyEmpty, kwargs::Base.Pairs, params::NamedTuple; validate::Bool=true)
-    return TopologyObject{Nothing, TopologyEmpty, Nothing}(topology, nothing)
-end
-
-function buildTopology(topology::Topology, kwargs::Base.Pairs, params::NamedTuple; validate::Bool=true)
-    """
-    Build a TopologyObject from the mesh topology and provided data structures.
-    Validates consistency of basic relations and builds all direct relations using the inference table.
     
-    Args:
-        topology: Topology schema from UnstructuredMesh
-        kwargs: Keyword arguments containing CSR structures for basic relations
-        params: NamedTuple of field objects for getting element counts
-        validate: Whether to validate CSR references against element counts (default: true)
+    origin_keys = Tuple(sort(collect(keys(nested_dict))))
+    inner_nts = [begin
+        targets = nested_dict[k]
+        target_keys = Tuple(sort(collect(keys(targets))))
+        NamedTuple{target_keys}(Tuple(targets[tk] for tk in target_keys))
+    end for k in origin_keys]
+    relations = NamedTuple{origin_keys}(Tuple(inner_nts))
+    
+    P = typeof(CPU())  # Default platform
+    E = typeof(entities)
+    BR = typeof(basicRelations)
+    IR = typeof(inferenceTable)
+    R = typeof(relations)
+    
+    return Topology{P, E, BR, IR, R}(entities, basicRelations, inferenceTable, relations)
+end
+
+"""
+    buildTopology(schemaTopology::Topology, kwargs::Base.Pairs, params::NamedTuple)
+
+Build a full Topology with sparse matrices from a schema-only Topology and kwargs.
+This is used when creating UnstructuredMeshObject from UnstructuredMesh.
+
+Args:
+- schemaTopology: Schema-only Topology from UnstructuredMesh
+- kwargs: Keyword arguments containing sparse matrices for each relation
+- params: NamedTuple of UnstructuredMeshField objects (unused but kept for compatibility)
+
+Returns:
+- Topology with sparse matrix data, or TopologyEmpty if no relations
+"""
+function buildTopology(schemaTopology::Topology{P, E, BR, IR, Nothing}, kwargs::Base.Pairs, params::NamedTuple) where {P, E, BR, IR}
+    # Schema-only topology - need to build with data
+    if schemaTopology._elements === nothing
+        return Topology(nothing)
+    end
+    
+    basicRelations = schemaTopology._basicRelations
+    entities = schemaTopology._elements
+    inferenceTable = schemaTopology._inferenceTable
+    
+    # Extract sparse matrices for each basic relation from kwargs
+    relations_dict = Dict{Tuple{Symbol, Symbol}, AbstractSparseMatrix}()
+    
+    for (origin, target) in basicRelations
+        # Get the data for this origin entity
+        if !haskey(kwargs, origin)
+            error("Missing topology data for relation $origin -> $target")
+        end
         
-    Returns:
-        TopologyObject containing all validated relations
-    """
-    
-    # Get element counts for validation
-    element_counts = Dict{Symbol, Int}()
-    if validate
-        for (name, field) in pairs(params)
-            if field isa UnstructuredMeshField
-                element_counts[name] = lengthProperties(field)
+        origin_data = kwargs[origin]
+        
+        if origin_data isa AbstractSparseMatrix
+            # Single connection (Edge, Face, Volume, or Agent with one connection)
+            relations_dict[(origin, target)] = origin_data
+        elseif origin_data isa NamedTuple
+            # Multiple connections (Agent with multiple connections)
+            if !haskey(origin_data, target)
+                error("Missing sparse matrix for relation $origin -> $target in NamedTuple")
             end
+            relations_dict[(origin, target)] = origin_data[target]
+        elseif origin_data isa Number || origin_data isa Tuple
+            # Node - no outgoing relations stored
+            continue
+        else
+            error("Invalid data type for relation $origin -> $target: $(typeof(origin_data))")
         end
     end
     
-    # Step 1: Validate and store basic relations
-    basic_relations_dict = Dict{Tuple{Symbol, Symbol}, AbstractCSR}()
+    # Convert to nested NamedTuple: origin -> target -> sparse_matrix
+    nested_dict = Dict{Symbol, Dict{Symbol, AbstractSparseMatrix}}()
+    for ((o, t), matrix) in relations_dict
+        if !haskey(nested_dict, o)
+            nested_dict[o] = Dict{Symbol, AbstractSparseMatrix}()
+        end
+        nested_dict[o][t] = matrix
+    end
     
+    # Convert to NamedTuple
+    if isempty(nested_dict)
+        return Topology(nothing)
+    end
+    
+    origin_keys = Tuple(sort(collect(keys(nested_dict))))
+    inner_nts = [begin
+        targets = nested_dict[k]
+        target_keys = Tuple(sort(collect(keys(targets))))
+        NamedTuple{target_keys}(Tuple(targets[tk] for tk in target_keys))
+    end for k in origin_keys]
+    relations = NamedTuple{origin_keys}(Tuple(inner_nts))
+    
+    NewP = typeof(CPU())
+    NewE = typeof(entities)
+    NewBR = typeof(basicRelations)
+    NewIR = typeof(inferenceTable)
+    NewR = typeof(relations)
+    
+    return Topology{NewP, NewE, NewBR, NewIR, NewR}(entities, basicRelations, inferenceTable, relations)
+end
+
+# Handle already-complete topology (shouldn't happen, but for safety)
+function buildTopology(topology::Topology{P, E, BR, IR, R}, kwargs::Base.Pairs, params::NamedTuple) where {P, E, BR, IR, R}
+    # Topology already has relations, just return it
+    return topology
+end
+
+# Handle empty topology
+function buildTopology(::TopologyEmpty, kwargs::Base.Pairs, params::NamedTuple)
+    return Topology(nothing)
+end
+
+######################################################################################################
+# Topology accessors and utilities
+######################################################################################################
+
+"""
+    getrelation(topology::Topology, origin::Symbol, target::Symbol)
+
+Get the sparse matrix for the relation from origin to target.
+"""
+function getrelation(topology::Topology, origin::Symbol, target::Symbol)
+    if topology._relations === nothing
+        error("Topology has no relation data (schema-only)")
+    end
+    if !haskey(topology._relations, origin)
+        error("No relations from entity: $origin")
+    end
+    if !haskey(topology._relations[origin], target)
+        error("No relation from $origin to $target")
+    end
+    return topology._relations[origin][target]
+end
+
+"""
+    hasrelation(topology::Topology, origin::Symbol, target::Symbol)
+
+Check if a direct relation exists from origin to target.
+"""
+function hasrelation(topology::Topology, origin::Symbol, target::Symbol)
+    if topology._relations === nothing
+        return false
+    end
+    return haskey(topology._relations, origin) && haskey(topology._relations[origin], target)
+end
+
+"""
+    getpath(topology::Topology, origin::Symbol, target::Symbol)
+
+Get the inference path from origin to target.
+Returns a tuple of (from, to, direction) triples.
+"""
+function getpath(topology::Topology, origin::Symbol, target::Symbol)
+    if !haskey(topology._inferenceTable, origin)
+        error("No paths from entity: $origin")
+    end
+    if !haskey(topology._inferenceTable[origin], target)
+        error("No path from $origin to $target")
+    end
+    return topology._inferenceTable[origin][target]
+end
+
+"""
+    entities(topology::Topology)
+
+Get the set of entity symbols in the topology.
+"""
+entities(topology::Topology) = topology._elements
+entities(::TopologyEmpty) = Set{Symbol}()
+
+"""
+    basicRelations(topology::Topology)
+
+Get the list of basic relation pairs.
+"""
+basicRelations(topology::Topology) = topology._basicRelations
+basicRelations(::TopologyEmpty) = Tuple{Symbol, Symbol}[]
+
+######################################################################################################
+# Show methods
+######################################################################################################
+
+function Base.show(io::IO, topology::Topology{P, E, BR, IR, R}) where {P, E, BR, IR, R}
+    println(io, "Topology{$P}")
+    println(io, "  Entities: ", join(topology._elements, ", "))
+    println(io, "  Basic relations:")
     for (origin, target) in topology._basicRelations
-        # Get the CSR from kwargs
-        if haskey(kwargs, origin)
-            origin_data = kwargs[origin]
-            
-            # Handle different input types based on property type
-            if origin_data isa AbstractCSR
-                # Direct CSR provided (for Edge, Face, Volume with single connection)
-                topology = origin_data
-                
-                # Validate: check that all references point to valid elements
-                if validate
-                    target_count = get(element_counts, target, 0)
-                    for (blockId, value) in topology
-                        if value < 1 || value > target_count
-                            error("Invalid basic relation $origin -> $target: element $blockId of $origin " *
-                                  "references $target element $value, but only $target_count elements exist")
-                        end
-                    end
-                end
-                
-                basic_relations_dict[(origin, target)] = topology
-                
-            elseif origin_data isa NamedTuple
-                # NamedTuple of CSRs (for Agent with multiple connections)
-                if haskey(origin_data, target)
-                    topology = origin_data[target]
-                    
-                    # Validate
-                    if validate
-                        target_count = get(element_counts, target, 0)
-                        for (blockId, value) in topology
-                            if value < 1 || value > target_count
-                                error("Invalid basic relation $origin -> $target: element $blockId of $origin " *
-                                      "references $target element $value, but only $target_count elements exist")
-                            end
-                        end
-                    end
-                    
-                    basic_relations_dict[(origin, target)] = topology
-                else
-                    error("Missing CSR for basic relation $origin -> $target in NamedTuple")
-                end
-            end
+        print(io, "    $origin -> $target")
+        if hasrelation(topology, origin, target)
+            mat = getrelation(topology, origin, target)
+            println(io, " : $(typeof(mat).name.name) with $(numberOfEntries(mat)) entries")
         else
-            error("Missing data for basic relation $origin -> $target")
+            println(io)
         end
     end
-    
-    # Step 2: Build all direct relations using the inference table
-    relations_dict = Dict{Tuple{Symbol, Symbol}, AbstractCSR}()
-    
-    for (origin, target) in topology._directRelations
-        # Check if this is a basic relation (already validated and stored)
-        if (origin, target) in keys(basic_relations_dict)
-            relations_dict[(origin, target)] = basic_relations_dict[(origin, target)]
-        else
-            # This is a derived relation - build it using the inference table
-            if haskey(topology._inferenceTable, origin) && haskey(topology._inferenceTable[origin], target)
-                path = topology._inferenceTable[origin][target]
-                
-                # Compose the relations along the path
-                # Path is a tuple of (from, to, direction) triples
-                csr_result = nothing
-                
-                for step in path
-                    (from, to, direction) = step
-                    
-                    # Get the basic relation CSR
-                    if direction == :d  # Direct relation
-                        step_csr = basic_relations_dict[(from, to)]
-                    else  # :i - Inverse relation
-                        # Need to invert the CSR
-                        step_csr = invertMap(basic_relations_dict[(to, from)])
-                    end
-                    
-                    if csr_result === nothing
-                        csr_result = step_csr
-                    else
-                        # Compose csr_result with step_csr
-                        # For each element in csr_result, follow the references in step_csr
-                        composed_data = Vector{Vector{Int}}()
-                        
-                        for block_id in 1:lengthElements(csr_result)
-                            new_refs = Set{Int}()
-                            for (current_block_id, intermediate_id) in csr_result
-                                if current_block_id == block_id
-                                    # Follow this intermediate to final target
-                                    for (inter_block, final_id) in step_csr
-                                        if inter_block == intermediate_id
-                                            push!(new_refs, final_id)
-                                        end
-                                    end
-                                end
-                            end
-                            push!(composed_data, sort(collect(new_refs)))
-                        end
-                        
-                        csr_result = CSRSlack(composed_data)
-                    end
-                end
-                
-                relations_dict[(origin, target)] = csr_result
-            else
-                error("No inference path found for relation $origin -> $target")
-            end
-        end
-    end
-    
-    # Convert to nested NamedTuple: origin -> target -> CSR
-    nested_dict = Dict{Symbol, Dict{Symbol, AbstractCSR}}()
-    for ((origin, target), topology) in relations_dict
-        if !haskey(nested_dict, origin)
-            nested_dict[origin] = Dict{Symbol, AbstractCSR}()
-        end
-        nested_dict[origin][target] = topology
-    end
-    
-    # Convert to NamedTuple
-    relations_nt = NamedTuple{Tuple(keys(nested_dict))}(
-        NamedTuple{Tuple(keys(targets))}(values(targets)) 
-        for targets in values(nested_dict)
-    )
-    
-    P = platform()
-    T = typeof(topology)
-    R = typeof(relations_nt)
-    
-    return TopologyObject{P, T, R}(topology, relations_nt)
+end
+
+function Base.show(io::IO, ::TopologyEmpty)
+    println(io, "Topology (empty)")
 end
 
 ######################################################################################################
-# checkConsistency - Verify topology consistency
+# Platform adaptation
 ######################################################################################################
 
-function checkTopologyConsistency(tobj::TopologyObject)
-    """
-    Check that the topological relations in a TopologyObject are correct and consistent.
+KernelAbstractions.get_backend(topology::Topology{P}) where {P} = P()
+
+toBackend(topology::TopologyEmpty, ::Any) = topology
+
+toBackend(topology::Topology{P}, ::KernelAbstractions.CPU) where {P<:Type{<:KernelAbstractions.CPU}} = topology
+
+# Handle schema-only topology (R = Nothing)
+function toBackend(topology::Topology{P, E, BR, IR, Nothing}, ::KernelAbstractions.CPU) where {P, E, BR, IR}
+    return topology  # Nothing to convert
+end
+
+function toBackend(topology::Topology{P, E, BR, IR, Nothing}, backend::KernelAbstractions.GPU) where {P, E, BR, IR}
+    return topology  # Schema-only, nothing to convert
+end
+
+function toBackend(topology::Topology{P, E, BR, IR, R}, ::KernelAbstractions.CPU) where {P, E, BR, IR, R}
+    # Convert all sparse matrices to CPU
+    new_relations = _convertRelations(topology._relations, CPU())
     
-    This function:
-    1. Extracts basic relations CSR structures from the TopologyObject
-    2. Calls buildTopology to reconstruct all relations from basic ones
-    3. Compares the reconstructed _relations with the original
+    Topology{typeof(CPU()), E, BR, IR, typeof(new_relations)}(
+        topology._elements,
+        topology._basicRelations,
+        topology._inferenceTable,
+        new_relations
+    )
+end
+
+toBackend(topology::Topology{P}, ::KernelAbstractions.GPU) where {P<:KernelAbstractions.GPU} = topology
+
+function toBackend(topology::Topology{P, E, BR, IR, R}, backend::KernelAbstractions.GPU) where {P, E, BR, IR, R}
+    # Convert all sparse matrices to GPU
+    new_relations = _convertRelations(topology._relations, backend)
     
-    Args:
-        tobj: TopologyObject to check
-        
-    Returns:
-        true if consistent
-        
-    Throws:
-        Error with detailed message if inconsistencies are found
-    """
-    
-    original_topology = tobj._topology
-    basic_relations = original_topology._basicRelations
-    
-    # Extract basic relation CSR structures and build kwargs
-    kwargs_dict = Dict{Symbol, Any}()
-    
-    for (origin, target) in basic_relations
-        if !haskey(tobj._relations, origin) || !haskey(tobj._relations[origin], target)
-            error("Missing CSR structure for basic relation $origin -> $target")
-        end
-        
-        topology = tobj._relations[origin][target]
-        
-        # Build kwargs - group by origin entity
-        if !haskey(kwargs_dict, origin)
-            kwargs_dict[origin] = Dict{Symbol, AbstractCSR}()
-        end
-        kwargs_dict[origin][target] = topology
+    Topology{typeof(backend), E, BR, IR, typeof(new_relations)}(
+        topology._elements,
+        topology._basicRelations,
+        topology._inferenceTable,
+        new_relations
+    )
+end
+
+"""
+    _convertRelations(relations::NamedTuple, backend)
+
+Convert all sparse matrices in the relations NamedTuple to the given backend.
+"""
+function _convertRelations(relations::NamedTuple, backend)
+    origin_keys = keys(relations)
+    new_inner = []
+    for origin in origin_keys
+        targets = relations[origin]
+        target_keys = keys(targets)
+        new_matrices = [toBackend(backend, targets[tk]) for tk in target_keys]
+        push!(new_inner, NamedTuple{target_keys}(Tuple(new_matrices)))
     end
-    
-    # Convert grouped CSRs to appropriate format (single CSR or NamedTuple)
-    for (origin, targets) in kwargs_dict
-        if length(targets) == 1
-            # Single target - use CSR directly
-            kwargs_dict[origin] = first(values(targets))
-        else
-            # Multiple targets - use NamedTuple
-            kwargs_dict[origin] = NamedTuple{Tuple(keys(targets))}(values(targets))
-        end
-    end
-    
-    # Reconstruct topology using buildTopology (skip validation since we're checking consistency)
-    kwargs_pairs = pairs(NamedTuple{Tuple(keys(kwargs_dict))}(values(kwargs_dict)))
-    reconstructed_tobj = buildTopology(original_topology, kwargs_pairs, NamedTuple(), validate=false)
-    
-    # Compare _relations
-    for (origin, targets) in pairs(tobj._relations)
-        if !haskey(reconstructed_tobj._relations, origin)
-            error("Reconstructed topology missing origin entity: $origin")
+    return NamedTuple{origin_keys}(Tuple(new_inner))
+end
+
+_convertRelations(::Nothing, _) = nothing
+
+######################################################################################################
+# Iteration support
+######################################################################################################
+
+"""
+    iterateOverNeighbors(topology::Topology, from::Symbol, to::Symbol, idx::Int)
+
+Iterate over the neighbors of entity `idx` in the relation from `from` to `to`.
+Returns an iterator over (neighbor_idx, value) pairs.
+"""
+function iterateOverNeighbors(topology::Topology, from::Symbol, to::Symbol, idx::Int)
+    mat = getrelation(topology, from, to)
+    return iterateRow(mat, idx)
+end
+
+######################################################################################################
+# Validation
+######################################################################################################
+
+"""
+    validateTopology(topology::Topology, elementCounts::Dict{Symbol, Int})
+
+Validate that all sparse matrix entries reference valid elements.
+"""
+function validateTopology(topology::Topology, elementCounts::Dict{Symbol, Int})
+    for (origin, target) in topology._basicRelations
+        if !hasrelation(topology, origin, target)
+            continue
         end
         
-        for (target, original_csr) in pairs(targets)
-            if !haskey(reconstructed_tobj._relations[origin], target)
-                error("Reconstructed topology missing relation: $origin -> $target")
+        mat = getrelation(topology, origin, target)
+        target_count = get(elementCounts, target, 0)
+        
+        # Check all entries in the sparse matrix
+        for row in 1:numberOfRows(mat)
+            for (col, val) in iterateRow(mat, row)
+                if col < 1 || col > target_count
+                    error("Invalid reference in relation $origin -> $target: " *
+                          "element $row references $target element $col, but only $target_count exist")
+                end
             end
-            
-            reconstructed_csr = reconstructed_tobj._relations[origin][target]
-            
-            # Compare CSR contents element-by-element
-            original_elements = sort([(blockId, value) for (blockId, value) in original_csr])
-            reconstructed_elements = sort([(blockId, value) for (blockId, value) in reconstructed_csr])
-            
-            if original_elements != reconstructed_elements
-                error("CSR structure mismatch for relation $origin -> $target\n" *
-                      "Original has $(length(original_elements)) elements: $original_elements\n" *
-                      "Reconstructed has $(length(reconstructed_elements)) elements: $reconstructed_elements")
-            end
         end
     end
-    
     return true
 end
-
-###################################################################################################
-# Platform adaptation
-###################################################################################################
-
-KernelAbstractions.get_backend(topology::Topology) = KernelAbstractions.get_backend(topology._values)
-
-toBackend(topology::TopologyObject{P}, ::KernelAbstractions.CPU) where {P<:KernelAbstractions.CPU} = topology
-
-function toBackend(topology::TopologyObject{P, T}, ::KernelAbstractions.CPU) where {P<:KernelAbstractions.GPU, T}
-    Topology(
-        toBackend(CPU(), topology._elements),
-        toBackend(CPU(), topology._basicRelations),
-        toBackend(CPU(), topology._directRelations),
-        toBackend(CPU(), topology._inferenceTable)
-    )
-end
-    
-toBackend(topology::TopologyObject{P}, ::KernelAbstractions.GPU) where {P<:KernelAbstractions.GPU} = topology
-
-function toBackend(topology::TopologyObject{P}, backend::KernelAbstractions.GPU) where {P<:KernelAbstractions.CPU}
-    Topology(
-        toBackend(backend, topology._elements),
-        toBackend(backend, topology._basicRelations),
-        toBackend(backend, topology._directRelations),
-        toBackend(backend, topology._inferenceTable)
-    )
-end
-
-toBackend(topology::TopologyObject{Nothing, TopologyEmpty, Nothing}, backend::B) where {B} = topology
