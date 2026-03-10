@@ -1,4 +1,4 @@
-import CellBasedModels: AbstractMeshObject, GPU, platform, toBackend
+import CellBasedModels: AbstractMeshObject, GPU, platform, toBackend, getDeviceIndex
 import KernelAbstractions
 
 abstract type GPUCuda <: GPU end
@@ -11,6 +11,9 @@ end
 function platform(::CUDA.CuDeviceArray)
     return GPUCuDevice
 end
+
+# For CuArray (host-side GPU array), copy to CPU first
+getDeviceIndex(arr::CUDA.CuArray, i=1) = Array(arr)[i]
 
 function toBackend(::CUDA.CUDABackend, x::AbstractArray)
     return CUDA.CuArray(x)

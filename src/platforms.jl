@@ -7,12 +7,31 @@ function platform(x)
     return CPU
 end
 
-function toBackend(::CPU, x::AbstractArray)
+# toBackend for regular arrays - no conversion needed
+function toBackend(x::Array, ::CPU)
     return x
 end
 
-function toBackend(::Type{CPU}, x::AbstractArray)
+function toBackend(x::Array, ::Type{CPU})
     return x
+end
+
+# toBackend for any AbstractArray to CPU - use Array() to convert from GPU arrays
+function toBackend(x::AbstractArray, ::CPU)
+    return Array(x)
+end
+
+function toBackend(x::AbstractArray, ::Type{CPU})
+    return Array(x)
+end
+
+# toBackend for views - convert to regular Array
+function toBackend(x::SubArray, ::CPU)
+    return Array(x)
+end
+
+function toBackend(x::SubArray, ::Type{CPU})
+    return Array(x)
 end
 
 # """"

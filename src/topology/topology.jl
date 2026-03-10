@@ -102,46 +102,671 @@ function isConnected(pairs)
 end
 
 ######################################################################################################
-# Topology Structure - Contains schema and sparse matrix data
+# Topology Structure - Schema only (stored in UnstructuredMesh)
 ######################################################################################################
 
 """
-    Topology{P, E, BR, IR, R}
+    Topology{E, BR, IR}
 
-Stores topological relationships using sparse matrices.
+Stores topological schema (metadata) - no actual data, just the structure.
+This is stored in UnstructuredMesh and is NOT passed to GPU kernels.
 
 Type parameters:
-- P: Platform type (CPU/GPU)
 - E: Elements type (Set of entity symbols)
 - BR: Basic relations type
 - IR: Inference table type
-- R: Relations type (NamedTuple of sparse matrices)
 
 Fields:
 - _elements: Set of entity symbols (e.g., :n, :e, :c)
 - _basicRelations: List of basic relation pairs
 - _inferenceTable: Path computation table for traversing relations
-- _relations: NamedTuple storing sparse matrices for each relation
 """
-struct Topology{P, E, BR, IR, R}
+struct Topology{E, BR, IR}
     _elements::E
     _basicRelations::BR
     _inferenceTable::IR
-    _relations::R
 end
-Adapt.@adapt_structure Topology
 
 # Empty topology type
-const TopologyEmpty = Topology{Nothing, Nothing, Nothing, Nothing, Nothing}
+const TopologyEmpty = Topology{Nothing, Nothing, Nothing}
 
 function Topology(::Nothing)
-    return TopologyEmpty(nothing, nothing, nothing, nothing)
+    return TopologyEmpty(nothing, nothing, nothing)
+end
+
+######################################################################################################
+# TopologyObject Structure - Data only (stored in UnstructuredMeshObject)
+######################################################################################################
+
+"""
+    TopologyObject{P, R}
+
+Stores topological data (sparse matrices) - this is GPU-compatible.
+This is stored in UnstructuredMeshObject and IS passed to GPU kernels.
+
+Type parameters:
+- P: Platform type (CPU/GPU)
+- R: Relations type (NamedTuple of sparse matrices)
+
+Fields:
+- _relations: NamedTuple storing sparse matrices for each relation
+"""
+struct TopologyObject{P, R}
+    _relations::R
+end
+Adapt.@adapt_structure TopologyObject
+
+# Positional constructor for Adapt.@adapt_structure compatibility
+# Infers platform from the relations
+function TopologyObject(relations::R) where {R}
+    # Infer platform from relations if possible
+    P = typeof(CPU())
+    if R <: NamedTuple && R !== Nothing
+        # Try to get platform from first relation matrix
+        for origin_key in keys(relations)
+            inner = relations[origin_key]
+            for target_key in keys(inner)
+                mat = inner[target_key]
+                P = typeof(KernelAbstractions.get_backend(mat))
+                break
+            end
+            break
+        end
+    end
+    return TopologyObject{P, R}(relations)
+end
+
+# Empty topology object type
+const TopologyObjectEmpty = TopologyObject{Nothing, Nothing}
+
+function TopologyObject(::Nothing)
+    return TopologyObjectEmpty(nothing)
+end
+
+# Allow direct property access: topology.e.n instead of topology._relations.e.n
+# Using @generated for GPU compatibility
+@generated function Base.getproperty(topology::TopologyObject{P, R}, s::Symbol) where {P, R}
+    # Build clauses for internal fields
+    general = [
+        :(if s === $(QuoteNode(name)); return getfield(topology, $(QuoteNode(name))); end)
+        for name in fieldnames(TopologyObject)
+    ]
+    
+    # Build clauses for relation entities (from R type parameter)
+    if R <: NamedTuple && R !== Nothing
+        relation_keys = R.parameters[1]  # Get keys from NamedTuple type
+        cases = [
+            :(s === $(QuoteNode(name)) && return getfield(getfield(topology, :_relations), $(QuoteNode(name))))
+            for name in relation_keys
+        ]
+    else
+        cases = []
+    end
+    
+    quote
+        $(general...)
+        $(cases...)
+        error("TopologyObject has no entity: $s")
+    end
+end
+
+# Bracket access: topology[:a, :e] instead of topology.a.e
+# Using @generated for GPU compatibility - direct relations are resolved at compile time
+@generated function Base.getindex(topology::TopologyObject{P, R}, origin::Symbol, target::Symbol) where {P, R}
+    if R <: NamedTuple && R !== Nothing
+        origin_keys = R.parameters[1]
+        # Build nested cases for each origin -> target pair
+        cases = []
+        for o_key in origin_keys
+            # Get the inner NamedTuple type for this origin
+            o_idx = findfirst(==(o_key), origin_keys)
+            inner_type = R.parameters[2].parameters[o_idx]
+            if inner_type <: NamedTuple
+                target_keys = inner_type.parameters[1]
+                for t_key in target_keys
+                    push!(cases, quote
+                        if origin === $(QuoteNode(o_key)) && target === $(QuoteNode(t_key))
+                            return getfield(getfield(getfield(topology, :_relations), $(QuoteNode(o_key))), $(QuoteNode(t_key)))
+                        end
+                    end)
+                end
+            end
+        end
+        quote
+            $(cases...)
+            # Relation not found directly - compute it at runtime (CPU only)
+            return _computeDerivedRelation(topology, origin, target)
+        end
+    else
+        quote
+            error("TopologyObject has no relations")
+        end
+    end
+end
+
+"""
+    _computeDerivedRelation(topology::TopologyObject, origin::Symbol, target::Symbol)
+
+Compute a derived relation (inverse or transitive) at runtime.
+This only works on CPU - GPU kernels should only access direct relations.
+"""
+function _computeDerivedRelation(topology::TopologyObject{P, R}, origin::Symbol, target::Symbol) where {P, R}
+    # Find path from origin to target using available relations
+    path = _findRelationPath(topology, origin, target)
+    
+    if isempty(path)
+        error("Cannot compute relation $origin -> $target: no path found")
+    end
+    
+    # Compute the relation by following the path
+    result = _computeRelationFromPath(topology, path)
+    
+    # For self-relations (e.g., n->n), remove self-references
+    # A node should not be its own neighbor
+    if origin == target
+        result = _removeSelfReferences(result)
+    end
+    
+    return result
+end
+
+"""
+    _findRelationPath(topology::TopologyObject, origin::Symbol, target::Symbol)
+
+Find a path of relations from origin to target.
+Returns a list of (from, to, :direct/:inverse) tuples.
+
+Uses weighted search preferring paths through lower-dimensional elements:
+Nodes < Edges < Faces < Volumes < Agents
+"""
+function _findRelationPath(topology::TopologyObject{P, R}, origin::Symbol, target::Symbol) where {P, R}
+    if R === Nothing
+        return []
+    end
+    
+    # Element priority: lower = preferred (prefer going through edges over agents)
+    # Standard naming conventions: n=node, e=edge, f=face, v=volume, a=agent
+    function element_priority(sym::Symbol)
+        s = string(sym)
+        if startswith(s, "n")
+            return 0  # node
+        elseif startswith(s, "e")
+            return 1  # edge
+        elseif startswith(s, "f")
+            return 2  # face
+        elseif startswith(s, "v")
+            return 3  # volume
+        elseif startswith(s, "a")
+            return 4  # agent
+        else
+            return 5  # unknown - lowest priority
+        end
+    end
+    
+    # Build graph of available relations (both direct and inverse)
+    relations = topology._relations
+    edges = Dict{Symbol, Vector{Tuple{Symbol, Symbol, Symbol}}}()  # from -> [(to, actual_from, actual_to)]
+    
+    for o_key in keys(relations)
+        for t_key in keys(relations[o_key])
+            # Direct edge
+            if !haskey(edges, o_key)
+                edges[o_key] = []
+            end
+            push!(edges[o_key], (t_key, o_key, t_key))
+            
+            # Inverse edge
+            if !haskey(edges, t_key)
+                edges[t_key] = []
+            end
+            push!(edges[t_key], (o_key, o_key, t_key))  # Note: stores original direction
+        end
+    end
+    
+    # Priority search to find path with lowest max intermediate priority
+    if !haskey(edges, origin)
+        return []
+    end
+    
+    # Track best path found and its max priority
+    best_path = Tuple{Symbol, Symbol, Symbol}[]
+    best_max_priority = typemax(Int)
+    
+    # For self-relations (origin == target), we need to find a path through intermediate nodes
+    # (current_node, path_so_far, is_start, max_priority_so_far, visited_set)
+    queue = [(origin, Tuple{Symbol, Symbol, Symbol}[], true, 0, Set{Symbol}())]
+    
+    while !isempty(queue)
+        current, path, is_start, max_priority, visited = popfirst!(queue)
+        
+        # Only match target if we've taken at least one step (path is non-empty)
+        if current == target && !is_start
+            if max_priority < best_max_priority || (max_priority == best_max_priority && length(path) < length(best_path))
+                best_path = path
+                best_max_priority = max_priority
+            end
+            continue  # Keep searching for potentially better paths
+        end
+        
+        # Skip if we've already found a better path
+        if max_priority > best_max_priority
+            continue
+        end
+        
+        if haskey(edges, current)
+            for (next_node, actual_from, actual_to) in edges[current]
+                # Allow returning to origin for self-relations, but not revisiting other nodes
+                if next_node ∉ visited || (next_node == origin && next_node == target && !is_start)
+                    # Calculate new priority (max of current and intermediate node priority)
+                    # For intermediate steps, consider the "bridge" element priority
+                    intermediate_priority = element_priority(next_node)
+                    new_max_priority = max(max_priority, intermediate_priority)
+                    
+                    # Skip if this path is already worse than best found
+                    if new_max_priority > best_max_priority
+                        continue
+                    end
+                    
+                    # Determine if this is direct or inverse
+                    direction = (current == actual_from) ? :direct : :inverse
+                    new_path = [path..., (actual_from, actual_to, direction)]
+                    
+                    # Create new visited set for this branch
+                    new_visited = copy(visited)
+                    if !is_start
+                        push!(new_visited, current)
+                    end
+                    
+                    push!(queue, (next_node, new_path, false, new_max_priority, new_visited))
+                end
+            end
+        end
+    end
+    
+    return best_path
+end
+
+"""
+    _computeRelationFromPath(topology::TopologyObject, path)
+
+Compute a relation matrix by following a path of relations.
+"""
+function _computeRelationFromPath(topology::TopologyObject, path)
+    if isempty(path)
+        error("Empty path")
+    end
+    
+    # Start with the first relation
+    actual_from, actual_to, direction = path[1]
+    mat = topology._relations[actual_from][actual_to]
+    
+    if direction == :inverse
+        result = _transposeToCSR(mat)
+    else
+        result = _copyToCSR(mat)
+    end
+    
+    # Chain the rest
+    for i in 2:length(path)
+        actual_from, actual_to, direction = path[i]
+        mat = topology._relations[actual_from][actual_to]
+        
+        if direction == :inverse
+            next_mat = _transposeToCSR(mat)
+        else
+            next_mat = mat
+        end
+        
+        result = _multiplyRelations(result, next_mat)
+    end
+    
+    return result
+end
+
+"""
+    _transposeToCSR(mat::AbstractSparseMatrix)
+
+Transpose a sparse matrix and return as a new CSR matrix.
+The VALUE stored at mat[row, col] is the target index.
+The transposed matrix will have: result[target_idx, position] = row (the source row as value).
+"""
+function _transposeToCSR(mat::AbstractSparseMatrix)
+    # Get dimensions - nRows is number of source entities
+    nRows = numberOfRows(mat)
+    
+    # Find max value (target index) to determine result rows
+    max_value = 0
+    for row in 1:nRows
+        for col in iterateRow(mat, row)
+            val = mat[row, col]
+            if val > 0
+                max_value = max(max_value, val)
+            end
+        end
+    end
+    
+    if max_value == 0
+        return dcsr_zeros(Int, 1, 1, 0)
+    end
+    
+    # Count entries per new row (new row = old value = target index)
+    new_row_counts = zeros(Int, max_value)
+    for old_row in 1:nRows
+        for col in iterateRow(mat, old_row)
+            val = mat[old_row, col]
+            if val > 0
+                new_row_counts[val] += 1
+            end
+        end
+    end
+    
+    # Create CSR with enough space (using dcsr_zeros for simpler array storage)
+    result = dcsr_zeros(Int, max_value, new_row_counts, 0)
+    
+    # Track current position per new row
+    current_pos = zeros(Int, max_value)
+    
+    # Fill in the transposed data
+    # For each entry (old_row, col) with value=target_idx,
+    # add entry (target_idx, position) with value=old_row
+    for old_row in 1:nRows
+        for col in iterateRow(mat, old_row)
+            target_idx = mat[old_row, col]
+            if target_idx > 0
+                current_pos[target_idx] += 1
+                result[target_idx, current_pos[target_idx]] = old_row
+            end
+        end
+    end
+    
+    return result
+end
+
+"""
+    _copyToCSR(mat::AbstractSparseMatrix)
+
+Copy a sparse matrix to a new CSR matrix.
+Preserves the values (target indices).
+"""
+function _copyToCSR(mat::AbstractSparseMatrix)
+    nRows = numberOfRows(mat)
+    
+    # Count entries per row
+    row_counts = zeros(Int, nRows)
+    for row in 1:nRows
+        for col in iterateRow(mat, row)
+            val = mat[row, col]
+            if val > 0
+                row_counts[row] += 1
+            end
+        end
+    end
+    
+    result = dcsr_zeros(Int, nRows, row_counts, 0)
+    
+    current_pos = zeros(Int, nRows)
+    for row in 1:nRows
+        for col in iterateRow(mat, row)
+            val = mat[row, col]
+            if val > 0
+                current_pos[row] += 1
+                result[row, current_pos[row]] = val
+            end
+        end
+    end
+    
+    return result
+end
+
+"""
+    _multiplyRelations(a::AbstractSparseMatrix, b::AbstractSparseMatrix)
+
+Multiply two relation matrices.
+For each row i in a, find all reachable targets in b following the chain:
+  a[i, _] = j  -> b[j, _] = k
+Result[i, _] = k (the targets reachable via the chain)
+"""
+function _multiplyRelations(a::AbstractSparseMatrix, b::AbstractSparseMatrix)
+    nRowsA = numberOfRows(a)
+    
+    # For each row of a, find all reachable targets in b
+    result_rows = Dict{Int, Vector{Int}}()
+    
+    for i in 1:nRowsA
+        targets = Set{Int}()
+        for col_a in iterateRow(a, i)
+            j = a[i, col_a]  # Get intermediate target (row in b)
+            if j > 0 && j <= numberOfRows(b)
+                for col_b in iterateRow(b, j)
+                    k = b[j, col_b]  # Get final target
+                    if k > 0
+                        push!(targets, k)
+                    end
+                end
+            end
+        end
+        result_rows[i] = collect(targets)
+    end
+    
+    # Create result matrix
+    row_counts = [length(get(result_rows, i, Int[])) for i in 1:nRowsA]
+    result = dcsr_zeros(Int, nRowsA, row_counts, 0)
+    
+    for i in 1:nRowsA
+        targets = get(result_rows, i, Int[])
+        for (pos, target) in enumerate(targets)
+            result[i, pos] = target
+        end
+    end
+    
+    return result
+end
+
+"""
+    _removeSelfReferences(mat::AbstractSparseMatrix)
+
+Remove self-references from a relation matrix.
+For each row i, removes any entry where the value equals i.
+Used for self-relations (e.g., n->n) where a node should not be its own neighbor.
+"""
+function _removeSelfReferences(mat::AbstractSparseMatrix)
+    nRows = numberOfRows(mat)
+    
+    # Collect filtered entries per row
+    result_rows = Dict{Int, Vector{Int}}()
+    
+    for i in 1:nRows
+        targets = Int[]
+        for col in iterateRow(mat, i)
+            val = mat[i, col]
+            # Skip self-references (where value == row)
+            if val > 0 && val != i
+                push!(targets, val)
+            end
+        end
+        result_rows[i] = targets
+    end
+    
+    # Create result matrix
+    row_counts = [length(get(result_rows, i, Int[])) for i in 1:nRows]
+    result = dcsr_zeros(Int, nRows, row_counts, 0)
+    
+    for i in 1:nRows
+        targets = get(result_rows, i, Int[])
+        for (pos, target) in enumerate(targets)
+            result[i, pos] = target
+        end
+    end
+    
+    return result
+end
+
+######################################################################################################
+# Sparse Matrix Type Conversion
+######################################################################################################
+
+"""
+    _convertToType(mat::AbstractSparseMatrix, targetType::Type)
+
+Convert a sparse matrix to the specified type.
+Supported target types:
+- DynamicalCSR
+- DynamicalELL
+- DynamicalOrderedCSR
+- DynamicalOrderedELL
+
+If the matrix is already the target type, returns it unchanged.
+"""
+function _convertToType(mat::AbstractSparseMatrix, targetType::Type)
+    # If already the right type, return as-is
+    if mat isa targetType
+        return mat
+    end
+    
+    # Convert to the target type
+    if targetType <: DynamicalELL || targetType == DynamicalELL
+        return _convertToELL(mat)
+    elseif targetType <: DynamicalOrderedELL || targetType == DynamicalOrderedELL
+        return _convertToOrderedELL(mat)
+    elseif targetType <: DynamicalOrderedCSR || targetType == DynamicalOrderedCSR
+        return _convertToOrderedCSR(mat)
+    else
+        # Default: keep as CSR (or convert to CSR if needed)
+        if mat isa DynamicalCSR
+            return mat
+        else
+            return _copyToCSR(mat)
+        end
+    end
+end
+
+"""
+    _convertToELL(mat::AbstractSparseMatrix)
+
+Convert a sparse matrix to DynamicalELL format.
+ELL format requires fixed number of columns per row, so we use the maximum row size.
+"""
+function _convertToELL(mat::AbstractSparseMatrix)
+    nRows = numberOfRows(mat)
+    
+    # Find max entries per row
+    maxEntriesPerRow = 0
+    for row in 1:nRows
+        count = 0
+        for col in iterateRow(mat, row)
+            if mat[row, col] > 0
+                count += 1
+            end
+        end
+        maxEntriesPerRow = max(maxEntriesPerRow, count)
+    end
+    
+    if maxEntriesPerRow == 0
+        return dell_zeros(Int, nRows, 1, 0)
+    end
+    
+    # Create ELL matrix
+    result = dell_zeros(Int, nRows, maxEntriesPerRow, 0)
+    
+    # Fill in values
+    for row in 1:nRows
+        pos = 1
+        for col in iterateRow(mat, row)
+            val = mat[row, col]
+            if val > 0
+                result[row, pos] = val
+                pos += 1
+            end
+        end
+    end
+    
+    return result
+end
+
+"""
+    _convertToOrderedELL(mat::AbstractSparseMatrix)
+
+Convert a sparse matrix to DynamicalOrderedELL format.
+"""
+function _convertToOrderedELL(mat::AbstractSparseMatrix)
+    nRows = numberOfRows(mat)
+    
+    # Find max entries per row
+    maxEntriesPerRow = 0
+    for row in 1:nRows
+        count = 0
+        for col in iterateRow(mat, row)
+            if mat[row, col] > 0
+                count += 1
+            end
+        end
+        maxEntriesPerRow = max(maxEntriesPerRow, count)
+    end
+    
+    if maxEntriesPerRow == 0
+        return doell_zeros(Int, nRows, 1, 0)
+    end
+    
+    # Create Ordered ELL matrix
+    result = doell_zeros(Int, nRows, maxEntriesPerRow, 0)
+    
+    # Fill in values using append for ordering
+    for row in 1:nRows
+        pos = 1
+        for col in iterateRow(mat, row)
+            val = mat[row, col]
+            if val > 0
+                append!(result, row, pos, val)
+                pos += 1
+            end
+        end
+    end
+    
+    synchronize(result)
+    return result
+end
+
+"""
+    _convertToOrderedCSR(mat::AbstractSparseMatrix)
+
+Convert a sparse matrix to DynamicalOrderedCSR format.
+"""
+function _convertToOrderedCSR(mat::AbstractSparseMatrix)
+    nRows = numberOfRows(mat)
+    
+    # Count entries per row
+    row_counts = zeros(Int, nRows)
+    for row in 1:nRows
+        for col in iterateRow(mat, row)
+            if mat[row, col] > 0
+                row_counts[row] += 1
+            end
+        end
+    end
+    
+    # Create Ordered CSR matrix
+    result = docsr_zeros(Int, nRows, row_counts, 0)
+    
+    # Fill in values using append for ordering
+    for row in 1:nRows
+        pos = 1
+        for col in iterateRow(mat, row)
+            val = mat[row, col]
+            if val > 0
+                append!(result, row, pos, val)
+                pos += 1
+            end
+        end
+    end
+    
+    synchronize(result)
+    return result
 end
 
 """
     Topology(mes_properties::NamedTuple)
 
-Build a schema-only Topology (without sparse matrix data) from mesh properties.
+Build a schema-only Topology from mesh properties.
 This is used when creating the UnstructuredMesh schema.
 """
 function Topology(mes_properties::NamedTuple)
@@ -151,13 +776,11 @@ function Topology(mes_properties::NamedTuple)
         return Topology(nothing)
     end
     
-    P = typeof(CPU())
     E = typeof(entities)
     BR = typeof(basicRelations)
     IR = typeof(inferenceTable)
     
-    # Schema-only: no relations stored yet
-    return Topology{P, E, BR, IR, Nothing}(entities, basicRelations, inferenceTable, nothing)
+    return Topology{E, BR, IR}(entities, basicRelations, inferenceTable)
 end
 
 ######################################################################################################
@@ -211,109 +834,27 @@ function buildTopologySchema(mes_properties::NamedTuple)
 end
 
 """
-    Topology(mes_properties::NamedTuple, kwargs::Base.Pairs)
+    buildTopologyObject(schemaTopology::Topology, kwargs::Base.Pairs, params::NamedTuple; requiredRelations)
 
-Build a Topology with sparse matrices from mesh properties and relation data.
-
-The kwargs should contain:
-- For each entity with relations: the sparse matrix or NamedTuple of sparse matrices
-
-Example:
-    Topology(mesh._p, (n=10, e=dcsr_zeros(...), c=(n=dcsr_zeros(...), e=dcsr_zeros(...))))
-"""
-function Topology(
-    mes_properties::NamedTuple,
-    kwargs::Base.Pairs
-)
-    # Build schema
-    entities, basicRelations, inferenceTable = buildTopologySchema(mes_properties)
-    
-    if isnothing(entities)
-        return Topology(nothing)
-    end
-    
-    # Extract sparse matrices for each basic relation from kwargs
-    relations_dict = Dict{Tuple{Symbol, Symbol}, AbstractSparseMatrix}()
-    
-    for (origin, target) in basicRelations
-        # Get the data for this origin entity
-        if !haskey(kwargs, origin)
-            error("Missing topology data for relation $origin -> $target")
-        end
-        
-        origin_data = kwargs[origin]
-        
-        if origin_data isa AbstractSparseMatrix
-            # Single connection (Edge, Face, Volume, or Agent with one connection)
-            relations_dict[(origin, target)] = origin_data
-        elseif origin_data isa NamedTuple
-            # Multiple connections (Agent with multiple connections)
-            if !haskey(origin_data, target)
-                error("Missing sparse matrix for relation $origin -> $target in NamedTuple")
-            end
-            relations_dict[(origin, target)] = origin_data[target]
-        elseif origin_data isa Number || origin_data isa Tuple
-            # Node - no outgoing relations to store
-            continue
-        else
-            error("Invalid data type for relation $origin -> $target: $(typeof(origin_data))")
-        end
-    end
-    
-    # Convert to nested NamedTuple: origin -> target -> sparse_matrix
-    nested_dict = Dict{Symbol, Dict{Symbol, AbstractSparseMatrix}}()
-    for ((origin, target), matrix) in relations_dict
-        if !haskey(nested_dict, origin)
-            nested_dict[origin] = Dict{Symbol, AbstractSparseMatrix}()
-        end
-        nested_dict[origin][target] = matrix
-    end
-    
-    # Convert to NamedTuple
-    if isempty(nested_dict)
-        return Topology(nothing)
-    end
-    
-    origin_keys = Tuple(sort(collect(keys(nested_dict))))
-    inner_nts = [begin
-        targets = nested_dict[k]
-        target_keys = Tuple(sort(collect(keys(targets))))
-        NamedTuple{target_keys}(Tuple(targets[tk] for tk in target_keys))
-    end for k in origin_keys]
-    relations = NamedTuple{origin_keys}(Tuple(inner_nts))
-    
-    P = typeof(CPU())  # Default platform
-    E = typeof(entities)
-    BR = typeof(basicRelations)
-    IR = typeof(inferenceTable)
-    R = typeof(relations)
-    
-    return Topology{P, E, BR, IR, R}(entities, basicRelations, inferenceTable, relations)
-end
-
-"""
-    buildTopology(schemaTopology::Topology, kwargs::Base.Pairs, params::NamedTuple)
-
-Build a full Topology with sparse matrices from a schema-only Topology and kwargs.
+Build a TopologyObject with sparse matrices from a schema-only Topology and kwargs.
 This is used when creating UnstructuredMeshObject from UnstructuredMesh.
 
 Args:
 - schemaTopology: Schema-only Topology from UnstructuredMesh
 - kwargs: Keyword arguments containing sparse matrices for each relation
 - params: NamedTuple of UnstructuredMeshField objects (unused but kept for compatibility)
+- requiredRelations: Set of (origin, target) pairs that need to be precomputed
 
 Returns:
-- Topology with sparse matrix data, or TopologyEmpty if no relations
+- TopologyObject with sparse matrix data, or TopologyObjectEmpty if no relations
 """
-function buildTopology(schemaTopology::Topology{P, E, BR, IR, Nothing}, kwargs::Base.Pairs, params::NamedTuple) where {P, E, BR, IR}
-    # Schema-only topology - need to build with data
+function buildTopologyObject(schemaTopology::Topology{E, BR, IR}, kwargs::Base.Pairs, params::NamedTuple; requiredRelations=Set{Tuple{Symbol,Symbol}}(), requiredRelationTypes=Dict{Tuple{Symbol,Symbol},Type}()) where {E, BR, IR}
     if schemaTopology._elements === nothing
-        return Topology(nothing)
+        return TopologyObject(nothing)
     end
     
     basicRelations = schemaTopology._basicRelations
-    entities = schemaTopology._elements
-    inferenceTable = schemaTopology._inferenceTable
+    basicRelationsSet = Set(basicRelations)
     
     # Extract sparse matrices for each basic relation from kwargs
     relations_dict = Dict{Tuple{Symbol, Symbol}, AbstractSparseMatrix}()
@@ -354,7 +895,7 @@ function buildTopology(schemaTopology::Topology{P, E, BR, IR, Nothing}, kwargs::
     
     # Convert to NamedTuple
     if isempty(nested_dict)
-        return Topology(nothing)
+        return TopologyObject(nothing)
     end
     
     origin_keys = Tuple(sort(collect(keys(nested_dict))))
@@ -365,38 +906,75 @@ function buildTopology(schemaTopology::Topology{P, E, BR, IR, Nothing}, kwargs::
     end for k in origin_keys]
     relations = NamedTuple{origin_keys}(Tuple(inner_nts))
     
-    NewP = typeof(CPU())
-    NewE = typeof(entities)
-    NewBR = typeof(basicRelations)
-    NewIR = typeof(inferenceTable)
-    NewR = typeof(relations)
+    P = typeof(CPU())  # Default platform
+    R = typeof(relations)
     
-    return Topology{NewP, NewE, NewBR, NewIR, NewR}(entities, basicRelations, inferenceTable, relations)
-end
-
-# Handle already-complete topology (shouldn't happen, but for safety)
-function buildTopology(topology::Topology{P, E, BR, IR, R}, kwargs::Base.Pairs, params::NamedTuple) where {P, E, BR, IR, R}
-    # Topology already has relations, just return it
-    return topology
+    # Create initial topology object
+    topoObj = TopologyObject{P, R}(relations)
+    
+    # Precompute required derived relations (inverse/transitive that are not basic)
+    derivedToCompute = [(o, t) for (o, t) in requiredRelations if (o, t) ∉ basicRelationsSet]
+    
+    if !isempty(derivedToCompute)
+        # Create a mutable version to add derived relations
+        extended_dict = Dict{Symbol, Dict{Symbol, AbstractSparseMatrix}}()
+        for k in keys(nested_dict)
+            extended_dict[k] = copy(nested_dict[k])
+        end
+        
+        # Compute each required derived relation
+        for (origin, target) in derivedToCompute
+            # Use the current topoObj to compute derived relations
+            derived_mat = _computeDerivedRelation(topoObj, origin, target)
+            
+            # Convert to requested type if specified
+            if haskey(requiredRelationTypes, (origin, target))
+                targetType = requiredRelationTypes[(origin, target)]
+                derived_mat = _convertToType(derived_mat, targetType)
+            end
+            
+            if !haskey(extended_dict, origin)
+                extended_dict[origin] = Dict{Symbol, AbstractSparseMatrix}()
+            end
+            extended_dict[origin][target] = derived_mat
+        end
+        
+        # Rebuild the NamedTuple with the extended relations
+        new_origin_keys = Tuple(sort(collect(keys(extended_dict))))
+        new_inner_nts = [begin
+            targets = extended_dict[k]
+            target_keys = Tuple(sort(collect(keys(targets))))
+            NamedTuple{target_keys}(Tuple(targets[tk] for tk in target_keys))
+        end for k in new_origin_keys]
+        new_relations = NamedTuple{new_origin_keys}(Tuple(new_inner_nts))
+        
+        R_new = typeof(new_relations)
+        return TopologyObject{P, R_new}(new_relations)
+    end
+    
+    return topoObj
 end
 
 # Handle empty topology
-function buildTopology(::TopologyEmpty, kwargs::Base.Pairs, params::NamedTuple)
-    return Topology(nothing)
+function buildTopologyObject(::TopologyEmpty, kwargs::Base.Pairs, params::NamedTuple; requiredRelations=Set{Tuple{Symbol,Symbol}}(), requiredRelationTypes=Dict{Tuple{Symbol,Symbol},Type}())
+    return TopologyObject(nothing)
 end
 
+# Backwards compatibility alias
+buildTopology(t::Topology, k::Base.Pairs, p::NamedTuple; requiredRelations=Set{Tuple{Symbol,Symbol}}(), requiredRelationTypes=Dict{Tuple{Symbol,Symbol},Type}()) = buildTopologyObject(t, k, p; requiredRelations=requiredRelations, requiredRelationTypes=requiredRelationTypes)
+
 ######################################################################################################
-# Topology accessors and utilities
+# TopologyObject accessors and utilities
 ######################################################################################################
 
 """
-    getrelation(topology::Topology, origin::Symbol, target::Symbol)
+    getrelation(topology::TopologyObject, origin::Symbol, target::Symbol)
 
 Get the sparse matrix for the relation from origin to target.
 """
-function getrelation(topology::Topology, origin::Symbol, target::Symbol)
+function getrelation(topology::TopologyObject, origin::Symbol, target::Symbol)
     if topology._relations === nothing
-        error("Topology has no relation data (schema-only)")
+        error("TopologyObject has no relation data")
     end
     if !haskey(topology._relations, origin)
         error("No relations from entity: $origin")
@@ -408,16 +986,20 @@ function getrelation(topology::Topology, origin::Symbol, target::Symbol)
 end
 
 """
-    hasrelation(topology::Topology, origin::Symbol, target::Symbol)
+    hasrelation(topology::TopologyObject, origin::Symbol, target::Symbol)
 
 Check if a direct relation exists from origin to target.
 """
-function hasrelation(topology::Topology, origin::Symbol, target::Symbol)
+function hasrelation(topology::TopologyObject, origin::Symbol, target::Symbol)
     if topology._relations === nothing
         return false
     end
     return haskey(topology._relations, origin) && haskey(topology._relations[origin], target)
 end
+
+######################################################################################################
+# Topology (schema) accessors
+######################################################################################################
 
 """
     getpath(topology::Topology, origin::Symbol, target::Symbol)
@@ -455,18 +1037,16 @@ basicRelations(::TopologyEmpty) = Tuple{Symbol, Symbol}[]
 # Show methods
 ######################################################################################################
 
-function Base.show(io::IO, topology::Topology{P, E, BR, IR, R}) where {P, E, BR, IR, R}
-    println(io, "Topology{$P}")
-    println(io, "  Entities: ", join(topology._elements, ", "))
-    println(io, "  Basic relations:")
-    for (origin, target) in topology._basicRelations
-        print(io, "    $origin -> $target")
-        if hasrelation(topology, origin, target)
-            mat = getrelation(topology, origin, target)
-            println(io, " : $(typeof(mat).name.name) with $(numberOfEntries(mat)) entries")
-        else
-            println(io)
+function Base.show(io::IO, topology::Topology{E, BR, IR}) where {E, BR, IR}
+    println(io, "Topology (schema)")
+    if topology._elements !== nothing
+        println(io, "  Entities: ", join(topology._elements, ", "))
+        println(io, "  Basic relations:")
+        for (origin, target) in topology._basicRelations
+            println(io, "    $origin -> $target")
         end
+    else
+        println(io, "  (empty)")
     end
 end
 
@@ -474,49 +1054,48 @@ function Base.show(io::IO, ::TopologyEmpty)
     println(io, "Topology (empty)")
 end
 
-######################################################################################################
-# Platform adaptation
-######################################################################################################
-
-KernelAbstractions.get_backend(topology::Topology{P}) where {P} = P()
-
-toBackend(topology::TopologyEmpty, ::Any) = topology
-
-toBackend(topology::Topology{P}, ::KernelAbstractions.CPU) where {P<:Type{<:KernelAbstractions.CPU}} = topology
-
-# Handle schema-only topology (R = Nothing)
-function toBackend(topology::Topology{P, E, BR, IR, Nothing}, ::KernelAbstractions.CPU) where {P, E, BR, IR}
-    return topology  # Nothing to convert
+function Base.show(io::IO, topology::TopologyObject{P, R}) where {P, R}
+    println(io, "TopologyObject{$P}")
+    if topology._relations !== nothing
+        for origin in keys(topology._relations)
+            for target in keys(topology._relations[origin])
+                mat = topology._relations[origin][target]
+                println(io, "  $origin -> $target : $(typeof(mat).name.name) with $(numberOfEntries(mat)) entries")
+            end
+        end
+    else
+        println(io, "  (empty)")
+    end
 end
 
-function toBackend(topology::Topology{P, E, BR, IR, Nothing}, backend::KernelAbstractions.GPU) where {P, E, BR, IR}
-    return topology  # Schema-only, nothing to convert
+function Base.show(io::IO, ::TopologyObjectEmpty)
+    println(io, "TopologyObject (empty)")
 end
 
-function toBackend(topology::Topology{P, E, BR, IR, R}, ::KernelAbstractions.CPU) where {P, E, BR, IR, R}
+######################################################################################################
+# Platform adaptation for TopologyObject
+######################################################################################################
+
+KernelAbstractions.get_backend(::TopologyObject{P}) where {P} = P()
+
+toBackend(topology::TopologyObjectEmpty, ::Any) = topology
+
+toBackend(topology::TopologyObject{P}, ::KernelAbstractions.CPU) where {P<:Type{<:KernelAbstractions.CPU}} = topology
+
+function toBackend(topology::TopologyObject{P, R}, ::KernelAbstractions.CPU) where {P, R}
     # Convert all sparse matrices to CPU
     new_relations = _convertRelations(topology._relations, CPU())
     
-    Topology{typeof(CPU()), E, BR, IR, typeof(new_relations)}(
-        topology._elements,
-        topology._basicRelations,
-        topology._inferenceTable,
-        new_relations
-    )
+    TopologyObject{typeof(CPU()), typeof(new_relations)}(new_relations)
 end
 
-toBackend(topology::Topology{P}, ::KernelAbstractions.GPU) where {P<:KernelAbstractions.GPU} = topology
+toBackend(topology::TopologyObject{P}, ::KernelAbstractions.GPU) where {P<:KernelAbstractions.GPU} = topology
 
-function toBackend(topology::Topology{P, E, BR, IR, R}, backend::KernelAbstractions.GPU) where {P, E, BR, IR, R}
+function toBackend(topology::TopologyObject{P, R}, backend::KernelAbstractions.GPU) where {P, R}
     # Convert all sparse matrices to GPU
     new_relations = _convertRelations(topology._relations, backend)
     
-    Topology{typeof(backend), E, BR, IR, typeof(new_relations)}(
-        topology._elements,
-        topology._basicRelations,
-        topology._inferenceTable,
-        new_relations
-    )
+    TopologyObject{typeof(backend), typeof(new_relations)}(new_relations)
 end
 
 """
@@ -543,12 +1122,12 @@ _convertRelations(::Nothing, _) = nothing
 ######################################################################################################
 
 """
-    iterateOverNeighbors(topology::Topology, from::Symbol, to::Symbol, idx::Int)
+    iterateOverNeighbors(topology::TopologyObject, from::Symbol, to::Symbol, idx::Int)
 
 Iterate over the neighbors of entity `idx` in the relation from `from` to `to`.
-Returns an iterator over (neighbor_idx, value) pairs.
+Returns an iterator over neighbor_idx values.
 """
-function iterateOverNeighbors(topology::Topology, from::Symbol, to::Symbol, idx::Int)
+function iterateOverNeighbors(topology::TopologyObject, from::Symbol, to::Symbol, idx::Int)
     mat = getrelation(topology, from, to)
     return iterateRow(mat, idx)
 end
@@ -558,25 +1137,26 @@ end
 ######################################################################################################
 
 """
-    validateTopology(topology::Topology, elementCounts::Dict{Symbol, Int})
+    validateTopologyObject(schema::Topology, topoObj::TopologyObject, elementCounts::Dict{Symbol, Int})
 
 Validate that all sparse matrix entries reference valid elements.
 """
-function validateTopology(topology::Topology, elementCounts::Dict{Symbol, Int})
-    for (origin, target) in topology._basicRelations
-        if !hasrelation(topology, origin, target)
+function validateTopologyObject(schema::Topology, topoObj::TopologyObject, elementCounts::Dict{Symbol, Int})
+    for (origin, target) in schema._basicRelations
+        if !hasrelation(topoObj, origin, target)
             continue
         end
         
-        mat = getrelation(topology, origin, target)
+        mat = getrelation(topoObj, origin, target)
         target_count = get(elementCounts, target, 0)
         
         # Check all entries in the sparse matrix
         for row in 1:numberOfRows(mat)
-            for (col, val) in iterateRow(mat, row)
-                if col < 1 || col > target_count
+            for col in iterateRow(mat, row)
+                val = mat[row, col]  # Get the actual target index
+                if val < 1 || val > target_count
                     error("Invalid reference in relation $origin -> $target: " *
-                          "element $row references $target element $col, but only $target_count exist")
+                          "element $row references $target element $val, but only $target_count exist")
                 end
             end
         end

@@ -99,7 +99,9 @@ struct UnstructuredMesh{D, S, P} <: AbstractMesh
 
     _p::NamedTuple    # Dictionary to hold agent properties
     _functions::Dict{Symbol, Any}    # Dictionary to hold functions associated with the mesh
-    _topology::Topology
+    _requiredTopologyRelations::Set{Tuple{Symbol, Symbol}}  # Relations needed by rules (for precomputation)
+    _requiredTopologyRelationTypes::Dict{Tuple{Symbol, Symbol}, Type}  # Sparse matrix types for inferred relations
+    topo::Topology
 
 end
 
@@ -201,6 +203,8 @@ function UnstructuredMesh(
     return UnstructuredMesh{dims, specialization, typeof(propertiesTuple)}(
         propertiesTuple,
         Dict{Symbol, Any}(),
+        Set{Tuple{Symbol, Symbol}}(),
+        Dict{Tuple{Symbol, Symbol}, Type}(),
         topology
     )
 end
@@ -241,15 +245,21 @@ function Base.show(io::IO, x::UnstructuredMesh)
     end
     # Display topological relations
     println(io, "\nTopological Relations")
-    if x._topology._basicRelations !== nothing && x._topology._directRelations !== nothing
-        relationsbase = collect(x._topology._basicRelations)
-        relations = collect(x._topology._directRelations)
-        sort!(relations, by = r -> (r[1], r[2]))
-        for (origin, target) in relations
-            if (origin, target) in relationsbase
-                print(io, "\t", origin, " → ", target, " (basic)\n")
-            else
-                println(io, "\t", origin, " → ", target)
+    if x.topo._basicRelations !== nothing
+        relationsbase = collect(x.topo._basicRelations)
+        relations = collect(x._requiredTopologyRelations)
+        sort!(relationsbase, by = r -> (r[1], r[2]))
+        println(io, "  Basic relations:")
+        for (origin, target) in relationsbase
+            println(io, "\t", origin, " → ", target)
+        end
+        if !isempty(relations)
+            println(io, "  Required derived relations:")
+            sort!(relations, by = r -> (r[1], r[2]))
+            for (origin, target) in relations
+                if (origin, target) ∉ relationsbase
+                    println(io, "\t", origin, " → ", target)
+                end
             end
         end
     else
@@ -319,18 +329,50 @@ end
 
 function addTopologicalRelations!(mesh::UnstructuredMesh, pairs::Tuple)
     """
-    Store topological relations needed for loopOverTopology calls.
+    Store topological relations needed by rules.
     This is called automatically by @addODE, @addRule, @addSDE macros.
+    Non-basic relations will be precomputed during createObject.
     
     Args:
         mesh: The UnstructuredMesh
-        pairs: Tuple of (origin, target) pairs extracted from loopOverTopology calls
+        pairs: Tuple of (origin, target) or (origin, target, MatrixType) tuples
+               extracted from topo[:origin, :target] calls
     """
-    # Add the new relations to the existing topology
-
-    addRelations!(mesh._topology, pairs)
+    for pair in pairs
+        if length(pair) == 2
+            # (origin, target) - no type specified
+            push!(mesh._requiredTopologyRelations, (pair[1], pair[2]))
+        elseif length(pair) == 3
+            # (origin, target, MatrixType)
+            push!(mesh._requiredTopologyRelations, (pair[1], pair[2]))
+            mesh._requiredTopologyRelationTypes[(pair[1], pair[2])] = pair[3]
+        end
+    end
 
     return
+end
+
+"""
+    setTopologyRelationType!(mesh::UnstructuredMesh, origin::Symbol, target::Symbol, matrixType::Type)
+
+Set the sparse matrix type to use for a specific inferred relation.
+This allows control over the storage format of derived relations (e.g., n->n, e->a).
+
+Supported types:
+- DynamicalCSR: Compressed Sparse Row (variable entries per row)
+- DynamicalELL: ELLPACK format (fixed entries per row, more GPU efficient)
+- DynamicalOrderedCSR: Ordered CSR
+- DynamicalOrderedELL: Ordered ELLPACK
+
+Example:
+```julia
+model = AgentPolyline(3)
+setTopologyRelationType!(model, :n, :n, DynamicalELL)  # n->n will use ELL format
+```
+"""
+function setTopologyRelationType!(mesh::UnstructuredMesh, origin::Symbol, target::Symbol, matrixType::Type)
+    mesh._requiredTopologyRelationTypes[(origin, target)] = matrixType
+    return nothing
 end
 
 function modifiedInScope(mesh::UnstructuredMesh, scope::Symbol)
@@ -1115,7 +1157,7 @@ struct UnstructuredMeshObject{
             PAR, TOPO, AB
     } <: AbstractMeshObject
     _p::PAR
-    _topology::TOPO
+    topo::TOPO
     _FlagOverflow::AB
 end
 Adapt.@adapt_structure UnstructuredMeshObject
@@ -1237,7 +1279,10 @@ function UnstructuredMeshObject(
     _FlagOverflow = SizedVector{1}(false)
     
     # Build topology object from mesh topology and validate consistency
-    topology_ = buildTopology(mesh._topology, kwargs, params)
+    # Pass required relations and their types for precomputation of derived relations
+    topology_ = buildTopology(mesh.topo, kwargs, params; 
+        requiredRelations=mesh._requiredTopologyRelations,
+        requiredRelationTypes=mesh._requiredTopologyRelationTypes)
 
     meshObj = UnstructuredMeshObject{
             P, D, S, DT,
@@ -1420,7 +1465,7 @@ function Base.copy(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) wh
         NamedTuple{keys(field._p)}(
             copy(getfield(field._p, name)) for name in keys(field._p)
         ),
-        field._topology,
+        field.topo,
         field._FlagOverflow
     )
 
@@ -1432,7 +1477,7 @@ function partialCopy(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, 
         NamedTuple{keys(field._p)}(
             partialCopy(getfield(field._p, name), [i[2] for i in copyArgs if i[1] == name]) for name in keys(field._p)
         ),
-        field._topology,
+        field.topo,
         field._FlagOverflow
     )
 
@@ -1445,7 +1490,7 @@ function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB})
         NamedTuple{keys(field._p)}(
             similar(getfield(field._p, name)) for name in keys(field._p)
         ),
-        field._topology,
+        field.topo,
         field._FlagOverflow
     )
 
@@ -1457,24 +1502,24 @@ function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB},
         NamedTuple{keys(field._p)}(
             similar(getfield(field._p, name)) for name in keys(field._p)
         ),
-        field._topology,
+        field.topo,
         field._FlagOverflow
     )
 
 end
 
-## Deepcopy - preserve _topology reference
+## Deepcopy - preserve topo reference
 function Base.deepcopy_internal(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, stackdict::IdDict) where {P, D, S, DT, PAR, TOPO, AB}
     if haskey(stackdict, field)
         return stackdict[field]
     end
     
-    # Deepcopy the data arrays but preserve _topology reference
+    # Deepcopy the data arrays but preserve topo reference
     new_field = UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}(
         NamedTuple{keys(field._p)}(
             Base.deepcopy_internal(getfield(field._p, name), stackdict) for name in keys(field._p)
         ),
-        field._topology,   # Preserve reference  
+        field.topo,   # Preserve reference  
         deepcopy(field._FlagOverflow)
     )
     
@@ -1489,7 +1534,7 @@ function Base.zero(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) wh
         NamedTuple{keys(field._p)}(
             zero(getfield(field._p, name)) for name in keys(field._p)
         ),
-        field._topology,
+        field.topo,
         field._FlagOverflow
     )
 

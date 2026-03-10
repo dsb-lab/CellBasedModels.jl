@@ -14,7 +14,7 @@ function chain_with_index(lhs)
     function go(x)
         if x isa Expr
             if x.head == :ref
-                return go(lhs.args[1])[1], true
+                return go(x.args[1])[1], true
             elseif x.head == :.
                 return vcat(go(x.args[1])[1], go(x.args[2])[1]), false
             else
@@ -177,8 +177,9 @@ function extract_topology_loops(fdefs)
 
     for f in fdefs
         fdef = f.fdef
+        u_sym = f.args[2]  # The 'u' argument (second arg)
 
-        # Use the body directly to search for loopOverTopology calls
+        # Use the body directly to search for topology access patterns
         postwalk(fdef) do ex
             # Match loopOverTopology with any number of arguments
             # Common patterns: loopOverTopology(mesh, :origin, :target, index)
@@ -201,6 +202,37 @@ function extract_topology_loops(fdefs)
                     end
                 end
             end
+            
+            # Match u.topo[:origin, :target] bracket access syntax
+            # This is: ref(.(.(u, :topo), QuoteNode(:origin)), QuoteNode(:target))
+            # Or: getindex(u.topo, :origin, :target)
+            if ex isa Expr && ex.head == :ref && length(ex.args) == 3
+                base = ex.args[1]
+                origin_arg = ex.args[2]
+                target_arg = ex.args[3]
+                
+                # Check if base is u.topo (or alias.topo where alias resolves to u)
+                is_topo_access = false
+                if base isa Expr && base.head == :. && length(base.args) == 2
+                    obj = base.args[1]
+                    prop = base.args[2]
+                    prop_sym = prop isa QuoteNode ? prop.value : prop
+                    if prop_sym == :topo && obj == u_sym
+                        is_topo_access = true
+                    end
+                end
+                
+                if is_topo_access
+                    # Handle QuoteNode for origin and target
+                    origin_sym = origin_arg isa QuoteNode ? origin_arg.value : origin_arg
+                    target_sym = target_arg isa QuoteNode ? target_arg.value : target_arg
+                    
+                    if origin_sym isa Symbol && target_sym isa Symbol
+                        Base.push!(topology_pairs, (origin_sym, target_sym))
+                    end
+                end
+            end
+            
             ex
         end
     end

@@ -310,6 +310,51 @@ Return the number of slots in this row (may include empty slots where col == 0).
     return max(0, iter._endIdx - iter._startIdx + 1)
 end
 
+# Standard Julia iteration protocol for ELLRowIterator
+# Returns column indices only (skipping empty slots where col == 0)
+@inline function Base.iterate(iter::ELLRowIterator)
+    k = iter._startIdx
+    while k <= iter._endIdx
+        col = iter._cols[k]
+        if col > 0  # valid entry
+            return (col, k + 1)
+        end
+        k += 1
+    end
+    return nothing
+end
+
+@inline function Base.iterate(iter::ELLRowIterator, k::Int)
+    while k <= iter._endIdx
+        col = iter._cols[k]
+        if col > 0  # valid entry
+            return (col, k + 1)
+        end
+        k += 1
+    end
+    return nothing
+end
+
+"""
+    getRow(ell::DynamicalELL, row::Int, ::Val{N})
+
+Get all values in a row as a tuple of N elements.
+Returns the values at columns 1, 2, ... N in order.
+If the row has fewer than N entries, returns 0 for missing values.
+
+The size N must be provided as a Val{N} type parameter for GPU compatibility.
+
+Example:
+```julia
+(n1, n2) = getRow(edge_to_node, edge_idx, Val(2))
+```
+"""
+@inline function getRow(ell::DynamicalELL{P, T}, row::Int, ::Val{N}) where {P, T, N}
+    nColsPerRow = ell._nColsPerRow[1]
+    startIdx = (row - 1) * nColsPerRow + 1
+    return ntuple(i -> i <= nColsPerRow ? @inbounds(ell._values[startIdx + i - 1]) : zero(T), Val(N))
+end
+
 """
     setindex!(ell::DynamicalELL, value, i::Int, j::Int)
 

@@ -629,6 +629,46 @@ end
     return iter._next[k]
 end
 
+# Standard Julia iteration protocol for OrderedELLRowIterator
+# Returns column indices only
+@inline function Base.iterate(iter::OrderedELLRowIterator)
+    if iter._head == 0
+        return nothing
+    end
+    k = iter._head
+    col = iter._cols[k]
+    return (col, k)
+end
+
+@inline function Base.iterate(iter::OrderedELLRowIterator, k::Int)
+    next_k = iter._next[k]
+    if next_k == 0
+        return nothing
+    end
+    col = iter._cols[next_k]
+    return (col, next_k)
+end
+
+"""
+    getRow(ell::DynamicalOrderedELL, row::Int, ::Val{N})
+
+Get all values in a row as a tuple of N elements.
+Returns the values at columns 1, 2, ... N in order.
+If the row has fewer than N entries, returns 0 for missing values.
+
+The size N must be provided as a Val{N} type parameter for GPU compatibility.
+
+Example:
+```julia
+(n1, n2) = getRow(edge_to_node, edge_idx, Val(2))
+```
+"""
+@inline function getRow(ell::DynamicalOrderedELL{P, T}, row::Int, ::Val{N}) where {P, T, N}
+    nColsPerRow = ell._nColsPerRow[1]
+    startIdx = (row - 1) * nColsPerRow + 1
+    return ntuple(i -> i <= nColsPerRow ? @inbounds(ell._values[startIdx + i - 1]) : zero(T), Val(N))
+end
+
 ######################################################################################################
 # Utility functions
 ######################################################################################################

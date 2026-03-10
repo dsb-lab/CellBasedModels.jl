@@ -97,7 +97,7 @@ function toBackend(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, ::
     p = NamedTuple{keys(field._p)}(
         toBackend(p, CPU()) for p in values(field._p)
     )
-    t = toBackend(field._topology, CPU())
+    t = toBackend(field.topo, CPU())
     _FlagOverflow = SizedVector{1}(false)
 
     PARNew = typeof(p)

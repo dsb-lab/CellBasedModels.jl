@@ -160,9 +160,9 @@ function Base.show(io::IO, x::Type{DynamicalCSR{P, T, V, I}}) where {P, T, V, I}
 end
 
 Base.length(csr::DynamicalCSR{P}) where {P} = length(csr._values)
-numberOfEntries(csr::DynamicalCSR{P}) where {P} = getDeviceIndex(csr._NEntries) + numberOfEntries(csr._coo)
-numberOfEntriesCache(csr::DynamicalCSR{P}) where {P} = getDeviceIndex(csr._NEntriesCache)  # CSR cache only
-numberOfEntriesNonzero(csr::DynamicalCSR{P}) where {P} = getDeviceIndex(csr._NEntriesNonzero) + numberOfEntriesNonzero(csr._coo)
+@inline numberOfEntries(csr::DynamicalCSR{P}) where {P} = @inbounds csr._NEntries[1] + numberOfEntries(csr._coo)
+@inline numberOfEntriesCache(csr::DynamicalCSR{P}) where {P} = @inbounds csr._NEntriesCache[1]  # CSR cache only
+@inline numberOfEntriesNonzero(csr::DynamicalCSR{P}) where {P} = @inbounds csr._NEntriesNonzero[1] + numberOfEntriesNonzero(csr._coo)
 numberOfRows(csr::DynamicalCSR{P}) where {P} = max(numberOfRows(csr._coo), length(csr._rowOffsets)-1)
 numberOfCols(csr::DynamicalCSR{P}) where {P} = max(maximum(csr._cols), numberOfCols(csr._coo))
 
@@ -300,6 +300,52 @@ Return the number of slots in this row (may include empty slots where col == 0).
 """
 @inline function Base.length(iter::CSRRowIterator)
     return max(0, iter._endIdx - iter._startIdx + 1)
+end
+
+# Standard Julia iteration protocol for CSRRowIterator
+# Returns column indices only (skipping empty slots where col == 0)
+@inline function Base.iterate(iter::CSRRowIterator)
+    k = iter._startIdx
+    while k <= iter._endIdx
+        col = iter._cols[k]
+        if col > 0  # valid entry
+            return (col, k + 1)
+        end
+        k += 1
+    end
+    return nothing
+end
+
+@inline function Base.iterate(iter::CSRRowIterator, k::Int)
+    while k <= iter._endIdx
+        col = iter._cols[k]
+        if col > 0  # valid entry
+            return (col, k + 1)
+        end
+        k += 1
+    end
+    return nothing
+end
+
+"""
+    getRow(csr::DynamicalCSR, row::Int, ::Val{N})
+
+Get all values in a row as a tuple of N elements.
+Returns the values at columns 1, 2, ... N in order.
+If the row has fewer than N entries, returns 0 for missing values.
+
+The size N must be provided as a Val{N} type parameter for GPU compatibility.
+
+Example:
+```julia
+(n1, n2) = getRow(edge_to_node, edge_idx, Val(2))
+```
+"""
+@inline function getRow(csr::DynamicalCSR{P, T}, row::Int, ::Val{N}) where {P, T, N}
+    startIdx = csr._rowOffsets[row]
+    endIdx = csr._rowOffsets[row + 1] - 1
+    rowSize = endIdx - startIdx + 1
+    return ntuple(i -> i <= rowSize ? @inbounds(csr._values[startIdx + i - 1]) : zero(T), Val(N))
 end
 
 """

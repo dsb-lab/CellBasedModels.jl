@@ -180,7 +180,7 @@ function Base.show(io::IO, topology::Topology)
 end
 
 struct TopologyObject{P, T, R}
-    _topology::T
+    topo::T
     _relations::R
 end
 
@@ -233,7 +233,7 @@ end
 
 function Base.show(io::IO, tobj::TopologyObject)
     println(io, "TopologyObject with topology: ")
-    Base.show(io, tobj._topology)
+    Base.show(io, tobj.topo)
     println(io, "and relations CSR structures: ")
     for (origin, targets) in pairs(tobj._relations)
         for (target, topology) in pairs(targets)
@@ -431,7 +431,7 @@ function checkTopologyConsistency(tobj::TopologyObject)
         Error with detailed message if inconsistencies are found
     """
     
-    original_topology = tobj._topology
+    original_topology = tobj.topo
     basic_relations = original_topology._basicRelations
     
     # Extract basic relation CSR structures and build kwargs

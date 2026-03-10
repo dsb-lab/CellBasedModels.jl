@@ -165,13 +165,13 @@ function Base.show(io::IO, x::Type{DynamicalCOO{P, T, V, I}}) where {P, T, V, I}
 end
 
 Base.length(coo::DynamicalCOO{P}) where {P} = length(coo._values)
-numberOfEntries(coo::DynamicalCOO{P}) where {P} = getDeviceIndex(coo._NEntries)
-numberOfEntriesCache(coo::DynamicalCOO{P}) where {P} = getDeviceIndex(coo._NEntriesCache)
-numberOfEntriesNonzero(coo::DynamicalCOO{P}) where {P} = getDeviceIndex(coo._NEntriesNonzero)
-numberOfEntriesFree(coo::DynamicalCOO{P}) where {P} = getDeviceIndex(coo._NEntriesFree)
-numberOfEntriesFreeNext(coo::DynamicalCOO{P}) where {P} = getDeviceIndex(coo._NEntriesFreeNext)
-numberOfRows(coo::DynamicalCOO{P}) where {P} = maximum(coo._rows)
-numberOfCols(coo::DynamicalCOO{P}) where {P} = maximum(coo._cols)
+@inline numberOfEntries(coo::DynamicalCOO{P}) where {P} = @inbounds coo._NEntries[1]
+@inline numberOfEntriesCache(coo::DynamicalCOO{P}) where {P} = @inbounds coo._NEntriesCache[1]
+@inline numberOfEntriesNonzero(coo::DynamicalCOO{P}) where {P} = @inbounds coo._NEntriesNonzero[1]
+@inline numberOfEntriesFree(coo::DynamicalCOO{P}) where {P} = @inbounds coo._NEntriesFree[1]
+@inline numberOfEntriesFreeNext(coo::DynamicalCOO{P}) where {P} = @inbounds coo._NEntriesFreeNext[1]
+numberOfRows(coo::DynamicalCOO{P}) where {P} = maximum(coo._rows; init=0)
+numberOfCols(coo::DynamicalCOO{P}) where {P} = maximum(coo._cols; init=0)
 
 """
     todense(coo::DynamicalCOO)
@@ -284,6 +284,31 @@ Returns true if `iter._rows[k] == iter.row`.
 """
 @inline function matchesrow(iter::COORowIterator, k::Int)
     return iter._rows[k] == iter.row
+end
+
+# Standard Julia iteration protocol for COORowIterator
+# Returns column indices only (scanning for entries matching the row)
+@inline function Base.iterate(iter::COORowIterator)
+    k = 1
+    while k <= iter._nEntries
+        if iter._rows[k] == iter.row
+            col = iter._cols[k]
+            return (col, k + 1)
+        end
+        k += 1
+    end
+    return nothing
+end
+
+@inline function Base.iterate(iter::COORowIterator, k::Int)
+    while k <= iter._nEntries
+        if iter._rows[k] == iter.row
+            col = iter._cols[k]
+            return (col, k + 1)
+        end
+        k += 1
+    end
+    return nothing
 end
 
 """

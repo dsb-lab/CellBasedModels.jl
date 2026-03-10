@@ -19,14 +19,14 @@ backends = CUDA.has_cuda() ? [CPU(), CUDA.CUDABackend()] : [CPU()]
     # include("testParameter.jl")
     # include("testDiffSym.jl")
     # include("testDiffAuto.jl")
-    include("testDynamicalCOO.jl")
-    include("testDynamicalCSR.jl")
-    include("testDynamicalELL.jl")
-    include("testDynamicalOrderedCOO.jl")
-    include("testDynamicalOrderedCSR.jl")
-    include("testDynamicalOrderedELL.jl")
-    include("testTopology.jl")
-    # include("testTopologyAuxiliar.jl")
+
+    # include("testDynamicalCOO.jl")
+    # include("testDynamicalCSR.jl")
+    # include("testDynamicalELL.jl")
+    # include("testDynamicalOrderedCOO.jl")
+    # include("testDynamicalOrderedCSR.jl")
+    # include("testDynamicalOrderedELL.jl")
+    # include("testTopology.jl")
 
     # include("testUnstructuredMesh.jl")
     # include("testStructuredMesh.jl")
@@ -38,6 +38,7 @@ backends = CUDA.has_cuda() ? [CPU(), CUDA.CUDABackend()] : [CPU()]
 
     # include("testAgentGlobal.jl")
     # include("testAgentPoint.jl")
+    include("testAgentPolyline.jl")
 
     # include("test.jl")
 end

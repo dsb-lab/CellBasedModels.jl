@@ -11,8 +11,8 @@ module CellBasedModels
     import Base: push!
 
     hasCuda() = false
-    getDeviceIndex(arr, i=1) = Array(arr)[i] #TO BE BETTER DONE
-    setDeviceIndex!(arr, val) = arr .= val   #TO BE BETTER DONE
+    @inline getDeviceIndex(arr, i=1) = @inbounds arr[i]  # For CPU arrays, direct access
+    setDeviceIndex!(arr, val) = arr .= val
 
     # Base.zero(::Nothing) = nothing
     # Base.zero(::Type{Nothing}) = nothing
@@ -88,14 +88,15 @@ module CellBasedModels
     export DynamicalOrderedELL, doell_zeros
     include("./topology/DynamicalOrderedELL.jl")
     
-    export iterateRow, getentry, matchesrow, todense, replaceIndex!
-    export Topology
+    export iterateRow, getentry, matchesrow, todense, replaceIndex!, getRow
+    export Topology, TopologyObject, TopologyEmpty, TopologyObjectEmpty
     include("./topology/topology.jl")
 
     #Agent
     include("./AgentStructure/auxiliar.jl")
     export Node, Edge, Face, Volume, Agent
     export UnstructuredMesh, UnstructuredMeshField, UnstructuredMeshObject
+    export setTopologyRelationType!
     export iterateOver
     include("./AgentStructure/unstructuredMesh.jl")
     include("./AgentStructure/unstructuredMeshGPU.jl")
@@ -107,6 +108,8 @@ module CellBasedModels
     include("./AgentSpecializations/agentGlobal.jl")
     export AgentPoint, @addAgentPoint!, @removeAgentPoint!
     include("./AgentSpecializations/agentPoint.jl")
+    export AgentPolyline, specializationTable
+    include("./AgentSpecializations/agentPolyline.jl")
 
     include("./neighbors/common.jl")
     include("../src/neighbors/commonGPU.jl")

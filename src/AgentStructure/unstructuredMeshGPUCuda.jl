@@ -59,7 +59,7 @@ function toBackend(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, ba
     p = NamedTuple{keys(field._p)}(
         toBackend(p, backend) for p in values(field._p)
     )
-    t = toBackend(field._topology, backend)
+    t = toBackend(field.topo, backend)
     _FlagOverflow = CUDA.CuArray([false])
 
     PARNew = typeof(p)
@@ -155,7 +155,7 @@ function Adapt.adapt_structure(to::CUDA.KernelAdaptor, obj::UnstructuredMeshObje
     _p_adapted = NamedTuple{keys(obj._p)}(
         Adapt.adapt(to, p) for p in values(obj._p)
     )
-    _topology_adapted = Adapt.adapt(to, obj._topology)
+    _topology_adapted = Adapt.adapt(to, obj.topo)
     _FlagOverflow_adapted = Adapt.adapt(to, obj._FlagOverflow)
     
     return UnstructuredMeshObject{
