@@ -37,8 +37,8 @@ backends = CUDA.has_cuda() ? [CPU(), CUDA.CUDABackend()] : [CPU()]
     # include("testCustomIntegrators.jl")
 
     # include("testAgentGlobal.jl")
-    # include("testAgentPoint.jl")
-    include("testAgentPolyline.jl")
+    include("testAgentPoint.jl")
+    # include("testAgentPolyline.jl")
 
     # include("test.jl")
 end

@@ -1079,6 +1079,7 @@ end
 KernelAbstractions.get_backend(::TopologyObject{P}) where {P} = P()
 
 toBackend(topology::TopologyObjectEmpty, ::Any) = topology
+toBackend(topology::TopologyObjectEmpty, ::KernelAbstractions.GPU) = topology
 
 toBackend(topology::TopologyObject{P}, ::KernelAbstractions.CPU) where {P<:Type{<:KernelAbstractions.CPU}} = topology
 

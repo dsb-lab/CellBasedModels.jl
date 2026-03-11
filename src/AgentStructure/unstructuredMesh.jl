@@ -420,7 +420,8 @@ struct UnstructuredMeshField{
             IDVI, IDAI,    
             VN,
             AI, VB, AB,
-            NN  # Neighbors type
+            NN,  # Neighbors type
+            FI   # Free indices array type
         }
     _p::PR
     _NP::Int
@@ -439,6 +440,12 @@ struct UnstructuredMeshField{
 
     # Neighbors structure (e.g., NeighborsFull, NeighborsHash, etc.)
     _neighbors::NN
+
+    # Free entries tracking (for dynamic add/remove without compaction)
+    _NFree::AI
+    _entriesFree::FI
+    _NFreeNextInit::AI
+    _NFreeNext::AI
 end
 Adapt.@adapt_structure UnstructuredMeshField
 
@@ -472,6 +479,18 @@ function UnstructuredMeshField(
     _NAdded = SizedVector{1}(0)
     _NOverflow = SizedVector{1}(0)
 
+    # Initialize free entries tracking
+    # Initially, positions N+1 to NCache are free
+    nFree = NCache - N
+    _NFree = SizedVector{1}(nFree)
+    _entriesFree = Vector{Int}(undef, NCache)
+    # Fill free entries in reverse order (pop from end is O(1))
+    for i in 1:nFree
+        _entriesFree[i] = NCache - i + 1
+    end
+    _NFreeNextInit = SizedVector{1}(nFree + 1)
+    _NFreeNext = SizedVector{1}(0)
+
     _p = NamedTuple{keys(meshProperties.p)}(zeros(dtype(dt, isbits=true), NCache) for dt in values(meshProperties.p))
     _NP = length(meshProperties.p)
     _pReference = SizedVector{length(_p), Bool}([true for _ in 1:length(meshProperties.p)])
@@ -494,6 +513,7 @@ function UnstructuredMeshField(
     AI = typeof(_N)
     AB = typeof(_NOverflow)
     VB = typeof(_FlagsSurvived)
+    FI = typeof(_entriesFree)
 
     PR = typeof(_p)
     PRN = _NP
@@ -510,7 +530,8 @@ function UnstructuredMeshField(
                 IDVI, IDAI,
                 VN,
                 AI, VB, AB,
-                typeof(neighbors)
+                typeof(neighbors),
+                FI
             }(
                 _p,
                 _NP,
@@ -528,6 +549,11 @@ function UnstructuredMeshField(
                 _NOverflow,
                 
                 neighbors,
+
+                _NFree,
+                _entriesFree,
+                _NFreeNextInit,
+                _NFreeNext,
             )
         initNeighbors(temp_field)
     end
@@ -541,7 +567,8 @@ function UnstructuredMeshField(
             IDVI, IDAI,
             VN,
             AI, VB, AB,
-            NN
+            NN,
+            FI
         }(
             _p,
             _NP,
@@ -559,6 +586,11 @@ function UnstructuredMeshField(
             _NOverflow,
             
             _neighbors,
+
+            _NFree,
+            _entriesFree,
+            _NFreeNextInit,
+            _NFreeNext,
         )
 end
 
@@ -579,6 +611,11 @@ function UnstructuredMeshField(
             _NOverflow,
             
             _neighbors,
+
+            _NFree,
+            _entriesFree,
+            _NFreeNextInit,
+            _NFreeNext,
     )
 
     P = platform(_N)
@@ -602,6 +639,7 @@ function UnstructuredMeshField(
     AI = typeof(_N)
     AB = typeof(_NOverflow)
     VB = typeof(_FlagsSurvived)
+    FI = typeof(_entriesFree)
     
     NN = typeof(_neighbors)
 
@@ -612,6 +650,7 @@ function UnstructuredMeshField(
             VN,
             AI, VB, AB,
             NN,
+            FI,
         }(
             _p,
             _NP,
@@ -629,6 +668,11 @@ function UnstructuredMeshField(
             _NOverflow,
             
             _neighbors,
+
+            _NFree,
+            _entriesFree,
+            _NFreeNextInit,
+            _NFreeNext,
         )
 end
 
@@ -638,14 +682,14 @@ function Base.show(io::IO, x::UnstructuredMeshField{
             IDVI, IDAI,
             VN,
             AI, VB, AB,
-            NN,
+            NN, FI,
         }) where {
             P, DT,
             PR, PRN, PRC,
             IDVI, IDAI,
             VN,
             AI, VB, AB,
-            NN,
+            NN, FI,
         } 
     
     println(io, "UnstructuredMeshField: \n")
@@ -664,6 +708,8 @@ function Base.show(io::IO, x::UnstructuredMeshField{
     println(io, @sprintf("\t%-25s %-15s", "_NAdded", AI))
     println(io, @sprintf("\t%-25s %-15s", "_NOverflow", AB))
     println(io, @sprintf("\t%-25s %-15s", "_neighbors", NN))
+    println(io, @sprintf("\t%-25s %-15s", "_NFree", AI))
+    println(io, @sprintf("\t%-25s %-15s", "_entriesFree", FI))
 
     for ((n, t), c) in zip(pairs(x._p), x._pReference)
         if c
@@ -687,14 +733,14 @@ function show(io::IO, ::Type{UnstructuredMeshField{
             IDVI, IDAI,
             VN,
             AI, VB, AB,
-            NN,
+            NN, FI,
         }}) where {
             P, DT,
             PR, PRN, PRC,
             IDVI, IDAI,
             VN,
             AI, VB, AB,
-            NN,
+            NN, FI,
         } 
     for (n, t) in zip(PR.parameters[1], PR.parameters[2].parameters)
         print(io, "p.", string(n), "::", t, ", ")
@@ -712,6 +758,8 @@ function show(io::IO, ::Type{UnstructuredMeshField{
     print(io, "_NAdded::", AI, ", ")
     print(io, "_NOverflow::", AB, ", ")
     print(io, "_neighbors::", NN, ", ")
+    print(io, "_NFree::", AI, ", ")
+    print(io, "_entriesFree::", FI, ", ")
 end
 
 @generated function Base.getproperty(field::UnstructuredMeshField{
@@ -821,6 +869,11 @@ function Base.copy(field::UnstructuredMeshField)
         field._NOverflow,
         
         field._neighbors,
+
+        field._NFree,
+        field._entriesFree,
+        field._NFreeNextInit,
+        field._NFreeNext,
     )
 
 end
@@ -848,6 +901,11 @@ function partialCopy(field::UnstructuredMeshField, args)
         field._NOverflow,
         
         field._neighbors,
+
+        field._NFree,
+        field._entriesFree,
+        field._NFreeNextInit,
+        field._NFreeNext,
     )
 
 end
@@ -875,6 +933,11 @@ function Base.similar(field::UnstructuredMeshField)
         field._NOverflow,
         
         field._neighbors,
+
+        field._NFree,
+        field._entriesFree,
+        field._NFreeNextInit,
+        field._NFreeNext,
     )
 end
 
@@ -900,11 +963,16 @@ function Base.zero(field::UnstructuredMeshField)
         field._NOverflow,
         
         field._neighbors,
+
+        field._NFree,
+        field._entriesFree,
+        field._NFreeNextInit,
+        field._NFreeNext,
     )
 end
 
 ## Deepcopy - preserve _neighbors reference
-function Base.deepcopy_internal(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, stackdict::IdDict) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}
+function Base.deepcopy_internal(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, stackdict::IdDict) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}
     if haskey(stackdict, field)
         return stackdict[field]
     end
@@ -929,6 +997,11 @@ function Base.deepcopy_internal(field::UnstructuredMeshField{P, DT, PR, PRN, PRC
         field._NOverflow,
         
         field._neighbors,  # Preserve reference - do NOT deepcopy neighbor structure
+
+        field._NFree,
+        field._entriesFree,
+        field._NFreeNextInit,
+        field._NFreeNext,
     )
     
     stackdict[field] = new_field
@@ -1112,7 +1185,8 @@ function preallocate!(field::UnstructuredMeshField, additionalCache::Int=field._
     Allocate additional cache memory for a UnstructuredMeshField.
     Resizes all property arrays and supporting data structures.
     """
-    newNCache = Array(field._NCache)[1] + additionalCache
+    oldNCache = Array(field._NCache)[1]
+    newNCache = oldNCache + additionalCache
     
     # Resize property arrays
     for i in 1:field._NP
@@ -1127,6 +1201,16 @@ function preallocate!(field::UnstructuredMeshField, additionalCache::Int=field._
     end
     resize!(field._FlagsSurvived, newNCache)
     
+    # Resize free entries array and add new free positions
+    oldNFree = field._NFree[1]
+    resize!(field._entriesFree, newNCache)
+    # Add new positions to free list (in reverse order for efficient pop)
+    for i in 1:additionalCache
+        field._entriesFree[oldNFree + i] = newNCache - i + 1
+    end
+    field._NFree[1] = oldNFree + additionalCache
+    field._NFreeNextInit[1] = oldNFree + additionalCache + 1
+    
     # Preallocate neighbors (if present)
     if field._neighbors !== nothing
         preallocate!(field._neighbors, newNCache)
@@ -1138,15 +1222,160 @@ function preallocate!(field::UnstructuredMeshField, additionalCache::Int=field._
     return nothing
 end
 
-## getOverflow
-function getOverflow(field::UnstructuredMeshField, factor=1)
-    """
-    Extract overflow count from a field.
-    Returns the overflow counter value (0 if no overflow).
-    Does not reset the counter - that's handled by mesh-level getOverflow.
-    """
-    overflow_val = Array(field._NOverflow)[1]
-    return round(Int, overflow_val * factor)
+######################################################################################################
+# Free entries management (for dynamic add/remove without compaction)
+######################################################################################################
+
+"""
+    numberOfFree(field::UnstructuredMeshField)
+
+Get the number of free positions available in the field.
+"""
+@inline numberOfFree(field::UnstructuredMeshField) = field._NFree[1]
+
+"""
+    isAlive(field::UnstructuredMeshField, i::Int)
+
+Check if the agent at position `i` is alive (not removed).
+Returns `true` if the agent is alive, `false` if it has been removed.
+
+This is GPU-compatible and can be used inside kernels.
+
+Example:
+```julia
+@kernel_launch ndrange=length(u.n.value) function my_kernel!(uNew, u, p, t)
+    i = @index(Global)
+    if isAlive(u.n, i)
+        # Process only alive agents
+        uNew.n.value[i] = u.n.value[i] * 2
+    end
+end
+```
+"""
+@inline isAlive(field::UnstructuredMeshField, i::Int) = field._FlagsSurvived[i]
+
+"""
+    getFreePos!(field::UnstructuredMeshField)
+
+Atomically get a free position from the field.
+Returns the position index if available, or 0 if no free positions (overflow).
+Thread-safe for use in parallel kernels.
+"""
+@inline function getFreePos!(field::UnstructuredMeshField{P}) where {P<:CPU}
+    newFreePos = Atomix.@atomic field._NFree[1] -= 1
+    if newFreePos >= 0
+        pos = field._entriesFree[newFreePos + 1]
+        field._entriesFree[newFreePos + 1] = 0
+        # Mark as alive
+        field._FlagsSurvived[pos] = true
+        # Assign new id
+        newId = Atomix.@atomic field._idMax[1] += 1
+        field._id[pos] = newId
+        # Increment count
+        Atomix.@atomic field._N[1] += 1
+        return pos
+    else
+        # Overflow - no free positions
+        Atomix.@atomic field._NFree[1] += 1
+        Atomix.@atomic field._NOverflow[1] += 1
+        return 0
+    end
+end
+
+@inline function getFreePos!(field::UnstructuredMeshField{P}) where {P<:GPU}
+    newFreePos = Atomix.@atomic field._NFree[1] -= 1
+    if newFreePos >= 0
+        pos = field._entriesFree[newFreePos + 1]
+        field._entriesFree[newFreePos + 1] = 0
+        # Mark as alive
+        field._FlagsSurvived[pos] = true
+        # Assign new id
+        newId = Atomix.@atomic field._idMax[1] += 1
+        field._id[pos] = newId
+        # Increment count
+        Atomix.@atomic field._N[1] += 1
+        return pos
+    else
+        # Overflow - no free positions
+        Atomix.@atomic field._NFree[1] += 1
+        Atomix.@atomic field._NOverflow[1] += 1
+        return 0
+    end
+end
+
+"""
+    releasePos!(field::UnstructuredMeshField, pos::Int)
+
+Release a position back to the free pool.
+Thread-safe for use in parallel kernels.
+The position will be available for reuse after synchronize(field) is called.
+"""
+@inline function releasePos!(field::UnstructuredMeshField{P}, pos::Int) where {P<:CPU}
+    # Mark as dead
+    field._FlagsSurvived[pos] = false
+    field._id[pos] = 0
+    # NOTE: Do NOT decrement _N here - it would shrink views mid-kernel.
+    # _N will be updated in synchronize() after kernel completes.
+    # Add to pending free list (will be compacted on synchronize)
+    nextIdx = Atomix.@atomic field._NFreeNext[1] += 1
+    insertIdx = field._NFreeNextInit[1] + nextIdx - 1
+    if insertIdx <= length(field._entriesFree)
+        field._entriesFree[insertIdx] = pos
+    end
+    return nothing
+end
+
+@inline function releasePos!(field::UnstructuredMeshField{P}, pos::Int) where {P<:GPU}
+    # Mark as dead
+    field._FlagsSurvived[pos] = false
+    field._id[pos] = 0
+    # NOTE: Do NOT decrement _N here - it would shrink views mid-kernel.
+    # _N will be updated in synchronize() after kernel completes.
+    # Add to pending free list (will be compacted on synchronize)
+    nextIdx = Atomix.@atomic field._NFreeNext[1] += 1
+    insertIdx = field._NFreeNextInit[1] + nextIdx - 1
+    if insertIdx <= length(field._entriesFree)
+        field._entriesFree[insertIdx] = pos
+    end
+    return nothing
+end
+
+"""
+    synchronize(field::UnstructuredMeshField)
+
+Compact the free entries list after add/remove operations.
+Should be called after a batch of getFreePos!/releasePos! operations
+to make released positions available for reuse.
+"""
+function synchronize(field::UnstructuredMeshField)
+    # Copy values from arrays (handles both CPU and GPU by copying to host)
+    chunk = Array(field._NFreeNext)[1]
+    
+    if chunk > 0
+        nfree_current = Array(field._NFree)[1]
+        chunkNewInit = nfree_current + 1
+        chunkNewEnd = chunkNewInit + chunk - 1
+        
+        chunkOldInit = Array(field._NFreeNextInit)[1]
+        chunkOldEnd = chunkOldInit + chunk - 1
+        
+        # Copy pending releases to main free list (use copyto! for GPU compatibility)
+        copyto!(field._entriesFree, chunkNewInit, field._entriesFree, chunkOldInit, chunk)
+        # Zero out the old pending slots
+        fill!(@view(field._entriesFree[chunkOldInit:chunkOldEnd]), 0)
+        
+        # Update free list counters (use copyto! for GPU compatibility)
+        # NOTE: _N is NOT modified here. With no-compaction design:
+        # - Dead agents leave holes at their original positions
+        # - _N stays as max used index to keep views valid
+        # - Use _FlagsSurvived to check which positions are alive
+        if field._NFree isa AbstractArray
+            copyto!(field._NFree, 1, typeof(field._NFree)([chunkNewEnd]), 1, 1)
+            copyto!(field._NFreeNext, 1, typeof(field._NFreeNext)([0]), 1, 1)
+            copyto!(field._NFreeNextInit, 1, typeof(field._NFreeNextInit)([chunkNewEnd + 1]), 1, 1)
+        end
+    end
+    return nothing
 end
 
 ######################################################################################################

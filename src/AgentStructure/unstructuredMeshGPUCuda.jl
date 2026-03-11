@@ -46,6 +46,10 @@ function toBackend(field::UnstructuredMeshField{P}, backend::CUDA.CUDABackend) w
         field._NAdded         === nothing ? nothing : CUDA.CuArray([0]),
         field._NOverflow      === nothing ? nothing : CUDA.CuArray([0]),
         field._neighbors      === nothing ? nothing : toBackend(field._neighbors, backend),
+        field._NFree          === nothing ? nothing : CUDA.CuArray(field._NFree),
+        field._entriesFree    === nothing ? nothing : CUDA.CuArray(field._entriesFree),
+        field._NFreeNextInit  === nothing ? nothing : CUDA.CuArray(field._NFreeNextInit),
+        field._NFreeNext      === nothing ? nothing : CUDA.CuArray(field._NFreeNext),
     )
 end
 
@@ -111,7 +115,7 @@ function RecursiveArrayTools.recursivefill!(
 end
 
 # GPU kernel adaptation: convert CuArray fields to CuDeviceArray for kernel execution
-function Adapt.adapt_structure(to::CUDA.KernelAdaptor, field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}
+function Adapt.adapt_structure(to::CUDA.KernelAdaptor, field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}
     _p_adapted = field._p === nothing ? nothing : Adapt.adapt(to, field._p)
     _id_adapted = field._id === nothing ? nothing : Adapt.adapt(to, field._id)
     _idMax_adapted = field._idMax === nothing ? nothing : Adapt.adapt(to, field._idMax)
@@ -122,6 +126,10 @@ function Adapt.adapt_structure(to::CUDA.KernelAdaptor, field::UnstructuredMeshFi
     _NAdded_adapted = field._NAdded === nothing ? nothing : Adapt.adapt(to, field._NAdded)
     _NOverflow_adapted = field._NOverflow === nothing ? nothing : Adapt.adapt(to, field._NOverflow)
     _neighbors_adapted = field._neighbors === nothing ? nothing : Adapt.adapt(to, field._neighbors)
+    _NFree_adapted = field._NFree === nothing ? nothing : Adapt.adapt(to, field._NFree)
+    _entriesFree_adapted = field._entriesFree === nothing ? nothing : Adapt.adapt(to, field._entriesFree)
+    _NFreeNextInit_adapted = field._NFreeNextInit === nothing ? nothing : Adapt.adapt(to, field._NFreeNextInit)
+    _NFreeNext_adapted = field._NFreeNext === nothing ? nothing : Adapt.adapt(to, field._NFreeNext)
     
     return UnstructuredMeshField{
         GPUCuDevice, DT,
@@ -133,7 +141,8 @@ function Adapt.adapt_structure(to::CUDA.KernelAdaptor, field::UnstructuredMeshFi
         typeof(_N_adapted),
         typeof(_FlagsSurvived_adapted),
         typeof(_NOverflow_adapted),
-        typeof(_neighbors_adapted)
+        typeof(_neighbors_adapted),
+        typeof(_entriesFree_adapted)
     }(
         _p_adapted,
         PRN,
@@ -146,7 +155,11 @@ function Adapt.adapt_structure(to::CUDA.KernelAdaptor, field::UnstructuredMeshFi
         _FlagsSurvived_adapted,
         _NAdded_adapted,
         _NOverflow_adapted,
-        _neighbors_adapted
+        _neighbors_adapted,
+        _NFree_adapted,
+        _entriesFree_adapted,
+        _NFreeNextInit_adapted,
+        _NFreeNext_adapted
     )
 end
 

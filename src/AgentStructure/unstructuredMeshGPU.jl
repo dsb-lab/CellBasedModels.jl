@@ -84,6 +84,10 @@ function toBackend(field::UnstructuredMeshField{P}, ::CPU) where {P<:GPU}
         field._NAdded         === nothing ? nothing : SizedVector{1}(0),
         field._NOverflow      === nothing ? nothing : SizedVector{1}(0),
         field._neighbors      === nothing ? nothing : toBackend(field._neighbors, CPU()),
+        field._NFree          === nothing ? nothing : SizedVector{1}(Array(field._NFree)[1]),
+        field._entriesFree    === nothing ? nothing : Vector{Int}(field._entriesFree),
+        field._NFreeNextInit  === nothing ? nothing : SizedVector{1}(Array(field._NFreeNextInit)[1]),
+        field._NFreeNext      === nothing ? nothing : SizedVector{1}(Array(field._NFreeNext)[1]),
     )
 end
 

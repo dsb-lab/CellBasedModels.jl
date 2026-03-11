@@ -88,7 +88,7 @@ module CellBasedModels
     export DynamicalOrderedELL, doell_zeros
     include("./topology/DynamicalOrderedELL.jl")
     
-    export iterateRow, getentry, matchesrow, todense, replaceIndex!, getRow
+    export iterateRow, getentry, matchesrow, todense, replaceIndex!, getRow, synchronize
     export Topology, TopologyObject, TopologyEmpty, TopologyObjectEmpty
     include("./topology/topology.jl")
 
@@ -106,7 +106,8 @@ module CellBasedModels
     export createObject
     export AgentGlobal
     include("./AgentSpecializations/agentGlobal.jl")
-    export AgentPoint, @addAgentPoint!, @removeAgentPoint!
+    export AgentPoint, @addAgentPoint!, @removeAgentPoint!, addAgent!, removeAgent!
+    export getFreePos!, releasePos!, numberOfFree, isAlive
     include("./AgentSpecializations/agentPoint.jl")
     export AgentPolyline, specializationTable
     include("./AgentSpecializations/agentPolyline.jl")

@@ -73,7 +73,7 @@ end
 
 # Initialize neighbors for NeighborsCellLinked
 # Specializes on UnstructuredMeshField with NeighborsCellLinked type
-function initNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked}
+function initNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked, FI}
     neighbors = field._neighbors
     # Use the box to determine dimensions
     D = size(neighbors.box, 1)
@@ -120,7 +120,7 @@ function initNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, I
 end
 
 # Update for NeighborsCellLinked - assigns particles to cells
-function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked}
+function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked, FI}
     N = lengthProperties(field)
     neighbors = field._neighbors
     
@@ -269,21 +269,21 @@ function fillPermTable!(permTable, cellOffset, cell, N, cellCounts)
 end
 
 # Field-based iterateOverNeighbors for NeighborsCellLinked (per-field neighbors)
-@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked{1}}
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, x) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked{1}, FI}
     n = field._neighbors
     c = assignCell(n, x)
     neigh = n.periodic ? linearNeighbors1DPeriodic(c, n.grid) : linearNeighbors1D(c, n.grid)
     return CellLinkedIterator(length(neigh), n, neigh, n.cellOffset, n.permTable)
 end
 
-@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x, y) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked{2}}
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, x, y) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked{2}, FI}
     n = field._neighbors
     c = assignCell(n, x, y)
     neigh = n.periodic ? linearNeighbors2DPeriodic(c, n.grid) : linearNeighbors2D(c, n.grid)
     return CellLinkedIterator(length(neigh), n, neigh, n.cellOffset, n.permTable)
 end
 
-@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x, y, z) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked{3}}
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, x, y, z) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked{3}, FI}
     n = field._neighbors
     c = assignCell(n, x, y, z)
     neigh = n.periodic ? linearNeighbors3DPeriodic(c, n.grid) : linearNeighbors3D(c, n.grid)

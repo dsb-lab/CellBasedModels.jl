@@ -137,7 +137,7 @@ end
 
 # GPU-specific field-level iterateOverNeighbors for NeighborsHash
 # Uses HashNeighborIteratorGPU for actual neighbor iteration
-@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{1}}
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, x) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{1}, FI}
     n = field._neighbors
     if n.hashTable === nothing
         return 1:lengthProperties(field)  # Fallback
@@ -157,7 +157,7 @@ end
     return HashNeighborIteratorGPU(ht.uniqueCodes, ht.codeOffsets, ht.sortedIndices, neighborCodes, numUnique)
 end
 
-@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x, y) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{2}}
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, x, y) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{2}, FI}
     n = field._neighbors
     if n.hashTable === nothing
         return 1:lengthProperties(field)  # Fallback
@@ -179,7 +179,7 @@ end
     return HashNeighborIteratorGPU(ht.uniqueCodes, ht.codeOffsets, ht.sortedIndices, neighborCodes, numUnique)
 end
 
-@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x, y, z) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{3}}
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, x, y, z) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{3}, FI}
     n = field._neighbors
     if n.hashTable === nothing
         return 1:lengthProperties(field)  # Fallback
@@ -204,7 +204,7 @@ end
 end
 
 # GPUCuDevice versions (inside kernels)
-@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x) where {P<:GPUCuDevice, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{1}}
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, x) where {P<:GPUCuDevice, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{1}, FI}
     n = field._neighbors
     if n.hashTable === nothing
         return 1:lengthProperties(field)  # Fallback
@@ -224,7 +224,7 @@ end
     return HashNeighborIteratorGPU(ht.uniqueCodes, ht.codeOffsets, ht.sortedIndices, neighborCodes, numUnique)
 end
 
-@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x, y) where {P<:GPUCuDevice, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{2}}
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, x, y) where {P<:GPUCuDevice, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{2}, FI}
     n = field._neighbors
     if n.hashTable === nothing
         return 1:lengthProperties(field)  # Fallback
@@ -246,7 +246,7 @@ end
     return HashNeighborIteratorGPU(ht.uniqueCodes, ht.codeOffsets, ht.sortedIndices, neighborCodes, numUnique)
 end
 
-@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x, y, z) where {P<:GPUCuDevice, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{3}}
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, x, y, z) where {P<:GPUCuDevice, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{3}, FI}
     n = field._neighbors
     if n.hashTable === nothing
         return 1:lengthProperties(field)  # Fallback
@@ -272,7 +272,7 @@ end
 
 # GPU-specific field-level update for NeighborsHash
 # Computes Morton codes, sorts particles, and builds segment offsets
-function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash}
+function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash, FI}
     neighbors = field._neighbors
     
     # Check if we have the required arrays

@@ -115,7 +115,7 @@ end
 
 # Initialize neighbors for NeighborsHash
 # Specializes on UnstructuredMeshField with NeighborsHash type
-function initNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash}
+function initNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash, FI}
     neighbors = field._neighbors
     # Infer dimensions from field properties (check for x, y, z fields)
     propNames = keys(field._p)
@@ -307,7 +307,7 @@ end
 end
 
 # Update for NeighborsHash - assigns particles to hash table
-function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P<:CPU, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash}
+function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}) where {P<:CPU, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash, FI}
     neighbors = field._neighbors
     D = length(neighbors.cellSize)
     N = lengthProperties(field)
@@ -414,7 +414,7 @@ end
 
 
 # Field-based iterateOverNeighbors for NeighborsHash on CPU (per-field neighbors)
-@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x) where {P<:CPU, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{1}}
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, x) where {P<:CPU, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{1}, FI}
     n = field._neighbors
     ix = positionToCell(x, n.cellSize[1])
     
@@ -431,7 +431,7 @@ end
     return HashNeighborIterator(n.hashTable.cpuDict, neighborCodes)
 end
 
-@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x, y) where {P<:CPU, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{2}}
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, x, y) where {P<:CPU, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{2}, FI}
     n = field._neighbors
     ix, iy = positionToCell(x, y, n.cellSize)
     
@@ -449,7 +449,7 @@ end
     return HashNeighborIterator(n.hashTable.cpuDict, neighborCodes)
 end
 
-@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, x, y, z) where {P<:CPU, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{3}}
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, x, y, z) where {P<:CPU, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsHash{3}, FI}
     n = field._neighbors
     ix, iy, iz = positionToCell(x, y, z, n.cellSize)
     

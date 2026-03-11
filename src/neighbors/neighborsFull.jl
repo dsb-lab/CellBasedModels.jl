@@ -31,7 +31,7 @@ DEFAULT_NEIGHBORS_CONSTRUCTOR[] = (NCache, meshProperties) -> NeighborsFull(Kern
 
 # Initialize neighbors for NeighborsFull
 # Specializes on UnstructuredMeshField with NeighborsFull type
-function initNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull}
+function initNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull, FI}
     NCache = lengthCache(field)
     
     permTable = Vector{Int}(undef, NCache)
@@ -83,16 +83,12 @@ end
 # Default no-op for fields without neighbors or with nothing neighbors
 update!(::UnstructuredMeshField) = nothing
 
-# NeighborsFull: does compaction
-function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull}
-    neighbors = field._neighbors
-    if neighbors.permTable !== nothing
-        NAddedNew = lengthPropertiesNew(field)
-        NNew = fillPermTable!(neighbors.permTable, field._FlagsSurvived, NAddedNew)
-        if neighbors.auxBuffers !== nothing
-            compactUnstructuredMeshField!(field, neighbors.permTable, neighbors.auxBuffers, NNew)
-        end
-    end
+# NeighborsFull: with no-compaction design, just reset _NAdded counter
+# The new getFreePos!/releasePos!/synchronize system manages free slots without compaction
+function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull, FI}
+    # Reset NAdded counter (new agents are now fully committed)
+    # Use fill! which is GPU-compatible
+    fill!(field._NAdded, 0)
     return nothing
 end
 
@@ -115,18 +111,18 @@ end
 
 # Field-level API: iterateOverNeighbors for NeighborsFull returns all elements
 # Specializes on the NN type parameter of UnstructuredMeshField
-@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, index::Int) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull}
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, index::Int) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull, FI}
     return 1:lengthProperties(field)
 end
 
-@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, ::Any) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull}
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, ::Any) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull, FI}
     return 1:lengthProperties(field)
 end
 
-@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, ::Any, ::Any) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull}
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, ::Any, ::Any) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull, FI}
     return 1:lengthProperties(field)
 end
 
-@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}, ::Any, ::Any, ::Any) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull}
+@inline function iterateOverNeighbors(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}, ::Any, ::Any, ::Any) where {P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsFull, FI}
     return 1:lengthProperties(field)
 end

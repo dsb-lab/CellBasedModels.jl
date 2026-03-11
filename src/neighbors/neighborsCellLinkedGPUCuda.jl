@@ -280,7 +280,7 @@ function fillPermTable!(permTable::CUDA.CuArray, cellOffset::CUDA.CuArray,
 end
 
 # GPU-specific field-level update for NeighborsCellLinked
-function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN}) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked}
+function update!(field::UnstructuredMeshField{P, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN, FI}) where {P<:GPUCuda, DT, PR, PRN, PRC, IDVI, IDAI, VN, AI, VB, AB, NN<:NeighborsCellLinked, FI}
     N = lengthProperties(field)
     neighbors = field._neighbors
     
