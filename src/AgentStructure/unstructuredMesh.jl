@@ -1,7 +1,7 @@
 import RecursiveArrayTools
 import LinearAlgebra
 import KernelAbstractions
-using ..Unitful: ustrip, Quantity
+using ..Unitful: ustrip, uconvert, Quantity, unit, dimension, Dimensions, NoDims
 
 # Add ForwardDiff support for automatic differentiation
 using ForwardDiff: ForwardDiff
@@ -15,6 +15,145 @@ end
 
 # Helper to strip units from Unitful Quantity values
 _strip_units(v) = v isa Quantity ? ustrip(v) : v
+
+"""
+    _convert_value_to_base_units(value, param, baseUnits)
+
+Convert a Unitful value to base units scale.
+Returns dimensionless value: `ustrip(value / base_quantity)`.
+"""
+function _convert_value_to_base_units(value, param, baseUnits::NamedTuple)
+    if !(value isa Quantity)
+        return value
+    end
+    
+    # Get dimensions from parameter
+    dims = param.dimensions
+    if dims === nothing
+        dims = dimension(value)
+    end
+    
+    base_quantity = _get_base_unit_quantity(dims, baseUnits)
+    if base_quantity === nothing
+        return ustrip(value)
+    else
+        return ustrip(value / base_quantity)
+    end
+end
+
+######################################################################################################
+# Unit conversion helpers
+######################################################################################################
+
+"""
+    _get_base_unit_quantity(dims, baseUnits::NamedTuple)
+
+Get the reference quantity from abstract dimensions and baseUnits.
+E.g., `u"𝐋/𝐓"` + `(𝐋=10u"μm", 𝐓=1u"s")` → `10u"μm/s"`
+
+The returned quantity is used to convert values: `stored = value / base_quantity`.
+Also supports Symbol dimensions like `:L` → `𝐋`.
+"""
+function _get_base_unit_quantity(dims, baseUnits::NamedTuple)
+    if dims === nothing || dims == NoDims
+        return nothing
+    end
+    
+    # Map from short symbol names to Unicode dimension symbols
+    short_to_unicode = Dict(
+        :L => :𝐋,
+        :T => :𝐓,
+        :M => :𝐌,
+        :N => :𝐍,
+        :Θ => :𝚯,
+        :I => :𝐈,
+        :J => :𝐉,
+    )
+    
+    # Handle Symbol dimensions (e.g., :L for length)
+    if dims isa Symbol
+        unicode_sym = get(short_to_unicode, dims, dims)  # Try mapping, else use as-is
+        if haskey(baseUnits, unicode_sym)
+            return baseUnits[unicode_sym]  # Return full quantity, not just unit
+        else
+            return nothing
+        end
+    end
+    
+    if !(dims isa Dimensions)
+        return nothing  # Expr or other unsupported types
+    end
+    
+    # Map from Unitful dimension names to our symbols
+    dim_name_map = Dict(
+        :Length => :𝐋,
+        :Time => :𝐓,
+        :Mass => :𝐌,
+        :Amount => :𝐍,
+        :Temperature => :𝚯,
+        :Current => :𝐈,
+        :Luminosity => :𝐉,
+    )
+    
+    # Build reference quantity by combining base units with exponents
+    result_quantity = 1
+    for dim in typeof(dims).parameters[1]
+        dim_name = typeof(dim).parameters[1]  # e.g., :Length
+        exp_val = dim.power
+        
+        our_sym = get(dim_name_map, dim_name, nothing)
+        if our_sym !== nothing && haskey(baseUnits, our_sym)
+            result_quantity *= baseUnits[our_sym]^exp_val
+        else
+            @warn "Dimension $dim_name not found in baseUnits"
+            return nothing
+        end
+    end
+    
+    return result_quantity
+end
+
+"""
+    _extract_ref_units_for_scope(scope_prop, baseUnits)
+
+Extract abstract dimensions for all parameters in a scope (Node, Edge, etc).
+Returns a NamedTuple mapping property names to their Unitful dimensions.
+"""
+function _extract_ref_units_for_scope(scope_prop, baseUnits::NamedTuple)
+    if scope_prop === nothing || !hasfield(typeof(scope_prop), :p)
+        return (;)
+    end
+    
+    units_dict = Dict{Symbol, Any}()
+    for (name, param) in pairs(scope_prop.p)
+        # Get dimensions from parameter - either explicit or from defaultValue
+        dims = param.dimensions
+        if dims === nothing && param.defaultValue isa Quantity
+            dims = dimension(param.defaultValue)
+        end
+        units_dict[name] = dims
+    end
+    
+    return NamedTuple{tuple(keys(units_dict)...)}(values(units_dict))
+end
+
+"""
+    _extract_ref_units_for_parameters(parameters, baseUnits)
+
+Extract abstract dimensions for shared parameters.
+"""
+function _extract_ref_units_for_parameters(parameters::NamedTuple, baseUnits::NamedTuple)
+    units_dict = Dict{Symbol, Any}()
+    for (name, param) in pairs(parameters)
+        dims = param.dimensions
+        if dims === nothing && param.defaultValue isa Quantity
+            dims = dimension(param.defaultValue)
+        end
+        units_dict[name] = dims
+    end
+    return NamedTuple{tuple(keys(units_dict)...)}(values(units_dict))
+end
+_extract_ref_units_for_parameters(::Nothing, ::NamedTuple) = (;)
 
 ######################################################################################################
 # Base Properties
@@ -500,7 +639,8 @@ function UnstructuredMeshField(
         N::Int=0,
         NCache::Int=0,
         id=true,
-        neighbors=:auto  # :auto uses createDefaultNeighbors, nothing for no neighbors
+        neighbors=:auto,  # :auto uses createDefaultNeighbors, nothing for no neighbors
+        baseUnits::NamedTuple=(;)
 )
 
     if meshProperties === nothing
@@ -544,7 +684,7 @@ function UnstructuredMeshField(
         arr = zeros(dt, NCache)
         # Apply default value to all N initialized elements (skip functions)
         if param.defaultValue !== nothing && !(param.defaultValue isa Function)
-            arr[1:N] .= _strip_units(param.defaultValue)
+            arr[1:N] .= _convert_value_to_base_units(param.defaultValue, param, baseUnits)
         elseif param.defaultValue === nothing && dt <: AbstractFloat
             # Mark uninitialized Float values with NaN for validation
             arr[1:N] .= NaN
@@ -1445,12 +1585,14 @@ end
 ######################################################################################################
 struct UnstructuredMeshObject{
             P, D, S, DT,
-            PAR, PARAMS, TOPO, AB
+            PAR, PARAMS, TOPO, AB, BU, RU
     } <: AbstractMeshObject
     _p::PAR
     _parameters::PARAMS  # Shared parameters field (accessed via obj.p.X)
     topo::TOPO
     _FlagOverflow::AB
+    _baseUnits::BU       # NamedTuple mapping dimensions to reference units (e.g., (𝐋=1u"μm", 𝐓=1u"s"))
+    _refUnits::RU        # NamedTuple of NamedTuples with abstract dimensions per property (e.g., (n=(x=u"𝐋", vx=u"𝐋/𝐓"), p=(α=u"𝐍/𝐓")))
 end
 Adapt.@adapt_structure UnstructuredMeshObject
 
@@ -1468,6 +1610,9 @@ function UnstructuredMeshObject(
 
     # Extract neighbors parameter if provided, default to :auto
     neighbors = get(kwargs, :neighbors, :auto)
+    
+    # Extract baseUnits early for use in field initialization
+    baseUnits_ = mesh._baseUnits
 
     fields = []
     P = platform()
@@ -1513,7 +1658,7 @@ function UnstructuredMeshObject(
                 NCache_ = kwargs[p][2]
             end
 
-            field = UnstructuredMeshField(prop, N = N_, NCache = NCache_, neighbors = neighbors)
+            field = UnstructuredMeshField(prop, N = N_, NCache = NCache_, neighbors = neighbors, baseUnits = baseUnits_)
             push!(fields, field)
             
         elseif prop isa Edge || prop isa Face || prop isa Volume
@@ -1522,7 +1667,7 @@ function UnstructuredMeshObject(
                 error("$(typeof(prop).name.name) property '$p' must be an AbstractSparseMatrix. Found $(typeof(kwargs[p]))")
             end
             
-            field = UnstructuredMeshField(prop, N = lengthElements(kwargs[p]), NCache = lengthElementsCache(kwargs[p]), neighbors = neighbors)
+            field = UnstructuredMeshField(prop, N = lengthElements(kwargs[p]), NCache = lengthElementsCache(kwargs[p]), neighbors = neighbors, baseUnits = baseUnits_)
             push!(fields, field)
             
         elseif prop isa Agent
@@ -1533,7 +1678,7 @@ function UnstructuredMeshObject(
                     error("Agent property '$p' with single connection ($(prop.cs[1])) must be an AbstractSparseMatrix. Found $(typeof(kwargs[p]))")
                 end
                 
-                field = UnstructuredMeshField(prop, N = lengthElements(kwargs[p]), NCache = lengthElementsCache(kwargs[p]), neighbors = neighbors)
+                field = UnstructuredMeshField(prop, N = lengthElements(kwargs[p]), NCache = lengthElementsCache(kwargs[p]), neighbors = neighbors, baseUnits = baseUnits_)
                 push!(fields, field)
                 
             else
@@ -1558,7 +1703,7 @@ function UnstructuredMeshObject(
                         join([string(sym, "=", lengthElements(kwargs[p][sym])) for sym in prop.cs], ", "))
                 end
 
-                field = UnstructuredMeshField(prop, N = lengthElements(kwargs[p][prop.cs[1]]), NCache = lengthElementsCache(kwargs[p][prop.cs[1]]), neighbors = neighbors)
+                field = UnstructuredMeshField(prop, N = lengthElements(kwargs[p][prop.cs[1]]), NCache = lengthElementsCache(kwargs[p][prop.cs[1]]), neighbors = neighbors, baseUnits = baseUnits_)
                 push!(fields, field)
             end
         else
@@ -1570,9 +1715,6 @@ function UnstructuredMeshObject(
     params = NamedTuple{tuple(keys(mesh._p)...)}(fields)
     _FlagOverflow = SizedVector{1}(false)
     
-    # Helper to strip Unitful units from values
-    _strip_units(v) = v isa Quantity ? ustrip(v) : v
-    
     # Create parameters field if mesh has shared parameters
     # Parameters are global (size 1) unless specified as an array type
     # Function defaults are skipped here and applied after object creation
@@ -1583,14 +1725,14 @@ function UnstructuredMeshObject(
             if dt <: AbstractArray
                 # Array type: use default value if available (skip functions), otherwise zeros
                 if param.defaultValue !== nothing && !(param.defaultValue isa Function)
-                    parametersDict[name] = [copy(_strip_units(param.defaultValue))]
+                    parametersDict[name] = [copy(_convert_value_to_base_units(param.defaultValue, param, baseUnits_))]
                 else
                     parametersDict[name] = zeros(eltype(dt), 1, 1)
                 end
             else
                 # Scalar type: use default value if available (skip functions), otherwise NaN for floats
                 if param.defaultValue !== nothing && !(param.defaultValue isa Function)
-                    parametersDict[name] = [_strip_units(param.defaultValue)]
+                    parametersDict[name] = [_convert_value_to_base_units(param.defaultValue, param, baseUnits_)]
                 elseif dt <: AbstractFloat
                     # Mark uninitialized Float values with NaN for validation
                     parametersDict[name] = [NaN]
@@ -1610,11 +1752,21 @@ function UnstructuredMeshObject(
         requiredRelations=mesh._requiredTopologyRelations,
         requiredRelationTypes=mesh._requiredTopologyRelationTypes)
 
+    # Build refUnits NamedTuple: (n = (x = u"𝐋", vx = u"𝐋/𝐓", ...), p = (α = u"𝐍/𝐓", ...))
+    refUnitsDict = Dict{Symbol, Any}()
+    for (scope_name, scope_prop) in pairs(mesh._p)
+        refUnitsDict[scope_name] = _extract_ref_units_for_scope(scope_prop, baseUnits_)
+    end
+    # Add shared parameters dimensions  
+    refUnitsDict[:p] = _extract_ref_units_for_parameters(mesh._parameters, baseUnits_)
+    refUnits = NamedTuple{tuple(keys(refUnitsDict)...)}(values(refUnitsDict))
+
     meshObj = UnstructuredMeshObject{
             P, D, S, DT,
-            typeof(params), typeof(parametersField), typeof(topology_), typeof(_FlagOverflow)
+            typeof(params), typeof(parametersField), typeof(topology_), typeof(_FlagOverflow),
+            typeof(baseUnits_), typeof(refUnits)
         }(
-            params, parametersField, topology_, _FlagOverflow
+            params, parametersField, topology_, _FlagOverflow, baseUnits_, refUnits
         )
 
     # Apply function defaults after object is fully constructed
@@ -1630,8 +1782,7 @@ Apply function-based default values to the mesh object.
 Functions are called with the mesh object as argument after the object is fully constructed.
 """
 function _applyFunctionDefaults!(mesh::UnstructuredMesh, meshObj::UnstructuredMeshObject)
-    # Helper to strip Unitful units from values
-    _strip_units(v) = v isa Quantity ? ustrip(v) : v
+    baseUnits_ = meshObj._baseUnits
     
     # Apply function defaults for node/element properties
     for (scope_name, scope_prop) in pairs(mesh._p)
@@ -1643,7 +1794,8 @@ function _applyFunctionDefaults!(mesh::UnstructuredMesh, meshObj::UnstructuredMe
                     # Call the function with the mesh object
                     val = getproperty(mesh_obj_scope, prop_name)
                     for i in 1:N
-                        val[i] = _strip_units(param.defaultValue(meshObj))
+                        result = param.defaultValue(meshObj)
+                        val[i] = _convert_value_to_base_units(result, param, baseUnits_)
                     end
                 end
             end
@@ -1656,11 +1808,12 @@ function _applyFunctionDefaults!(mesh::UnstructuredMesh, meshObj::UnstructuredMe
             if param.defaultValue isa Function
                 if meshObj._parameters !== nothing && haskey(meshObj._parameters, name)
                     val = meshObj._parameters[name]
-                    result = _strip_units(param.defaultValue(meshObj))
-                    if result isa AbstractArray
-                        val[1] = copy(result)
+                    result = param.defaultValue(meshObj)
+                    converted = _convert_value_to_base_units(result, param, baseUnits_)
+                    if converted isa AbstractArray
+                        val[1] = copy(converted)
                     else
-                        val[1] = result
+                        val[1] = converted
                     end
                 end
             end
@@ -1671,7 +1824,8 @@ function _applyFunctionDefaults!(mesh::UnstructuredMesh, meshObj::UnstructuredMe
 end
 
 function UnstructuredMeshObject(
-            p, parameters, topology, _FlagOverflow
+            p, parameters, topology, _FlagOverflow;
+            baseUnits=(;), refUnits=(;)
     )
 
     D = 0
@@ -1703,9 +1857,10 @@ function UnstructuredMeshObject(
 
     return UnstructuredMeshObject{
             P, D, S, DT,
-            typeof(p), typeof(parameters), typeof(topology), typeof(_FlagOverflow)
+            typeof(p), typeof(parameters), typeof(topology), typeof(_FlagOverflow),
+            typeof(baseUnits), typeof(refUnits)
         }(
-            p, parameters, topology, _FlagOverflow
+            p, parameters, topology, _FlagOverflow, baseUnits, refUnits
         )
 end
 
@@ -1767,6 +1922,191 @@ function show(io::IO, ::Type{UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TO
             println(io, ")")
         end
     end
+end
+
+######################################################################################################
+# Unitful assignment and retrieval functions
+######################################################################################################
+
+"""
+    baseUnits(obj::UnstructuredMeshObject)
+
+Get the baseUnits NamedTuple for a mesh object.
+"""
+baseUnits(obj::UnstructuredMeshObject) = obj._baseUnits
+
+"""
+    refUnits(obj::UnstructuredMeshObject)
+
+Get the reference units (dimensions) NamedTuple for a mesh object.
+"""
+refUnits(obj::UnstructuredMeshObject) = obj._refUnits
+
+"""
+    set!(obj, scope::Symbol, prop::Symbol, value)
+
+Assign a value to a property, automatically converting Unitful values to baseUnits scale.
+
+# Examples
+```julia
+set!(com, :n, :x, 0.0u"m")     # Converts meters to μm (if baseUnits has 𝐋=1u"μm")
+set!(com, :n, :x, 100.0)       # Plain number, no conversion
+set!(com, :p, :α, 5.0u"mol/s") # For shared parameters
+```
+"""
+function set!(obj::UnstructuredMeshObject, scope::Symbol, prop::Symbol, value)
+    # Get the property reference units (dimensions)
+    scope_ref_units = getfield(obj._refUnits, scope)
+    dims = haskey(scope_ref_units, prop) ? scope_ref_units[prop] : nothing
+    
+    # Get the target array
+    if scope == :p
+        # Shared parameters
+        target = obj._parameters[prop]
+    else
+        # Node/element properties
+        target = getproperty(getproperty(obj, scope), prop)
+    end
+    
+    # Convert value if it's a Quantity
+    if value isa Quantity
+        if dims === nothing
+            # No dimensions - just strip units
+            converted = ustrip(value)
+        else
+            # Get base quantity and divide to convert
+            base_quantity = _get_base_unit_quantity(dims, obj._baseUnits)
+            if base_quantity === nothing
+                converted = ustrip(value)
+            else
+                # Divide by base quantity to get dimensionless stored value
+                converted = ustrip(value / base_quantity)
+            end
+        end
+        target .= converted
+    else
+        target .= value
+    end
+    
+    return nothing
+end
+
+"""
+    set!(obj, scope::Symbol, prop::Symbol, indices, value)
+
+Assign a value to specific indices of a property.
+
+# Examples
+```julia
+set!(com, :n, :x, 1:10, 0.0u"m")
+set!(com, :n, :x, [1, 5, 10], [1.0, 2.0, 3.0]u"m")
+```
+"""
+function set!(obj::UnstructuredMeshObject, scope::Symbol, prop::Symbol, indices, value)
+    # Get the property reference units (dimensions)
+    scope_ref_units = getfield(obj._refUnits, scope)
+    dims = haskey(scope_ref_units, prop) ? scope_ref_units[prop] : nothing
+    
+    # Get the target array
+    if scope == :p
+        target = obj._parameters[prop]
+    else
+        target = getproperty(getproperty(obj, scope), prop)
+    end
+    
+    # Convert value if it's a Quantity
+    if value isa Quantity || (value isa AbstractArray && eltype(value) <: Quantity)
+        if dims === nothing
+            converted = ustrip.(value)
+        else
+            base_quantity = _get_base_unit_quantity(dims, obj._baseUnits)
+            if base_quantity === nothing
+                converted = ustrip.(value)
+            else
+                # Divide by base quantity to get dimensionless stored value
+                converted = ustrip.(value ./ base_quantity)
+            end
+        end
+        target[indices] .= converted
+    else
+        target[indices] .= value
+    end
+    
+    return nothing
+end
+
+"""
+    getWithUnits(obj, scope::Symbol, prop::Symbol)
+
+Retrieve a property with its physical units attached.
+
+# Examples
+```julia
+x_with_units = getWithUnits(com, :n, :x)  # Returns values in μm (or whatever baseUnits specifies)
+```
+"""
+function getWithUnits(obj::UnstructuredMeshObject, scope::Symbol, prop::Symbol)
+    # Get the property reference units (dimensions)
+    scope_ref_units = getfield(obj._refUnits, scope)
+    dims = haskey(scope_ref_units, prop) ? scope_ref_units[prop] : nothing
+    
+    # Get the array
+    if scope == :p
+        arr = obj._parameters[prop]
+    else
+        arr = getproperty(getproperty(obj, scope), prop)
+    end
+    
+    # Attach units if dimensions are defined
+    if dims === nothing
+        return arr
+    else
+        base_quantity = _get_base_unit_quantity(dims, obj._baseUnits)
+        if base_quantity === nothing
+            return arr
+        else
+            # Multiply by base quantity to get physical values with units
+            return arr .* base_quantity
+        end
+    end
+end
+
+"""
+    @setunits obj.scope.prop .= value
+
+Macro for convenient unitful assignment. Expands to `set!(obj, :scope, :prop, value)`.
+
+# Examples
+```julia
+@setunits com.n.x .= 0.0u"m"
+@setunits com.p.α .= 5.0u"mol/s"
+```
+"""
+macro setunits(expr)
+    # Parse expr like: obj.scope.prop .= value
+    if expr.head == :.=
+        lhs = expr.args[1]
+        value = expr.args[2]
+        
+        if lhs isa Expr && lhs.head == :.
+            # lhs is obj.scope.prop
+            obj_scope = lhs.args[1]
+            prop = lhs.args[2]
+            
+            if obj_scope isa Expr && obj_scope.head == :.
+                obj = obj_scope.args[1]
+                scope = obj_scope.args[2]
+                
+                # Extract symbol names
+                prop_sym = prop isa QuoteNode ? prop.value : prop
+                scope_sym = scope isa QuoteNode ? scope.value : scope
+                
+                return esc(:(set!($obj, $(QuoteNode(scope_sym)), $(QuoteNode(prop_sym)), $value)))
+            end
+        end
+    end
+    
+    error("@setunits expects: @setunits obj.scope.prop .= value")
 end
 
 function lengthProperties(::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
@@ -1868,55 +2208,63 @@ function _similarParametersTuple(params::NamedTuple)
 end
 _similarParametersTuple(::Nothing) = nothing
 
-function Base.copy(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
+function Base.copy(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB, BU, RU}) where {P, D, S, DT, PAR, PARAMS, TOPO, AB, BU, RU}
 
-    UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}(
+    UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB, BU, RU}(
         NamedTuple{keys(field._p)}(
             copy(getfield(field._p, name)) for name in keys(field._p)
         ),
         _copyParametersTuple(field._parameters),
         field.topo,
-        Base.copy(field._FlagOverflow)
+        Base.copy(field._FlagOverflow),
+        field._baseUnits,
+        field._refUnits
     )
 
 end
 
-function partialCopy(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}, copyArgs) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
+function partialCopy(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB, BU, RU}, copyArgs) where {P, D, S, DT, PAR, PARAMS, TOPO, AB, BU, RU}
 
-    UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}(
+    UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB, BU, RU}(
         NamedTuple{keys(field._p)}(
             partialCopy(getfield(field._p, name), [i[2] for i in copyArgs if i[1] == name]) for name in keys(field._p)
         ),
         _copyParametersTuple(field._parameters),  # Parameters are always fully copied
         field.topo,
-        field._FlagOverflow
+        field._FlagOverflow,
+        field._baseUnits,
+        field._refUnits
     )
 
 end
 
 ## Similar
-function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
+function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB, BU, RU}) where {P, D, S, DT, PAR, PARAMS, TOPO, AB, BU, RU}
 
-    UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}(
+    UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB, BU, RU}(
         NamedTuple{keys(field._p)}(
             similar(getfield(field._p, name)) for name in keys(field._p)
         ),
         _similarParametersTuple(field._parameters),
         field.topo,
-        field._FlagOverflow
+        field._FlagOverflow,
+        field._baseUnits,
+        field._refUnits
     )
 
 end
 
-function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}, _) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
+function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB, BU, RU}, _) where {P, D, S, DT, PAR, PARAMS, TOPO, AB, BU, RU}
 
-    UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}(
+    UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB, BU, RU}(
         NamedTuple{keys(field._p)}(
             similar(getfield(field._p, name)) for name in keys(field._p)
         ),
         _similarParametersTuple(field._parameters),
         field.topo,
-        field._FlagOverflow
+        field._FlagOverflow,
+        field._baseUnits,
+        field._refUnits
     )
 
 end

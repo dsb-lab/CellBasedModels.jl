@@ -96,7 +96,8 @@ module CellBasedModels
     #Agent
     include("./AgentStructure/auxiliar.jl")
     export Node, Edge, Face, Volume, Agent
-    export UnstructuredMesh, UnstructuredMeshField, UnstructuredMeshObject, baseUnits
+    export UnstructuredMesh, UnstructuredMeshField, UnstructuredMeshObject, baseUnits, refUnits
+    export set!, getWithUnits, @setunits
     export setTopologyRelationType!
     export iterateOver
     include("./AgentStructure/unstructuredMesh.jl")
