@@ -54,7 +54,7 @@ show(p1)
 """
 mutable struct Parameter{D}
     dimensions::Union{Nothing, Symbol, Expr}
-    defaultValue::Union{D, Nothing}
+    defaultValue::Union{D, Function, Nothing}
     description::String
     _updated::Bool
     _DE::Bool
@@ -78,8 +78,9 @@ mutable struct Parameter{D}
         else
             error("Parameter dataType must be a subtype of Real, Bool, or AbstractArray. Found: $dataType")
         end
-        if !(defaultValue === nothing || defaultValue isa dataType)
-            error("Parameter defaultValue must be of type $dataType or nothing. Found: $(typeof(defaultValue))")
+        # Allow functions as defaultValue (they will be called with the object after initialization)
+        if !(defaultValue === nothing || defaultValue isa Function || defaultValue isa dataType)
+            error("Parameter defaultValue must be of type $dataType, a Function, or nothing. Found: $(typeof(defaultValue))")
         end
 
         new{dataType}(dimensions, defaultValue, description, _updated, _DE, _modifiedIn)
@@ -92,7 +93,12 @@ function Base.show(io::IO, x::Parameter{D}) where D
     println("\t DataType: ", D)
     println("\n Scope: ", x._modifiedIn)
     println("\t Dimensions: ", x.dimensions)
-    println("\t Default Value: ", x.defaultValue)
+    if x.defaultValue isa Function
+        m = first(methods(x.defaultValue))
+        println("\t Default Value: <Function> ", m)
+    else
+        println("\t Default Value: ", x.defaultValue)
+    end
     println("\t ModifiedIn: ", tuple(x._modifiedIn))
     println("\t Description: ", x.description)
 end

@@ -12,7 +12,66 @@ struct CBProblem{P}
 
 end
 
+"""
+    _validate_initialized_parameters(mesh, meshObject)
+
+Check that all parameters without default values have been initialized.
+Raises an error if any required parameter is found uninitialized.
+Note: This check uses NaN as an uninitialized marker for Float types, so zeros are valid.
+"""
+function _validate_initialized_parameters(mesh::AbstractMesh, meshObject::AbstractMeshObject)
+    uninitialized = Vector{String}()
+    
+    # Check shared parameters (obj.p.X)
+    if hasfield(typeof(mesh), :_parameters) && mesh._parameters !== nothing
+        for (name, param) in pairs(mesh._parameters)
+            if param.defaultValue === nothing
+                # Parameter has no default - check if the user initialized it
+                if hasfield(typeof(meshObject), :_parameters) && meshObject._parameters !== nothing
+                    if haskey(meshObject._parameters, name)
+                        val = meshObject._parameters[name]
+                        # Check if value contains NaN (uninitialized marker for floats)
+                        if eltype(val) <: AbstractFloat && any(isnan, val)
+                            push!(uninitialized, "p.$name (shared parameter)")
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    # Check node/element properties (obj.n.X, etc.)
+    for (scope_name, scope_prop) in pairs(mesh._p)
+        if scope_prop !== nothing && hasfield(typeof(scope_prop), :p)
+            for (prop_name, param) in pairs(scope_prop.p)
+                if param.defaultValue === nothing
+                    # Parameter has no default - check if the user initialized it
+                    mesh_obj_scope = getproperty(meshObject, scope_name)
+                    if mesh_obj_scope !== nothing
+                        val = getproperty(mesh_obj_scope, prop_name)
+                        # Get actual element count from _N field
+                        N = mesh_obj_scope._N[]
+                        # Check if values contain NaN (uninitialized marker for floats)
+                        if N > 0 && eltype(val) <: AbstractFloat && any(isnan, view(val, 1:N))
+                            push!(uninitialized, "$scope_name.$prop_name")
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    if !isempty(uninitialized)
+        error("The following parameters have no defaultValue and were not initialized:\n  - " * join(uninitialized, "\n  - ") *
+              "\n\nPlease either assign values to these parameters before creating CBProblem, " *
+              "or provide a defaultValue in the model definition.")
+    end
+end
+
 function CBProblem(mesh::CellBasedModels.AbstractMesh, meshObject0::CellBasedModels.AbstractMeshObject, tspan::Tuple{T,T}=(0.,1.), p::Tuple=tuple()) where T<:Real
+
+    # Validate that all parameters without defaults have been initialized
+    _validate_initialized_parameters(mesh, meshObject0)
 
     u0 = meshObject0
     u = deepcopy(u0)

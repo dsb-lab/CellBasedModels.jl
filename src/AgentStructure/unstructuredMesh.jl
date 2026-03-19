@@ -232,11 +232,18 @@ function Base.show(io::IO, x::UnstructuredMesh)
         println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-60s %-s", "Name", "DataType", "Dimensions", "Default_Value", "ModifiedIn", "Description"))
         println(io, "\t" * repeat("-", 145))
         for (n, par) in pairs(x._parameters)
+            dv = if par.defaultValue === nothing
+                ""
+            elseif par.defaultValue isa Function
+                "<Function> " * string(nameof(par.defaultValue))
+            else
+                string(par.defaultValue)
+            end
             println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-60s %-s", 
                 n, 
                 dtype(par), 
                 par.dimensions === nothing ? "" : string(par.dimensions),
-                par.defaultValue === nothing ? "" : string(par.defaultValue), 
+                dv, 
                 length(par._modifiedIn) === 0 ? "" : string(tuple([i[2] for i in par._modifiedIn]...)),
                 par.description))
         end
@@ -248,11 +255,18 @@ function Base.show(io::IO, x::UnstructuredMesh)
         println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-60s %-s", "Name", "DataType", "Dimensions", "Default_Value", "ModifiedIn", "Description"))
         println(io, "\t" * repeat("-", 145))
         for (n, par) in pairs(props.p)
+            dv = if par.defaultValue === nothing
+                ""
+            elseif par.defaultValue isa Function
+                "<Function> " * string(nameof(par.defaultValue))
+            else
+                string(par.defaultValue)
+            end
             println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-60s %-s", 
                 n, 
                 dtype(par), 
                 par.dimensions === nothing ? "" : string(par.dimensions),
-                par.defaultValue === nothing ? "" : string(par.defaultValue), 
+                dv, 
                 length(par._modifiedIn) === 0 ? "" : string(tuple([i[2] for i in par._modifiedIn]...)),
                 par.description))
         end
@@ -515,7 +529,21 @@ function UnstructuredMeshField(
     _NFreeNextInit = SizedVector{1}(nFree + 1)
     _NFreeNext = SizedVector{1}(0)
 
-    _p = NamedTuple{keys(meshProperties.p)}(zeros(dtype(dt, isbits=true), NCache) for dt in values(meshProperties.p))
+    # Initialize properties with default values if available (skip functions - applied later)
+    _p_arrays = []
+    for (name, param) in pairs(meshProperties.p)
+        dt = dtype(param, isbits=true)
+        arr = zeros(dt, NCache)
+        # Apply default value to all N initialized elements (skip functions)
+        if param.defaultValue !== nothing && !(param.defaultValue isa Function)
+            arr[1:N] .= param.defaultValue
+        elseif param.defaultValue === nothing && dt <: AbstractFloat
+            # Mark uninitialized Float values with NaN for validation
+            arr[1:N] .= NaN
+        end
+        push!(_p_arrays, arr)
+    end
+    _p = NamedTuple{keys(meshProperties.p)}(_p_arrays)
     _NP = length(meshProperties.p)
     _pReference = SizedVector{length(_p), Bool}([true for _ in 1:length(meshProperties.p)])
 
@@ -1536,19 +1564,31 @@ function UnstructuredMeshObject(
     
     # Create parameters field if mesh has shared parameters
     # Parameters are global (size 1) unless specified as an array type
+    # Function defaults are skipped here and applied after object creation
     parametersField = if length(mesh._parameters) > 0
         parametersDict = Dict{Symbol, Any}()
         for (name, param) in pairs(mesh._parameters)
             dt = dtype(param; isbits=true)
             if dt <: AbstractArray
-                # Array type: create a single instance with size (1,1,...) or the natural element
-                parametersDict[name] = zeros(eltype(dt), 1, 1)
+                # Array type: use default value if available (skip functions), otherwise zeros
+                if param.defaultValue !== nothing && !(param.defaultValue isa Function)
+                    parametersDict[name] = [copy(param.defaultValue)]
+                else
+                    parametersDict[name] = zeros(eltype(dt), 1, 1)
+                end
             else
-                # Scalar type: create 1-element vector
-                parametersDict[name] = zeros(dt, 1)
+                # Scalar type: use default value if available (skip functions), otherwise NaN for floats
+                if param.defaultValue !== nothing && !(param.defaultValue isa Function)
+                    parametersDict[name] = [param.defaultValue]
+                elseif dt <: AbstractFloat
+                    # Mark uninitialized Float values with NaN for validation
+                    parametersDict[name] = [NaN]
+                else
+                    parametersDict[name] = zeros(dt, 1)
+                end
             end
         end
-        NamedTuple{Tuple(keys(parametersDict)...)}(values(parametersDict))
+        NamedTuple{tuple(keys(parametersDict)...)}(values(parametersDict))
     else
         nothing
     end
@@ -1566,7 +1606,54 @@ function UnstructuredMeshObject(
             params, parametersField, topology_, _FlagOverflow
         )
 
+    # Apply function defaults after object is fully constructed
+    _applyFunctionDefaults!(mesh, meshObj)
+
     return meshObj
+end
+
+"""
+    _applyFunctionDefaults!(mesh, meshObj)
+
+Apply function-based default values to the mesh object.
+Functions are called with the mesh object as argument after the object is fully constructed.
+"""
+function _applyFunctionDefaults!(mesh::UnstructuredMesh, meshObj::UnstructuredMeshObject)
+    # Apply function defaults for node/element properties
+    for (scope_name, scope_prop) in pairs(mesh._p)
+        if scope_prop !== nothing && hasfield(typeof(scope_prop), :p)
+            mesh_obj_scope = getproperty(meshObj, scope_name)
+            N = mesh_obj_scope._N[]
+            for (prop_name, param) in pairs(scope_prop.p)
+                if param.defaultValue isa Function && N > 0
+                    # Call the function with the mesh object
+                    val = getproperty(mesh_obj_scope, prop_name)
+                    for i in 1:N
+                        val[i] = param.defaultValue(meshObj)
+                    end
+                end
+            end
+        end
+    end
+    
+    # Apply function defaults for shared parameters
+    if hasfield(typeof(mesh), :_parameters) && mesh._parameters !== nothing
+        for (name, param) in pairs(mesh._parameters)
+            if param.defaultValue isa Function
+                if meshObj._parameters !== nothing && haskey(meshObj._parameters, name)
+                    val = meshObj._parameters[name]
+                    result = param.defaultValue(meshObj)
+                    if result isa AbstractArray
+                        val[1] = copy(result)
+                    else
+                        val[1] = result
+                    end
+                end
+            end
+        end
+    end
+    
+    return nothing
 end
 
 function UnstructuredMeshObject(

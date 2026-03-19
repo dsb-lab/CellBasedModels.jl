@@ -49,11 +49,18 @@ function show(io::IO, x::StructuredMesh{D}) where {D}
             println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-20s %-s", "Name", "DataType", "Dimensions", "Default_Value", "ModifiedIn", "Description"))
             println(io, "\t" * repeat("-", 85))
             for (name, par) in pairs(props)
+                dv = if par.defaultValue === nothing
+                    ""
+                elseif par.defaultValue isa Function
+                    "<Function> " * string(nameof(par.defaultValue))
+                else
+                    string(par.defaultValue)
+                end
                 println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-20s %-s", 
                     name, 
                     dtype(par), 
                     par.dimensions === nothing ? "" : string(par.dimensions),
-                    par.defaultValue === nothing ? "" : string(par.defaultValue), 
+                    dv, 
                     length(par._modifiedIn) === 0 ? "" : string(tuple(par._modifiedIn)),
                     par.description))
             end
