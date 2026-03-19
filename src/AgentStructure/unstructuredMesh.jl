@@ -1,6 +1,7 @@
 import RecursiveArrayTools
 import LinearAlgebra
 import KernelAbstractions
+using ..Unitful: ustrip, Quantity
 
 # Add ForwardDiff support for automatic differentiation
 using ForwardDiff: ForwardDiff
@@ -11,6 +12,9 @@ try
 catch
     # Fallback if package not available
 end
+
+# Helper to strip units from Unitful Quantity values
+_strip_units(v) = v isa Quantity ? ustrip(v) : v
 
 ######################################################################################################
 # Base Properties
@@ -95,10 +99,11 @@ end
 ######################################################################################################
 # AGENT STRUCTURE
 ######################################################################################################
-struct UnstructuredMesh{D, S, P, PAR} <: AbstractMesh
+struct UnstructuredMesh{D, S, P, PAR, BU} <: AbstractMesh
 
     _p::NamedTuple    # Dictionary to hold agent properties
     _parameters::PAR  # NamedTuple of shared parameters (accessed via obj.p.X)
+    _baseUnits::BU    # NamedTuple mapping dimensions to reference units (e.g., (𝐋=1u"m", 𝐓=1u"s"))
     _functions::Dict{Symbol, Any}    # Dictionary to hold functions associated with the mesh
     _requiredTopologyRelations::Set{Tuple{Symbol, Symbol}}  # Relations needed by rules (for precomputation)
     _requiredTopologyRelationTypes::Dict{Tuple{Symbol, Symbol}, Type}  # Sparse matrix types for inferred relations
@@ -121,6 +126,7 @@ function UnstructuredMesh(
     dims::Int;
     specialization::DataType=Nothing,
     parameters::NamedTuple=(;),
+    baseUnits::NamedTuple=(;),
     kwargs...
 )
 
@@ -205,9 +211,10 @@ function UnstructuredMesh(
     # Initialize topology from mesh properties
     topology = Topology(propertiesTuple)
 
-    return UnstructuredMesh{dims, specialization, typeof(propertiesTuple), typeof(sharedParameters)}(
+    return UnstructuredMesh{dims, specialization, typeof(propertiesTuple), typeof(sharedParameters), typeof(baseUnits)}(
         propertiesTuple,
         sharedParameters,
+        baseUnits,
         Dict{Symbol, Any}(),
         Set{Tuple{Symbol, Symbol}}(),
         Dict{Tuple{Symbol, Symbol}, Type}(),
@@ -217,6 +224,7 @@ end
 
 spatialDims(::UnstructuredMesh{D}) where {D} = D
 specialization(::UnstructuredMesh{D, S}) where {D, S} = S
+baseUnits(m::UnstructuredMesh) = m._baseUnits
 
 function Base.show(io::IO, x::UnstructuredMesh)
 
@@ -305,7 +313,7 @@ function Base.show(io::IO, x::UnstructuredMesh)
     end
 end
 
-function Base.show(io::IO, ::Type{UnstructuredMesh{D, S, P, PAR}}) where {D, S, P, PAR}
+function Base.show(io::IO, ::Type{UnstructuredMesh{D, S, P, PAR, BU}}) where {D, S, P, PAR, BU}
     if S === Nothing
         print(io, "UnstructuredMesh{dims=", D, ",")
     else
@@ -536,7 +544,7 @@ function UnstructuredMeshField(
         arr = zeros(dt, NCache)
         # Apply default value to all N initialized elements (skip functions)
         if param.defaultValue !== nothing && !(param.defaultValue isa Function)
-            arr[1:N] .= param.defaultValue
+            arr[1:N] .= _strip_units(param.defaultValue)
         elseif param.defaultValue === nothing && dt <: AbstractFloat
             # Mark uninitialized Float values with NaN for validation
             arr[1:N] .= NaN
@@ -1562,6 +1570,9 @@ function UnstructuredMeshObject(
     params = NamedTuple{tuple(keys(mesh._p)...)}(fields)
     _FlagOverflow = SizedVector{1}(false)
     
+    # Helper to strip Unitful units from values
+    _strip_units(v) = v isa Quantity ? ustrip(v) : v
+    
     # Create parameters field if mesh has shared parameters
     # Parameters are global (size 1) unless specified as an array type
     # Function defaults are skipped here and applied after object creation
@@ -1572,14 +1583,14 @@ function UnstructuredMeshObject(
             if dt <: AbstractArray
                 # Array type: use default value if available (skip functions), otherwise zeros
                 if param.defaultValue !== nothing && !(param.defaultValue isa Function)
-                    parametersDict[name] = [copy(param.defaultValue)]
+                    parametersDict[name] = [copy(_strip_units(param.defaultValue))]
                 else
                     parametersDict[name] = zeros(eltype(dt), 1, 1)
                 end
             else
                 # Scalar type: use default value if available (skip functions), otherwise NaN for floats
                 if param.defaultValue !== nothing && !(param.defaultValue isa Function)
-                    parametersDict[name] = [param.defaultValue]
+                    parametersDict[name] = [_strip_units(param.defaultValue)]
                 elseif dt <: AbstractFloat
                     # Mark uninitialized Float values with NaN for validation
                     parametersDict[name] = [NaN]
@@ -1619,6 +1630,9 @@ Apply function-based default values to the mesh object.
 Functions are called with the mesh object as argument after the object is fully constructed.
 """
 function _applyFunctionDefaults!(mesh::UnstructuredMesh, meshObj::UnstructuredMeshObject)
+    # Helper to strip Unitful units from values
+    _strip_units(v) = v isa Quantity ? ustrip(v) : v
+    
     # Apply function defaults for node/element properties
     for (scope_name, scope_prop) in pairs(mesh._p)
         if scope_prop !== nothing && hasfield(typeof(scope_prop), :p)
@@ -1629,7 +1643,7 @@ function _applyFunctionDefaults!(mesh::UnstructuredMesh, meshObj::UnstructuredMe
                     # Call the function with the mesh object
                     val = getproperty(mesh_obj_scope, prop_name)
                     for i in 1:N
-                        val[i] = param.defaultValue(meshObj)
+                        val[i] = _strip_units(param.defaultValue(meshObj))
                     end
                 end
             end
@@ -1642,7 +1656,7 @@ function _applyFunctionDefaults!(mesh::UnstructuredMesh, meshObj::UnstructuredMe
             if param.defaultValue isa Function
                 if meshObj._parameters !== nothing && haskey(meshObj._parameters, name)
                     val = meshObj._parameters[name]
-                    result = param.defaultValue(meshObj)
+                    result = _strip_units(param.defaultValue(meshObj))
                     if result isa AbstractArray
                         val[1] = copy(result)
                     else

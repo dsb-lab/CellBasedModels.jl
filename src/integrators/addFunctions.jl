@@ -1,4 +1,5 @@
 using MacroTools: @capture, postwalk
+using ..Unitful: Dimensions, NoDims
 
 #=
 ================================================================================
@@ -52,6 +53,58 @@ end
 
 function parse_dimension_spec(spec::Expr)
     return _parse_dim_expr(spec)
+end
+
+"""
+    parse_dimension_spec(spec::Dimensions) -> DimensionDict
+
+Convert Unitful Dimensions to DimensionDict.
+Maps Unitful dimension names to internal symbols:
+- :Length → :L
+- :Time → :T
+- :Mass → :M
+- :Amount → :N
+- :Temperature → :Θ
+- :Current → :I
+- :Luminosity → :J
+
+Examples:
+- `u"𝐋"` → Dict(:L => 1)
+- `u"𝐋/𝐓"` → Dict(:L => 1, :T => -1)
+"""
+function parse_dimension_spec(spec::Dimensions)
+    # Unitful NoDims → dimensionless
+    if spec == NoDims
+        return DimensionDict()
+    end
+    
+    # Mapping from Unitful dimension names to our symbols
+    dim_name_map = Dict(
+        :Length => :L,
+        :Time => :T,
+        :Mass => :M,
+        :Amount => :N,
+        :Temperature => :Θ,
+        :Current => :I,
+        :Luminosity => :J,
+    )
+    
+    result = DimensionDict()
+    
+    # Unitful Dimensions are structured as:
+    # Dimensions{(Dimension{:Length}(1//1), Dimension{:Time}(-1//1))}
+    # Each element is a Unitful.Dimension{Name}(exponent)
+    for dim in typeof(spec).parameters[1]
+        # Extract dimension name from type parameter (e.g., :Length from Dimension{:Length})
+        dim_name = typeof(dim).parameters[1]
+        # Extract exponent value
+        exp_val = dim.power
+        # Map to our internal symbol
+        sym = get(dim_name_map, dim_name, dim_name)
+        result[sym] = Rational(exp_val)
+    end
+    
+    return normalize_dimension(result)
 end
 
 function _parse_dim_expr(ex::Symbol)

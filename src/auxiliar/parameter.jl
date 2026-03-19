@@ -1,3 +1,6 @@
+import ..Unitful
+using ..Unitful: Dimensions, Quantity, Units, FreeUnits, NoDims, ustrip, dimension, unit
+
 DATATYPE = Dict(
     Integer => Int,
     AbstractFloat => Float64,
@@ -53,17 +56,37 @@ show(p1)
 ```
 """
 mutable struct Parameter{D}
-    dimensions::Union{Nothing, Symbol, Expr}
-    defaultValue::Union{D, Function, Nothing}
+    dimensions::Union{Nothing, Symbol, Expr, Dimensions}
+    defaultValue::Any  # Flexible: D, Function, Nothing, Quantity, or compatible array types
     description::String
     _updated::Bool
     _DE::Bool
     _modifiedIn::Vector{Tuple}
 
-    function Parameter(dataType::DataType;
-                       dimensions::Union{Nothing, Symbol, Expr}=nothing,
+    function Parameter(dataType::Union{DataType, UnionAll};
+                       dimensions::Union{Nothing, Symbol, Expr, Dimensions}=nothing,
                        defaultValue=nothing,
                        description::String="", _updated::Bool=false, _DE::Bool=false, _modifiedIn::Vector{Tuple}=Vector{Tuple}())
+
+        # Handle Unitful Quantity defaultValue
+        if defaultValue isa Quantity
+            # Validate dimensions match if both are specified
+            if dimensions !== nothing
+                value_dims = dimension(defaultValue)
+                if dimensions isa Dimensions
+                    if value_dims != dimensions
+                        error("Parameter defaultValue unit dimension ($(value_dims)) does not match declared dimensions ($dimensions)")
+                    end
+                else
+                    # If dimensions is Symbol/Expr, just warn about using mixed notation
+                    @warn "Using Unitful defaultValue with Symbol/Expr dimensions. Consider using Unitful dimensions (e.g., u\"𝐋\") for consistency."
+                end
+            end
+            # Infer dimensions from defaultValue if not specified
+            if dimensions === nothing
+                dimensions = dimension(defaultValue)
+            end
+        end
 
         if dataType <: Integer
             dataType = Integer
@@ -79,8 +102,23 @@ mutable struct Parameter{D}
             error("Parameter dataType must be a subtype of Real, Bool, or AbstractArray. Found: $dataType")
         end
         # Allow functions as defaultValue (they will be called with the object after initialization)
-        if !(defaultValue === nothing || defaultValue isa Function || defaultValue isa dataType)
-            error("Parameter defaultValue must be of type $dataType, a Function, or nothing. Found: $(typeof(defaultValue))")
+        # For arrays, check if element types are compatible (e.g., Matrix{Float64} should be valid for Matrix{AbstractFloat})
+        function is_compatible_value(val, dtype)
+            val === nothing && return true
+            val isa Function && return true
+            val isa Quantity && return true
+            val isa dtype && return true
+            # For array types, check if it's an array with compatible element type
+            if dtype <: AbstractArray && val isa AbstractArray
+                # Check dimensions match
+                ndims(val) == ndims(dtype) || return false
+                # Check element type compatibility
+                return eltype(val) <: eltype(dtype)
+            end
+            return false
+        end
+        if !is_compatible_value(defaultValue, dataType)
+            error("Parameter defaultValue must be of type $dataType, a Function, Unitful Quantity, or nothing. Found: $(typeof(defaultValue))")
         end
 
         new{dataType}(dimensions, defaultValue, description, _updated, _DE, _modifiedIn)
@@ -101,6 +139,104 @@ function Base.show(io::IO, x::Parameter{D}) where D
     end
     println("\t ModifiedIn: ", tuple(x._modifiedIn))
     println("\t Description: ", x.description)
+end
+
+"""
+    ustrip_defaultValue(p::Parameter)
+
+Extract the numeric value from a Parameter's defaultValue, stripping any Unitful units.
+Returns the raw numeric value for computation on backends.
+"""
+function ustrip_defaultValue(p::Parameter)
+    if p.defaultValue isa Quantity
+        return ustrip(p.defaultValue)
+    elseif p.defaultValue isa Function
+        return p.defaultValue  # Functions are handled elsewhere
+    else
+        return p.defaultValue
+    end
+end
+
+"""
+    get_unit(p::Parameter)
+
+Get the Unitful unit from a Parameter's defaultValue, or `Unitful.NoUnits` if dimensionless.
+"""
+function get_unit(p::Parameter)
+    if p.defaultValue isa Quantity
+        return unit(p.defaultValue)
+    else
+        return Unitful.NoUnits
+    end
+end
+
+"""
+    has_units(p::Parameter) -> Bool
+
+Check if a Parameter has Unitful units (either via dimensions or defaultValue).
+"""
+function has_units(p::Parameter)
+    return p.dimensions isa Dimensions || p.defaultValue isa Quantity
+end
+
+"""
+    apply_units(value, p::Parameter, baseUnits::NamedTuple)
+
+Apply units to a dimensionless value based on the parameter's dimensions and the baseUnits mapping.
+This restores Unitful units to values that were stripped for computation.
+
+# Arguments
+- `value`: The numeric value to attach units to
+- `p::Parameter`: The parameter containing dimension information
+- `baseUnits::NamedTuple`: Mapping from dimensions to reference units (e.g., `(𝐋=1u"m", 𝐓=1u"s")`)
+
+# Examples
+```julia
+baseUnits = (𝐋 = 1u"m", 𝐓 = 1u"s")
+p = Parameter(Float64, dimensions=u"𝐋/𝐓")
+apply_units(10.0, p, baseUnits)  # Returns 10.0u"m/s"
+```
+"""
+function apply_units(value, p::Parameter, baseUnits::NamedTuple)
+    if p.dimensions === nothing || (p.dimensions isa Dimensions && p.dimensions == NoDims)
+        return value  # Dimensionless
+    end
+    
+    # If parameter has a Unitful defaultValue, use its unit
+    if p.defaultValue isa Quantity
+        return value * unit(p.defaultValue)
+    end
+    
+    # For Unitful Dimensions, construct unit from baseUnits
+    if p.dimensions isa Dimensions
+        # Build the unit from dimension and baseUnits
+        # e.g., for dimensions = u"𝐋/𝐓", if baseUnits = (𝐋=1u"m", 𝐓=1u"s")
+        # return value * (u"m" / u"s")
+        result_unit = 1
+        for dim in typeof(p.dimensions).parameters[1]
+            if dim isa Symbol
+                if haskey(baseUnits, dim)
+                    result_unit = result_unit * unit(baseUnits[dim])
+                else
+                    @warn "Dimension $dim not found in baseUnits. Cannot restore units."
+                    return value
+                end
+            elseif dim isa Expr && dim.head == :call && dim.args[1] == :^
+                base_dim = dim.args[2]
+                exp_val = dim.args[3]
+                if haskey(baseUnits, base_dim)
+                    result_unit = result_unit * unit(baseUnits[base_dim])^exp_val
+                else
+                    @warn "Dimension $base_dim not found in baseUnits. Cannot restore units."
+                    return value
+                end
+            end
+        end
+        return value * result_unit
+    end
+    
+    # For Symbol/Expr dimensions, we can't automatically reconstruct units
+    return value
 end
 
 """

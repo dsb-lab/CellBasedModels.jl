@@ -3,6 +3,7 @@ module CellBasedModels
     using Adapt
     using StaticArrays
     using Printf
+    using Unitful
     export CPU, GPU
     using KernelAbstractions
     using Atomix
@@ -22,7 +23,7 @@ module CellBasedModels
     #Auxiliar
     # export Unit, UnitScalar, UnitArray
     # include("./auxiliar/units.jl")
-    export Parameter
+    export Parameter, ustrip_defaultValue, get_unit, has_units, apply_units
     include("./auxiliar/parameter.jl")
     export @diffsym, @diffauto, @consistency_diffauto
     include("./auxiliar/diffsym.jl")
@@ -95,7 +96,7 @@ module CellBasedModels
     #Agent
     include("./AgentStructure/auxiliar.jl")
     export Node, Edge, Face, Volume, Agent
-    export UnstructuredMesh, UnstructuredMeshField, UnstructuredMeshObject
+    export UnstructuredMesh, UnstructuredMeshField, UnstructuredMeshObject, baseUnits
     export setTopologyRelationType!
     export iterateOver
     include("./AgentStructure/unstructuredMesh.jl")

@@ -1,11 +1,12 @@
 abstract type AgentPointModel end
-const AgentPoint{D, P, PAR} = UnstructuredMesh{D, AgentPointModel, P, PAR}
+const AgentPoint{D, P, PAR, BU} = UnstructuredMesh{D, AgentPointModel, P, PAR, BU}
 const AgentPointObject{P, D, DT, NN, PARAMS, PAR} = UnstructuredMeshObject{P, D, AgentPointModel, DT, NN, PARAMS, PAR}
 
 function AgentPoint(
     dims::Int,
     properties::Union{NamedTuple, Nothing}=nothing;
     parameters::NamedTuple=(;),
+    baseUnits::NamedTuple=(;),
 )
 
     UnstructuredMesh(
@@ -13,6 +14,7 @@ function AgentPoint(
         n=Node(properties),
         specialization=AgentPointModel,
         parameters=parameters,
+        baseUnits=baseUnits,
     )
 
 end
