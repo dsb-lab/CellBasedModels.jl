@@ -1,16 +1,18 @@
 abstract type AgentPointModel end
-const AgentPoint{D, P} = UnstructuredMesh{D, AgentPointModel, P}
-const AgentPointObject{P, D, DT, NN, PAR} = UnstructuredMeshObject{P, D, AgentPointModel, DT, NN, PAR}
+const AgentPoint{D, P, PAR} = UnstructuredMesh{D, AgentPointModel, P, PAR}
+const AgentPointObject{P, D, DT, NN, PARAMS, PAR} = UnstructuredMeshObject{P, D, AgentPointModel, DT, NN, PARAMS, PAR}
 
 function AgentPoint(
     dims::Int,
-    properties::Union{NamedTuple, Nothing}=nothing,
+    properties::Union{NamedTuple, Nothing}=nothing;
+    parameters::NamedTuple=(;),
 )
 
     UnstructuredMesh(
         dims,
         n=Node(properties),
         specialization=AgentPointModel,
+        parameters=parameters,
     )
 
 end
@@ -32,6 +34,9 @@ end
 #####################################################################################
 # Functions to add/remove agents of type AgentPoint
 #####################################################################################
+
+# Register special functions for AgentPoint that should be analyzed for field modifications
+register_check_function!(:addAgent!, AgentPointModel, :n, 2)
 
 """
     addAgent!(obj::AgentPointObject, nodeProps::NamedTuple)

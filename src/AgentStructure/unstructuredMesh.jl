@@ -95,9 +95,10 @@ end
 ######################################################################################################
 # AGENT STRUCTURE
 ######################################################################################################
-struct UnstructuredMesh{D, S, P} <: AbstractMesh
+struct UnstructuredMesh{D, S, P, PAR} <: AbstractMesh
 
     _p::NamedTuple    # Dictionary to hold agent properties
+    _parameters::PAR  # NamedTuple of shared parameters (accessed via obj.p.X)
     _functions::Dict{Symbol, Any}    # Dictionary to hold functions associated with the mesh
     _requiredTopologyRelations::Set{Tuple{Symbol, Symbol}}  # Relations needed by rules (for precomputation)
     _requiredTopologyRelationTypes::Dict{Tuple{Symbol, Symbol}, Type}  # Sparse matrix types for inferred relations
@@ -119,6 +120,7 @@ end
 function UnstructuredMesh(
     dims::Int;
     specialization::DataType=Nothing,
+    parameters::NamedTuple=(;),
     kwargs...
 )
 
@@ -133,6 +135,9 @@ function UnstructuredMesh(
     defaultParameters = NamedTuple{Tuple(k for (k,v) in pairs(defaultParameters) if v !== nothing)}(
         (v for (k,v) in pairs(defaultParameters) if v !== nothing)
     )
+
+    # Convert shared parameters
+    sharedParameters = parameterConvert(parameters)
 
     for (k, v) in pairs(kwargs)
         if !(typeof(v) <: AbstractUnstructuredMeshProperty)
@@ -200,8 +205,9 @@ function UnstructuredMesh(
     # Initialize topology from mesh properties
     topology = Topology(propertiesTuple)
 
-    return UnstructuredMesh{dims, specialization, typeof(propertiesTuple)}(
+    return UnstructuredMesh{dims, specialization, typeof(propertiesTuple), typeof(sharedParameters)}(
         propertiesTuple,
+        sharedParameters,
         Dict{Symbol, Any}(),
         Set{Tuple{Symbol, Symbol}}(),
         Dict{Tuple{Symbol, Symbol}, Type}(),
@@ -219,6 +225,24 @@ function Base.show(io::IO, x::UnstructuredMesh)
     else
         println(io, "$(specialization(x)) with dimensions $(spatialDims(x)): \n")
     end
+    
+    # Display shared parameters
+    if length(x._parameters) > 0
+        println(io, "(Parameters) mesh.p.")
+        println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-60s %-s", "Name", "DataType", "Dimensions", "Default_Value", "ModifiedIn", "Description"))
+        println(io, "\t" * repeat("-", 145))
+        for (n, par) in pairs(x._parameters)
+            println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-60s %-s", 
+                n, 
+                dtype(par), 
+                par.dimensions === nothing ? "" : string(par.dimensions),
+                par.defaultValue === nothing ? "" : string(par.defaultValue), 
+                length(par._modifiedIn) === 0 ? "" : string(tuple([i[2] for i in par._modifiedIn]...)),
+                par.description))
+        end
+        println(io)
+    end
+    
     for (name, props) in pairs(x._p)
         println(io, "(", typeof(props).name.name, ") mesh.",string(name),".")
         println(io, @sprintf("\t%-15s %-15s %-15s %-20s %-60s %-s", "Name", "DataType", "Dimensions", "Default_Value", "ModifiedIn", "Description"))
@@ -267,7 +291,7 @@ function Base.show(io::IO, x::UnstructuredMesh)
     end
 end
 
-function Base.show(io::IO, ::Type{UnstructuredMesh{D, S, P}}) where {D, S, P}
+function Base.show(io::IO, ::Type{UnstructuredMesh{D, S, P, PAR}}) where {D, S, P, PAR}
     if S === Nothing
         print(io, "UnstructuredMesh{dims=", D, ",")
     else
@@ -522,6 +546,8 @@ function UnstructuredMeshField(
     # Now initialize neighbors
     _neighbors = if neighbors === :auto
         createDefaultNeighbors(NCache, meshProperties)
+    elseif neighbors === nothing
+        nothing
     else
         # For all neighbor types, create temp field with template neighbors, then call initNeighbors
         temp_field = UnstructuredMeshField{
@@ -1383,9 +1409,10 @@ end
 ######################################################################################################
 struct UnstructuredMeshObject{
             P, D, S, DT,
-            PAR, TOPO, AB
+            PAR, PARAMS, TOPO, AB
     } <: AbstractMeshObject
     _p::PAR
+    _parameters::PARAMS  # Shared parameters field (accessed via obj.p.X)
     topo::TOPO
     _FlagOverflow::AB
 end
@@ -1507,6 +1534,25 @@ function UnstructuredMeshObject(
     params = NamedTuple{tuple(keys(mesh._p)...)}(fields)
     _FlagOverflow = SizedVector{1}(false)
     
+    # Create parameters field if mesh has shared parameters
+    # Parameters are global (size 1) unless specified as an array type
+    parametersField = if length(mesh._parameters) > 0
+        parametersDict = Dict{Symbol, Any}()
+        for (name, param) in pairs(mesh._parameters)
+            dt = dtype(param; isbits=true)
+            if dt <: AbstractArray
+                # Array type: create a single instance with size (1,1,...) or the natural element
+                parametersDict[name] = zeros(eltype(dt), 1, 1)
+            else
+                # Scalar type: create 1-element vector
+                parametersDict[name] = zeros(dt, 1)
+            end
+        end
+        NamedTuple{Tuple(keys(parametersDict)...)}(values(parametersDict))
+    else
+        nothing
+    end
+    
     # Build topology object from mesh topology and validate consistency
     # Pass required relations and their types for precomputation of derived relations
     topology_ = buildTopology(mesh.topo, kwargs, params; 
@@ -1515,16 +1561,16 @@ function UnstructuredMeshObject(
 
     meshObj = UnstructuredMeshObject{
             P, D, S, DT,
-            typeof(params), typeof(topology_), typeof(_FlagOverflow)
+            typeof(params), typeof(parametersField), typeof(topology_), typeof(_FlagOverflow)
         }(
-            params, topology_, _FlagOverflow
+            params, parametersField, topology_, _FlagOverflow
         )
 
     return meshObj
 end
 
 function UnstructuredMeshObject(
-            p, topology, _FlagOverflow
+            p, parameters, topology, _FlagOverflow
     )
 
     D = 0
@@ -1556,9 +1602,9 @@ function UnstructuredMeshObject(
 
     return UnstructuredMeshObject{
             P, D, S, DT,
-            typeof(p), typeof(topology), typeof(_FlagOverflow)
+            typeof(p), typeof(parameters), typeof(topology), typeof(_FlagOverflow)
         }(
-            p, topology, _FlagOverflow
+            p, parameters, topology, _FlagOverflow
         )
 end
 
@@ -1569,6 +1615,19 @@ function Base.show(io::IO, x::UnstructuredMeshObject{P, D, S}) where {P, D, S}
 end
 
 function show(io::IO, x::UnstructuredMeshObject, full=false)
+    # Display shared parameters if present
+    if x._parameters !== nothing && length(x._parameters) > 0
+        println(io, "\tp (Parameters)")
+        println(io, @sprintf("\t%-20s %-15s", "Name", "DataType"))
+        println(io, "\t" * repeat("-", 85))
+        for (name, par) in pairs(x._parameters)
+            println(io, @sprintf("\t%-20s %-15s", 
+                string(name),
+                eltype(par)))
+        end
+        println(io)
+    end
+    
     for (f,n) in pairs(x._p)
         println(io, "\t", f, " (", typeof(n).name.name, ")")
         println(io, @sprintf("\t%-20s %-15s", "Name (Public)", "DataType"))
@@ -1599,7 +1658,7 @@ function Base.show(io::IO, x::Type{UnstructuredMeshObject{P, D, S}}) where {P, D
     println(io, "}")
 end
 
-function show(io::IO, ::Type{UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}}) where {P, D, S, DT, PAR, TOPO, AB}
+function show(io::IO, ::Type{UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}}) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
     for (props, propsnames) in zip((PAR), ("a", "PropertiesNode", "PropertiesEdge", "PropertiesFace", "PropertiesVolume"))
         if props !== Nothing
             print(io, "\t", string(propsnames), "Meta", "=(")
@@ -1609,10 +1668,10 @@ function show(io::IO, ::Type{UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}}
     end
 end
 
-function lengthProperties(::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) where {P, D, S, DT, PAR, TOPO, AB}
+function lengthProperties(::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
     return length(PAR.parameters[1])
 end    
-function Base.length(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) where {P, D, S, DT, PAR, TOPO, AB}
+function Base.length(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
     c = 0
     for i in values(mesh._p)
         c += length(i)
@@ -1640,7 +1699,7 @@ spatialDims(::Type{<:UnstructuredMeshObject{P, D}}) where {P, D} = D
 specialization(mesh::UnstructuredMeshObject{P, D, S}) where {P, D, S} = S
 
 #Getindex
-@generated function Base.getproperty(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, s::Symbol) where {P, D, S, DT, PAR, TOPO, AB}
+@generated function Base.getproperty(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}, s::Symbol) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
     # build a clause for each fieldname in T
     general = [
         :(if s === $(QuoteNode(name)); return getfield(field, $(QuoteNode(name))); end)
@@ -1650,9 +1709,17 @@ specialization(mesh::UnstructuredMeshObject{P, D, S}) where {P, D, S} = S
         :(s === $(QuoteNode(name)) && return @views getfield(getfield(field, :_p), $(QuoteNode(name))))
         for name in PAR.parameters[1]
     ]
+    
+    # Add case for :p -> parameters field
+    parameterCase = if PARAMS !== Nothing
+        :(s === :p && return getfield(field, :_parameters))
+    else
+        :(s === :p && error("This mesh has no shared parameters defined."))
+    end
 
     quote
         $(general...)
+        $parameterCase
         $(cases...)
         error("Unknown property: $s for the UnstructuredMeshObject.")
     end
@@ -1688,24 +1755,38 @@ function LinearAlgebra.norm(u::UnstructuredMeshObject, t::Real)
 end
 
 ## Copy
-function Base.copy(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) where {P, D, S, DT, PAR, TOPO, AB}
+# Helper to copy a NamedTuple of arrays
+function _copyParametersTuple(params::NamedTuple)
+    NamedTuple{keys(params)}(copy(v) for v in values(params))
+end
+_copyParametersTuple(::Nothing) = nothing
 
-    UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}(
+# Helper to create similar NamedTuple of arrays
+function _similarParametersTuple(params::NamedTuple)
+    NamedTuple{keys(params)}(similar(v) for v in values(params))
+end
+_similarParametersTuple(::Nothing) = nothing
+
+function Base.copy(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
+
+    UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}(
         NamedTuple{keys(field._p)}(
             copy(getfield(field._p, name)) for name in keys(field._p)
         ),
+        _copyParametersTuple(field._parameters),
         field.topo,
-        field._FlagOverflow
+        Base.copy(field._FlagOverflow)
     )
 
 end
 
-function partialCopy(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, copyArgs) where {P, D, S, DT, PAR, TOPO, AB}
+function partialCopy(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}, copyArgs) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
 
-    UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}(
+    UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}(
         NamedTuple{keys(field._p)}(
             partialCopy(getfield(field._p, name), [i[2] for i in copyArgs if i[1] == name]) for name in keys(field._p)
         ),
+        _copyParametersTuple(field._parameters),  # Parameters are always fully copied
         field.topo,
         field._FlagOverflow
     )
@@ -1713,24 +1794,26 @@ function partialCopy(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, 
 end
 
 ## Similar
-function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) where {P, D, S, DT, PAR, TOPO, AB}
+function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
 
-    UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}(
+    UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}(
         NamedTuple{keys(field._p)}(
             similar(getfield(field._p, name)) for name in keys(field._p)
         ),
+        _similarParametersTuple(field._parameters),
         field.topo,
         field._FlagOverflow
     )
 
 end
 
-function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, _) where {P, D, S, DT, PAR, TOPO, AB}
+function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}, _) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
 
-    UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}(
+    UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}(
         NamedTuple{keys(field._p)}(
             similar(getfield(field._p, name)) for name in keys(field._p)
         ),
+        _similarParametersTuple(field._parameters),
         field.topo,
         field._FlagOverflow
     )
@@ -1738,16 +1821,23 @@ function Base.similar(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB},
 end
 
 ## Deepcopy - preserve topo reference
-function Base.deepcopy_internal(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, stackdict::IdDict) where {P, D, S, DT, PAR, TOPO, AB}
+# Helper to deepcopy a NamedTuple of arrays
+function _deepcopyParametersTuple(params::NamedTuple, stackdict::IdDict)
+    NamedTuple{keys(params)}(Base.deepcopy_internal(v, stackdict) for v in values(params))
+end
+_deepcopyParametersTuple(::Nothing, stackdict::IdDict) = nothing
+
+function Base.deepcopy_internal(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}, stackdict::IdDict) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
     if haskey(stackdict, field)
         return stackdict[field]
     end
     
     # Deepcopy the data arrays but preserve topo reference
-    new_field = UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}(
+    new_field = UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}(
         NamedTuple{keys(field._p)}(
             Base.deepcopy_internal(getfield(field._p, name), stackdict) for name in keys(field._p)
         ),
+        _deepcopyParametersTuple(field._parameters, stackdict),
         field.topo,   # Preserve reference  
         deepcopy(field._FlagOverflow)
     )
@@ -1757,12 +1847,19 @@ function Base.deepcopy_internal(field::UnstructuredMeshObject{P, D, S, DT, PAR, 
 end
 
 ## Zero
-function Base.zero(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) where {P, D, S, DT, PAR, TOPO, AB}
+# Helper to zero a NamedTuple of arrays
+function _zeroParametersTuple(params::NamedTuple)
+    NamedTuple{keys(params)}(zero(v) for v in values(params))
+end
+_zeroParametersTuple(::Nothing) = nothing
 
-    UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}(
+function Base.zero(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
+
+    UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}(
         NamedTuple{keys(field._p)}(
             zero(getfield(field._p, name)) for name in keys(field._p)
         ),
+        _zeroParametersTuple(field._parameters),
         field.topo,
         field._FlagOverflow
     )
@@ -1777,6 +1874,13 @@ end
     for name in keys(dest._p)
         copyto!(getfield(dest._p, name), getfield(bc._p, name))
     end
+    
+    # Also copy parameters if present
+    if dest._parameters !== nothing && bc._parameters !== nothing
+        for name in keys(dest._parameters)
+            copyto!(dest._parameters[name], bc._parameters[name])
+        end
+    end
 
     dest
 end
@@ -1789,6 +1893,13 @@ end
     for name in keys(dest._p)
         copyfrom!(getfield(dest._p, name), getfield(bc._p, name))
     end
+    
+    # Also copy parameters if present
+    if dest._parameters !== nothing && bc._parameters !== nothing
+        for name in keys(dest._parameters)
+            copyto!(dest._parameters[name], bc._parameters[name])  # copyfrom! is just copyto! for arrays
+        end
+    end
 
     dest
 end
@@ -1800,6 +1911,13 @@ function RecursiveArrayTools.recursivefill!(
 
     for name in keys(dest._p)
         RecursiveArrayTools.recursivefill!(getfield(dest._p, name), value)
+    end
+    
+    # Also fill parameters if present
+    if dest._parameters !== nothing
+        for name in keys(dest._parameters)
+            fill!(dest._parameters[name], value)
+        end
     end
 
     dest
@@ -1817,7 +1935,7 @@ function Base.fill!(
 end
 
 ## Preallocate
-function preallocate!(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, additionalCache::NamedTuple = (;)) where {P, D, S, DT, PAR, TOPO, AB}
+function preallocate!(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}, additionalCache::NamedTuple = (;)) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
     """
     Allocate additional cache memory for specific fields in an UnstructuredMeshObject.
     additionalCache should be a NamedTuple with field names as keys and additional cache sizes as values.
@@ -1830,6 +1948,8 @@ function preallocate!(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, 
         if field_name in keys(mesh._p)
             field = getfield(mesh._p, field_name)
             preallocate!(field, additional)
+        elseif field_name == :p && mesh._parameters !== nothing
+            preallocate!(mesh._parameters, additional)
         else
             @warn "Field $field_name not found in mesh. Skipping preallocation."
         end
@@ -1839,7 +1959,7 @@ function preallocate!(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, 
 end
 
 ## getOverflow
-function getOverflow(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, factor=1) where {P, D, S, DT, PAR, TOPO, AB}
+function getOverflow(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}, factor=1) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
     """
     Extract overflow information from all fields in an UnstructuredMeshObject.
     Returns a NamedTuple with field names as keys and overflow counts as values.
@@ -1866,7 +1986,7 @@ function getOverflow(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, f
     return (;overflows...)
 end
 
-function resetOverflow!(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) where {P, D, S, DT, PAR, TOPO, AB}
+function resetOverflow!(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
     """
     Reset overflow counters for all fields in an UnstructuredMeshObject.
     """
@@ -1881,7 +2001,7 @@ function resetOverflow!(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}
     return nothing
 end
 
-function isOverflowed(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) where {P, D, S, DT, PAR, TOPO, AB}
+function isOverflowed(mesh::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}) where {P, D, S, DT, PAR, PARAMS, TOPO, AB}
     return Array(mesh._FlagOverflow)[1]
 end
 

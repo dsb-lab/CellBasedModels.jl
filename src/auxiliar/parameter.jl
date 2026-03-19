@@ -73,8 +73,10 @@ mutable struct Parameter{D}
             dataType = Bool
         elseif dataType <: SArray
             dataType = dataType
+        elseif dataType <: AbstractArray
+            dataType = dataType  # Allow array types (Matrix, Vector, etc.)
         else
-            error("Parameter dataType must be a subtype of Real or Bool. Found: $dataType")
+            error("Parameter dataType must be a subtype of Real, Bool, or AbstractArray. Found: $dataType")
         end
         if !(defaultValue === nothing || defaultValue isa dataType)
             error("Parameter defaultValue must be of type $dataType or nothing. Found: $(typeof(defaultValue))")

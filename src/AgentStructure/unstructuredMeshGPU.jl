@@ -93,7 +93,7 @@ end
 
 toBackend(mesh::UnstructuredMeshObject{P}, ::CPU) where {P<:CPU} = mesh
 
-function toBackend(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, ::CPU) where {P<:GPU, D, S, DT, PAR, TOPO, AB}
+function toBackend(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}, ::CPU) where {P<:GPU, D, S, DT, PAR, PARAMS, TOPO, AB}
 
     PNew = platform()
     DTNew = DT <: AbstractFloat ? DATATYPE[AbstractFloat] : DT
@@ -101,15 +101,18 @@ function toBackend(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, ::
     p = NamedTuple{keys(field._p)}(
         toBackend(p, CPU()) for p in values(field._p)
     )
+    params = field._parameters === nothing ? nothing : toBackend(field._parameters, CPU())
     t = toBackend(field.topo, CPU())
     _FlagOverflow = SizedVector{1}(false)
 
     PARNew = typeof(p)
+    PARAMSNew = typeof(params)
     TOPONew = typeof(t)
     ABNew = typeof(_FlagOverflow)
 
-    UnstructuredMeshObject{PNew, D, S, DTNew, PARNew, TOPONew, ABNew}(
+    UnstructuredMeshObject{PNew, D, S, DTNew, PARNew, PARAMSNew, TOPONew, ABNew}(
         p,
+        params,
         t,
         _FlagOverflow
     )

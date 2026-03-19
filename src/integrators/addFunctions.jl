@@ -1,6 +1,130 @@
 using MacroTools: @capture, postwalk
 
 """
+    CHECK_FUNCTIONS
+
+A dictionary mapping special function names to a list of field extraction configurations.
+Each entry specifies:
+- `model`: The model type this applies to (e.g., AgentPointModel)
+- `scope`: The scope symbol (e.g., :n for nodes) where fields are modified
+- `arg_index`: Which argument contains the NamedTuple of field assignments (1-indexed)
+
+When these functions are called in rules, their NamedTuple arguments are analyzed
+to detect which fields are being modified.
+
+Example:
+```julia
+# Register addAgent! for AgentPointModel to extract fields from argument 2, scope :n
+if !haskey(CHECK_FUNCTIONS, :addAgent!)
+    CHECK_FUNCTIONS[:addAgent!] = []
+end
+push!(CHECK_FUNCTIONS[:addAgent!], (model = AgentPointModel, scope = :n, arg_index = 2))
+
+# Now in a rule, when we have:
+# addAgent!(uNew, (x=1, y=2, z=3))
+# This will detect that :n.x, :n.y, :n.z are being modified
+```
+"""
+const CHECK_FUNCTIONS = Dict{Symbol, Vector{NamedTuple{(:model, :scope, :arg_index), Tuple{DataType, Symbol, Int}}}}()
+
+"""
+    register_check_function!(func_name::Symbol, model::DataType, scope::Symbol, arg_index::Int)
+
+Register a special function to be analyzed for field modifications in rules.
+
+# Arguments
+- `func_name`: The name of the function (e.g., :addAgent!)
+- `model`: The model type this applies to (e.g., AgentPointModel)
+- `scope`: The scope symbol where fields are modified (e.g., :n for nodes)
+- `arg_index`: Which argument (1-indexed) contains the NamedTuple of field assignments
+
+# Example
+```julia
+register_check_function!(:addAgent!, AgentPointModel, :n, 2)
+```
+"""
+function register_check_function!(func_name::Symbol, model::DataType, scope::Symbol, arg_index::Int)
+    if !haskey(CHECK_FUNCTIONS, func_name)
+        CHECK_FUNCTIONS[func_name] = []
+    end
+    push!(CHECK_FUNCTIONS[func_name], (model = model, scope = scope, arg_index = arg_index))
+end
+
+"""
+    extract_special_function_assigns(fdefs; mod::Module=Main)
+
+Extract field assignments from calls to special functions registered in CHECK_FUNCTIONS.
+Returns a vector of tuples representing the modified fields.
+"""
+function extract_special_function_assigns(fdefs; mod::Module=Main)
+    assigns = Tuple[]
+
+    for f in fdefs
+        fdef = f.fdef
+        fdef_expanded = macroexpand(mod, fdef)
+        
+        tracked_syms = f.args[1:2]
+        du_sym = tracked_syms[1]
+        
+        # Build alias map to resolve variable references
+        aliases = Dict{Symbol, Vector{Symbol}}()
+        
+        postwalk(fdef_expanded) do ex
+            # Track aliases: x = du.n creates alias x -> [du, n]
+            if ex isa Expr && ex.head == :(=)
+                lhs, rhs = ex.args
+                if lhs isa Symbol
+                    chain, _ = chain_with_index(rhs)
+                    if first(chain) in tracked_syms
+                        aliases[lhs] = chain
+                    elseif first(chain) in keys(aliases)
+                        aliases[lhs] = vcat(aliases[first(chain)], chain[2:end])
+                    end
+                end
+            end
+            
+            # Detect calls to registered special functions
+            if ex isa Expr && ex.head == :call
+                func_name = ex.args[1]
+                
+                # Handle both Symbol and GlobalRef
+                if func_name isa GlobalRef
+                    func_name = func_name.name
+                end
+                
+                if func_name isa Symbol && haskey(CHECK_FUNCTIONS, func_name)
+                    configs = CHECK_FUNCTIONS[func_name]
+                    
+                    # Process all registered configurations for this function
+                    for config in configs
+                        # Get the argument at the specified index (add 1 because args[1] is function name)
+                        if length(ex.args) >= config.arg_index + 1
+                            arg = ex.args[config.arg_index + 1]
+                            
+                            # Extract field names from NamedTuple literal: (x=..., y=..., ...)
+                            if arg isa Expr && arg.head == :tuple
+                                for elem in arg.args
+                                    if elem isa Expr && (elem.head == :(=) || elem.head == :kw)
+                                        field_name = elem.args[1]
+                                        if field_name isa Symbol
+                                            # Add (scope, field_name) as an assign
+                                            push!(assigns, (config.scope, field_name))
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            ex
+        end
+    end
+
+    return unique(assigns)
+end
+
+"""
     analyze_rule_code(fdef::Expr; tracked_syms, protected_syms=Symbol[])
 
 Analyze the body of a function definition (AST) to detect assignments involving the
@@ -243,6 +367,11 @@ end
 function analyze_rule_code(kwargs, fdefs; type, mod::Module=Main)
 
     unique_assigns = extract_assigns(fdefs; mod=mod)
+    special_assigns = extract_special_function_assigns(fdefs; mod=mod)
+    
+    # Merge regular assigns with special function assigns
+    all_assigns = unique(vcat(unique_assigns, special_assigns))
+    
     topology_pairs = extract_topology_loops(fdefs)
 
     # build emitted code (unchanged structure)
@@ -250,7 +379,7 @@ function analyze_rule_code(kwargs, fdefs; type, mod::Module=Main)
     assigns_code = :(CellBasedModels.addFunction!($(kwargs.mesh_name),
                                                  $(QuoteNode(type)),
                                                  $(QuoteNode(kwargs.scope_name)),
-                                                 $unique_assigns,
+                                                 $all_assigns,
                                                  ($(fs...),)))
 
     topology_code = if !isempty(topology_pairs)

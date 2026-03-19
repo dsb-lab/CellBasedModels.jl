@@ -102,6 +102,12 @@ module CellBasedModels
     include("./AgentStructure/unstructuredMeshGPU.jl")
     export iterateOverNeighbors, getNeighbors
 
+    # Load addFunctions.jl early so specializations can register their CHECK_FUNCTIONS
+    export @addRule, @addODE, @addSDE
+    export @kernel_launch
+    export CHECK_FUNCTIONS, register_check_function!  # Registry for special functions to analyze in rules
+    include("./integrators/addFunctions.jl")
+
     #Agent Specializations
     export createObject
     export AgentGlobal
@@ -124,10 +130,12 @@ module CellBasedModels
     # include("./AgentStructure/structuredMesh.jl")
     # export MultiMesh, MultiMeshObject
     # include("./AgentStructure/multiMesh.jl")
-
-    export @addRule, @addODE, @addSDE
-    export @kernel_launch
-    include("./integrators/addFunctions.jl")
+    
+    # AgentPointDelaunay requires @kernel_launch, so include after addFunctions.jl
+    export AgentPointDelaunay, computeLocalDelaunay!, addDelaunayRule!, getDelaunayNeighbors
+    export inCircumcircle2D, inCircumsphere3D, triangleOrientation2D, tetrahedronOrientation3D
+    include("./AgentSpecializations/agentPointDelaunay.jl")
+    
     export RuleProblem, Rule
     include("./integrators/ruleProblem.jl")
 

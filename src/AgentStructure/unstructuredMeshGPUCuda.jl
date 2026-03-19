@@ -55,7 +55,7 @@ end
 
 toBackend(mesh::UnstructuredMeshObject{P, D}, ::CUDA.CUDABackend) where {P<:GPUCuda, D} = mesh
 
-function toBackend(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, backend::CUDA.CUDABackend) where {P<:CPU, D, S, DT, PAR, TOPO, AB}
+function toBackend(field::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}, backend::CUDA.CUDABackend) where {P<:CPU, D, S, DT, PAR, PARAMS, TOPO, AB}
 
     PNew = GPUCuda
     DTNew = DT <: AbstractFloat ? Float32 : DT
@@ -63,15 +63,18 @@ function toBackend(field::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}, ba
     p = NamedTuple{keys(field._p)}(
         toBackend(p, backend) for p in values(field._p)
     )
+    params = field._parameters === nothing ? nothing : toBackend(field._parameters, backend)
     t = toBackend(field.topo, backend)
     _FlagOverflow = CUDA.CuArray([false])
 
     PARNew = typeof(p)
+    PARAMSNew = typeof(params)
     TOPONew = typeof(t)
     ABNew = typeof(_FlagOverflow)
 
-    UnstructuredMeshObject{PNew, D, S, DTNew, PARNew, TOPONew, ABNew}(
+    UnstructuredMeshObject{PNew, D, S, DTNew, PARNew, PARAMSNew, TOPONew, ABNew}(
         p,
+        params,
         t,
         _FlagOverflow
     )
@@ -164,20 +167,23 @@ function Adapt.adapt_structure(to::CUDA.KernelAdaptor, field::UnstructuredMeshFi
 end
 
 # GPU kernel adaptation for UnstructuredMeshObject  
-function Adapt.adapt_structure(to::CUDA.KernelAdaptor, obj::UnstructuredMeshObject{P, D, S, DT, PAR, TOPO, AB}) where {P<:GPUCuda, D, S, DT, PAR, TOPO, AB}
+function Adapt.adapt_structure(to::CUDA.KernelAdaptor, obj::UnstructuredMeshObject{P, D, S, DT, PAR, PARAMS, TOPO, AB}) where {P<:GPUCuda, D, S, DT, PAR, PARAMS, TOPO, AB}
     _p_adapted = NamedTuple{keys(obj._p)}(
         Adapt.adapt(to, p) for p in values(obj._p)
     )
+    _params_adapted = obj._parameters === nothing ? nothing : Adapt.adapt(to, obj._parameters)
     _topology_adapted = Adapt.adapt(to, obj.topo)
     _FlagOverflow_adapted = Adapt.adapt(to, obj._FlagOverflow)
     
     return UnstructuredMeshObject{
         GPUCuDevice, D, S, DT,
         typeof(_p_adapted),
+        typeof(_params_adapted),
         typeof(_topology_adapted),
         typeof(_FlagOverflow_adapted)
     }(
         _p_adapted,
+        _params_adapted,
         _topology_adapted,
         _FlagOverflow_adapted
     )
